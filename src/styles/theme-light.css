@@ -1,0 +1,89 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   TEMA CLARO — ativado via data-theme="light" no <html>
+   NÃO altera nada do tema escuro padrão.
+═══════════════════════════════════════════════════════════════════════════ */
+
+[data-theme="light"] body {
+  background-color: #F8F9FA;
+  color: #111111;
+}
+
+/* ── Backgrounds ─────────────────────────────────────────────────────────── */
+[data-theme="light"] .bg-zinc-950    { background-color: #F8F9FA !important; }
+[data-theme="light"] .bg-zinc-900    { background-color: #ffffff !important; }
+[data-theme="light"] .bg-zinc-800    { background-color: #e5e7eb !important; }
+[data-theme="light"] .bg-zinc-700    { background-color: #d1d5db !important; }
+[data-theme="light"] .bg-zinc-600    { background-color: #9CA3AF !important; }
+
+[data-theme="light"] .bg-zinc-950\/90  { background-color: rgba(248,249,250,0.9) !important; }
+[data-theme="light"] .bg-zinc-950\/80  { background-color: rgba(248,249,250,0.8) !important; }
+[data-theme="light"] .bg-zinc-900\/80  { background-color: rgba(255,255,255,0.95) !important; }
+[data-theme="light"] .bg-zinc-900\/60  { background-color: rgba(255,255,255,0.9)  !important; }
+[data-theme="light"] .bg-zinc-900\/50  { background-color: rgba(255,255,255,0.8)  !important; }
+[data-theme="light"] .bg-zinc-900\/40  { background-color: rgba(255,255,255,0.7)  !important; }
+[data-theme="light"] .bg-zinc-800\/80  { background-color: rgba(229,231,235,0.8)  !important; }
+[data-theme="light"] .bg-zinc-800\/60  { background-color: rgba(229,231,235,0.6)  !important; }
+[data-theme="light"] .bg-zinc-800\/50  { background-color: rgba(229,231,235,0.5)  !important; }
+[data-theme="light"] .bg-zinc-800\/40  { background-color: rgba(229,231,235,0.4)  !important; }
+[data-theme="light"] .bg-zinc-800\/20  { background-color: rgba(229,231,235,0.2)  !important; }
+
+/* ── Textos ───────────────────────────────────────────────────────────────── */
+[data-theme="light"] .text-white      { color: #111111 !important; }
+[data-theme="light"] .text-zinc-50    { color: #111111 !important; }
+[data-theme="light"] .text-zinc-100   { color: #111111 !important; }
+[data-theme="light"] .text-zinc-200   { color: #374151 !important; }
+[data-theme="light"] .text-zinc-300   { color: #374151 !important; }
+[data-theme="light"] .text-zinc-400   { color: #6B7280 !important; }
+[data-theme="light"] .text-zinc-500   { color: #9CA3AF !important; }
+[data-theme="light"] .text-zinc-600   { color: #9CA3AF !important; }
+[data-theme="light"] .text-zinc-700   { color: #6B7280 !important; }
+
+/* ── Bordas ───────────────────────────────────────────────────────────────── */
+[data-theme="light"] .border-zinc-950  { border-color: #e5e7eb !important; }
+[data-theme="light"] .border-zinc-900  { border-color: #e5e7eb !important; }
+[data-theme="light"] .border-zinc-800  { border-color: #e5e7eb !important; }
+[data-theme="light"] .border-zinc-700  { border-color: #d1d5db !important; }
+[data-theme="light"] .border-zinc-600  { border-color: #d1d5db !important; }
+
+[data-theme="light"] .border-zinc-800\/80  { border-color: rgba(229,231,235,0.8) !important; }
+[data-theme="light"] .border-zinc-800\/60  { border-color: rgba(229,231,235,0.6) !important; }
+[data-theme="light"] .border-zinc-800\/40  { border-color: rgba(229,231,235,0.4) !important; }
+[data-theme="light"] .border-zinc-800\/20  { border-color: rgba(229,231,235,0.2) !important; }
+[data-theme="light"] .border-zinc-700\/60  { border-color: rgba(209,213,219,0.6) !important; }
+[data-theme="light"] .border-zinc-900\/60  { border-color: rgba(229,231,235,0.6) !important; }
+
+/* ── Hover states ─────────────────────────────────────────────────────────── */
+[data-theme="light"] .hover\:bg-zinc-950:hover  { background-color: #F3F4F6 !important; }
+[data-theme="light"] .hover\:bg-zinc-900:hover  { background-color: #F9FAFB !important; }
+[data-theme="light"] .hover\:bg-zinc-800:hover  { background-color: #e5e7eb !important; }
+[data-theme="light"] .hover\:bg-zinc-700:hover  { background-color: #d1d5db !important; }
+[data-theme="light"] .hover\:bg-zinc-800\/50:hover { background-color: rgba(229,231,235,0.5) !important; }
+[data-theme="light"] .hover\:bg-zinc-800\/60:hover { background-color: rgba(229,231,235,0.6) !important; }
+[data-theme="light"] .hover\:text-white:hover   { color: #111111 !important; }
+[data-theme="light"] .hover\:text-zinc-100:hover { color: #111111 !important; }
+[data-theme="light"] .hover\:text-zinc-200:hover { color: #374151 !important; }
+[data-theme="light"] .hover\:text-zinc-300:hover { color: #374151 !important; }
+[data-theme="light"] .hover\:border-zinc-700:hover { border-color: #d1d5db !important; }
+[data-theme="light"] .hover\:border-zinc-600:hover { border-color: #d1d5db !important; }
+
+/* ── Divisores (divide-*) ─────────────────────────────────────────────────── */
+[data-theme="light"] .divide-zinc-800 > * + * { border-color: #e5e7eb !important; }
+[data-theme="light"] .divide-zinc-700 > * + * { border-color: #d1d5db !important; }
+
+/* ── Placeholder ─────────────────────────────────────────────────────────── */
+[data-theme="light"] .placeholder-zinc-600::placeholder { color: #9CA3AF !important; }
+[data-theme="light"] .placeholder-zinc-700::placeholder { color: #9CA3AF !important; }
+[data-theme="light"] .placeholder-zinc-500::placeholder { color: #9CA3AF !important; }
+
+/* ── Focus rings ─────────────────────────────────────────────────────────── */
+[data-theme="light"] .focus\:border-zinc-700:focus { border-color: #7B2FBE !important; }
+[data-theme="light"] .focus\:border-zinc-600:focus { border-color: #7B2FBE !important; }
+
+/* ── Sombras ─────────────────────────────────────────────────────────────── */
+[data-theme="light"] .shadow-zinc-900\/30 { --tw-shadow-color: rgba(0,0,0,0.08) !important; }
+[data-theme="light"] .shadow-zinc-900\/20 { --tw-shadow-color: rgba(0,0,0,0.06) !important; }
+
+/* ── Scrollbar (opcional — torna a barra mais clara) ─────────────────────── */
+[data-theme="light"] ::-webkit-scrollbar-track  { background: #F3F4F6; }
+[data-theme="light"] ::-webkit-scrollbar-thumb  { background: #d1d5db; border-radius: 4px; }
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }

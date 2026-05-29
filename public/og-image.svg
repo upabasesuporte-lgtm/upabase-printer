@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#18181b"/>
+      <stop offset="100%" style="stop-color:#09090b"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fde68a"/>
+      <stop offset="100%" style="stop-color:#f59e0b"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Subtle grid pattern -->
+  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(245,158,11,0.06)" stroke-width="1"/>
+  </pattern>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+
+  <!-- Glow blob top-right -->
+  <ellipse cx="1050" cy="120" rx="320" ry="200" fill="rgba(245,158,11,0.08)"/>
+
+  <!-- Border accent left -->
+  <rect x="60" y="80" width="4" height="470" rx="2" fill="url(#gold)" opacity="0.6"/>
+
+  <!-- Icon circle -->
+  <circle cx="160" cy="200" r="64" fill="rgba(245,158,11,0.12)" stroke="rgba(245,158,11,0.3)" stroke-width="1.5"/>
+  <text x="160" y="215" text-anchor="middle" font-size="52" font-family="Arial">🍽️</text>
+
+  <!-- Main title -->
+  <text x="260" y="185" font-family="Arial Black, Arial" font-weight="900" font-size="72" fill="url(#gold)">Cardápio Digital</text>
+
+  <!-- Subtitle -->
+  <text x="260" y="240" font-family="Arial" font-weight="400" font-size="32" fill="#a1a1aa">Escolha seus itens e faça seu pedido online</text>
+
+  <!-- Divider -->
+  <rect x="80" y="300" width="1040" height="1" fill="rgba(255,255,255,0.06)"/>
+
+  <!-- Feature pills -->
+  <rect x="80" y="340" width="220" height="52" rx="26" fill="rgba(245,158,11,0.12)" stroke="rgba(245,158,11,0.3)" stroke-width="1"/>
+  <text x="190" y="372" text-anchor="middle" font-family="Arial" font-weight="700" font-size="22" fill="#f59e0b">🛒 Peça online</text>
+
+  <rect x="330" y="340" width="260" height="52" rx="26" fill="rgba(6,182,212,0.1)" stroke="rgba(6,182,212,0.3)" stroke-width="1"/>
+  <text x="460" y="372" text-anchor="middle" font-family="Arial" font-weight="700" font-size="22" fill="#06b6d4">⚡ Rápido e fácil</text>
+
+  <rect x="620" y="340" width="280" height="52" rx="26" fill="rgba(16,185,129,0.1)" stroke="rgba(16,185,129,0.3)" stroke-width="1"/>
+  <text x="760" y="372" text-anchor="middle" font-family="Arial" font-weight="700" font-size="22" fill="#10b981">📱 Direto no celular</text>
+
+  <!-- Bottom tagline -->
+  <text x="600" y="520" text-anchor="middle" font-family="Arial" font-weight="400" font-size="26" fill="#52525b">Acesse o link e faça seu pedido agora</text>
+
+  <!-- Bottom bar -->
+  <rect x="0" y="590" width="1200" height="40" fill="rgba(245,158,11,0.05)"/>
+  <text x="600" y="615" text-anchor="middle" font-family="Arial" font-weight="700" font-size="18" fill="rgba(245,158,11,0.5)">● CARDÁPIO DIGITAL ●</text>
+</svg>

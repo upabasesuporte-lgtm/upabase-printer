@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:omsjsgnyjjuvixwyevox.supabase.co)",
+      "PowerShell(New-Item *)",
+      "PowerShell(netstat *)",
+      "PowerShell(Get-Process *)",
+      "PowerShell(cmd /c \"dir /a C:\\\\Users\\\\WESLEY\\\\Desktop\\\\UPABASE\")",
+      "PowerShell(try { $r = Invoke-WebRequest -Uri \"http://localhost:5173\" -TimeoutSec 5 -UseBasicParsing; \"Status: $\\($r.StatusCode\\) - Tamanho: $\\($r.Content.Length\\) bytes\" } catch { \"ERRO: $_\" })",
+      "PowerShell(Start-Process \"http://localhost:5173\")",
+      "PowerShell(Get-Content *)",
+      "PowerShell(cd \"C:\\\\Users\\\\WESLEY\\\\Desktop\\\\UPABASE\"; \\(Get-Content \"src\\\\pages\\\\tables\\\\index.tsx\"\\).Count)",
+      "PowerShell(cd \"C:\\\\Users\\\\WESLEY\\\\Desktop\\\\UPABASE\"; Start-Process powershell -ArgumentList \"-NoExit\", \"-Command\", \"cd 'C:\\\\Users\\\\WESLEY\\\\Desktop\\\\UPABASE'; npm run dev\" -WindowStyle Normal)",
+      "PowerShell(Test-NetConnection *)",
+      "PowerShell(npm run *)"
+    ]
+  }
+}
