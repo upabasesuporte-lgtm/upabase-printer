@@ -439,51 +439,24 @@ export function AppLayout() {
           )}
         </nav>
 
-        {/* User + Logout */}
-        <div className="p-3 space-y-2" style={{ borderTop: `1px solid ${T.border}` }}>
-          {userEmail && (
-            <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-zinc-900/60 border border-zinc-800/60">
-              <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0"
-                style={{ boxShadow:"0 0 8px rgba(124,58,237,0.35)" }}>
-                {avatarUrl
-                  ? <img src={avatarUrl} alt="Perfil" className="w-full h-full object-cover" />
-                  : <div className="w-full h-full flex items-center justify-center font-black text-xs text-white"
-                      style={{ background:"linear-gradient(135deg,#7c3aed,#4f46e5)" }}>
-                      {userEmail.charAt(0).toUpperCase()}
-                    </div>}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] text-zinc-600 uppercase tracking-wider">Logado como</p>
-                <p className="text-xs text-zinc-300 truncate font-medium">{userEmail}</p>
-              </div>
-            </div>
-          )}
-          {/* Botão de avaliação — disponível para usuários não-admin */}
-          {userEmail !== ADMIN_EMAIL && (
-            <button
-              onClick={() => setShowReview(true)}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all text-amber-500 hover:text-amber-400 hover:bg-amber-500/10 border border-transparent hover:border-amber-500/20"
-            >
-              <MessageSquare size={15} />
-              Avaliar sistema
-            </button>
-          )}
-          {/* Toggle tema claro/escuro */}
+        {/* Rodapé minimalista — tema + sair */}
+        <div className="px-3 py-2 flex items-center gap-2" style={{ borderTop: `1px solid ${T.border}` }}>
           <button
             onClick={toggleTheme}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all border border-transparent"
+            title={isLight ? "Tema escuro" : "Tema claro"}
+            className="flex items-center justify-center w-8 h-8 rounded-lg transition-all flex-shrink-0"
             style={isLight
-              ? { color: "#7B2FBE", background: "rgba(123,47,190,0.07)", border: "1px solid rgba(123,47,190,0.2)" }
-              : { color: "#a78bfa", background: "rgba(167,139,250,0.07)", border: "1px solid rgba(167,139,250,0.2)" }}
+              ? { color: "#7B2FBE", background: "rgba(123,47,190,0.08)", border: "1px solid rgba(123,47,190,0.18)" }
+              : { color: "#a78bfa", background: "rgba(167,139,250,0.08)", border: "1px solid rgba(167,139,250,0.18)" }}
           >
-            {isLight ? <Moon size={15} /> : <Sun size={15} />}
-            {isLight ? "Tema escuro" : "Tema claro"}
+            {isLight ? <Moon size={14} /> : <Sun size={14} />}
           </button>
 
           <button onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all text-zinc-500 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20">
-            <LogOut size={15} />
-            Sair
+            title="Sair"
+            className="flex items-center justify-center w-8 h-8 rounded-lg transition-all text-zinc-500 hover:text-red-400 hover:bg-red-500/10 flex-shrink-0"
+            style={{ border: "1px solid transparent" }}>
+            <LogOut size={14} />
           </button>
         </div>
       </aside>
