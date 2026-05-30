@@ -1235,51 +1235,52 @@ export default function PublicMenuPage() {
         )}
       </div>
 
-      {/* Search */}
-      <div className="px-4 pb-3">
-        <div className="relative">
-          <Search className="w-4 h-4 text-teal-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar no cardápio..."
-            className="w-full px-4 py-2.5 pl-10 bg-zinc-900 border border-zinc-800 rounded-2xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-teal-500 transition-all"
-          />
-          {search && (
-            <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white">
-              <X className="w-4 h-4" />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Category tabs */}
-      {visibleCats.length > 0 && (
-        <div className="px-4 pb-3 overflow-x-auto scrollbar-none">
-          <div className="flex gap-2 min-w-max">
-            <button
-              onClick={() => setActiveCat("all")}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
-                activeCat === "all" ? "text-white" : "bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800"
-              }`}
-              style={activeCat === "all" ? { background:"linear-gradient(135deg,#14b8a6,#0d9488)", boxShadow:"0 3px 12px rgba(13,148,136,0.4)" } : {}}
-            >
-              Todos
-            </button>
-            {visibleCats.map(cat => (
-              <button
-                key={cat.id}
-                onClick={() => setActiveCat(cat.id)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
-                  activeCat === cat.id ? "text-white" : "bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800"
-                }`}
-                style={activeCat === cat.id ? { background:"linear-gradient(135deg,#14b8a6,#0d9488)", boxShadow:"0 3px 12px rgba(13,148,136,0.4)" } : {}}
-              >
-                {cat.name}
+      {/* Search + Category tabs — sticky */}
+      <div className="sticky top-0 z-20 bg-zinc-950/95 backdrop-blur pt-2 pb-2 border-b border-zinc-800/60">
+        <div className="px-4 pb-2">
+          <div className="relative">
+            <Search className="w-4 h-4 text-teal-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Buscar no cardápio..."
+              className="w-full px-4 py-2.5 pl-10 bg-zinc-900 border border-zinc-800 rounded-2xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-teal-500 transition-all"
+            />
+            {search && (
+              <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white">
+                <X className="w-4 h-4" />
               </button>
-            ))}
+            )}
           </div>
         </div>
-      )}
+
+        {visibleCats.length > 0 && (
+          <div className="px-4 overflow-x-auto scrollbar-none">
+            <div className="flex gap-2 min-w-max">
+              <button
+                onClick={() => setActiveCat("all")}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
+                  activeCat === "all" ? "text-white" : "bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800"
+                }`}
+                style={activeCat === "all" ? { background:"linear-gradient(135deg,#14b8a6,#0d9488)", boxShadow:"0 3px 12px rgba(13,148,136,0.4)" } : {}}
+              >
+                Todos
+              </button>
+              {visibleCats.map(cat => (
+                <button
+                  key={cat.id}
+                  onClick={() => setActiveCat(cat.id)}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
+                    activeCat === cat.id ? "text-white" : "bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800"
+                  }`}
+                  style={activeCat === cat.id ? { background:"linear-gradient(135deg,#14b8a6,#0d9488)", boxShadow:"0 3px 12px rgba(13,148,136,0.4)" } : {}}
+                >
+                  {cat.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Closed banner */}
       {!isOpen && (
