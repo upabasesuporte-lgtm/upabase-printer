@@ -782,11 +782,26 @@ export default function TablesPage() {
               { label: "Ocupadas",       value: stats.occupied,    color: "#f59e0b", glow: "rgba(245,158,11,0.15)" },
               { label: "Reservadas",     value: stats.reserved,    color: "#3b82f6", glow: "rgba(59,130,246,0.13)" },
             ].map(s => (
-              <div key={s.label} className="relative overflow-hidden rounded-2xl p-5"
-                style={{ background: card.bg, border: card.border, boxShadow: isLight ? card.shadow : `0 0 28px ${s.glow}` }}>
-                <div className="absolute -top-8 -right-8 w-24 h-24 rounded-full opacity-20 blur-2xl pointer-events-none"
-                  style={{ background: s.color }} />
-                <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-2 relative z-10">{s.label}</p>
+              <div key={s.label} className="relative overflow-hidden rounded-2xl p-4"
+                style={isLight ? {
+                  background: `linear-gradient(135deg,#ffffff,${s.color}08)`,
+                  border: `1px solid ${s.color}28`,
+                  boxShadow: `0 2px 8px rgba(0,0,0,0.05), 0 4px 20px ${s.color}14, inset 0 1px 0 rgba(255,255,255,0.9)`,
+                  borderTop: `3px solid ${s.color}`,
+                } : {
+                  background: card.bg, border: card.border,
+                  boxShadow: `0 0 28px ${s.glow}`,
+                }}>
+                {isLight && (
+                  <div className="absolute -bottom-6 -right-6 w-20 h-20 rounded-full opacity-10 blur-2xl pointer-events-none"
+                    style={{ background: s.color }} />
+                )}
+                {!isLight && (
+                  <div className="absolute -top-8 -right-8 w-24 h-24 rounded-full opacity-20 blur-2xl pointer-events-none"
+                    style={{ background: s.color }} />
+                )}
+                <p className="text-[10px] font-semibold uppercase tracking-widest mb-2 relative z-10"
+                  style={{ color: isLight ? s.color : "#71717a" }}>{s.label}</p>
                 <p className="text-3xl font-black relative z-10" style={{ color: s.color }}>{s.value}</p>
               </div>
             ))}
@@ -809,44 +824,70 @@ export default function TablesPage() {
                 const cfg = STATUS_CFG[table.status] ?? fallbackCfg;
                 return (
                   <button key={table.id} onClick={() => enterTable(table)}
-                    className="relative overflow-hidden flex flex-col items-center gap-3 p-5 rounded-2xl border border-zinc-800/80 transition-all hover:scale-[1.04] active:scale-95 cursor-pointer min-h-[160px]"
-                    style={{
+                    className="relative overflow-hidden flex flex-col items-center gap-2.5 rounded-2xl transition-all hover:scale-[1.03] active:scale-95 cursor-pointer"
+                    style={isLight ? {
+                      padding: "16px 12px",
+                      minHeight: 130,
+                      background: `linear-gradient(160deg,#ffffff,${cfg.hex}10)`,
+                      border: `1px solid ${cfg.hex}30`,
+                      boxShadow: `0 2px 8px rgba(0,0,0,0.05), 0 6px 20px ${cfg.hex}18, inset 0 1px 0 rgba(255,255,255,1)`,
+                      borderTop: `3px solid ${cfg.hex}`,
+                    } : {
+                      padding: "20px",
+                      minHeight: 160,
                       background: table.status === "free"
                         ? "linear-gradient(135deg,#059669,#10b981)"
                         : "linear-gradient(135deg,#18181b 0%,#09090b 100%)",
                       boxShadow: table.status === "free"
                         ? "0 8px 32px rgba(16,185,129,0.45), inset 0 1px 0 rgba(255,255,255,0.15)"
                         : `0 0 24px ${cfg.glow}, inset 0 1px 0 rgba(255,255,255,0.04)`,
+                      border: "1px solid rgba(63,63,70,0.8)",
                     }}>
-                    {/* Glow orb */}
-                    <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-32 h-16 rounded-full opacity-25 blur-2xl pointer-events-none"
-                      style={{ background: table.status === "free" ? "rgba(255,255,255,0.4)" : cfg.hex }} />
-                    {/* Status pulse dot */}
-                    <div className="absolute top-3 right-3 w-2 h-2 rounded-full"
+                    {/* Glow orb — dark only */}
+                    {!isLight && (
+                      <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-32 h-16 rounded-full opacity-25 blur-2xl pointer-events-none"
+                        style={{ background: table.status === "free" ? "rgba(255,255,255,0.4)" : cfg.hex }} />
+                    )}
+                    {/* Status dot */}
+                    <div className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full"
                       style={{
-                        background: table.status === "free" ? "rgba(255,255,255,0.8)" : cfg.hex,
-                        boxShadow: table.status === "free" ? "0 0 8px rgba(255,255,255,0.6)" : `0 0 8px ${cfg.hex}`,
+                        background: isLight ? cfg.hex : (table.status === "free" ? "rgba(255,255,255,0.8)" : cfg.hex),
+                        boxShadow: isLight ? `0 0 6px ${cfg.hex}` : (table.status === "free" ? "0 0 8px rgba(255,255,255,0.6)" : `0 0 8px ${cfg.hex}`),
                       }} />
                     {/* Icon */}
-                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center relative z-10 mt-1"
-                      style={{
+                    <div className="flex items-center justify-center relative z-10 mt-1"
+                      style={isLight ? {
+                        width: 44, height: 44, borderRadius: 12,
+                        background: `${cfg.hex}12`,
+                        border: `1px solid ${cfg.hex}25`,
+                      } : {
+                        width: 56, height: 56, borderRadius: 16,
                         background: table.status === "free" ? "rgba(255,255,255,0.2)" : `${cfg.hex}14`,
                         border: table.status === "free" ? "1px solid rgba(255,255,255,0.35)" : `1px solid ${cfg.hex}30`,
                         boxShadow: table.status === "free" ? "0 0 20px rgba(255,255,255,0.15)" : `0 0 20px ${cfg.hex}20`,
                       }}>
-                      <UtensilsCrossed className="w-6 h-6" style={{
+                      <UtensilsCrossed style={isLight ? { width: 18, height: 18, color: cfg.hex } : {
+                        width: 24, height: 24,
                         color: table.status === "free" ? "#fff" : cfg.hex,
                         filter: table.status === "free" ? "drop-shadow(0 0 5px rgba(255,255,255,0.6))" : `drop-shadow(0 0 5px ${cfg.hex})`,
                       }} />
                     </div>
                     {/* Table info */}
                     <div className="text-center relative z-10 flex-1 flex flex-col justify-center gap-0.5">
-                      <p className="text-sm font-bold leading-tight text-white">{table.name}</p>
-                      <p className="text-[10px]" style={{ color: table.status === "free" ? "rgba(255,255,255,0.65)" : "#52525b" }}>{table.capacity} lugares · {table.area}</p>
+                      <p className="font-bold leading-tight"
+                        style={{ fontSize: isLight ? 13 : 14, color: isLight ? "#0f172a" : "#fff" }}>{table.name}</p>
+                      <p style={{ fontSize: 10, color: isLight ? `${cfg.hex}99` : (table.status === "free" ? "rgba(255,255,255,0.65)" : "#52525b") }}>
+                        {table.capacity} lug · {table.area}
+                      </p>
                     </div>
                     {/* Status badge */}
-                    <span className="text-[10px] font-bold px-3 py-1 rounded-full relative z-10"
-                      style={{
+                    <span className="font-bold px-2.5 py-0.5 rounded-full relative z-10"
+                      style={isLight ? {
+                        fontSize: 10, color: cfg.hex,
+                        background: `${cfg.hex}12`,
+                        border: `1px solid ${cfg.hex}30`,
+                      } : {
+                        fontSize: 10,
                         color: table.status === "free" ? "#fff" : cfg.hex,
                         background: table.status === "free" ? "rgba(255,255,255,0.2)" : `${cfg.hex}12`,
                         border: table.status === "free" ? "1px solid rgba(255,255,255,0.35)" : `1px solid ${cfg.hex}35`,
