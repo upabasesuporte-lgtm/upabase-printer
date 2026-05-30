@@ -5,7 +5,7 @@ import {
   ShoppingCart, Plus, Minus, X, Search, Clock, CheckCircle2,
   ChefHat, MapPin, Phone, User, ChevronRight, AlertCircle,
   Truck, UtensilsCrossed, ArrowLeft, Send, MessageSquare,
-  Banknote, CreditCard, QrCode, Package, ChevronDown,
+  Banknote, CreditCard, QrCode, Package, ChevronDown, ExternalLink,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -164,6 +164,13 @@ export default function PublicMenuPage() {
   const [activeCat, setActiveCat]   = useState("all");
   const [search, setSearch]         = useState("");
   const [cart, setCart]             = useState<CartItem[]>([]);
+  // Pedido salvo localmente para o cliente conseguir voltar ao acompanhamento
+  const [savedOrder, setSavedOrder] = useState<{ orderId: string; orderNumber: string } | null>(() => {
+    try {
+      const raw = localStorage.getItem(`upabase_order_${window.location.pathname.split("/")[2]}`);
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  });
 
   // configure step
   const [configProduct, setConfigProduct] = useState<Product | null>(null);
@@ -467,6 +474,14 @@ export default function PublicMenuPage() {
       setFormError("Erro ao enviar pedido. Tente novamente.");
       return;
     }
+
+    // Salva no localStorage para o cliente conseguir retornar ao acompanhamento
+    try {
+      localStorage.setItem(`upabase_order_${uid}`, JSON.stringify({
+        orderId: orderRow.id,
+        orderNumber: orderRow.order_number ?? "",
+      }));
+    } catch {}
 
     // Navigate before any state change — component unmounts cleanly, no DOM reconciliation
     navigate(`/menu/${uid}/pedido/${orderRow.id}`);
@@ -1233,7 +1248,38 @@ export default function PublicMenuPage() {
             <MapPin className="w-3.5 h-3.5 flex-shrink-0 text-teal-400" /> {settings.address}
           </p>
         )}
+        {/* WhatsApp de atendimento */}
+        {settings.whatsapp && (
+          <a
+            href={`https://wa.me/55${settings.whatsapp.replace(/\D/g,"")}`}
+            target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full text-xs font-semibold transition-all"
+            style={{ background:"rgba(37,211,102,0.12)", color:"#25d366", border:"1px solid rgba(37,211,102,0.25)" }}>
+            <Phone className="w-3 h-3" /> Falar no WhatsApp
+          </a>
+        )}
       </div>
+
+      {/* Banner de retorno ao acompanhamento do pedido */}
+      {savedOrder && (
+        <div className="mx-4 mb-3 flex items-center gap-3 rounded-2xl px-4 py-3"
+          style={{ background:"rgba(20,184,166,0.1)", border:"1px solid rgba(20,184,166,0.3)" }}>
+          <Package className="w-4 h-4 text-teal-400 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-teal-300">Você tem um pedido em andamento</p>
+            <p className="text-[11px] text-zinc-500">#{savedOrder.orderNumber}</p>
+          </div>
+          <button
+            onClick={() => navigate(`/menu/${uid}/pedido/${savedOrder.orderId}`)}
+            className="flex items-center gap-1 text-xs font-bold text-teal-400 flex-shrink-0">
+            Ver <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+          <button onClick={() => { setSavedOrder(null); try { localStorage.removeItem(`upabase_order_${uid}`); } catch {} }}
+            className="text-zinc-600 hover:text-zinc-400">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Search + Category tabs — sticky */}
       <div className="sticky top-0 z-20 bg-zinc-950/95 backdrop-blur pt-2 pb-2 border-b border-zinc-800/60">

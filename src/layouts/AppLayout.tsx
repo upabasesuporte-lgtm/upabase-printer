@@ -149,6 +149,9 @@ export function AppLayout() {
   const [avatarUploading, setAvatarUploading] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
+  // Badge de pedidos pendentes no Cardápio Digital
+  const [digitalPending, setDigitalPending] = useState(0);
+
   // Relógio
   const [now, setNow] = useState(new Date());
 
@@ -307,6 +310,69 @@ export function AppLayout() {
     return () => clearInterval(id);
   }, [userId, loadHeaderData]);
 
+  // ── Pedidos digitais pendentes — badge + alarme de qualquer aba ──────────
+  useEffect(() => {
+    if (!userId) return;
+
+    // Carrega contagem inicial de pedidos pendentes
+    supabase.from("digital_orders")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("status", "pending")
+      .then(({ count }) => { if (count) setDigitalPending(count); });
+
+    // Beep simples (diferente do alarme completo do cardápio digital)
+    function pingBeep() {
+      try {
+        const ctx = new ((window as any).AudioContext || (window as any).webkitAudioContext)();
+        const play = () => {
+          [880, 1100].forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.type = "sine"; osc.frequency.value = freq;
+            const t = ctx.currentTime + i * 0.18;
+            gain.gain.setValueAtTime(0, t);
+            gain.gain.linearRampToValueAtTime(0.25, t + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+            osc.start(t); osc.stop(t + 0.4);
+          });
+        };
+        ctx.state === "suspended" ? ctx.resume().then(play) : play();
+      } catch {}
+    }
+
+    const ch = supabase.channel("layout-dm-orders")
+      .on("postgres_changes", {
+        event: "INSERT", schema: "public",
+        table: "digital_orders", filter: `user_id=eq.${userId}`,
+      }, () => {
+        setDigitalPending(n => n + 1);
+        // Só toca aqui se o usuário NÃO estiver na aba do cardápio digital
+        if (!window.location.pathname.includes("/digital-menu")) {
+          pingBeep();
+        }
+      })
+      .on("postgres_changes", {
+        event: "UPDATE", schema: "public",
+        table: "digital_orders", filter: `user_id=eq.${userId}`,
+      }, (p) => {
+        // Pedido aceito/cancelado → reduz contador
+        const newStatus = (p.new as any).status;
+        if (newStatus !== "pending") {
+          setDigitalPending(n => Math.max(0, n - 1));
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(ch); };
+  }, [userId]);
+
+  // Zera badge ao entrar na aba do cardápio digital
+  useEffect(() => {
+    if (location.pathname === "/digital-menu") setDigitalPending(0);
+  }, [location.pathname]);
+
   async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file || !userId) return;
@@ -411,7 +477,14 @@ export function AppLayout() {
                       <Icon size={16} />
                     </span>
                     <span>{item.label}</span>
-                    {isActive && (
+                    {/* Badge de pedidos pendentes no Cardápio Digital */}
+                    {item.path === "/digital-menu" && digitalPending > 0 && (
+                      <span className="ml-auto flex-shrink-0 min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] font-black text-white animate-pulse"
+                        style={{ background: "#f43f5e", boxShadow: "0 0 8px rgba(244,63,94,0.6)", padding: "0 4px" }}>
+                        {digitalPending}
+                      </span>
+                    )}
+                    {isActive && digitalPending === 0 && (
                       <span className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0"
                         style={{ background: item.color, boxShadow:`0 0 6px ${item.color}` }} />
                     )}
