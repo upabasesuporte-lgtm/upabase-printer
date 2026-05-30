@@ -12,12 +12,12 @@ const SUPABASE_KEY    = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
 // Mapa: preapproval_plan_id do MP → plan_type do sistema
 const MP_PLAN_MAP: Record<string, string> = {
-  "CONFIGURE_MP_ID_LOJA_MENSAL":     "loja",
-  "CONFIGURE_MP_ID_LOJA_ANUAL":      "loja",
-  "CONFIGURE_MP_ID_DELIVERY_MENSAL": "delivery",
-  "CONFIGURE_MP_ID_DELIVERY_ANUAL":  "delivery",
-  "CONFIGURE_MP_ID_PRO_MENSAL":      "pro",
-  "CONFIGURE_MP_ID_PRO_ANUAL":       "pro",
+  "972256de953c4c65b3ee06365d1f0808": "loja",      // Loja Mensal
+  "a3716e086f1b425e832657a2576e54ca": "loja",      // Loja Anual
+  "c54f782a2ca144f3b277b00e8fad57a6": "delivery",  // Delivery Mensal
+  "76f5b3dd887c4a34916da685289c2eaa": "delivery",  // Delivery Anual
+  "a9f190a3ee544a33b9d0287446d2ba77": "pro",       // Pro Mensal
+  "d729eedfaa7b4bbaac2f07029d21b8d4": "pro",       // Pro Anual
 };
 
 serve(async (req) => {
@@ -67,7 +67,8 @@ serve(async (req) => {
   if (status === "authorized") {
     // Assinatura ativa — calcula expiração (1 mês ou 1 ano dependendo do plano)
     const expiresAt = new Date();
-    const isAnnual = planId?.includes("ANUAL") || planId?.includes("anual");
+    const annualIds = ["a3716e086f1b425e832657a2576e54ca","76f5b3dd887c4a34916da685289c2eaa","d729eedfaa7b4bbaac2f07029d21b8d4"];
+    const isAnnual = planId ? annualIds.includes(planId) : false;
     isAnnual ? expiresAt.setFullYear(expiresAt.getFullYear() + 1)
              : expiresAt.setMonth(expiresAt.getMonth() + 1);
 

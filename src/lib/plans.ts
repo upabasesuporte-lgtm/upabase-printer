@@ -61,8 +61,8 @@ export const PLAN_INFO: Record<PlanType, {
       'Relatórios',
       'Configurações',
     ],
-    mp_id_monthly: 'CONFIGURE_MP_ID_LOJA_MENSAL',
-    mp_id_annual:  'CONFIGURE_MP_ID_LOJA_ANUAL',
+    mp_id_monthly: '972256de953c4c65b3ee06365d1f0808',
+    mp_id_annual:  'a3716e086f1b425e832657a2576e54ca',
   },
   delivery: {
     label: 'Plano Delivery',
@@ -80,8 +80,8 @@ export const PLAN_INFO: Record<PlanType, {
       'Notificações de novos pedidos',
       'Impressão de comanda',
     ],
-    mp_id_monthly: 'CONFIGURE_MP_ID_DELIVERY_MENSAL',
-    mp_id_annual:  'CONFIGURE_MP_ID_DELIVERY_ANUAL',
+    mp_id_monthly: 'c54f782a2ca144f3b277b00e8fad57a6',
+    mp_id_annual:  '76f5b3dd887c4a34916da685289c2eaa',
   },
   pro: {
     label: 'Plano Pro',
@@ -98,8 +98,8 @@ export const PLAN_INFO: Record<PlanType, {
       'Comandas por mesa',
       'Histórico por mesa',
     ],
-    mp_id_monthly: 'CONFIGURE_MP_ID_PRO_MENSAL',
-    mp_id_annual:  'CONFIGURE_MP_ID_PRO_ANUAL',
+    mp_id_monthly: 'a9f190a3ee544a33b9d0287446d2ba77',
+    mp_id_annual:  'd729eedfaa7b4bbaac2f07029d21b8d4',
   },
 };
 
