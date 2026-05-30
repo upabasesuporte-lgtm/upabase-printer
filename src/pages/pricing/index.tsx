@@ -128,43 +128,17 @@ export default function PricingPage() {
   return (
     <div style={{ background: "#F8F9FA", minHeight: "100vh", fontFamily: "inherit", overflowX: "hidden" }}>
 
-      {/* ── Nav ─────────────────────────────────────────────────────────────── */}
-      <nav style={{
-        position: "sticky", top: 0, zIndex: 50,
-        background: "rgba(248,249,250,0.9)", backdropFilter: "blur(12px)",
-        borderBottom: "1px solid rgba(0,0,0,0.06)",
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "12px 24px",
-      }}>
-        <img
-          src="https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/ChatGPT%20Image%2021%20de%20mai.%20de%202026,%2019_48_48.png"
-          alt="Logo" style={{ height: 52, width: "auto" }}
-        />
-        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          <Link to="/auth" style={{ fontSize: 13, fontWeight: 600, color: "#6B7280", textDecoration: "none" }}>
-            Entrar
-          </Link>
-          <Link to="/auth?register=1" style={{
-            fontSize: 13, fontWeight: 700, color: "#fff",
-            background: GRAD, padding: "8px 18px", borderRadius: 10,
-            textDecoration: "none", boxShadow: "0 2px 10px rgba(123,47,190,0.3)",
-          }}>
-            Testar grátis
-          </Link>
-        </div>
-      </nav>
-
       {/* ── Hero ────────────────────────────────────────────────────────────── */}
       <section className="pricing-hero" style={{
         textAlign: "center",
-        padding: "16px 1rem 0",
+        padding: "40px 1rem 0",
         background: "linear-gradient(180deg,rgba(123,47,190,0.04) 0%,transparent 100%)",
       }}>
-        {/* Logo grande */}
+        {/* Logo centralizada */}
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 8 }}>
           <img
             src="https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/ChatGPT%20Image%2021%20de%20mai.%20de%202026,%2019_48_48.png"
-            alt="Logo" style={{ height: 100, width: "auto" }}
+            alt="Logo" style={{ height: 180, width: "auto" }}
           />
         </div>
 
