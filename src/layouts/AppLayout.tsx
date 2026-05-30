@@ -1,7 +1,9 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { Outlet, NavLink, useNavigate, useLocation, Navigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useTheme } from "../contexts/ThemeContext";
+import { UserPlanRecord, isPlanValid, isRouteAllowed, PLAN_ROUTES, PlanType } from "../lib/plans";
+import { PlanBlock } from "../components/PlanBlock";
 
 import {
   LayoutDashboard,
@@ -58,11 +60,7 @@ function timeSince(dateStr: string): string {
   return m > 0 ? `${h}h${m}min` : `${h}h`;
 }
 
-interface UserPlanRecord {
-  plan: "trial" | "active" | "lifetime" | "suspended";
-  plan_expires_at: string | null;
-  is_lifetime: boolean;
-}
+// UserPlanRecord vem de src/lib/plans.ts
 
 function daysLeftFromNow(expiresAt: string | null, isLifetime: boolean): number | null {
   if (isLifetime) return null;
@@ -127,6 +125,7 @@ function PlanBadge({ plan }: { plan: UserPlanRecord }) {
 
 export function AppLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { theme, toggleTheme } = useTheme();
   const isLight = theme === "light";
 
@@ -213,6 +212,24 @@ export function AppLayout() {
         await processInvite(pendingInvite, uid);
       }
 
+      // Auto-criar trial de 15 dias para novos usuários
+      const { data: existingPlan } = await supabase
+        .from("user_plans")
+        .select("id")
+        .eq("user_id", uid)
+        .maybeSingle();
+      if (!existingPlan) {
+        const trialEnd = new Date();
+        trialEnd.setDate(trialEnd.getDate() + 15);
+        await supabase.from("user_plans").insert({
+          user_id: uid,
+          email: data.user.email,
+          plan: "trial",
+          plan_expires_at: trialEnd.toISOString(),
+          is_lifetime: false,
+        });
+      }
+
       setLoading(false);
     }
     checkAuth();
@@ -242,7 +259,7 @@ export function AppLayout() {
         .select("status")
         .eq("is_active", true),
       supabase.from("user_plans")
-        .select("plan, plan_expires_at, is_lifetime")
+        .select("plan, plan_expires_at, is_lifetime, plan_type, mp_subscription_id")
         .eq("user_id", uid)
         .maybeSingle(),
       supabase.from("store_settings")
@@ -325,6 +342,29 @@ export function AppLayout() {
   const timeStr = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   const dateStr = now.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" });
 
+  // ── Controle de plano ─────────────────────────────────────────────────────
+  const isAdmin = userEmail === ADMIN_EMAIL;
+
+  // Rota atual (primeiro segmento: "/" | "/cash" | "/digital-menu" ...)
+  const currentPath = (() => {
+    const seg = location.pathname.replace(/^\//, "").split("/")[0];
+    return seg ? `/${seg}` : "/";
+  })();
+
+  // Itens do menu visíveis para o plano do usuário
+  const visibleMenuItems = menuItems.filter(item => {
+    if (isAdmin) return true;
+    if (!userPlan || !isPlanValid(userPlan)) return false;
+    if (userPlan.is_lifetime || userPlan.plan === "trial") return true;
+    if (!userPlan.plan_type) return true;
+    return PLAN_ROUTES[userPlan.plan_type as PlanType]?.includes(item.path) ?? false;
+  });
+
+  // O plano está inválido (expirado ou suspenso)?
+  const planBlocked = !isAdmin && !isPlanValid(userPlan);
+  // A rota atual está liberada para o plano?
+  const routeBlocked = !isAdmin && !planBlocked && !isRouteAllowed(currentPath, userPlan);
+
   return (
     <div className="h-screen flex overflow-hidden" style={{ background: T.pageBg, color: T.text }}>
 
@@ -343,7 +383,7 @@ export function AppLayout() {
 
         {/* Nav */}
         <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-          {menuItems.map((item) => {
+          {visibleMenuItems.map((item) => {
             const Icon = item.icon;
             return (
               <NavLink
@@ -607,7 +647,12 @@ export function AppLayout() {
 
         <div className="flex-1 overflow-auto min-h-0">
           <div className="p-6 min-h-full">
-            <Outlet />
+            {planBlocked
+              ? <PlanBlock plan={userPlan} userEmail={userEmail} onLogout={handleLogout} />
+              : routeBlocked
+                ? <Navigate to="/" replace />
+                : <Outlet />
+            }
           </div>
         </div>
       </main>
