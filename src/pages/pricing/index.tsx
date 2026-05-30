@@ -157,14 +157,14 @@ export default function PricingPage() {
       {/* ── Hero ────────────────────────────────────────────────────────────── */}
       <section className="pricing-hero" style={{
         textAlign: "center",
-        padding: "64px 1rem 0",
+        padding: "16px 1rem 0",
         background: "linear-gradient(180deg,rgba(123,47,190,0.04) 0%,transparent 100%)",
       }}>
         {/* Logo grande */}
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 8 }}>
           <img
             src="https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/ChatGPT%20Image%2021%20de%20mai.%20de%202026,%2019_48_48.png"
-            alt="Logo" style={{ height: 160, width: "auto" }}
+            alt="Logo" style={{ height: 100, width: "auto" }}
           />
         </div>
 
@@ -172,7 +172,7 @@ export default function PricingPage() {
         <div style={{
           display: "inline-flex", alignItems: "center", gap: 6,
           background: "rgba(123,47,190,0.08)", border: "1px solid rgba(123,47,190,0.2)",
-          borderRadius: 999, padding: "5px 14px", marginBottom: 20,
+          borderRadius: 999, padding: "5px 14px", marginBottom: 12,
         }}>
           <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#10b981", display: "inline-block" }} />
           <span style={{ fontSize: 12, fontWeight: 600, color: PRIMARY }}>15 dias grátis · Sem cartão</span>
