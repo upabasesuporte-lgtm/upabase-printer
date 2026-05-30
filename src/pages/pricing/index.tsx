@@ -135,7 +135,7 @@ export default function PricingPage() {
         background: "linear-gradient(180deg,rgba(123,47,190,0.04) 0%,transparent 100%)",
       }}>
         {/* Logo centralizada */}
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 4 }}>
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: -24 }}>
           <img
             src="https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/ChatGPT%20Image%2021%20de%20mai.%20de%202026,%2019_48_48.png"
             alt="Logo" style={{ height: 240, width: "auto" }}
