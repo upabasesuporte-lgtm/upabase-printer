@@ -141,6 +141,7 @@ export function AppLayout() {
     nameGrad:  isLight ? "linear-gradient(135deg,#7B2FBE,#00B4D8)" : "linear-gradient(135deg,#c4b5fd,#a78bfa)",
   };
   const [loading,         setLoading]         = useState(true);
+  const [planReady,       setPlanReady]       = useState(false); // evita flash do PlanBlock antes dos dados carregarem
   const [userEmail,       setUserEmail]       = useState<string | null>(null);
   const [userId,          setUserId]          = useState<string | null>(null);
   const [showReview,      setShowReview]      = useState(false);
@@ -308,6 +309,7 @@ export function AppLayout() {
     } else {
       setUserPlan(null);
     }
+    setPlanReady(true); // dados do plano carregados — libera o gate
 
     setCompanyName((settingsRes.data as { name?: string } | null)?.name ?? null);
   }, []);
@@ -708,11 +710,13 @@ export function AppLayout() {
 
         <div className="flex-1 overflow-auto min-h-0">
           <div className="p-6 min-h-full">
-            {planBlocked
-              ? <PlanBlock plan={userPlan} userEmail={userEmail} onLogout={handleLogout} />
-              : routeBlocked
-                ? <Navigate to="/" replace />
-                : <Outlet />
+            {!planReady
+              ? <Outlet />
+              : planBlocked
+                ? <PlanBlock plan={userPlan} userEmail={userEmail} onLogout={handleLogout} />
+                : routeBlocked
+                  ? <Navigate to="/" replace />
+                  : <Outlet />
             }
           </div>
         </div>
