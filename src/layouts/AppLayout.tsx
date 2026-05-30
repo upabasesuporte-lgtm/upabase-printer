@@ -510,7 +510,7 @@ export function AppLayout() {
               <Clock className="w-3.5 h-3.5 text-zinc-600 flex-shrink-0" />
               <span className="text-sm font-bold tabular-nums tracking-tight"
                 style={isLight
-                  ? { color: "#7B2FBE" }
+                  ? { color: "#7B2FBE", WebkitTextFillColor: "#7B2FBE", backgroundClip: "unset", WebkitBackgroundClip: "unset", background: "none" }
                   : { background: "linear-gradient(135deg,#c4b5fd,#67e8f9)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text" }}>
                 {timeStr}
               </span>
@@ -582,7 +582,7 @@ export function AppLayout() {
                 <span className="text-[9px] text-zinc-600 uppercase tracking-widest mb-1">Estabelecimento</span>
                 <span className="font-black leading-none"
                   style={isLight
-                    ? { fontSize: 15, color: "#7B2FBE" }
+                    ? { fontSize: 15, color: "#7B2FBE", WebkitTextFillColor: "#7B2FBE", backgroundClip: "unset", WebkitBackgroundClip: "unset", background: "none" }
                     : { fontSize: 15, background: "linear-gradient(135deg,#c4b5fd,#a78bfa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
                   {companyName}
                 </span>
