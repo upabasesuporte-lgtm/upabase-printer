@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+﻿import { useState, useEffect, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
@@ -130,7 +130,7 @@ function KpiCard({ label, value, sub, icon, change, changeLabel, from: gFrom, to
           <div className="p-2 rounded-xl" style={{ background:`${gFrom}18`, border:`1px solid ${gFrom}30` }}>{icon}</div>
         </div>
         <div className="text-2xl font-black tabular-nums"
-          style={{ background:`linear-gradient(135deg,${gFrom},${gTo})`, WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text" }}>
+          style={{ background:`linear-gradient(135deg,${gFrom},${gTo})`, WebkitBackgroundClip:"text", display:"inline-block",WebkitTextFillColor:"transparent", backgroundClip:"text" }}>
           {value}
         </div>
         {sub && <p className="text-[11px] mt-1" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>{sub}</p>}

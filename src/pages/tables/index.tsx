@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+﻿import { useState, useEffect, useCallback } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
@@ -730,7 +730,7 @@ export default function TablesPage() {
                   <span className="text-[11px] font-semibold uppercase tracking-widest" style={{color:"#f43f5e"}}>Salão</span>
                 </div>
                 <h1 className="text-2xl font-black"
-                  style={{background: isLight ? "linear-gradient(135deg,#be123c,#f43f5e)" : "linear-gradient(135deg,#fda4af,#fb7185)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text"}}>
+                  style={{background: isLight ? "linear-gradient(135deg,#be123c,#f43f5e)" : "linear-gradient(135deg,#fda4af,#fb7185)", WebkitBackgroundClip:"text", display:"inline-block",WebkitTextFillColor:"transparent", backgroundClip:"text"}}>
                   Mesas
                 </h1>
                 <p className="text-xs text-zinc-500 mt-0.5">

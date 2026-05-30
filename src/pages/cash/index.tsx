@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+﻿import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
 import {
@@ -436,7 +436,7 @@ export default function CashPage() {
                   <Lock className="w-9 h-9" style={{color:"#10b981"}} />
                 </div>
                 <h2 className="text-2xl font-black mb-2"
-                  style={{background: isLight ? "linear-gradient(135deg,#059669,#10b981)" : "linear-gradient(135deg,#6ee7b7,#34d399)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text"}}>
+                  style={{background: isLight ? "linear-gradient(135deg,#059669,#10b981)" : "linear-gradient(135deg,#6ee7b7,#34d399)", WebkitBackgroundClip:"text", display:"inline-block",WebkitTextFillColor:"transparent", backgroundClip:"text"}}>
                   Caixa Fechado
                 </h2>
                 <p className="text-zinc-500 text-sm mb-8 leading-relaxed">
@@ -489,7 +489,7 @@ export default function CashPage() {
               <span className="text-[11px] font-semibold uppercase tracking-widest" style={{color:"#10b981"}}>Caixa Aberto</span>
             </div>
             <h1 className="text-2xl font-black"
-              style={{background: "linear-gradient(135deg,#7B2FBE,#00B4D8)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text"}}>
+              style={{background: "linear-gradient(135deg,#7B2FBE,#00B4D8)", WebkitBackgroundClip:"text", display:"inline-block",WebkitTextFillColor:"transparent", backgroundClip:"text"}}>
               Controle de Caixa
             </h1>
             <p className="text-xs text-zinc-500 mt-0.5">

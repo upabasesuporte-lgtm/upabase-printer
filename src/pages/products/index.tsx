@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+﻿import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
 import {
@@ -804,7 +804,7 @@ export default function ProductsPage() {
               <span className="text-[11px] font-semibold uppercase tracking-widest" style={{color:"#10b981"}}>Catálogo</span>
             </div>
             <h1 className="text-2xl font-black"
-              style={{background: isLight ? "linear-gradient(135deg,#059669,#10b981)" : "linear-gradient(135deg,#6ee7b7,#34d399)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text"}}>
+              style={{background: isLight ? "linear-gradient(135deg,#059669,#10b981)" : "linear-gradient(135deg,#6ee7b7,#34d399)", WebkitBackgroundClip:"text", display:"inline-block",WebkitTextFillColor:"transparent", backgroundClip:"text"}}>
               Produtos
             </h1>
             <p className="text-xs text-zinc-500 mt-0.5">{total} produto{total !== 1 ? "s" : ""} cadastrado{total !== 1 ? "s" : ""}</p>

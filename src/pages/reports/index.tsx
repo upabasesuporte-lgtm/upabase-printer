@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+﻿import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
 import {
@@ -161,7 +161,7 @@ function KPICard({ label, value, sub, icon, from: gFrom, to: gTo, glow }: {
           <div className="p-2 rounded-xl border border-zinc-800" style={{ background:`${gFrom}18` }}>{icon}</div>
         </div>
         <div className="text-2xl font-black tabular-nums"
-          style={{ background:`linear-gradient(135deg,${gFrom},${gTo})`, WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text" }}>
+          style={{ background:`linear-gradient(135deg,${gFrom},${gTo})`, WebkitBackgroundClip:"text", display:"inline-block",WebkitTextFillColor:"transparent", backgroundClip:"text" }}>
           {value}
         </div>
         {sub && <p className="text-[11px] text-zinc-600 mt-1">{sub}</p>}
@@ -470,7 +470,7 @@ export default function ReportsPage() {
               <span className="text-[11px] font-semibold text-violet-400 uppercase tracking-widest">Analytics</span>
             </div>
             <h1 className="text-2xl font-black"
-              style={{ background: isLight ? "linear-gradient(135deg,#7B2FBE,#00B4D8)" : "linear-gradient(135deg,#c4b5fd,#67e8f9)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text" }}>
+              style={{ background: isLight ? "linear-gradient(135deg,#7B2FBE,#00B4D8)" : "linear-gradient(135deg,#c4b5fd,#67e8f9)", WebkitBackgroundClip:"text", display:"inline-block",WebkitTextFillColor:"transparent", backgroundClip:"text" }}>
               Central de Relatórios
             </h1>
             <p className="text-xs text-zinc-500 mt-1">

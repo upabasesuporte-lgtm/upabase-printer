@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+﻿import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
 import {
@@ -523,7 +523,7 @@ export default function AccountsPayablePage() {
                 <span className="text-[11px] font-semibold uppercase tracking-widest" style={{color:"#f97316"}}>Financeiro</span>
               </div>
               <h1 className="text-2xl font-black"
-                style={{background: isLight ? "linear-gradient(135deg,#c2410c,#ea580c)" : "linear-gradient(135deg,#fed7aa,#fb923c)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>
+                style={{background: isLight ? "linear-gradient(135deg,#c2410c,#ea580c)" : "linear-gradient(135deg,#fed7aa,#fb923c)",WebkitBackgroundClip:"text",display:"inline-block",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>
                 Contas a Pagar
               </h1>
               <p className="text-xs text-zinc-500 mt-0.5">Gerencie suas despesas com lançamento inteligente por voz ou texto</p>

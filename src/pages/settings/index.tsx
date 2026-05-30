@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Store, Phone, CreditCard, Save, CheckCircle2, Receipt, Plus, Trash2, Users, Settings, Loader2 } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
@@ -257,7 +257,7 @@ export default function SettingsPage() {
               <span className="text-[11px] font-semibold text-violet-400 uppercase tracking-widest">Sistema</span>
             </div>
             <h1 className="text-2xl font-black"
-              style={{background: isLight ? "linear-gradient(135deg,#7B2FBE,#00B4D8)" : "linear-gradient(135deg,#c4b5fd,#67e8f9)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text"}}>
+              style={{background: isLight ? "linear-gradient(135deg,#7B2FBE,#00B4D8)" : "linear-gradient(135deg,#c4b5fd,#67e8f9)", WebkitBackgroundClip:"text", display:"inline-block",WebkitTextFillColor:"transparent", backgroundClip:"text"}}>
               Configurações
             </h1>
             <p className="text-xs text-zinc-500 mt-0.5">Dados da sua loja usados no comprovante e no sistema</p>

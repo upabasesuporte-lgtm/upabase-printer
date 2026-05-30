@@ -283,7 +283,7 @@ export default function AdminPage() {
           </div>
           <div>
             <h1 className="text-2xl font-black tracking-tight"
-              style={{ background: isLight ? "linear-gradient(135deg,#7B2FBE,#00B4D8)" : "linear-gradient(135deg,#c4b5fd,#a78bfa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
+              style={{ background: isLight ? "linear-gradient(135deg,#7B2FBE,#00B4D8)" : "linear-gradient(135deg,#c4b5fd,#a78bfa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", display: "inline-block" }}>
               Painel Admin
             </h1>
             <p className="text-xs text-zinc-500 mt-0.5">Gestão de usuários e acessos · {ADMIN_EMAIL}</p>

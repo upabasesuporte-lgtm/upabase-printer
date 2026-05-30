@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+﻿import { useState, useEffect, useCallback, useRef } from "react";
 import { flushSync } from "react-dom";
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
@@ -735,10 +735,10 @@ export default function DigitalMenuPage() {
               <div className="flex items-center gap-2 mb-1">
                 <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background:"#7B2FBE", boxShadow:"0 0 6px #7B2FBE" }} />
                 <span className="text-[11px] font-semibold uppercase tracking-widest"
-                  style={isLight ? { background:"linear-gradient(135deg,#7B2FBE,#00B4D8)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text" } : { color:"#7B2FBE", WebkitTextFillColor:"#7B2FBE", backgroundClip:"unset", WebkitBackgroundClip:"unset", background:"none" }}>Cardápio Digital</span>
+                  style={isLight ? { background:"linear-gradient(135deg,#7B2FBE,#00B4D8)", WebkitBackgroundClip:"text", display:"inline-block",WebkitTextFillColor:"transparent", backgroundClip:"text" } : { color:"#7B2FBE", WebkitTextFillColor:"#7B2FBE", backgroundClip:"unset", WebkitBackgroundClip:"unset", background:"none" }}>Cardápio Digital</span>
               </div>
               <h1 className="text-2xl font-black"
-                style={{ background: isLight ? "linear-gradient(135deg,#7B2FBE,#00B4D8)" : "linear-gradient(135deg,#c4b5fd,#67e8f9)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text" }}>
+                style={{ background: isLight ? "linear-gradient(135deg,#7B2FBE,#00B4D8)" : "linear-gradient(135deg,#c4b5fd,#67e8f9)", WebkitBackgroundClip:"text", display:"inline-block",WebkitTextFillColor:"transparent", backgroundClip:"text" }}>
                 {settings.store_name || "Meu Cardápio"}
               </h1>
               <p className="text-xs text-zinc-500 mt-0.5">
