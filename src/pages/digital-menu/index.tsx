@@ -1288,7 +1288,7 @@ export default function DigitalMenuPage() {
                     style={{ background:"rgba(244,63,94,0.06)", color:"#f43f5e", border:"1px solid rgba(244,63,94,0.15)" }}>
                     <X className="w-3.5 h-3.5" /> Cancelado
                   </div>
-                )}
+                ) : null}
               </div>
             </div>
 
