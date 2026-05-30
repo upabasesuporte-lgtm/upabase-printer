@@ -164,12 +164,16 @@ export default function PublicMenuPage() {
   const [activeCat, setActiveCat]   = useState("all");
   const [search, setSearch]         = useState("");
   const [cart, setCart]             = useState<CartItem[]>([]);
-  // Pedido salvo localmente para o cliente conseguir voltar ao acompanhamento
-  const [savedOrder, setSavedOrder] = useState<{ orderId: string; orderNumber: string } | null>(() => {
+  // Pedidos salvos localmente (array) para o cliente acompanhar todos os pedidos
+  type SavedOrderEntry = { orderId: string; orderNumber: string; timestamp: number };
+  const lsKey = `upabase_orders_${window.location.pathname.split("/")[2]}`;
+  const [savedOrders, setSavedOrders] = useState<SavedOrderEntry[]>(() => {
     try {
-      const raw = localStorage.getItem(`upabase_order_${window.location.pathname.split("/")[2]}`);
-      return raw ? JSON.parse(raw) : null;
-    } catch { return null; }
+      const raw = localStorage.getItem(lsKey);
+      const list: SavedOrderEntry[] = raw ? JSON.parse(raw) : [];
+      const cutoff = Date.now() - 48 * 60 * 60 * 1000; // 48 horas
+      return list.filter(o => o.timestamp > cutoff);
+    } catch { return []; }
   });
 
   // configure step
@@ -475,12 +479,14 @@ export default function PublicMenuPage() {
       return;
     }
 
-    // Salva no localStorage para o cliente conseguir retornar ao acompanhamento
+    // Adiciona ao array de pedidos salvos
     try {
-      localStorage.setItem(`upabase_order_${uid}`, JSON.stringify({
-        orderId: orderRow.id,
-        orderNumber: orderRow.order_number ?? "",
-      }));
+      const newEntry = { orderId: orderRow.id, orderNumber: orderRow.order_number ?? "", timestamp: Date.now() };
+      const raw = localStorage.getItem(lsKey);
+      const prev: SavedOrderEntry[] = raw ? JSON.parse(raw) : [];
+      const updated = [newEntry, ...prev].slice(0, 10); // máximo 10 pedidos
+      localStorage.setItem(lsKey, JSON.stringify(updated));
+      setSavedOrders(updated);
     } catch {}
 
     // Navigate before any state change — component unmounts cleanly, no DOM reconciliation
@@ -1260,24 +1266,37 @@ export default function PublicMenuPage() {
         )}
       </div>
 
-      {/* Banner de retorno ao acompanhamento do pedido */}
-      {savedOrder && (
-        <div className="mx-4 mb-3 flex items-center gap-3 rounded-2xl px-4 py-3"
-          style={{ background:"rgba(20,184,166,0.1)", border:"1px solid rgba(20,184,166,0.3)" }}>
-          <Package className="w-4 h-4 text-teal-400 flex-shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-teal-300">Você tem um pedido em andamento</p>
-            <p className="text-[11px] text-zinc-500">#{savedOrder.orderNumber}</p>
+      {/* Pedidos em andamento — lista todos os pedidos salvos */}
+      {savedOrders.length > 0 && (
+        <div className="mx-4 mb-3 rounded-2xl overflow-hidden"
+          style={{ border:"1px solid rgba(20,184,166,0.3)" }}>
+          <div className="flex items-center gap-2 px-4 py-2.5"
+            style={{ background:"rgba(20,184,166,0.12)" }}>
+            <Package className="w-3.5 h-3.5 text-teal-400 flex-shrink-0" />
+            <p className="text-xs font-semibold text-teal-300 flex-1">
+              Seus pedidos · toque para acompanhar
+            </p>
+            <button
+              onClick={() => { setSavedOrders([]); try { localStorage.removeItem(lsKey); } catch {} }}
+              className="text-zinc-600 hover:text-zinc-400">
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
-          <button
-            onClick={() => navigate(`/menu/${uid}/pedido/${savedOrder.orderId}`)}
-            className="flex items-center gap-1 text-xs font-bold text-teal-400 flex-shrink-0">
-            Ver <ChevronRight className="w-3.5 h-3.5" />
-          </button>
-          <button onClick={() => { setSavedOrder(null); try { localStorage.removeItem(`upabase_order_${uid}`); } catch {} }}
-            className="text-zinc-600 hover:text-zinc-400">
-            <X className="w-3.5 h-3.5" />
-          </button>
+          <div className="divide-y" style={{ borderColor:"rgba(20,184,166,0.15)" }}>
+            {savedOrders.map(o => (
+              <button key={o.orderId}
+                onClick={() => navigate(`/menu/${uid}/pedido/${o.orderId}`)}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-teal-500/5">
+                <div className="flex-1 min-w-0">
+                  <span className="text-xs font-bold text-teal-400">#{o.orderNumber}</span>
+                  <span className="text-[11px] text-zinc-500 ml-2">
+                    {new Date(o.timestamp).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}
+                  </span>
+                </div>
+                <ChevronRight className="w-3.5 h-3.5 text-zinc-600 flex-shrink-0" />
+              </button>
+            ))}
+          </div>
         </div>
       )}
 

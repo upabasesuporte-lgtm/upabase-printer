@@ -151,8 +151,9 @@ export function AppLayout() {
   const [avatarUploading, setAvatarUploading] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
-  // Badge de pedidos pendentes no Cardápio Digital
+  // Badge + alarme de pedidos pendentes no Cardápio Digital
   const [digitalPending, setDigitalPending] = useState(0);
+  const appAlertLoopRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Relógio
   const [now, setNow] = useState(new Date());
@@ -338,16 +339,18 @@ export function AppLayout() {
         table: "digital_orders", filter: `user_id=eq.${userId}`,
       }, () => {
         setDigitalPending(n => n + 1);
-        // Só toca aqui se o usuário NÃO estiver na aba do cardápio digital
+        // Loop contínuo de alarme quando fora da aba do cardápio digital
         if (!window.location.pathname.includes("/digital-menu")) {
-          playAlertBeep();
+          if (!appAlertLoopRef.current) {
+            playAlertBeep();
+            appAlertLoopRef.current = setInterval(playAlertBeep, 4000);
+          }
         }
       })
       .on("postgres_changes", {
         event: "UPDATE", schema: "public",
         table: "digital_orders", filter: `user_id=eq.${userId}`,
       }, (p) => {
-        // Pedido aceito/cancelado → reduz contador
         const newStatus = (p.new as any).status;
         if (newStatus !== "pending") {
           setDigitalPending(n => Math.max(0, n - 1));
@@ -355,12 +358,20 @@ export function AppLayout() {
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(ch); };
+    return () => {
+      supabase.removeChannel(ch);
+      if (appAlertLoopRef.current) { clearInterval(appAlertLoopRef.current); appAlertLoopRef.current = null; }
+    };
   }, [userId]);
 
-  // Zera badge ao entrar na aba do cardápio digital
+  // Ao entrar na aba do cardápio digital: zera badge e para o loop do AppLayout
+  // (o digital-menu vai iniciar o próprio loop se houver pedidos pendentes)
   useEffect(() => {
-    if (location.pathname === "/digital-menu") setDigitalPending(0);
+    if (location.pathname === "/digital-menu") {
+      setDigitalPending(0);
+      // Para o loop do AppLayout — digital-menu inicia o próprio
+      if (appAlertLoopRef.current) { clearInterval(appAlertLoopRef.current); appAlertLoopRef.current = null; }
+    }
   }, [location.pathname]);
 
   async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {

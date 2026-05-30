@@ -305,7 +305,13 @@ export default function DigitalMenuPage() {
       .eq("user_id", uid)
       .order("created_at", { ascending: false })
       .limit(300);
-    setOrders((data ?? []) as DigitalOrder[]);
+    const loaded = (data ?? []) as DigitalOrder[];
+    setOrders(loaded);
+    ordersRef.current = loaded;
+    // Se houver pedidos pendentes ao abrir a aba, inicia o alarme
+    if (loaded.some(o => o.status === "pending")) {
+      startAlertLoop(alertLoopRef);
+    }
   }, []);
 
   const loadProducts = useCallback(async () => {
