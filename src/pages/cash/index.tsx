@@ -209,8 +209,8 @@ export default function CashPage() {
     const amount = salesRows
       .filter(s => {
         const origin = s.origin ?? "pdv";
-        // "cardapio_digital" é o origin legado; "digital_menu" é o novo
         if (channel === "digital_menu") return origin === "digital_menu" || origin === "cardapio_digital";
+        if (channel === "tables")       return origin === "tables" || origin === "mesa";
         return origin === channel;
       })
       .reduce((sum, s) => sum + saleGross(s), 0);
