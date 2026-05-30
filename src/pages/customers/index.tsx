@@ -573,8 +573,7 @@ export default function CustomersPage() {
                 <div className="w-1.5 h-1.5 rounded-full" style={{background:"#d946ef",boxShadow:"0 0 6px #d946ef"}} />
                 <span className="text-[11px] font-semibold uppercase tracking-widest" style={{color:"#d946ef"}}>CRM</span>
               </div>
-              <h1 className="text-2xl font-black"
-                style={{background: isLight ? "linear-gradient(135deg,#a21caf,#d946ef)" : "linear-gradient(135deg,#f0abfc,#e879f9)", WebkitBackgroundClip:"text", display:"inline-block",WebkitTextFillColor:"transparent", backgroundClip:"text"}}>
+              <h1 className="text-2xl font-black g-text g-text-pink">
                 Clientes
               </h1>
               <p className="text-xs text-zinc-500 mt-0.5">{customers.length} clientes cadastrados</p>

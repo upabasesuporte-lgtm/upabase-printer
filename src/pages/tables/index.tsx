@@ -729,8 +729,7 @@ export default function TablesPage() {
                   <div className="w-1.5 h-1.5 rounded-full" style={{background:"#f43f5e",boxShadow:"0 0 6px #f43f5e"}} />
                   <span className="text-[11px] font-semibold uppercase tracking-widest" style={{color:"#f43f5e"}}>Salão</span>
                 </div>
-                <h1 className="text-2xl font-black"
-                  style={{background: isLight ? "linear-gradient(135deg,#be123c,#f43f5e)" : "linear-gradient(135deg,#fda4af,#fb7185)", WebkitBackgroundClip:"text", display:"inline-block",WebkitTextFillColor:"transparent", backgroundClip:"text"}}>
+                <h1 className="text-2xl font-black g-text g-text-red">
                   Mesas
                 </h1>
                 <p className="text-xs text-zinc-500 mt-0.5">

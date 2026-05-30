@@ -87,3 +87,11 @@
 [data-theme="light"] ::-webkit-scrollbar-track  { background: #F3F4F6; }
 [data-theme="light"] ::-webkit-scrollbar-thumb  { background: #d1d5db; border-radius: 4px; }
 [data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
+
+/* ── Gradient text — tema claro ───────────────────────────────────────────── */
+[data-theme="light"] .g-text-purple { background: linear-gradient(135deg,#7B2FBE,#00B4D8); }
+[data-theme="light"] .g-text-green  { background: linear-gradient(135deg,#059669,#10b981); }
+[data-theme="light"] .g-text-orange { background: linear-gradient(135deg,#c2410c,#ea580c); }
+[data-theme="light"] .g-text-pink   { background: linear-gradient(135deg,#a21caf,#d946ef); }
+[data-theme="light"] .g-text-blue   { background: linear-gradient(135deg,#1d4ed8,#3b82f6); }
+[data-theme="light"] .g-text-red    { background: linear-gradient(135deg,#be123c,#f43f5e); }

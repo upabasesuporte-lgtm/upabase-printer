@@ -18,3 +18,17 @@ body {
   background-color: #09090b;
   color: white;
 }
+
+/* Gradient text — tema escuro (padrão) */
+.g-text {
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: inline-block;
+}
+.g-text-purple { background: linear-gradient(135deg,#c4b5fd,#67e8f9); }
+.g-text-green  { background: linear-gradient(135deg,#6ee7b7,#34d399); }
+.g-text-orange { background: linear-gradient(135deg,#fed7aa,#fb923c); }
+.g-text-pink   { background: linear-gradient(135deg,#f0abfc,#e879f9); }
+.g-text-blue   { background: linear-gradient(135deg,#93c5fd,#60a5fa); }
+.g-text-red    { background: linear-gradient(135deg,#fda4af,#fb7185); }

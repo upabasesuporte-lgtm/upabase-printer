@@ -435,8 +435,7 @@ export default function CashPage() {
                   style={{background:"linear-gradient(135deg,rgba(16,185,129,0.1),rgba(16,185,129,0.05))",boxShadow:"0 0 30px rgba(16,185,129,0.15)"}}>
                   <Lock className="w-9 h-9" style={{color:"#10b981"}} />
                 </div>
-                <h2 className="text-2xl font-black mb-2"
-                  style={{background: isLight ? "linear-gradient(135deg,#059669,#10b981)" : "linear-gradient(135deg,#6ee7b7,#34d399)", WebkitBackgroundClip:"text", display:"inline-block",WebkitTextFillColor:"transparent", backgroundClip:"text"}}>
+                <h2 className="text-2xl font-black mb-2 g-text g-text-green">
                   Caixa Fechado
                 </h2>
                 <p className="text-zinc-500 text-sm mb-8 leading-relaxed">

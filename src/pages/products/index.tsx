@@ -803,8 +803,7 @@ export default function ProductsPage() {
               <div className="w-1.5 h-1.5 rounded-full" style={{background:"#10b981",boxShadow:"0 0 6px #10b981"}} />
               <span className="text-[11px] font-semibold uppercase tracking-widest" style={{color:"#10b981"}}>Catálogo</span>
             </div>
-            <h1 className="text-2xl font-black"
-              style={{background: isLight ? "linear-gradient(135deg,#059669,#10b981)" : "linear-gradient(135deg,#6ee7b7,#34d399)", WebkitBackgroundClip:"text", display:"inline-block",WebkitTextFillColor:"transparent", backgroundClip:"text"}}>
+            <h1 className="text-2xl font-black g-text g-text-green">
               Produtos
             </h1>
             <p className="text-xs text-zinc-500 mt-0.5">{total} produto{total !== 1 ? "s" : ""} cadastrado{total !== 1 ? "s" : ""}</p>

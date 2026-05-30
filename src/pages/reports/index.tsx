@@ -469,8 +469,7 @@ export default function ReportsPage() {
               <div className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" />
               <span className="text-[11px] font-semibold text-violet-400 uppercase tracking-widest">Analytics</span>
             </div>
-            <h1 className="text-2xl font-black"
-              style={{ background: isLight ? "linear-gradient(135deg,#7B2FBE,#00B4D8)" : "linear-gradient(135deg,#c4b5fd,#67e8f9)", WebkitBackgroundClip:"text", display:"inline-block",WebkitTextFillColor:"transparent", backgroundClip:"text" }}>
+            <h1 className="text-2xl font-black g-text g-text-purple">
               Central de Relatórios
             </h1>
             <p className="text-xs text-zinc-500 mt-1">

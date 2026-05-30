@@ -523,8 +523,7 @@ export default function StockPage() {
               <div className="w-1.5 h-1.5 rounded-full" style={{background:"#3b82f6",boxShadow:"0 0 6px #3b82f6"}} />
               <span className="text-[11px] font-semibold uppercase tracking-widest" style={{color:"#3b82f6"}}>Armazém</span>
             </div>
-            <h1 className="text-2xl font-black"
-              style={{background: isLight ? "linear-gradient(135deg,#1d4ed8,#3b82f6)" : "linear-gradient(135deg,#93c5fd,#60a5fa)", WebkitBackgroundClip:"text", display:"inline-block",WebkitTextFillColor:"transparent", backgroundClip:"text"}}>
+            <h1 className="text-2xl font-black g-text g-text-blue">
               Estoque
             </h1>
             <p className="text-xs text-zinc-500 mt-0.5">
