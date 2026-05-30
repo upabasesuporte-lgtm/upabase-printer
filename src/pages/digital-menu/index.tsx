@@ -251,6 +251,7 @@ export default function DigitalMenuPage() {
   const alertLoopRef    = useRef<ReturnType<typeof setInterval> | null>(null);
   const msgAlertLoopRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const ordersRef       = useRef<DigitalOrder[]>([]);
+  const ordersDateRef   = useRef(new Date().toISOString().split("T")[0]);
   const acceptingRef    = useRef(false);
   const acceptBtnRef    = useRef<HTMLButtonElement>(null);
 
@@ -299,16 +300,25 @@ export default function DigitalMenuPage() {
   }, []);
 
   // ── Load
-  const loadOrders = useCallback(async (uid: string) => {
+  // Data exibida na aba de pedidos — padrão: hoje
+  const todayStr = new Date().toISOString().split("T")[0];
+  const [ordersDate, setOrdersDate] = useState(todayStr);
+
+  const loadOrders = useCallback(async (uid: string, dateStr?: string) => {
+    const d    = dateStr ?? ordersDateRef.current;
+    const from = new Date(d + "T00:00:00");
+    const to   = new Date(d + "T23:59:59.999");
+
     const { data } = await supabase.from("digital_orders")
       .select("*")
       .eq("user_id", uid)
+      .gte("created_at", from.toISOString())
+      .lte("created_at", to.toISOString())
       .order("created_at", { ascending: false })
-      .limit(300);
+      .limit(500);
     const loaded = (data ?? []) as DigitalOrder[];
     setOrders(loaded);
     ordersRef.current = loaded;
-    // Se houver pedidos pendentes ao abrir a aba, inicia o alarme
     if (loaded.some(o => o.status === "pending")) {
       startAlertLoop(alertLoopRef);
     }
@@ -322,6 +332,13 @@ export default function DigitalMenuPage() {
     setProducts((p.data ?? []) as Product[]);
     setCategories((c.data ?? []) as Category[]);
   }, []);
+
+  // Mantém ref em sincronia e recarrega pedidos ao trocar de data
+  useEffect(() => {
+    ordersDateRef.current = ordersDate;
+    if (userId) loadOrders(userId, ordersDate);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ordersDate, userId]);
 
   const loadSettings = useCallback(async (uid: string) => {
     const { data, error } = await supabase.from("menu_store_settings").select("settings").eq("user_id", uid).maybeSingle();
@@ -344,7 +361,11 @@ export default function DigitalMenuPage() {
     const ch = supabase.channel("dm-orders")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "digital_orders", filter: `user_id=eq.${userId}` }, (p) => {
         const o = p.new as DigitalOrder;
-        setOrders(prev => [o, ...prev]);
+        // Só adiciona à lista se o pedido for do dia selecionado
+        const orderDay = new Date(o.created_at).toISOString().split("T")[0];
+        if (orderDay === ordersDateRef.current) {
+          setOrders(prev => [o, ...prev]);
+        }
         startAlertLoop(alertLoopRef); setNewOrderAlert(o); setTimeout(() => setNewOrderAlert(null), 10000);
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "digital_orders", filter: `user_id=eq.${userId}` }, (p) => {
@@ -480,15 +501,13 @@ export default function DigitalMenuPage() {
   }
 
   async function cancelOrder(order: DigitalOrder) {
-    if (!confirm(`Cancelar pedido #${order.order_number}?`)) return;
+    if (!confirm(`Cancelar pedido #${order.order_number}? A venda vinculada no PDV/caixa também será cancelada.`)) return;
+    // Cancela o pedido digital
     await supabase.from("digital_orders").update({ status: "cancelled" }).eq("id", order.id);
-  }
-
-  async function deleteOrder(order: DigitalOrder) {
-    if (!confirm(`Excluir pedido #${order.order_number} definitivamente?`)) return;
-    await supabase.from("digital_orders").delete().eq("id", order.id);
-    setOrders(prev => prev.filter(o => o.id !== order.id));
-    if (selectedOrder?.id === order.id) setSelectedOrder(null);
+    // Cancela a venda vinculada no PDV e caixa
+    if (order.sale_id) {
+      await supabase.from("sales").update({ status: "cancelled" }).eq("id", order.sale_id);
+    }
   }
 
   async function sendStoreMessage() {
@@ -804,6 +823,26 @@ export default function DigitalMenuPage() {
                   <p className="text-xl font-black relative z-10" style={{ color: s.color }}>{s.value}</p>
                 </div>
               ))}
+            </div>
+
+            {/* Seletor de data — padrão: hoje */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={() => setOrdersDate(todayStr)}
+                className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
+                style={ordersDate === todayStr
+                  ? { background: isLight ? "linear-gradient(135deg,#7B2FBE,#00B4D8)" : "#27272a", color:"#fff", border:"1px solid transparent" }
+                  : { background: isLight ? "#F3F4F6" : "#18181b", color:"#71717a", border: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" }}>
+                Hoje
+              </button>
+              <input
+                type="date"
+                value={ordersDate}
+                max={todayStr}
+                onChange={e => setOrdersDate(e.target.value)}
+                className="text-xs rounded-xl px-3 py-1.5 font-medium transition-all outline-none"
+                style={{ background: isLight ? "#F3F4F6" : "#18181b", color: isLight ? "#374151" : "#a1a1aa", border: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" }}
+              />
             </div>
 
             <div className="flex gap-1.5 flex-wrap">
@@ -1244,12 +1283,11 @@ export default function DigitalMenuPage() {
                     style={{ background:"rgba(244,63,94,0.1)", color:"#f43f5e", border:"1px solid rgba(244,63,94,0.25)" }}>
                     <X className="w-3.5 h-3.5" /> Cancelar
                   </button>
-                ) : (
-                  <button onClick={() => deleteOrder(selectedOrder)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all"
-                    style={{ background:"rgba(244,63,94,0.1)", color:"#f43f5e", border:"1px solid rgba(244,63,94,0.25)" }}>
-                    <Trash2 className="w-3.5 h-3.5" /> Excluir
-                  </button>
+                ) : selectedOrder.status === "cancelled" ? (
+                  <div className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold"
+                    style={{ background:"rgba(244,63,94,0.06)", color:"#f43f5e", border:"1px solid rgba(244,63,94,0.15)" }}>
+                    <X className="w-3.5 h-3.5" /> Cancelado
+                  </div>
                 )}
               </div>
             </div>
