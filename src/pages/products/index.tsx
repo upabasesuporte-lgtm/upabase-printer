@@ -869,29 +869,38 @@ export default function ProductsPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm border-collapse">
               <thead>
-                <tr className="border-b border-zinc-800 text-xs text-zinc-500 uppercase tracking-wide">
-                  <th className="text-left px-4 py-3 w-12"></th>
-                  <th className="text-left px-4 py-3 cursor-pointer hover:text-zinc-300 transition-colors" onClick={() => toggleSort("name")}>
+                <tr className="text-xs uppercase tracking-wider"
+                  style={{ background: isLight ? "#F8FAFC" : "rgba(24,24,27,0.8)", borderBottom: isLight ? "1px solid #e5e7eb" : "1px solid rgba(39,39,42,0.6)" }}>
+                  <th className="text-left px-4 py-3 w-12" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}></th>
+                  <th className="text-left px-4 py-3 cursor-pointer transition-colors" style={{ color: isLight ? "#9CA3AF" : "#52525b" }} onClick={() => toggleSort("name")}>
                     <span className="flex items-center gap-1">Produto <SortIcon col="name" /></span>
                   </th>
-                  <th className="text-left px-4 py-3">Categoria</th>
-                  <th className="text-left px-4 py-3 cursor-pointer hover:text-zinc-300 transition-colors" onClick={() => toggleSort("sale_price")}>
+                  <th className="text-left px-4 py-3" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>Categoria</th>
+                  <th className="text-left px-4 py-3 cursor-pointer transition-colors" style={{ color: isLight ? "#9CA3AF" : "#52525b" }} onClick={() => toggleSort("sale_price")}>
                     <span className="flex items-center gap-1">Preço <SortIcon col="sale_price" /></span>
                   </th>
-                  <th className="text-left px-4 py-3">Margem</th>
-                  <th className="text-left px-4 py-3 cursor-pointer hover:text-zinc-300 transition-colors" onClick={() => toggleSort("stock")}>
+                  <th className="text-left px-4 py-3" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>Margem</th>
+                  <th className="text-left px-4 py-3 cursor-pointer transition-colors" style={{ color: isLight ? "#9CA3AF" : "#52525b" }} onClick={() => toggleSort("stock")}>
                     <span className="flex items-center gap-1">Estoque <SortIcon col="stock" /></span>
                   </th>
-                  <th className="text-left px-4 py-3">Canais</th>
-                  <th className="text-left px-4 py-3">Status</th>
-                  <th className="text-right px-4 py-3">Ações</th>
+                  <th className="text-left px-4 py-3" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>Canais</th>
+                  <th className="text-left px-4 py-3" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>Status</th>
+                  <th className="text-right px-4 py-3" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-800/60">
-                {products.map(p => (
-                  <tr key={p.id} className="hover:bg-zinc-800/30 transition-colors group">
+              <tbody>
+                {products.map((p, i) => (
+                  <tr key={p.id} className="transition-colors group"
+                    style={{
+                      background: isLight
+                        ? (i % 2 === 0 ? "#ffffff" : "#FAFBFC")
+                        : "transparent",
+                      borderBottom: isLight ? "1px solid #F3F4F6" : "1px solid rgba(39,39,42,0.3)",
+                    }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLTableRowElement).style.background = isLight ? "#F5F3FF" : "rgba(139,92,246,0.06)"; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLTableRowElement).style.background = isLight ? (i % 2 === 0 ? "#ffffff" : "#FAFBFC") : "transparent"; }}>
                     {/* Imagem */}
                     <td className="px-4 py-3">
                       {p.image_url
