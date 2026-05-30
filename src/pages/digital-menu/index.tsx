@@ -119,29 +119,32 @@ function playAlarmBeep() {
   try {
     const ctx = new ((window as any).AudioContext || (window as any).webkitAudioContext)();
 
-    // Cada "ping": fundamental + harmônico suave = timbre de xilofone/marimba moderno
-    function ping(freq: number, t: number, vol = 0.32) {
-      [1, 2].forEach((mult, idx) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain); gain.connect(ctx.destination);
-        osc.type = "sine";
-        osc.frequency.value = freq * mult;
-        gain.gain.setValueAtTime(0, t);
-        gain.gain.linearRampToValueAtTime(vol / (idx + 1), t + 0.012); // ataque suave
-        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);       // decaimento limpo
-        osc.start(t); osc.stop(t + 0.6);
-      });
+    function doPlay() {
+      function ping(freq: number, t: number, vol = 0.32) {
+        [1, 2].forEach((mult, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.type = "sine";
+          osc.frequency.value = freq * mult;
+          gain.gain.setValueAtTime(0, t);
+          gain.gain.linearRampToValueAtTime(vol / (idx + 1), t + 0.012);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+          osc.start(t); osc.stop(t + 0.6);
+        });
+      }
+      const notes = [523, 659, 784];
+      const t0 = ctx.currentTime;
+      notes.forEach((f, i) => ping(f, t0 + i * 0.21));
+      notes.forEach((f, i) => ping(f, t0 + 0.85 + i * 0.21));
     }
 
-    // Acorde maior ascendente: C5 → E5 → G5 (luminoso, tecnológico, não agressivo)
-    const notes = [523, 659, 784];
-    const t0 = ctx.currentTime;
-
-    // Primeira frase: ping ↑ ping ↑ ping
-    notes.forEach((f, i) => ping(f, t0 + i * 0.21));
-    // Segunda frase logo depois (respira ~0.3s)
-    notes.forEach((f, i) => ping(f, t0 + 0.85 + i * 0.21));
+    // Resume necessário por política de autoplay dos navegadores modernos
+    if (ctx.state === "suspended") {
+      ctx.resume().then(doPlay);
+    } else {
+      doPlay();
+    }
   } catch {}
 }
 
@@ -875,8 +878,14 @@ export default function DigitalMenuPage() {
                 const isSelected = selectedOrder?.id === order.id;
                 return (
                   <div key={order.id} onClick={() => { setSelectedOrder(order); setUnreadMsgOrders(prev => { const n = new Set(prev); n.delete(order.id); return n; }); }}
-                    className="rounded-2xl border p-4 cursor-pointer transition-all hover:border-zinc-700"
-                    style={{ background: isSelected ? "#1c1917" : "#18181b", borderColor: isSelected ? sc.border : "#27272a", boxShadow: isSelected ? `0 0 0 1px ${sc.border}` : undefined }}>
+                    className="rounded-2xl border p-4 cursor-pointer transition-all"
+                    style={{
+                      background: isSelected
+                        ? (isLight ? "#f0fdf4" : "#1c1917")
+                        : (isLight ? "#ffffff" : "#18181b"),
+                      borderColor: isSelected ? sc.border : (isLight ? "#e5e7eb" : "#27272a"),
+                      boxShadow: isSelected ? `0 0 0 1px ${sc.border}` : undefined,
+                    }}>
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2.5 min-w-0">
                         {order.status === "pending" && <div className="w-2 h-2 rounded-full flex-shrink-0 animate-pulse" style={{ background: sc.color, boxShadow:`0 0 6px ${sc.color}` }} />}
