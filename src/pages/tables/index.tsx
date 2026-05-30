@@ -697,9 +697,26 @@ export default function TablesPage() {
 
   // ── Derived ──────────────────────────────────────────────────────────────────
 
+  // Agrupa IDs de categoria pelo nome (resolve duplicatas como "BEBIDAS BEBIDAS")
+  const catNameMap = categories
+    .filter(c => !c.parent_id)
+    .reduce<Record<string, string[]>>((acc, c) => {
+      const key = c.name.toUpperCase();
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(c.id);
+      return acc;
+    }, {});
+
+  // Nomes únicos que têm pelo menos um produto
+  const visibleCatNames = Object.keys(catNameMap).sort().filter(name =>
+    products.some(p => p.category_id && catNameMap[name].includes(p.category_id))
+  );
+
+  // catFilter agora guarda o NOME da categoria (maiúsculo) ou null
   const filteredProducts = products.filter(p => {
     const matchSearch = search === "" || p.name.toLowerCase().includes(search.toLowerCase());
-    const matchCat = catFilter === null || p.category_id === catFilter;
+    const matchCat    = catFilter === null ||
+      (p.category_id !== null && catNameMap[catFilter]?.includes(p.category_id));
     return matchSearch && matchCat;
   });
 
@@ -957,41 +974,98 @@ export default function TablesPage() {
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm placeholder-zinc-600 focus:outline-none focus:border-violet-500 transition-all" />
               </div>
 
-              {/* Category filter */}
-              {categories.length > 0 && (
-                <div className="flex gap-1.5 mb-3 overflow-x-auto pb-1 flex-shrink-0">
+              {/* Category tabs */}
+              {visibleCatNames.length > 0 && (
+                <div className="flex gap-1.5 mb-3 overflow-x-auto pb-1 flex-shrink-0 scrollbar-none">
                   <button onClick={() => setCatFilter(null)}
                     style={catFilter !== null ? { background: card.bg, border: card.border } : undefined}
                     className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors ${catFilter === null ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-white"}`}>
                     Todos
                   </button>
-                  {categories.filter(c => !c.parent_id).map(cat => (
-                    <button key={cat.id} onClick={() => setCatFilter(cat.id)}
-                      style={catFilter !== cat.id ? { background: card.bg, border: card.border } : undefined}
-                      className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors ${catFilter === cat.id ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-white"}`}>
-                      {cat.name}
+                  {visibleCatNames.map(name => (
+                    <button key={name} onClick={() => setCatFilter(name)}
+                      style={catFilter !== name ? { background: card.bg, border: card.border } : undefined}
+                      className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors ${catFilter === name ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-white"}`}>
+                      {name.charAt(0) + name.slice(1).toLowerCase()}
                     </button>
                   ))}
                 </div>
               )}
 
-              {/* Product grid */}
+              {/* Product area */}
               <div className="flex-1 overflow-y-auto">
                 {filteredProducts.length === 0 ? (
-                  <div className="text-center py-10 text-xs text-zinc-600">
-                    Nenhum produto encontrado
-                  </div>
+                  <div className="text-center py-10 text-xs text-zinc-600">Nenhum produto encontrado</div>
+                ) : catFilter === null && !search ? (
+                  // ── Todos: agrupado por categoria ──
+                  <>
+                    {visibleCatNames.map(name => {
+                      const catProds = products.filter(p =>
+                        p.category_id && catNameMap[name].includes(p.category_id)
+                      );
+                      if (catProds.length === 0) return null;
+                      return (
+                        <div key={name} className="mb-4">
+                          <div className="flex items-center gap-2 py-1.5 mb-2">
+                            <span className="text-[11px] font-bold text-violet-400 uppercase tracking-wider whitespace-nowrap">
+                              {name.charAt(0) + name.slice(1).toLowerCase()}
+                            </span>
+                            <div className="flex-1 h-px bg-zinc-800/60" />
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                            {catProds.map(p => (
+                              <button key={p.id} onClick={() => addProduct(p)}
+                                style={{ background: card.bg, border: card.border }}
+                                className="flex flex-col items-start gap-1.5 p-3 hover:border-violet-500/50 rounded-xl text-left transition-all active:scale-95">
+                                <span className="text-sm font-semibold leading-tight line-clamp-2" style={{ color: isLight ? "#111" : "#fff" }}>{p.name}</span>
+                                <span className="text-sm font-bold text-violet-400">{fmt(p.sale_price)}</span>
+                                {!isUnlimited(p) && p.stock <= 5 && (
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${p.stock === 0 ? "bg-red-500/10 text-red-400" : "bg-amber-500/10 text-amber-400"}`}>
+                                    {p.stock === 0 ? "Esgotado" : `${p.stock} rest.`}
+                                  </span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {/* Sem categoria */}
+                    {(() => {
+                      const uncategorized = products.filter(p => !p.category_id);
+                      if (uncategorized.length === 0) return null;
+                      return (
+                        <div className="mb-4">
+                          <div className="flex items-center gap-2 py-1.5 mb-2">
+                            <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider whitespace-nowrap">Outros</span>
+                            <div className="flex-1 h-px bg-zinc-800/60" />
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                            {uncategorized.map(p => (
+                              <button key={p.id} onClick={() => addProduct(p)}
+                                style={{ background: card.bg, border: card.border }}
+                                className="flex flex-col items-start gap-1.5 p-3 hover:border-violet-500/50 rounded-xl text-left transition-all active:scale-95">
+                                <span className="text-sm font-semibold leading-tight line-clamp-2" style={{ color: isLight ? "#111" : "#fff" }}>{p.name}</span>
+                                <span className="text-sm font-bold text-violet-400">{fmt(p.sale_price)}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </>
                 ) : (
+                  // ── Categoria específica ou busca: lista plana ──
                   <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2">
                     {filteredProducts.map(p => (
                       <button key={p.id} onClick={() => addProduct(p)}
                         style={{ background: card.bg, border: card.border }}
-                        className="flex flex-col items-start gap-1.5 p-3 hover:border-violet-500/50 hover:bg-zinc-800/80 rounded-xl text-left transition-all active:scale-95">
+                        className="flex flex-col items-start gap-1.5 p-3 hover:border-violet-500/50 rounded-xl text-left transition-all active:scale-95">
                         <span className="text-sm font-semibold leading-tight line-clamp-2" style={{ color: isLight ? "#111" : "#fff" }}>{p.name}</span>
                         <span className="text-sm font-bold text-violet-400">{fmt(p.sale_price)}</span>
                         {!isUnlimited(p) && p.stock <= 5 && (
                           <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${p.stock === 0 ? "bg-red-500/10 text-red-400" : "bg-amber-500/10 text-amber-400"}`}>
-                            {p.stock === 0 ? "Esgotado" : `${p.stock} restante${p.stock !== 1 ? "s" : ""}`}
+                            {p.stock === 0 ? "Esgotado" : `${p.stock} rest.`}
                           </span>
                         )}
                       </button>
