@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase";
 import { useTheme } from "../contexts/ThemeContext";
 import { UserPlanRecord, isPlanValid, isRouteAllowed, PLAN_ROUTES, PlanType } from "../lib/plans";
 import { PlanBlock } from "../components/PlanBlock";
+import { unlockAudio, playAlertBeep } from "../lib/audio";
 
 import {
   LayoutDashboard,
@@ -239,6 +240,14 @@ export function AppLayout() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
+  // ── Desbloqueia AudioContext no primeiro clique (necessário para som funcionar)
+  useEffect(() => {
+    const unlock = () => { unlockAudio(); document.removeEventListener("click", unlock, true); document.removeEventListener("touchstart", unlock, true); };
+    document.addEventListener("click", unlock, true);
+    document.addEventListener("touchstart", unlock, true);
+    return () => { document.removeEventListener("click", unlock, true); document.removeEventListener("touchstart", unlock, true); };
+  }, []);
+
   // ── Relógio — atualiza a cada segundo
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
@@ -321,27 +330,6 @@ export function AppLayout() {
       .eq("status", "pending")
       .then(({ count }) => { if (count) setDigitalPending(count); });
 
-    // Beep simples (diferente do alarme completo do cardápio digital)
-    function pingBeep() {
-      try {
-        const ctx = new ((window as any).AudioContext || (window as any).webkitAudioContext)();
-        const play = () => {
-          [880, 1100].forEach((freq, i) => {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.connect(gain); gain.connect(ctx.destination);
-            osc.type = "sine"; osc.frequency.value = freq;
-            const t = ctx.currentTime + i * 0.18;
-            gain.gain.setValueAtTime(0, t);
-            gain.gain.linearRampToValueAtTime(0.25, t + 0.01);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
-            osc.start(t); osc.stop(t + 0.4);
-          });
-        };
-        ctx.state === "suspended" ? ctx.resume().then(play) : play();
-      } catch {}
-    }
-
     const ch = supabase.channel("layout-dm-orders")
       .on("postgres_changes", {
         event: "INSERT", schema: "public",
@@ -350,7 +338,7 @@ export function AppLayout() {
         setDigitalPending(n => n + 1);
         // Só toca aqui se o usuário NÃO estiver na aba do cardápio digital
         if (!window.location.pathname.includes("/digital-menu")) {
-          pingBeep();
+          playAlertBeep();
         }
       })
       .on("postgres_changes", {

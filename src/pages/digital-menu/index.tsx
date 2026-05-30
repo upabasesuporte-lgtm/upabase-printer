@@ -3,6 +3,7 @@ import { flushSync } from "react-dom";
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
 import { getStoreSettings, refreshStoreCache } from "../settings";
+import { unlockAudio, playOrderAlarm } from "../../lib/audio";
 import {
   Store, ClipboardList, RefreshCw, Bell,
   X, Copy, ExternalLink, UtensilsCrossed, Search, Plus, Trash2,
@@ -115,73 +116,20 @@ function isStoreOpenNow(s: StoreSettings): boolean {
   return cur >= oh * 60 + om && cur < ch * 60 + cm;
 }
 
-function playAlarmBeep() {
-  try {
-    const ctx = new ((window as any).AudioContext || (window as any).webkitAudioContext)();
-
-    function doPlay() {
-      function ping(freq: number, t: number, vol = 0.32) {
-        [1, 2].forEach((mult, idx) => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.connect(gain); gain.connect(ctx.destination);
-          osc.type = "sine";
-          osc.frequency.value = freq * mult;
-          gain.gain.setValueAtTime(0, t);
-          gain.gain.linearRampToValueAtTime(vol / (idx + 1), t + 0.012);
-          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
-          osc.start(t); osc.stop(t + 0.6);
-        });
-      }
-      const notes = [523, 659, 784];
-      const t0 = ctx.currentTime;
-      notes.forEach((f, i) => ping(f, t0 + i * 0.21));
-      notes.forEach((f, i) => ping(f, t0 + 0.85 + i * 0.21));
-    }
-
-    // Resume necessário por política de autoplay dos navegadores modernos
-    if (ctx.state === "suspended") {
-      ctx.resume().then(doPlay);
-    } else {
-      doPlay();
-    }
-  } catch {}
-}
-
 function startAlertLoop(ref: React.MutableRefObject<ReturnType<typeof setInterval> | null>) {
   if (ref.current) return;
-  playAlarmBeep();
-  ref.current = setInterval(playAlarmBeep, 4000); // 2 frases (~1.5s) + pausa confortável
+  playOrderAlarm();
+  ref.current = setInterval(playOrderAlarm, 4000);
 }
 
 function stopAlertLoop(ref: React.MutableRefObject<ReturnType<typeof setInterval> | null>) {
   if (ref.current) { clearInterval(ref.current); ref.current = null; }
 }
 
-function playMessageBeep() {
-  try {
-    const ctx = new ((window as any).AudioContext || (window as any).webkitAudioContext)();
-    function ping(freq: number, t: number) {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.type = "sine";
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0, t);
-      gain.gain.linearRampToValueAtTime(0.22, t + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
-      osc.start(t); osc.stop(t + 0.35);
-    }
-    const t0 = ctx.currentTime;
-    ping(880, t0);
-    ping(1100, t0 + 0.16);
-  } catch {}
-}
-
 function startMsgLoop(ref: React.MutableRefObject<ReturnType<typeof setInterval> | null>) {
   if (ref.current) return;
-  playMessageBeep();
-  ref.current = setInterval(playMessageBeep, 3500);
+  playAlertBeep();
+  ref.current = setInterval(playAlertBeep, 3500);
 }
 
 function stopMsgLoop(ref: React.MutableRefObject<ReturnType<typeof setInterval> | null>) {
