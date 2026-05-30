@@ -5,7 +5,7 @@ import { useTheme } from "../../contexts/ThemeContext";
 import {
   UtensilsCrossed, Plus, Search, X, ChevronLeft, RefreshCw,
   Clock, Users, CheckCircle2, Settings, Edit2, Trash2,
-  Banknote, CreditCard, Smartphone, Receipt, AlertTriangle,
+  Banknote, CreditCard, Smartphone, Receipt, AlertTriangle, ChevronUp, ChevronDown, ListOrdered,
   ShoppingCart, Minus, Save, Tag, Coffee,
 } from "lucide-react";
 import { getStoreSettings, getSellers, refreshStoreCache } from "../settings";
@@ -139,6 +139,13 @@ export default function TablesPage() {
   const [search, setSearch]         = useState("");
   const [catFilter, setCatFilter]   = useState<string | null>(null);
   const [areaFilter, setAreaFilter] = useState<string | null>(null);
+
+  // Ordem das categorias na comanda — salva em localStorage
+  const [catOrder, setCatOrder] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem("upabase_cat_order_tables") ?? "[]"); }
+    catch { return []; }
+  });
+  const [showCatOrder, setShowCatOrder] = useState(false);
 
   // Checkout
   const [showCheckout, setShowCheckout] = useState(false);
@@ -707,10 +714,26 @@ export default function TablesPage() {
       return acc;
     }, {});
 
-  // Nomes únicos que têm pelo menos um produto
-  const visibleCatNames = Object.keys(catNameMap).sort().filter(name =>
-    products.some(p => p.category_id && catNameMap[name].includes(p.category_id))
-  );
+  // Nomes únicos que têm pelo menos um produto, ordenados pelo catOrder salvo
+  const visibleCatNames = Object.keys(catNameMap)
+    .filter(name => products.some(p => p.category_id && catNameMap[name].includes(p.category_id)))
+    .sort((a, b) => {
+      const ai = catOrder.indexOf(a);
+      const bi = catOrder.indexOf(b);
+      if (ai === -1 && bi === -1) return a.localeCompare(b);
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    });
+
+  function moveCat(idx: number, dir: -1 | 1) {
+    const arr = [...visibleCatNames];
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= arr.length) return;
+    [arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]];
+    setCatOrder(arr);
+    localStorage.setItem("upabase_cat_order_tables", JSON.stringify(arr));
+  }
 
   // catFilter agora guarda o NOME da categoria (maiúsculo) ou null
   const filteredProducts = products.filter(p => {
@@ -974,22 +997,57 @@ export default function TablesPage() {
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm placeholder-zinc-600 focus:outline-none focus:border-violet-500 transition-all" />
               </div>
 
-              {/* Category tabs */}
+              {/* Category tabs + botão ordenar */}
               {visibleCatNames.length > 0 && (
-                <div className="flex gap-1.5 mb-3 overflow-x-auto pb-1 flex-shrink-0 scrollbar-none">
-                  <button onClick={() => setCatFilter(null)}
-                    style={catFilter !== null ? { background: card.bg, border: card.border } : undefined}
-                    className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors ${catFilter === null ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-white"}`}>
-                    Todos
-                  </button>
-                  {visibleCatNames.map(name => (
-                    <button key={name} onClick={() => setCatFilter(name)}
-                      style={catFilter !== name ? { background: card.bg, border: card.border } : undefined}
-                      className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors ${catFilter === name ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-white"}`}>
-                      {name.charAt(0) + name.slice(1).toLowerCase()}
+                <>
+                  <div className="flex gap-1.5 mb-1 overflow-x-auto pb-1 flex-shrink-0 scrollbar-none items-center">
+                    <button onClick={() => setCatFilter(null)}
+                      style={catFilter !== null ? { background: card.bg, border: card.border } : undefined}
+                      className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors ${catFilter === null ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-white"}`}>
+                      Todos
                     </button>
-                  ))}
-                </div>
+                    {visibleCatNames.map(name => (
+                      <button key={name} onClick={() => setCatFilter(name)}
+                        style={catFilter !== name ? { background: card.bg, border: card.border } : undefined}
+                        className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors ${catFilter === name ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-white"}`}>
+                        {name.charAt(0) + name.slice(1).toLowerCase()}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setShowCatOrder(v => !v)}
+                      title="Ordenar categorias"
+                      className="ml-auto flex-shrink-0 p-1.5 rounded-lg transition-colors"
+                      style={{ background: showCatOrder ? "rgba(139,92,246,0.15)" : card.bg, border: card.border, color: showCatOrder ? "#8b5cf6" : "#71717a" }}>
+                      <ListOrdered className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {/* Painel de ordenação inline */}
+                  {showCatOrder && (
+                    <div className="mb-3 rounded-xl p-3 flex-shrink-0"
+                      style={{ background: card.bg, border: card.border }}>
+                      <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-2">Arrastar para ordenar</p>
+                      <div className="space-y-1">
+                        {visibleCatNames.map((name, idx) => (
+                          <div key={name} className="flex items-center gap-2 rounded-lg px-2 py-1.5"
+                            style={{ background: isLight ? "#F3F4F6" : "#27272a" }}>
+                            <span className="flex-1 text-xs font-medium" style={{ color: isLight ? "#374151" : "#a1a1aa" }}>
+                              {name.charAt(0) + name.slice(1).toLowerCase()}
+                            </span>
+                            <button onClick={() => moveCat(idx, -1)} disabled={idx === 0}
+                              className="p-0.5 rounded disabled:opacity-30 text-zinc-500 hover:text-violet-400 transition-colors">
+                              <ChevronUp className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => moveCat(idx, 1)} disabled={idx === visibleCatNames.length - 1}
+                              className="p-0.5 rounded disabled:opacity-30 text-zinc-500 hover:text-violet-400 transition-colors">
+                              <ChevronDown className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
 
               {/* Product area */}
