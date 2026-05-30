@@ -207,7 +207,12 @@ export default function CashPage() {
   // Breakdown por canal — iFood mostra valor bruto (recibo)
   const channelBreakdown = (Object.keys(CHANNEL_INFO) as SaleChannel[]).map(channel => {
     const amount = salesRows
-      .filter(s => (s.origin ?? "pdv") === channel)
+      .filter(s => {
+        const origin = s.origin ?? "pdv";
+        // "cardapio_digital" é o origin legado; "digital_menu" é o novo
+        if (channel === "digital_menu") return origin === "digital_menu" || origin === "cardapio_digital";
+        return origin === channel;
+      })
       .reduce((sum, s) => sum + saleGross(s), 0);
     return { channel, amount, pct: salesTotal > 0 ? (amount / salesTotal) * 100 : 0 };
   });

@@ -402,7 +402,7 @@ export default function DigitalMenuPage() {
 
       const { data: sale, error: saleErr } = await supabase.from("sales").insert({
         user_id: userId, total_amount: order.total_amount, discount: 0, status: "paid",
-        origin: "cardapio_digital", seller_name: null, notes: order.notes,
+        origin: "digital_menu", seller_name: null, notes: order.notes,
         payments: [{ method: order.payment_method ?? "cash", amount: order.total_amount }],
       }).select("id").single();
 
