@@ -1216,7 +1216,7 @@ export default function PublicMenuPage() {
           </span>
           {(settings.estimated_time_min > 0 || settings.estimated_time_max > 0) && (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
-              style={{ background:"rgba(20,184,166,0.12)", color:"#2dd4bf", border:"1px solid rgba(20,184,166,0.2)" }}>
+              style={{ background:"rgba(249,115,22,0.12)", color:"#f97316", border:"1px solid rgba(249,115,22,0.2)" }}>
               <Clock className="w-3.5 h-3.5" />
               {settings.estimated_time_min}–{settings.estimated_time_max} min
             </span>
