@@ -452,6 +452,16 @@ export function AppLayout() {
             {isLight ? <Moon size={14} /> : <Sun size={14} />}
           </button>
 
+          {userEmail !== ADMIN_EMAIL && (
+            <button
+              onClick={() => setShowReview(true)}
+              title="Avaliar sistema"
+              className="flex items-center justify-center w-8 h-8 rounded-lg transition-all text-amber-500 hover:text-amber-400 hover:bg-amber-500/10 flex-shrink-0"
+              style={{ border: "1px solid transparent" }}>
+              <MessageSquare size={14} />
+            </button>
+          )}
+
           <button onClick={handleLogout}
             title="Sair"
             className="flex items-center justify-center w-8 h-8 rounded-lg transition-all text-zinc-500 hover:text-red-400 hover:bg-red-500/10 flex-shrink-0"
