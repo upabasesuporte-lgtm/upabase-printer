@@ -2,7 +2,7 @@
 // Deploy: supabase functions deploy mp-webhook --no-verify-jwt
 // Webhook URL: https://omsjsgnyjjuvixwyevox.supabase.co/functions/v1/mp-webhook
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const MP_ACCESS_TOKEN    = Deno.env.get("MP_ACCESS_TOKEN")            ?? "";
@@ -28,7 +28,7 @@ const ANNUAL_IDS = new Set([
 
 // ─── Verificação de assinatura do MP ─────────────────────────────────────────
 async function verifySignature(req: Request, rawBody: string): Promise<boolean> {
-  if (!MP_WEBHOOK_SECRET) return true; // sem secret configurado, aceita
+  if (!MP_WEBHOOK_SECRET) return false; // rejeita se secret não estiver configurado
   const xSignature = req.headers.get("x-signature");
   const xRequestId = req.headers.get("x-request-id");
   if (!xSignature || !xRequestId) return false;
@@ -131,7 +131,7 @@ serve(async (req) => {
       .eq("email", payerEmail);
 
     if (error) console.error("Erro ao ativar plano:", error);
-    else console.log(`Plano ${planType} ativado para ${payerEmail}`);
+    else console.log(`Plano ${planType} ativado — sub ${subscriptionId}`);
 
   } else if (status === "cancelled" || status === "paused") {
     const { error } = await supabase
@@ -143,7 +143,7 @@ serve(async (req) => {
       .eq("email", payerEmail);
 
     if (error) console.error("Erro ao suspender plano:", error);
-    else console.log(`Plano suspenso para ${payerEmail} (status: ${status})`);
+    else console.log(`Plano suspenso — sub ${subscriptionId} (status: ${status})`);
   }
 
   return new Response("OK", { status: 200 });

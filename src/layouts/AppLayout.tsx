@@ -175,6 +175,9 @@ export function AppLayout() {
 
     if (!linkData) return;
 
+    // Rejeita link expirado
+    if (linkData.link_expires_at && new Date(linkData.link_expires_at) < new Date()) return;
+
     const now = new Date();
     let expiresAt: string | null = null;
     let isLifetime = false;

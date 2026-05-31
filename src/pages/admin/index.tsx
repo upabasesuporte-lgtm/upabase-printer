@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Users, Shield, RefreshCw, Link, Plus, Copy, Check,
   Search, Crown, Gift, AlertTriangle, Ban,
@@ -102,6 +103,16 @@ type FilterTab = "all" | "trial" | "active" | "lifetime" | "expired" | "suspende
 export default function AdminPage() {
   const { theme } = useTheme();
   const isLight = theme === "light";
+  const navigate = useNavigate();
+
+  // Verificação de autorização no próprio componente
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user || data.user.email !== ADMIN_EMAIL) {
+        navigate("/", { replace: true });
+      }
+    });
+  }, [navigate]);
   const card = isLight ? {
     bg: "#ffffff",
     border: "1px solid #e5e7eb",
