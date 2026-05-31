@@ -571,8 +571,8 @@ export default function StockPage() {
         <div className="flex gap-1.5 overflow-x-auto pb-0.5">
           {TABS.map(t => (
             <button key={t.key} onClick={() => { setTab(t.key); setSearch(""); }}
-              style={tab !== t.key ? { background: card.bg, border: card.border } : undefined}
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0 ${tab === t.key ? "bg-violet-600 text-white shadow-lg shadow-violet-900/30" : "text-zinc-400 hover:text-white"}`}>
+              style={tab !== t.key ? { background: card.bg, border: card.border } : isLight ? { background: "#2563eb", color: "#fff" } : undefined}
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0 ${tab === t.key ? (isLight ? "" : "bg-violet-600 text-white shadow-lg shadow-violet-900/30") : "text-zinc-400 hover:text-white"}`}>
               {t.icon}{t.label}
               {t.key === "items" && lowStockItems.length > 0 && (
                 <span className="bg-amber-500 text-black text-[10px] font-black rounded-full w-4 h-4 flex items-center justify-center">
@@ -588,75 +588,93 @@ export default function StockPage() {
           <div className="space-y-5">
             {/* Summary cards */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="relative overflow-hidden rounded-2xl p-4"
-                style={{ background: card.bg, border: card.border, boxShadow: isLight ? card.shadow : "0 0 24px rgba(139,92,246,0.13)" }}>
-                <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full opacity-20 blur-2xl pointer-events-none" style={{ background: "#8b5cf6" }} />
-                <div className="w-9 h-9 bg-violet-500/10 rounded-xl flex items-center justify-center mb-3 relative z-10">
-                  <Boxes className="w-4 h-4 text-violet-400" />
+              {[
+                { gFrom:"#8b5cf6", gTo:"#a78bfa", glow:"rgba(139,92,246,0.13)",
+                  icon:<Boxes className="w-4 h-4" style={{color:"#8b5cf6"}} />,
+                  iconBg:"rgba(139,92,246,0.1)", iconBorder:"rgba(139,92,246,0.25)",
+                  value: String(allUnified.length), label:"Total de Itens",
+                  sub:`${limitedProducts.length} produto${limitedProducts.length !== 1 ? "s" : ""} · ${stockItems.length} insumo${stockItems.length !== 1 ? "s" : ""}`,
+                  darkValue:"#fff" },
+                { gFrom: lowStockItems.length > 0 ? "#f59e0b" : "#71717a",
+                  gTo: lowStockItems.length > 0 ? "#fbbf24" : "#a1a1aa",
+                  glow: lowStockItems.length > 0 ? "rgba(245,158,11,0.18)" : "rgba(113,113,122,0.08)",
+                  icon:<AlertTriangle className="w-4 h-4" style={{color: lowStockItems.length > 0 ? "#f59e0b" : "#71717a"}} />,
+                  iconBg: lowStockItems.length > 0 ? "rgba(245,158,11,0.1)" : "rgba(113,113,122,0.1)",
+                  iconBorder: lowStockItems.length > 0 ? "rgba(245,158,11,0.25)" : "rgba(113,113,122,0.2)",
+                  value: String(lowStockItems.length), label:"Alertas de Estoque",
+                  sub: lowStockItems.length > 0 ? "Itens precisam de reposição" : "Todos os itens em dia",
+                  darkValue: lowStockItems.length > 0 ? "#f59e0b" : "#fff" },
+                { gFrom:"#10b981", gTo:"#34d399", glow:"rgba(16,185,129,0.13)",
+                  icon:<DollarSign className="w-4 h-4" style={{color:"#10b981"}} />,
+                  iconBg:"rgba(16,185,129,0.1)", iconBorder:"rgba(16,185,129,0.25)",
+                  value: fmt(totalValue), label:"Valor em Estoque",
+                  sub:`${allUnified.length} ite${allUnified.length !== 1 ? "ns" : "m"} contabilizados`,
+                  darkValue:"#10b981" },
+                { gFrom:"#3b82f6", gTo:"#60a5fa", glow:"rgba(59,130,246,0.13)",
+                  icon:<Truck className="w-4 h-4" style={{color:"#3b82f6"}} />,
+                  iconBg:"rgba(59,130,246,0.1)", iconBorder:"rgba(59,130,246,0.25)",
+                  value: String(suppliers.length), label:"Fornecedores",
+                  sub: suppliers.length > 0 ? `${suppliers.length} cadastrado${suppliers.length !== 1 ? "s" : ""}` : "Nenhum cadastrado",
+                  darkValue:"#fff" },
+              ].map((cfg, i) => (
+                <div key={i} className="relative overflow-hidden rounded-2xl p-5 cursor-default"
+                  style={isLight ? {
+                    background: "#ffffff",
+                    border: "1px solid #e5e7eb",
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.9)",
+                  } : {
+                    background: card.bg, border: card.border,
+                    boxShadow: `0 0 24px ${cfg.glow}`,
+                  }}>
+                  {isLight
+                    ? <div style={{ position:"absolute", top:0, left:0, right:0, height:3, background:`linear-gradient(90deg,${cfg.gFrom},${cfg.gTo})`, borderRadius:"12px 12px 0 0" }} />
+                    : <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full opacity-20 blur-2xl pointer-events-none" style={{ background: cfg.gFrom }} />
+                  }
+                  <div className="relative z-10">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: isLight ? "#9CA3AF" : "#71717a" }}>{cfg.label}</span>
+                      <div className="p-2 rounded-xl" style={{ background: cfg.iconBg, border:`1px solid ${cfg.iconBorder}` }}>{cfg.icon}</div>
+                    </div>
+                    <div className="text-2xl font-black tabular-nums"
+                      style={isLight
+                        ? { background:`linear-gradient(135deg,${cfg.gFrom},${cfg.gTo})`, WebkitBackgroundClip:"text", display:"inline-block", WebkitTextFillColor:"transparent", backgroundClip:"text" }
+                        : { color: cfg.darkValue }}>
+                      {cfg.value}
+                    </div>
+                    <p className="text-[11px] mt-1" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>{cfg.sub}</p>
+                  </div>
                 </div>
-                <p className="text-2xl font-black relative z-10" style={{ color: isLight ? "#111" : "#fff" }}>{allUnified.length}</p>
-                <p className="text-xs text-zinc-500 mt-0.5 relative z-10">{limitedProducts.length} produtos · {stockItems.length} insumos</p>
-              </div>
-
-              <div className="relative overflow-hidden rounded-2xl p-4"
-                style={{ background: card.bg, border: card.border, boxShadow: isLight ? card.shadow : (lowStockItems.length > 0 ? "0 0 24px rgba(245,158,11,0.18)" : "0 0 24px rgba(113,113,122,0.08)") }}>
-                <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full opacity-20 blur-2xl pointer-events-none" style={{ background: lowStockItems.length > 0 ? "#f59e0b" : "#71717a" }} />
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3 relative z-10" style={{ background: lowStockItems.length > 0 ? "rgba(245,158,11,0.15)" : "rgba(113,113,122,0.1)" }}>
-                  <AlertTriangle className={`w-4 h-4 ${lowStockItems.length > 0 ? "text-amber-400" : "text-zinc-500"}`} />
-                </div>
-                <p className="text-2xl font-black relative z-10" style={{ color: lowStockItems.length > 0 ? "#f59e0b" : "#fff" }}>{lowStockItems.length}</p>
-                <p className="text-xs text-zinc-500 mt-0.5 relative z-10">Alertas de estoque</p>
-              </div>
-
-              <div className="relative overflow-hidden rounded-2xl p-4"
-                style={{ background: card.bg, border: card.border, boxShadow: isLight ? card.shadow : "0 0 24px rgba(16,185,129,0.13)" }}>
-                <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full opacity-20 blur-2xl pointer-events-none" style={{ background: "#10b981" }} />
-                <div className="w-9 h-9 bg-emerald-500/10 rounded-xl flex items-center justify-center mb-3 relative z-10">
-                  <DollarSign className="w-4 h-4 text-emerald-400" />
-                </div>
-                <p className="text-2xl font-black text-emerald-400 relative z-10">{fmt(totalValue)}</p>
-                <p className="text-xs text-zinc-500 mt-0.5 relative z-10">Valor total em estoque</p>
-              </div>
-
-              <div className="relative overflow-hidden rounded-2xl p-4"
-                style={{ background: card.bg, border: card.border, boxShadow: isLight ? card.shadow : "0 0 24px rgba(59,130,246,0.13)" }}>
-                <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full opacity-20 blur-2xl pointer-events-none" style={{ background: "#3b82f6" }} />
-                <div className="w-9 h-9 bg-blue-500/10 rounded-xl flex items-center justify-center mb-3 relative z-10">
-                  <Truck className="w-4 h-4 text-blue-400" />
-                </div>
-                <p className="text-2xl font-black relative z-10" style={{ color: isLight ? "#111" : "#fff" }}>{suppliers.length}</p>
-                <p className="text-xs text-zinc-500 mt-0.5 relative z-10">Fornecedores</p>
-              </div>
+              ))}
             </div>
 
             {/* Alerts */}
             {lowStockItems.length > 0 && (
               <div className="rounded-2xl overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
-                <div className="flex items-center gap-2 px-5 py-4 border-b border-zinc-800">
+                <div className={`flex items-center gap-2 px-5 py-4 border-b ${isLight ? "border-gray-100" : "border-zinc-800"}`}>
                   <AlertTriangle className="w-4 h-4 text-amber-400" />
-                  <h2 className="text-sm font-semibold">Alertas de Estoque</h2>
-                  <span className="ml-auto text-xs text-zinc-500">{lowStockItems.length} ite{lowStockItems.length !== 1 ? "ns" : "m"}</span>
+                  <h2 className="text-sm font-semibold" style={{ color: isLight ? "#111827" : undefined }}>Alertas de Estoque</h2>
+                  <span className="ml-auto text-xs" style={{ color: isLight ? "#9CA3AF" : "#71717a" }}>{lowStockItems.length} ite{lowStockItems.length !== 1 ? "ns" : "m"}</span>
                 </div>
-                <div className="divide-y divide-zinc-800/50">
+                <div className={isLight ? "p-2 flex flex-col gap-1" : "divide-y divide-zinc-800/50"}>
                   {lowStockItems.map(item => {
                     const status = getUnifiedStatus(item);
-                    const cfg = STATUS_CFG[status];
+                    const stCfg = STATUS_CFG[status];
                     const pct = item.min_qty > 0 ? Math.min(100, (item.current_qty / item.min_qty) * 100) : 0;
                     return (
-                      <div key={item.id} className="flex items-center gap-4 px-5 py-3">
+                      <div key={item.id} className={`flex items-center gap-4 px-4 py-3 ${isLight ? "rounded-xl hover:bg-gray-50 transition-colors" : ""}`}>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-sm font-semibold text-white truncate">{item.name}</span>
-                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${cfg.badge}`}>{cfg.label}</span>
+                            <span className={`text-sm font-semibold truncate ${isLight ? "text-gray-900" : "text-white"}`}>{item.name}</span>
+                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${stCfg.badge}`}>{stCfg.label}</span>
                             <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${item.entry_type === "product" ? "text-blue-400 bg-blue-500/10 border-blue-500/20" : "text-violet-400 bg-violet-500/10 border-violet-500/20"}`}>
                               {item.entry_type === "product" ? "Produto" : "Insumo"}
                             </span>
                           </div>
                           <div className="flex items-center gap-3">
-                            <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                              <div className={`h-full rounded-full transition-all ${cfg.bar}`} style={{ width: `${pct}%` }} />
+                            <div className={`flex-1 h-1.5 rounded-full overflow-hidden ${isLight ? "bg-gray-200" : "bg-zinc-800"}`}>
+                              <div className={`h-full rounded-full transition-all ${stCfg.bar}`} style={{ width: `${pct}%` }} />
                             </div>
-                            <span className="text-xs text-zinc-500 flex-shrink-0">
+                            <span className="text-xs flex-shrink-0" style={{ color: isLight ? "#9CA3AF" : "#71717a" }}>
                               {fmtQty(item.current_qty, item.unit)} / mín {fmtQty(item.min_qty, item.unit)}
                             </span>
                           </div>
@@ -671,7 +689,7 @@ export default function StockPage() {
                             setModal("movement");
                           }
                         }}
-                          className="px-3 py-1.5 bg-violet-600/20 hover:bg-violet-600 text-violet-400 hover:text-white border border-violet-500/30 rounded-xl text-xs font-semibold transition-all flex-shrink-0">
+                          className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex-shrink-0 ${isLight ? "bg-blue-600 hover:bg-blue-700 text-white border border-blue-600" : "bg-violet-600/20 hover:bg-violet-600 text-violet-400 hover:text-white border border-violet-500/30"}`}>
                           Repor
                         </button>
                       </div>
