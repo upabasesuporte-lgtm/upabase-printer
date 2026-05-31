@@ -564,12 +564,13 @@ export default function AccountsPayablePage() {
               : <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full opacity-20 blur-2xl pointer-events-none" style={{ background: s.gFrom }} />
             }
             <div className="relative z-10">
-              <span className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: isLight ? "#9CA3AF" : "#71717a" }}>{s.label}</span>
-              <div className="text-xl font-black tabular-nums mt-2"
-                style={isLight
+              <span className="block text-[11px] font-semibold uppercase tracking-widest" style={{ color: isLight ? "#9CA3AF" : "#71717a" }}>{s.label}</span>
+              <div className="text-xl font-black tabular-nums mt-2">
+                <span style={isLight
                   ? { background:`linear-gradient(135deg,${s.gFrom},${s.gTo})`, WebkitBackgroundClip:"text", display:"inline-block", WebkitTextFillColor:"transparent", backgroundClip:"text" }
                   : { color: s.gFrom }}>
-                {s.value}
+                  {s.value}
+                </span>
               </div>
               <p className="text-[11px] mt-1" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>{s.sub}</p>
             </div>
