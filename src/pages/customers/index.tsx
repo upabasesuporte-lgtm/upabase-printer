@@ -581,11 +581,13 @@ export default function CustomersPage() {
             <div className="flex items-center gap-2">
               <div className="flex rounded-xl p-1 gap-1" style={{ background: card.bg, border: card.border }}>
                 <button onClick={() => setListView("list")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${listView === "list" ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-white"}`}>
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${listView === "list" ? (isLight ? "bg-pink-600" : "bg-violet-600 text-white") : (isLight ? "text-gray-500 hover:text-gray-900" : "text-zinc-400 hover:text-white")}`}
+                  style={listView === "list" && isLight ? { color: "#ffffff" } : undefined}>
                   Lista
                 </button>
                 <button onClick={() => { setListView("ranking"); loadRanking(); }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${listView === "ranking" ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-white"}`}>
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${listView === "ranking" ? (isLight ? "bg-pink-600" : "bg-violet-600 text-white") : (isLight ? "text-gray-500 hover:text-gray-900" : "text-zinc-400 hover:text-white")}`}
+                  style={listView === "ranking" && isLight ? { color: "#ffffff" } : undefined}>
                   Ranking
                 </button>
               </div>
@@ -654,19 +656,19 @@ export default function CustomersPage() {
           )}
           {listView === "list" && !loading && filtered.length > 0 && (
             <div className="rounded-2xl overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
-              <div className="hidden sm:grid grid-cols-[1fr_150px_180px_80px] gap-x-3 px-4 py-2.5 border-b border-zinc-800 text-xs text-zinc-500 font-medium">
+              <div className={`hidden sm:grid grid-cols-[1fr_150px_180px_80px] gap-x-3 px-4 py-2.5 border-b text-xs font-medium ${isLight ? "border-gray-100 text-gray-400" : "border-zinc-800 text-zinc-500"}`}>
                 <span>Cliente</span>
                 <span>Telefone</span>
                 <span className="text-right">Situação Financeira</span>
                 <span />
               </div>
-              <div className="divide-y divide-zinc-800">
+              <div className={isLight ? "p-2 flex flex-col gap-1" : "divide-y divide-zinc-800"}>
                 {filtered.map(c => {
                   const hasDebt = (c.fiado_balance ?? 0) > 0;
                   const hasCredit = c.balance > 0;
                   return (
                     <div key={c.id}
-                      className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_150px_180px_80px] gap-x-3 px-4 py-3 items-center hover:bg-zinc-800/40 cursor-pointer transition-colors"
+                      className={`grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_150px_180px_80px] gap-x-3 px-4 py-3 items-center cursor-pointer transition-colors ${isLight ? "rounded-xl hover:bg-gray-50" : "hover:bg-zinc-800/40"}`}
                       onClick={() => openDetail(c)}>
                       <div className="flex items-center gap-3 min-w-0">
                         <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${hasDebt ? "bg-red-500/20 border border-red-500/30 text-red-400" : "bg-violet-600/20 border border-violet-500/20 text-violet-400"}`}>
@@ -674,7 +676,7 @@ export default function CustomersPage() {
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="text-sm font-semibold text-white truncate">{c.name}</p>
+                            <p className={`text-sm font-medium truncate ${isLight ? "text-gray-900" : "text-white"}`}>{c.name}</p>
                             {hasDebt && <span className="text-xs font-bold text-red-400 bg-red-500/10 border border-red-500/20 px-1.5 py-0.5 rounded-md flex-shrink-0">DEVENDO</span>}
                           </div>
                           {c.phone && <p className="text-xs text-zinc-500 sm:hidden">{c.phone}</p>}
@@ -1119,7 +1121,8 @@ export default function CustomersPage() {
             <div className="flex items-center gap-3 px-6 py-4 border-t border-zinc-800">
               <button onClick={() => setModal("none")} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
               <button onClick={saveCustomer} disabled={!fName.trim() || saving}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 disabled:opacity-50 rounded-xl text-sm font-semibold transition-colors ${isLight ? "bg-pink-600 hover:bg-pink-700" : "bg-violet-600 hover:bg-violet-500 text-white"}`}
+                style={isLight ? { color: "#ffffff" } : undefined}>
                 {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 {editing ? "Salvar" : "Cadastrar"}
               </button>
