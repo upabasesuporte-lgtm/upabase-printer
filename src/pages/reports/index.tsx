@@ -557,14 +557,14 @@ export default function ReportsPage() {
                 from="#8b5cf6" to="#06b6d4" glow="rgba(139,92,246,0.15)"
                 icon={<TrendingUp className="w-4 h-4" style={{color:"#8b5cf6"}} />} />
               <KPICard label="Ticket Médio" value={fmt(avgTicket)} sub="por pedido"
-                from="#06b6d4" to="#10b981" glow="rgba(6,182,212,0.12)"
-                icon={<ShoppingCart className="w-4 h-4" style={{color:"#06b6d4"}} />} />
+                from="#f59e0b" to="#f97316" glow="rgba(245,158,11,0.15)"
+                icon={<ShoppingCart className="w-4 h-4" style={{color:"#f59e0b"}} />} />
               <KPICard label="Receita Líquida" value={fmt(totalRevenue-totalDiscount)} sub={`${fmt(totalDiscount)} em descontos`}
-                from="#10b981" to="#059669" glow="rgba(16,185,129,0.12)"
-                icon={<Zap className="w-4 h-4" style={{color:"#10b981"}} />} />
+                from="#3b82f6" to="#60a5fa" glow="rgba(59,130,246,0.15)"
+                icon={<Zap className="w-4 h-4" style={{color:"#3b82f6"}} />} />
               <KPICard label="Resultado Estimado" value={fmt(dreResult)}
                 sub={cashOut>0?`${fmt(cashOut)} em sangrias`:"sem sangrias no período"}
-                from={dreResult>=0?"#10b981":"#f43f5e"} to={dreResult>=0?"#059669":"#dc2626"} glow="rgba(16,185,129,0.1)"
+                from={dreResult>=0?"#10b981":"#f43f5e"} to={dreResult>=0?"#34d399":"#fb7185"} glow={dreResult>=0?"rgba(16,185,129,0.15)":"rgba(244,63,94,0.15)"}
                 icon={<Banknote className="w-4 h-4" style={{color: dreResult>=0?"#10b981":"#f43f5e"}} />} />
             </div>
 
