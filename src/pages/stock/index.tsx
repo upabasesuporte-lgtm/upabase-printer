@@ -554,13 +554,15 @@ export default function StockPage() {
             )}
             {tab === "purchases" && (
               <button onClick={openPurchaseModal}
-                className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-sm font-semibold transition-colors">
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${isLight ? "bg-blue-600 hover:bg-blue-700" : "bg-violet-600 hover:bg-violet-500 text-white"}`}
+                style={isLight ? { color: "#ffffff" } : undefined}>
                 <Plus className="w-4 h-4" /> Registrar Compra
               </button>
             )}
             {tab === "suppliers" && (
               <button onClick={() => openSupplierModal()}
-                className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-sm font-semibold transition-colors">
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${isLight ? "bg-blue-600 hover:bg-blue-700" : "bg-violet-600 hover:bg-violet-500 text-white"}`}
+                style={isLight ? { color: "#ffffff" } : undefined}>
                 <Plus className="w-4 h-4" /> Novo Fornecedor
               </button>
             )}
