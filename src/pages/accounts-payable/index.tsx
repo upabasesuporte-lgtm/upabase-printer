@@ -545,18 +545,34 @@ export default function AccountsPayablePage() {
       {/* ── Summary Cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { label: "Total do Mês",    value: fmt(summary.total),          color: "#f97316", glow: "rgba(249,115,22,0.15)",  sub: "todas as contas"      },
-          { label: "A Pagar",         value: fmt(summary.pending),        color: "#f59e0b", glow: "rgba(245,158,11,0.15)",  sub: "em aberto e vencidos" },
-          { label: "Pago no Mês",     value: fmt(summary.paid),           color: "#10b981", glow: "rgba(16,185,129,0.15)",  sub: "liquidado"            },
-          { label: "Contas Vencidas", value: String(summary.overdue),     color: "#f43f5e", glow: "rgba(244,63,94,0.15)",   sub: "títulos em atraso"    },
+          { label:"Total do Mês",    value:fmt(summary.total),      gFrom:"#f97316", gTo:"#fb923c", glow:"rgba(249,115,22,0.15)",  sub:"todas as contas"      },
+          { label:"A Pagar",         value:fmt(summary.pending),    gFrom:"#f59e0b", gTo:"#fbbf24", glow:"rgba(245,158,11,0.15)",  sub:"em aberto e vencidos" },
+          { label:"Pago no Mês",     value:fmt(summary.paid),       gFrom:"#10b981", gTo:"#34d399", glow:"rgba(16,185,129,0.15)",  sub:"liquidado"            },
+          { label:"Contas Vencidas", value:String(summary.overdue), gFrom:"#f43f5e", gTo:"#fb7185", glow:"rgba(244,63,94,0.15)",   sub:"títulos em atraso"    },
         ].map(s => (
-          <div key={s.label} className="relative overflow-hidden rounded-2xl p-4"
-            style={{ background: card.bg, border: card.border, boxShadow: isLight ? card.shadow : `0 0 24px ${s.glow}` }}>
-            <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full opacity-20 blur-2xl pointer-events-none"
-              style={{ background: s.color }} />
-            <p className="text-[11px] text-zinc-500 mb-1 relative z-10">{s.label}</p>
-            <p className="text-xl font-black relative z-10" style={{color: s.color}}>{s.value}</p>
-            <p className="text-[11px] text-zinc-600 mt-1 relative z-10">{s.sub}</p>
+          <div key={s.label} className="relative overflow-hidden rounded-2xl p-5 cursor-default"
+            style={isLight ? {
+              background: "#ffffff",
+              border: "1px solid #e5e7eb",
+              boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.9)",
+            } : {
+              background: card.bg, border: card.border,
+              boxShadow: `0 0 24px ${s.glow}`,
+            }}>
+            {isLight
+              ? <div style={{ position:"absolute", top:0, left:0, right:0, height:3, background:`linear-gradient(90deg,${s.gFrom},${s.gTo})`, borderRadius:"12px 12px 0 0" }} />
+              : <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full opacity-20 blur-2xl pointer-events-none" style={{ background: s.gFrom }} />
+            }
+            <div className="relative z-10">
+              <span className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: isLight ? "#9CA3AF" : "#71717a" }}>{s.label}</span>
+              <div className="text-xl font-black tabular-nums mt-2"
+                style={isLight
+                  ? { background:`linear-gradient(135deg,${s.gFrom},${s.gTo})`, WebkitBackgroundClip:"text", display:"inline-block", WebkitTextFillColor:"transparent", backgroundClip:"text" }
+                  : { color: s.gFrom }}>
+                {s.value}
+              </div>
+              <p className="text-[11px] mt-1" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>{s.sub}</p>
+            </div>
           </div>
         ))}
       </div>
@@ -700,7 +716,7 @@ export default function AccountsPayablePage() {
                       className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5 transition-all"
                       style={sel
                         ? {background:"rgba(245,158,11,0.2)",border:"1px solid rgba(245,158,11,0.5)"}
-                        : {background:"#27272a",border:"1px solid #3f3f46"}}>
+                        : isLight ? {background:"#f3f4f6",border:"1px solid #d1d5db"} : {background:"#27272a",border:"1px solid #3f3f46"}}>
                       {sel && <Check className="w-3 h-3 text-amber-400" />}
                     </button>
 
@@ -1115,7 +1131,7 @@ export default function AccountsPayablePage() {
                         className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
                         style={form.status === s
                           ? {background: sc.bg, color: sc.color, border:`1px solid ${sc.border}`}
-                          : {background:"#27272a", color:"#52525b", border:"1px solid #3f3f46"}}>
+                          : isLight ? {background:"#f9fafb", color:"#6b7280", border:"1px solid #e5e7eb"} : {background:"#27272a", color:"#52525b", border:"1px solid #3f3f46"}}>
                         {sc.label}
                       </button>
                     );
