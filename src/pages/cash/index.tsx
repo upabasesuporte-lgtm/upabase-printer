@@ -1154,7 +1154,7 @@ function SummaryCard({ label, value, sub, icon, iconBg, iconColor, color }: {
         <p className="text-xs font-medium text-zinc-500">{label}</p>
         <div className={`w-9 h-9 ${iconBg} rounded-xl flex items-center justify-center ${iconColor}`}>{icon}</div>
       </div>
-      <p className="text-2xl font-bold mb-1 relative z-10" style={{ color: isLight ? (color || "#7B2FBE") : "#fff" }}>{value}</p>
+      <p className="text-2xl font-bold mb-1 relative z-10" style={{ color: color || (isLight ? "#7B2FBE" : "#fff") }}>{value}</p>
       <p className="text-xs text-zinc-500 relative z-10">{sub}</p>
     </div>
   );
