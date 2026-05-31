@@ -689,7 +689,8 @@ export default function StockPage() {
                             setModal("movement");
                           }
                         }}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex-shrink-0 ${isLight ? "bg-blue-600 hover:bg-blue-700 text-white border border-blue-600" : "bg-violet-600/20 hover:bg-violet-600 text-violet-400 hover:text-white border border-violet-500/30"}`}>
+                          className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex-shrink-0 ${isLight ? "bg-blue-600 hover:bg-blue-700 border border-blue-600" : "bg-violet-600/20 hover:bg-violet-600 text-violet-400 hover:text-white border border-violet-500/30"}`}
+                          style={isLight ? { color: "#ffffff" } : undefined}>
                           Repor
                         </button>
                       </div>
