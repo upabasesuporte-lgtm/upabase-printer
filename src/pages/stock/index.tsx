@@ -547,7 +547,8 @@ export default function StockPage() {
             </>}
             {tab === "movements" && (
               <button onClick={openMovModal}
-                className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-sm font-semibold transition-colors">
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${isLight ? "bg-blue-600 hover:bg-blue-700" : "bg-violet-600 hover:bg-violet-500 text-white"}`}
+                style={isLight ? { color: "#ffffff" } : undefined}>
                 <Plus className="w-4 h-4" /> Nova Movimentação
               </button>
             )}
@@ -989,7 +990,8 @@ export default function StockPage() {
               <div className="flex rounded-xl p-1 gap-1 flex-wrap" style={{ background: card.bg, border: card.border }}>
                 {(["all", "entry", "exit", "adjustment", "loss", "sale", "return"] as const).map(f => (
                   <button key={f} onClick={() => setMovFilter(f as any)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${movFilter === f ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-white"}`}>
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${movFilter === f ? (isLight ? "bg-blue-600" : "bg-violet-600 text-white") : (isLight ? "text-gray-500 hover:text-gray-900" : "text-zinc-400 hover:text-white")}`}
+                    style={movFilter === f && isLight ? { color: "#ffffff" } : undefined}>
                     {f === "all" ? "Todas" : MOV_INFO[f]?.label ?? f}
                   </button>
                 ))}
