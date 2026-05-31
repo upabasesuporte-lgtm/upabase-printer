@@ -312,7 +312,8 @@ export default function AccountsPayablePage() {
       total:   month.reduce((s, b) => s + finalAmt(b), 0),
       pending: month.filter(b => b.status === "pending" || b.status === "overdue").reduce((s, b) => s + finalAmt(b), 0),
       paid:    month.filter(b => b.status === "paid" || b.status === "partial").reduce((s, b) => s + (b.paid_amount || finalAmt(b)), 0),
-      overdue: bills.filter(b => b.status === "overdue").length,
+      overdue: bills.filter(b => b.status === "overdue").reduce((s, b) => s + finalAmt(b), 0),
+      overdueCount: bills.filter(b => b.status === "overdue").length,
     };
   }, [bills]);
 
@@ -548,7 +549,7 @@ export default function AccountsPayablePage() {
           { label:"Total do Mês",    value:fmt(summary.total),      gFrom:"#f97316", gTo:"#fb923c", glow:"rgba(249,115,22,0.15)",  sub:"todas as contas"      },
           { label:"A Pagar",         value:fmt(summary.pending),    gFrom:"#f59e0b", gTo:"#fbbf24", glow:"rgba(245,158,11,0.15)",  sub:"em aberto e vencidos" },
           { label:"Pago no Mês",     value:fmt(summary.paid),       gFrom:"#10b981", gTo:"#34d399", glow:"rgba(16,185,129,0.15)",  sub:"liquidado"            },
-          { label:"Contas Vencidas", value:String(summary.overdue), gFrom:"#f43f5e", gTo:"#fb7185", glow:"rgba(244,63,94,0.15)",   sub:"títulos em atraso"    },
+          { label:"Contas Vencidas", value:fmt(summary.overdue),    gFrom:"#f43f5e", gTo:"#fb7185", glow:"rgba(244,63,94,0.15)",   sub:"títulos em atraso"    },
         ].map(s => (
           <div key={s.label} className="relative overflow-hidden rounded-2xl p-5 cursor-default"
             style={isLight ? {
@@ -673,12 +674,12 @@ export default function AccountsPayablePage() {
           </div>
 
           {/* Overdue alert banner */}
-          {summary.overdue > 0 && (
+          {summary.overdueCount > 0 && (
             <div className="flex items-center gap-3 px-4 py-3 rounded-2xl border"
               style={{background:"rgba(244,63,94,0.08)",borderColor:"rgba(244,63,94,0.35)"}}>
               <AlertCircle className="w-4 h-4 flex-shrink-0" style={{color:"#f43f5e"}} />
               <p className="text-sm font-semibold" style={{color:"#f43f5e"}}>
-                {summary.overdue} conta{summary.overdue > 1 ? "s" : ""} vencida{summary.overdue > 1 ? "s" : ""} em atraso
+                {summary.overdueCount} conta{summary.overdueCount > 1 ? "s" : ""} vencida{summary.overdueCount > 1 ? "s" : ""} em atraso
               </p>
               <button onClick={() => { setStatusF("all"); setPeriodF("overdue"); }}
                 className="ml-auto text-xs font-bold underline" style={{color:"#f43f5e"}}>
