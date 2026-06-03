@@ -529,10 +529,12 @@ export default function CustomersPage() {
     const amt = parseFloat(editPayInput.replace(",", "."));
     if (isNaN(amt) || amt <= 0) return;
     setEditPayEntries(prev => {
-      if (prev.some(e => e.method === editPayMethod)) {
-        return prev.map(e => e.method === editPayMethod ? { ...e, amount: amt } : e);
+      // Ao adicionar método não-fiado, remove fiado automaticamente (fiado = crédito, não pagamento)
+      const base = editPayMethod !== "fiado" ? prev.filter(e => e.method !== "fiado") : prev;
+      if (base.some(e => e.method === editPayMethod)) {
+        return base.map(e => e.method === editPayMethod ? { ...e, amount: amt } : e);
       }
-      return [...prev, { method: editPayMethod, amount: amt }];
+      return [...base, { method: editPayMethod, amount: amt }];
     });
     setEditPayInput("");
   }
@@ -616,17 +618,8 @@ export default function CustomersPage() {
         const orderNum = saleId.slice(-6).toUpperCase();
         const newTotal = editSaleItems.reduce((s: number, i: any) => s + i.unit_price * i.quantity, 0);
 
-        // Salva payments e total no sale
-        let paymentsSnapshot = [...editPayEntries];
-        if (paymentsSnapshot.length > 0) {
-          const currentPaid = paymentsSnapshot.reduce((s, p) => s + p.amount, 0);
-          if (Math.abs(currentPaid - newTotal) > 0.001) {
-            const diff = newTotal - currentPaid;
-            paymentsSnapshot = paymentsSnapshot.map((p, i) =>
-              i === paymentsSnapshot.length - 1 ? { ...p, amount: Math.max(0, p.amount + diff) } : p
-            );
-          }
-        }
+        // Usa os payments exatamente como o usuário definiu (sem auto-ajuste que zeraria entradas)
+        const paymentsSnapshot = editPayEntries.filter(p => p.amount > 0);
         await supabase.from("sales").update({ payments: paymentsSnapshot, total: newTotal, total_amount: newTotal }).eq("id", saleId);
 
         // Busca register_id original para manter no caixa correto mesmo com caixa fechado
