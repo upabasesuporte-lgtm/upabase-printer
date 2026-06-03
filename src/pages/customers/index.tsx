@@ -620,7 +620,14 @@ export default function CustomersPage() {
 
         // Usa os payments exatamente como o usuário definiu (sem auto-ajuste que zeraria entradas)
         const paymentsSnapshot = editPayEntries.filter(p => p.amount > 0);
-        await supabase.from("sales").update({ payments: paymentsSnapshot, total: newTotal, total_amount: newTotal }).eq("id", saleId);
+        const { error: saleErr, data: saleRows } = await supabase
+          .from("sales")
+          .update({ payments: paymentsSnapshot, total: newTotal, total_amount: newTotal })
+          .eq("id", saleId)
+          .select("id");
+        if (saleErr) throw saleErr;
+        if (!saleRows || saleRows.length === 0)
+          throw new Error("Sem permissão para atualizar a venda. Verifique as políticas RLS da tabela 'sales' no Supabase.");
 
         // Re-busca caixa aberto no momento do save (cashRegisterId pode estar desatualizado)
         const { data: freshReg } = await supabase.from("cash_registers")

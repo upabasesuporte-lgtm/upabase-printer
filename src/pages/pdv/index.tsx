@@ -797,15 +797,19 @@ export default function PdvPage() {
 
   // ── Editar venda ──
   async function openEditSale(sale: Sale) {
+    // Re-busca dados frescos do banco (evita cache desatualizado quando editado em outra aba)
+    const { data: freshSale } = await supabase.from("sales").select("*").eq("id", sale.id).single();
+    const saleToUse = (freshSale ?? sale) as Sale;
+
     const { data } = await supabase.from("sale_items").select("*, products(name)").eq("sale_id", sale.id);
     setShowEditItems(data ?? []);
-    setEditSalePayments(sale.payments ?? []);
-    setEditCustomer(customers.find(c => c.id === sale.customer_id) ?? null);
+    setEditSalePayments((saleToUse as any).payments ?? []);
+    setEditCustomer(customers.find(c => c.id === saleToUse.customer_id) ?? null);
     setEditCustSearch("");
-    setEditDeliveryAddress((sale as any).delivery_address ?? "");
+    setEditDeliveryAddress((saleToUse as any).delivery_address ?? "");
     setEditingItemPriceId(null);
     setEditingItemPriceVal("");
-    setShowEditSale(sale);
+    setShowEditSale(saleToUse);
   }
 
   async function deleteFromSale(itemId: string) {
