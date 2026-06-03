@@ -54,7 +54,7 @@ interface CustomerSale {
 
 type PayMethod = "cash" | "credit" | "debit" | "pix";
 type DateFilter = "today" | "week" | "month" | "year" | "custom";
-type ModalType = "none" | "createEdit" | "addCredit" | "payDebt" | "delete";
+type ModalType = "none" | "createEdit" | "addCredit" | "payDebt" | "delete" | "editMovement";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -146,6 +146,13 @@ export default function CustomersPage() {
   const [payEntries, setPayEntries] = useState<{ method: PayMethod; amount: number }[]>([]);
   const [payMethod, setPayMethod] = useState<PayMethod>("cash");
   const [payInput, setPayInput] = useState("");
+
+  // Edit movement
+  const [editingMovement, setEditingMovement] = useState<CustomerMovement | null>(null);
+  const [editPayEntries, setEditPayEntries] = useState<{ method: PayMethod; amount: number }[]>([]);
+  const [editPayMethod, setEditPayMethod] = useState<PayMethod>("cash");
+  const [editPayInput, setEditPayInput] = useState("");
+  const [editDesc, setEditDesc] = useState("");
 
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -449,6 +456,83 @@ export default function CustomersPage() {
     } catch (e: any) {
       console.error("payDebt error:", e);
       alert("Erro ao registrar pagamento: " + (e?.message ?? String(e)));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // ── Edit movement ───────────────────────────────────────────────────────────
+
+  function openEditMovement(m: CustomerMovement) {
+    setEditingMovement(m);
+    setEditPayEntries((m.payment_methods ?? []).map(p => ({ method: p.method as PayMethod, amount: p.amount })));
+    setEditPayMethod("cash");
+    setEditPayInput("");
+    setEditDesc(m.description ?? "");
+    setModal("editMovement");
+  }
+
+  function addEditPayEntry() {
+    const amt = parseFloat(editPayInput.replace(",", "."));
+    if (isNaN(amt) || amt <= 0) return;
+    if (editPayEntries.some(e => e.method === editPayMethod)) {
+      setEditPayEntries(prev => prev.map(e => e.method === editPayMethod ? { ...e, amount: amt } : e));
+    } else {
+      setEditPayEntries(prev => [...prev, { method: editPayMethod, amount: amt }]);
+    }
+    setEditPayInput("");
+  }
+
+  async function saveMovementEdit() {
+    if (!editingMovement || !selected || saving) return;
+    if (editPayEntries.length === 0) { alert("Adicione pelo menos uma forma de pagamento."); return; }
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("customer_movements")
+        .update({ payment_methods: editPayEntries, description: editDesc.trim() || null })
+        .eq("id", editingMovement.id);
+      if (error) throw error;
+
+      // Atualiza cash_movements correspondentes (delete + re-insert)
+      const movDate = new Date(editingMovement.created_at);
+      const fromDate = new Date(movDate.getTime() - 120000).toISOString();
+      const toDate   = new Date(movDate.getTime() + 120000).toISOString();
+      const cashDesc = `Pgto fiado - ${selected.name}`;
+
+      const { data: existingCash } = await supabase
+        .from("cash_movements")
+        .select("register_id, user_id")
+        .eq("description", cashDesc)
+        .gte("created_at", fromDate)
+        .lte("created_at", toDate)
+        .limit(1);
+
+      if (existingCash && existingCash.length > 0) {
+        const { register_id: regId, user_id: uId } = existingCash[0] as any;
+
+        await supabase
+          .from("cash_movements")
+          .delete()
+          .eq("description", cashDesc)
+          .gte("created_at", fromDate)
+          .lte("created_at", toDate);
+
+        for (const p of editPayEntries) {
+          await supabase.from("cash_movements").insert({
+            register_id: regId, user_id: uId,
+            movement_type: "sale", amount: p.amount,
+            payment_method: p.method, channel: "pdv",
+            description: cashDesc,
+          });
+        }
+      }
+
+      await loadMovements(selected.id);
+      setModal("none");
+      setEditingMovement(null);
+    } catch (e: any) {
+      alert("Erro ao editar: " + (e?.message ?? String(e)));
     } finally {
       setSaving(false);
     }
@@ -906,9 +990,19 @@ export default function CustomersPage() {
                             </div>
                           )}
                         </div>
-                        <span className={`text-sm font-bold flex-shrink-0 ${effectiveType === "saldo" ? "text-teal-400" : isPos ? "text-emerald-400" : "text-red-400"}`}>
-                          {isPos ? "+" : "-"}{fmt(m.amount)}
-                        </span>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className={`text-sm font-bold ${effectiveType === "saldo" ? "text-teal-400" : isPos ? "text-emerald-400" : "text-red-400"}`}>
+                            {isPos ? "+" : "-"}{fmt(m.amount)}
+                          </span>
+                          {m.type === "payment" && (
+                            <button
+                              onClick={() => openEditMovement(m)}
+                              className="p-1.5 bg-zinc-800 hover:bg-violet-600 text-zinc-300 hover:text-white rounded-lg transition-all border border-zinc-700 hover:border-violet-500"
+                              title="Editar forma de pagamento">
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
@@ -1303,6 +1397,95 @@ export default function CustomersPage() {
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
                 {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                 {(selected.fiado_balance ?? 0) <= 0 ? "Sem fiado" : `Confirmar ${totalPaid > 0 ? fmt(totalPaid) : ""}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Edit Movement */}
+      {modal === "editMovement" && editingMovement && selected && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 flex-shrink-0">
+              <div>
+                <h2 className="text-base font-semibold">Editar Movimentação</h2>
+                <p className="text-xs text-zinc-500 mt-0.5">{new Date(editingMovement.created_at).toLocaleString("pt-BR")}</p>
+              </div>
+              <button onClick={() => { setModal("none"); setEditingMovement(null); }} className="p-1.5 text-zinc-400 hover:text-white rounded-lg"><X className="w-4 h-4" /></button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-5">
+              {/* Descrição */}
+              <div>
+                <label className="block text-xs font-medium text-zinc-400 mb-1.5">Descrição</label>
+                <input
+                  value={editDesc}
+                  onChange={e => setEditDesc(e.target.value)}
+                  placeholder="Descrição do pagamento"
+                  className={inputCls} />
+              </div>
+
+              {/* Formas de pagamento */}
+              <div>
+                <p className="text-xs font-medium text-zinc-400 mb-2">Forma de pagamento</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {PAY_METHODS.map(pm => (
+                    <button key={pm.method}
+                      onClick={() => setEditPayMethod(pm.method)}
+                      className={`flex items-center gap-2 px-3 py-2.5 border rounded-xl text-sm font-medium transition-all ${editPayMethod === pm.method ? pm.color + " border-opacity-100" : "border-zinc-700 text-zinc-400 hover:border-zinc-600"}`}>
+                      {pm.icon} {pm.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Input de valor */}
+              <div className="flex gap-2">
+                <input
+                  value={editPayInput}
+                  onChange={e => setEditPayInput(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && addEditPayEntry()}
+                  placeholder="Valor"
+                  type="number" min="0.01" step="0.01"
+                  className={inputCls + " flex-1"} />
+                <button onClick={addEditPayEntry} disabled={!editPayInput}
+                  className="px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white rounded-xl text-sm font-semibold transition-colors flex-shrink-0">
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Entradas de pagamento */}
+              {editPayEntries.length > 0 && (
+                <div className="space-y-1.5">
+                  {editPayEntries.map((e, i) => (
+                    <div key={i} className="flex items-center justify-between bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5">
+                      <span className="text-sm text-zinc-300">{PAY_LABEL[e.method]}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-white">{fmt(e.amount)}</span>
+                        <button onClick={() => setEditPayEntries(prev => prev.filter((_, j) => j !== i))}
+                          className="p-1 text-zinc-600 hover:text-red-400 rounded-md transition-colors">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between px-4 py-2.5 bg-zinc-800 rounded-xl">
+                    <span className="text-sm font-medium">Total</span>
+                    <span className="text-base font-bold text-emerald-400">{fmt(editPayEntries.reduce((s, e) => s + e.amount, 0))}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 px-6 py-4 border-t border-zinc-800 flex-shrink-0">
+              <button onClick={() => { setModal("none"); setEditingMovement(null); }}
+                className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">
+                Cancelar
+              </button>
+              <button onClick={saveMovementEdit} disabled={editPayEntries.length === 0 || saving}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
+                {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Salvar alterações
               </button>
             </div>
           </div>
