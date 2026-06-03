@@ -622,7 +622,7 @@ export default function CustomersPage() {
         const paymentsSnapshot = editPayEntries.filter(p => p.amount > 0);
         const { error: saleErr, data: saleRows } = await supabase
           .from("sales")
-          .update({ payments: paymentsSnapshot, total: newTotal, total_amount: newTotal })
+          .update({ payments: paymentsSnapshot, total_amount: newTotal })
           .eq("id", saleId)
           .select("id");
         if (saleErr) throw saleErr;
