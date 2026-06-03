@@ -508,10 +508,9 @@ export default function CustomersPage() {
         // Preenche payments do sale (não do customer_movement)
         setEditPayEntries((sale.payments ?? []).map((p: any) => ({ method: p.method as PayMethod, amount: p.amount })));
       }
-      if (allProducts.length === 0) {
-        const { data: prods } = await supabase.from("products").select("id, name, price, stock, sale_price").neq("is_active", false).order("name");
-        setAllProducts((prods ?? []) as any[]);
-      }
+      // Sempre recarrega produtos frescos (igual ao PDV)
+      const { data: prods } = await supabase.from("products").select("*").neq("is_active", false).order("name");
+      setAllProducts((prods ?? []) as any[]);
     }
 
     setModal("editMovement");
@@ -1691,34 +1690,39 @@ export default function CustomersPage() {
                     ))}
                   </div>
 
-                  {/* Adicionar produto */}
-                  <div className="space-y-2">
-                    <button onClick={() => setShowProductPicker(v => !v)}
-                      className="flex items-center gap-1.5 text-xs text-violet-400 hover:text-violet-300 font-medium transition-colors">
-                      <Plus className="w-3.5 h-3.5" /> Adicionar produto
-                    </button>
-                    {showProductPicker && (
-                      <div className="space-y-1.5">
-                        <input
-                          autoFocus
-                          value={editProductSearch}
-                          onChange={e => setEditProductSearch(e.target.value)}
-                          placeholder="Buscar produto..."
-                          className="w-full px-3 py-2 bg-zinc-950 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500" />
-                        <div className="max-h-40 overflow-y-auto rounded-lg border border-zinc-800 bg-zinc-950">
-                          {allProducts
-                            .filter(p => editProductSearch === "" || p.name.toLowerCase().includes(editProductSearch.toLowerCase()))
-                            .slice(0, 12)
-                            .map(p => (
-                              <button key={p.id}
-                                onClick={() => editAddItemToSale(p)}
-                                className="w-full text-left px-3 py-2 text-xs text-zinc-300 hover:bg-zinc-800 transition-colors border-b border-zinc-800/40 last:border-0">
-                                <span className="font-medium">{p.name}</span>
-                                <span className="text-zinc-500 ml-2">{fmt((p as any).sale_price ?? p.price)}</span>
-                                <span className="text-zinc-700 ml-2">est: {p.stock}</span>
-                              </button>
-                            ))}
-                        </div>
+                  {/* Adicionar produto – igual ao PDV */}
+                  <div>
+                    <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wide mb-2">Adicionar produto</p>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                      <input
+                        value={editProductSearch}
+                        onChange={e => setEditProductSearch(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === "Enter") {
+                            const filtered = allProducts.filter(p => p.name.toLowerCase().includes(editProductSearch.toLowerCase()));
+                            if (filtered.length > 0) editAddItemToSale(filtered[0] as any);
+                          }
+                        }}
+                        placeholder="Digite o nome e pressione Enter para adicionar..."
+                        className="w-full pl-10 pr-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-violet-500 transition-colors"
+                      />
+                    </div>
+                    {editProductSearch.length >= 1 && (
+                      <div className="mt-1.5 space-y-1 max-h-40 overflow-y-auto">
+                        {allProducts
+                          .filter(p => p.name.toLowerCase().includes(editProductSearch.toLowerCase()))
+                          .slice(0, 6)
+                          .map((p: any) => (
+                            <button key={p.id} onClick={() => editAddItemToSale(p)}
+                              className="w-full flex items-center justify-between px-3 py-2 bg-zinc-950 hover:bg-violet-600/10 border border-zinc-800 hover:border-violet-500/30 rounded-xl transition-colors text-left">
+                              <div>
+                                <p className="text-sm font-medium text-white">{p.name}</p>
+                                <p className="text-xs text-zinc-500">{fmt(p.sale_price ?? p.price)}</p>
+                              </div>
+                              <Plus className="w-4 h-4 text-violet-400 flex-shrink-0" />
+                            </button>
+                          ))}
                       </div>
                     )}
                   </div>
