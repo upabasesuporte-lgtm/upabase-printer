@@ -652,16 +652,36 @@ export default function CustomersPage() {
           }
         }
 
-        // Atualiza customer_movement de débito com novo total
-        await supabase.from("customer_movements")
-          .update({ amount: newTotal, description: editDesc.trim() || null })
-          .eq("id", editingMovement.id);
+        // ── Sincroniza customer_movements (igual ao PDV saveEditPayments) ──
+        const newFiadoAmt = paymentsSnapshot
+          .filter(p => p.method === "fiado" && p.amount > 0)
+          .reduce((s, p) => s + p.amount, 0);
 
-        // Ajusta fiado_balance
-        const diff = newTotal - editingMovement.amount;
-        if (diff !== 0) {
+        // Pega o valor antigo de fiado nesta venda
+        const { data: oldMov } = await supabase.from("customer_movements")
+          .select("amount, type").eq("sale_id", saleId);
+        const oldFiadoAmt = (oldMov ?? [])
+          .filter((m: any) => m.type === "debit")
+          .reduce((s: number, m: any) => s + m.amount, 0);
+
+        // Apaga todos os movimentos desta venda e recria só se ainda for fiado
+        await supabase.from("customer_movements").delete().eq("sale_id", saleId);
+
+        // Ajusta fiado_balance pelo delta
+        if (oldFiadoAmt !== newFiadoAmt) {
           const { data: curr } = await supabase.from("customers").select("fiado_balance").eq("id", selected.id).single();
-          if (curr) await supabase.from("customers").update({ fiado_balance: Math.max(0, (curr as any).fiado_balance + diff) }).eq("id", selected.id);
+          const newBal = Math.max(0, (curr as any)?.fiado_balance - oldFiadoAmt + newFiadoAmt);
+          await supabase.from("customers").update({ fiado_balance: newBal }).eq("id", selected.id);
+        }
+
+        // Reinsere movimento de débito somente se ainda for fiado
+        if (newFiadoAmt > 0) {
+          await supabase.from("customer_movements").insert({
+            customer_id: selected.id, user_id: userId,
+            type: "debit", amount: newFiadoAmt,
+            description: editDesc.trim() || `Fiado - Venda #${orderNum}`,
+            sale_id: saleId, payment_methods: [],
+          });
         }
       }
 
@@ -1749,56 +1769,47 @@ export default function CustomersPage() {
 
                   <div className="border-t border-zinc-800" />
 
-                  {/* Formas de pagamento – inclui Fiado */}
+                  {/* Formas de pagamento — UM único bloco */}
                   <div className="space-y-3">
                     <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Formas de pagamento</p>
-                    <p className="text-xs text-zinc-600">Se a venda continua em fiado, mantenha "Fiado" selecionado.</p>
 
-                    {/* Payments atuais — cada um com seletor de método e valor */}
+                    {/* Seletor de método */}
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {EDIT_PAY_METHODS.map(pm => (
+                        <button key={pm.method} onClick={() => setEditPayMethod(pm.method)}
+                          className={`flex items-center gap-1.5 px-2 py-2 border rounded-xl text-xs font-medium transition-all ${editPayMethod === pm.method ? pm.color : "border-zinc-700 text-zinc-400 hover:border-zinc-600"}`}>
+                          {pm.icon} {pm.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Valor + adicionar */}
+                    <div className="flex gap-2">
+                      <input value={editPayInput} onChange={e => setEditPayInput(e.target.value)}
+                        onKeyDown={e => e.key === "Enter" && addEditPayEntry()}
+                        placeholder="Valor" type="number" min="0.01" step="0.01"
+                        className={inputCls + " flex-1"} />
+                      <button onClick={addEditPayEntry} disabled={!editPayInput}
+                        className="px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white rounded-xl text-sm font-semibold transition-colors">
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* Entradas adicionadas */}
                     {editPayEntries.map((entry, i) => (
-                      <div key={i} className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-zinc-500">Forma {i + 1}</span>
+                      <div key={i} className="flex items-center justify-between bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5">
+                        <span className={`text-sm font-medium ${EDIT_PAY_METHODS.find(m => m.method === entry.method)?.color.split(" ")[2] ?? "text-zinc-300"}`}>
+                          {PAY_LABEL[entry.method] ?? entry.method}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-white">{fmt(entry.amount)}</span>
                           <button onClick={() => setEditPayEntries(prev => prev.filter((_, j) => j !== i))}
-                            className="p-1 text-zinc-600 hover:text-red-400 rounded transition-colors">
+                            className="p-1 text-zinc-600 hover:text-red-400 rounded-md transition-colors">
                             <X className="w-3 h-3" />
                           </button>
                         </div>
-                        <div className="grid grid-cols-3 gap-1">
-                          {EDIT_PAY_METHODS.map(pm => (
-                            <button key={pm.method}
-                              onClick={() => setEditPayEntries(prev => prev.map((e, j) => j === i ? { ...e, method: pm.method } : e))}
-                              className={`flex items-center gap-1 px-2 py-1.5 border rounded-lg text-xs font-medium transition-all ${entry.method === pm.method ? pm.color : "border-zinc-700 text-zinc-400 hover:border-zinc-600"}`}>
-                              {pm.icon} {pm.label}
-                            </button>
-                          ))}
-                        </div>
-                        <input type="number" min="0.01" step="0.01" value={entry.amount}
-                          onChange={e => { const v = parseFloat(e.target.value) || 0; setEditPayEntries(prev => prev.map((en, j) => j === i ? { ...en, amount: v } : en)); }}
-                          className={inputCls} />
                       </div>
                     ))}
-
-                    {/* Adicionar forma */}
-                    <div className="space-y-2">
-                      <div className="grid grid-cols-3 gap-1">
-                        {EDIT_PAY_METHODS.map(pm => (
-                          <button key={pm.method} onClick={() => setEditPayMethod(pm.method)}
-                            className={`flex items-center gap-1 px-2 py-1.5 border rounded-lg text-xs font-medium transition-all ${editPayMethod === pm.method ? pm.color : "border-zinc-700 text-zinc-400 hover:border-zinc-600"}`}>
-                            {pm.icon} {pm.label}
-                          </button>
-                        ))}
-                      </div>
-                      <div className="flex gap-2">
-                        <input value={editPayInput} onChange={e => setEditPayInput(e.target.value)}
-                          onKeyDown={e => e.key === "Enter" && addEditPayEntry()}
-                          placeholder="Valor" type="number" min="0.01" step="0.01" className={inputCls + " flex-1"} />
-                        <button onClick={addEditPayEntry} disabled={!editPayInput}
-                          className="px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white rounded-xl text-sm font-semibold transition-colors">
-                          <Plus className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
 
                     {editPayEntries.length > 0 && (
                       <div className="flex items-center justify-between px-4 py-2.5 bg-zinc-800 rounded-xl border border-zinc-700">
