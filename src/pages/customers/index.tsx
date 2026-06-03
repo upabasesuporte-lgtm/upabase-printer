@@ -488,11 +488,15 @@ export default function CustomersPage() {
     if (editPayEntries.length === 0) { alert("Adicione pelo menos uma forma de pagamento."); return; }
     setSaving(true);
     try {
-      const { error } = await supabase
+      const { error, data: updatedRows } = await supabase
         .from("customer_movements")
         .update({ payment_methods: editPayEntries, description: editDesc.trim() || null })
-        .eq("id", editingMovement.id);
+        .eq("id", editingMovement.id)
+        .select();
       if (error) throw error;
+      if (!updatedRows || updatedRows.length === 0) {
+        throw new Error("Sem permissão para editar. Adicione a política UPDATE na tabela customer_movements no Supabase.");
+      }
 
       // Atualiza cash_movements correspondentes (delete + re-insert)
       const movDate = new Date(editingMovement.created_at);
