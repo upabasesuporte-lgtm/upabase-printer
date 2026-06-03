@@ -622,23 +622,30 @@ export default function CustomersPage() {
         const paymentsSnapshot = editPayEntries.filter(p => p.amount > 0);
         await supabase.from("sales").update({ payments: paymentsSnapshot, total: newTotal, total_amount: newTotal }).eq("id", saleId);
 
-        // Busca register_id original para manter no caixa correto mesmo com caixa fechado
+        // Re-busca caixa aberto no momento do save (cashRegisterId pode estar desatualizado)
+        const { data: freshReg } = await supabase.from("cash_registers")
+          .select("id").eq("user_id", userId).eq("status", "open").maybeSingle();
+        const freshRegId = (freshReg as any)?.id ?? cashRegisterId;
+
+        // Busca register_id original da venda para manter no caixa correto
         const { data: origCash } = await supabase
           .from("cash_movements").select("register_id, user_id")
-          .eq("movement_type", "sale").like("description", `%#${orderNum}%`).limit(1);
-        const regId = (origCash?.[0] as any)?.register_id ?? cashRegisterId;
-        const uId   = (origCash?.[0] as any)?.user_id   ?? userId;
+          .eq("movement_type", "sale").eq("user_id", userId)
+          .like("description", `%#${orderNum}%`).limit(1);
+        const regId = (origCash?.[0] as any)?.register_id ?? freshRegId;
 
-        // Atualiza cash_movements (delete antigos + reinsere com descrição correta)
-        await supabase.from("cash_movements").delete().eq("movement_type", "sale").like("description", `%#${orderNum}%`);
-        if (regId && uId) {
+        // Delete antigos e reinsere com a forma de pagamento atualizada
+        await supabase.from("cash_movements").delete()
+          .eq("movement_type", "sale").eq("user_id", userId)
+          .like("description", `%#${orderNum}%`);
+        if (regId && userId) {
           for (const p of paymentsSnapshot.filter(p => p.amount > 0)) {
             const cashDescription =
               p.method === "fiado"       ? `Fiado - Venda #${orderNum} · ${selected.name}` :
               p.method === "house_credit"? `Saldo Cliente - Venda #${orderNum} · ${selected.name}` :
                                           `Venda #${orderNum}`;
             await supabase.from("cash_movements").insert({
-              register_id: regId, user_id: uId,
+              register_id: regId, user_id: userId,
               movement_type: "sale", amount: p.amount, payment_method: p.method,
               channel: "pdv", description: cashDescription,
             });
@@ -1762,49 +1769,67 @@ export default function CustomersPage() {
 
                   <div className="border-t border-zinc-800" />
 
-                  {/* Formas de pagamento — UM único bloco */}
+                  {/* Formas de pagamento — clique no método para trocar direto */}
                   <div className="space-y-3">
                     <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Formas de pagamento</p>
 
-                    {/* Seletor de método */}
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {EDIT_PAY_METHODS.map(pm => (
-                        <button key={pm.method} onClick={() => setEditPayMethod(pm.method)}
-                          className={`flex items-center gap-1.5 px-2 py-2 border rounded-xl text-xs font-medium transition-all ${editPayMethod === pm.method ? pm.color : "border-zinc-700 text-zinc-400 hover:border-zinc-600"}`}>
-                          {pm.icon} {pm.label}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Valor + adicionar */}
-                    <div className="flex gap-2">
-                      <input value={editPayInput} onChange={e => setEditPayInput(e.target.value)}
-                        onKeyDown={e => e.key === "Enter" && addEditPayEntry()}
-                        placeholder="Valor" type="number" min="0.01" step="0.01"
-                        className={inputCls + " flex-1"} />
-                      <button onClick={addEditPayEntry} disabled={!editPayInput}
-                        className="px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white rounded-xl text-sm font-semibold transition-colors">
-                        <Plus className="w-4 h-4" />
-                      </button>
-                    </div>
-
-                    {/* Entradas adicionadas */}
+                    {/* Cada entrada: botões de método + valor editável diretamente */}
                     {editPayEntries.map((entry, i) => (
-                      <div key={i} className="flex items-center justify-between bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5">
-                        <span className={`text-sm font-medium ${EDIT_PAY_METHODS.find(m => m.method === entry.method)?.color.split(" ")[2] ?? "text-zinc-300"}`}>
-                          {PAY_LABEL[entry.method] ?? entry.method}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-bold text-white">{fmt(entry.amount)}</span>
+                      <div key={i} className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-zinc-500">Clique para trocar o método</span>
                           <button onClick={() => setEditPayEntries(prev => prev.filter((_, j) => j !== i))}
-                            className="p-1 text-zinc-600 hover:text-red-400 rounded-md transition-colors">
+                            className="p-1 text-zinc-600 hover:text-red-400 rounded transition-colors">
                             <X className="w-3 h-3" />
                           </button>
                         </div>
+                        <div className="grid grid-cols-3 gap-1">
+                          {EDIT_PAY_METHODS.map(pm => (
+                            <button key={pm.method}
+                              onClick={() => setEditPayEntries(prev => prev.map((e, j) => j === i ? { ...e, method: pm.method } : e))}
+                              className={`flex items-center gap-1 px-2 py-1.5 border rounded-lg text-xs font-medium transition-all ${entry.method === pm.method ? pm.color : "border-zinc-700 text-zinc-400 hover:border-zinc-600"}`}>
+                              {pm.icon} {pm.label}
+                            </button>
+                          ))}
+                        </div>
+                        <input type="number" min="0.01" step="0.01"
+                          value={entry.amount}
+                          onChange={e => { const v = parseFloat(e.target.value) || 0; setEditPayEntries(prev => prev.map((en, j) => j === i ? { ...en, amount: v } : en)); }}
+                          className={inputCls} />
                       </div>
                     ))}
 
+                    {/* Adicionar nova forma (para pagamento dividido) */}
+                    {editPayEntries.length === 0 && (
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-3 gap-1">
+                          {EDIT_PAY_METHODS.map(pm => (
+                            <button key={pm.method} onClick={() => setEditPayMethod(pm.method)}
+                              className={`flex items-center gap-1 px-2 py-1.5 border rounded-lg text-xs font-medium transition-all ${editPayMethod === pm.method ? pm.color : "border-zinc-700 text-zinc-400 hover:border-zinc-600"}`}>
+                              {pm.icon} {pm.label}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="flex gap-2">
+                          <input value={editPayInput} onChange={e => setEditPayInput(e.target.value)}
+                            onKeyDown={e => e.key === "Enter" && addEditPayEntry()}
+                            placeholder="Valor" type="number" min="0.01" step="0.01" className={inputCls + " flex-1"} />
+                          <button onClick={addEditPayEntry} disabled={!editPayInput}
+                            className="px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white rounded-xl text-sm font-semibold">
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     {editPayEntries.length > 0 && (
+                      <button onClick={() => { setEditPayMethod("cash"); setEditPayInput(""); }}
+                        className="text-xs text-violet-400 hover:text-violet-300 flex items-center gap-1 transition-colors">
+                        <Plus className="w-3 h-3" /> Adicionar outra forma (pagamento dividido)
+                      </button>
+                    )}
+
+                    {editPayEntries.length > 1 && (
                       <div className="flex items-center justify-between px-4 py-2.5 bg-zinc-800 rounded-xl border border-zinc-700">
                         <span className="text-sm font-semibold">Total</span>
                         <span className="text-base font-black text-emerald-400">{fmt(editPayEntries.reduce((s, e) => s + e.amount, 0))}</span>
