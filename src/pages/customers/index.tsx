@@ -504,6 +504,7 @@ export default function CustomersPage() {
         .from("cash_movements")
         .select("register_id, user_id")
         .eq("description", cashDesc)
+        .eq("user_id", userId)
         .gte("created_at", fromDate)
         .lte("created_at", toDate)
         .limit(1);
@@ -515,6 +516,7 @@ export default function CustomersPage() {
           .from("cash_movements")
           .delete()
           .eq("description", cashDesc)
+          .eq("user_id", userId)
           .gte("created_at", fromDate)
           .lte("created_at", toDate);
 
