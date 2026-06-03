@@ -61,7 +61,7 @@ interface CustomerSale {
   sale_items: SaleItemInfo[];
 }
 
-type PayMethod = "cash" | "credit" | "debit" | "pix";
+type PayMethod = "cash" | "credit" | "debit" | "pix" | "fiado";
 type DateFilter = "today" | "week" | "month" | "year" | "custom";
 type ModalType = "none" | "createEdit" | "addCredit" | "payDebt" | "delete" | "editMovement";
 
@@ -80,8 +80,17 @@ const PAY_METHODS: { method: PayMethod; label: string; icon: React.ReactNode; co
 ];
 
 const PAY_LABEL: Record<string, string> = {
-  cash: "Dinheiro", pix: "PIX", credit: "Crédito", debit: "Débito",
+  cash: "Dinheiro", pix: "PIX", credit: "Crédito", debit: "Débito", fiado: "Fiado",
 };
+
+// Métodos de pagamento para o modal de edição de fiado (inclui opção Fiado)
+const EDIT_PAY_METHODS: { method: PayMethod; label: string; icon: React.ReactNode; color: string }[] = [
+  { method: "cash",   label: "Dinheiro",  icon: <Banknote className="w-4 h-4" />,       color: "border-emerald-500 bg-emerald-500/10 text-emerald-300" },
+  { method: "pix",    label: "PIX",       icon: <Smartphone className="w-4 h-4" />,     color: "border-violet-500 bg-violet-500/10 text-violet-300" },
+  { method: "credit", label: "Crédito",   icon: <CreditCard className="w-4 h-4" />,     color: "border-blue-500 bg-blue-500/10 text-blue-300" },
+  { method: "debit",  label: "Débito",    icon: <CreditCard className="w-4 h-4" />,     color: "border-indigo-400 bg-indigo-500/10 text-indigo-300" },
+  { method: "fiado",  label: "Fiado",     icon: <AlertTriangle className="w-4 h-4" />,  color: "border-red-500 bg-red-500/10 text-red-300" },
+];
 
 function getDateRange(filter: DateFilter, from?: string, to?: string) {
   const now = new Date();
@@ -620,14 +629,25 @@ export default function CustomersPage() {
         }
         await supabase.from("sales").update({ payments: paymentsSnapshot, total: newTotal, total_amount: newTotal }).eq("id", saleId);
 
-        // Atualiza cash_movements (delete antigos + reinsere novos)
+        // Busca register_id original para manter no caixa correto mesmo com caixa fechado
+        const { data: origCash } = await supabase
+          .from("cash_movements").select("register_id, user_id")
+          .eq("movement_type", "sale").like("description", `%#${orderNum}%`).limit(1);
+        const regId = (origCash?.[0] as any)?.register_id ?? cashRegisterId;
+        const uId   = (origCash?.[0] as any)?.user_id   ?? userId;
+
+        // Atualiza cash_movements (delete antigos + reinsere com descrição correta)
         await supabase.from("cash_movements").delete().eq("movement_type", "sale").like("description", `%#${orderNum}%`);
-        if (cashRegisterId && userId) {
+        if (regId && uId) {
           for (const p of paymentsSnapshot.filter(p => p.amount > 0)) {
+            const cashDescription =
+              p.method === "fiado"       ? `Fiado - Venda #${orderNum} · ${selected.name}` :
+              p.method === "house_credit"? `Saldo Cliente - Venda #${orderNum} · ${selected.name}` :
+                                          `Venda #${orderNum}`;
             await supabase.from("cash_movements").insert({
-              register_id: cashRegisterId, user_id: userId,
+              register_id: regId, user_id: uId,
               movement_type: "sale", amount: p.amount, payment_method: p.method,
-              channel: "pdv", description: `Venda #${orderNum}`,
+              channel: "pdv", description: cashDescription,
             });
           }
         }
@@ -1729,52 +1749,61 @@ export default function CustomersPage() {
 
                   <div className="border-t border-zinc-800" />
 
-                  {/* Formas de pagamento */}
+                  {/* Formas de pagamento – inclui Fiado */}
                   <div className="space-y-3">
                     <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Formas de pagamento</p>
+                    <p className="text-xs text-zinc-600">Se a venda continua em fiado, mantenha "Fiado" selecionado.</p>
 
-                    {/* Selecionar método + adicionar */}
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {PAY_METHODS.map(pm => (
-                        <button key={pm.method} onClick={() => setEditPayMethod(pm.method)}
-                          className={`flex items-center gap-1.5 px-2.5 py-2 border rounded-lg text-xs font-medium transition-all ${editPayMethod === pm.method ? pm.color : "border-zinc-700 text-zinc-400 hover:border-zinc-600"}`}>
-                          {pm.icon} {pm.label}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="flex gap-2">
-                      <input value={editPayInput} onChange={e => setEditPayInput(e.target.value)}
-                        onKeyDown={e => e.key === "Enter" && addEditPayEntry()}
-                        placeholder="Valor" type="number" min="0.01" step="0.01" className={inputCls + " flex-1"} />
-                      <button onClick={addEditPayEntry} disabled={!editPayInput}
-                        className="px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white rounded-xl text-sm font-semibold transition-colors">
-                        <Plus className="w-4 h-4" />
-                      </button>
-                    </div>
-
-                    {/* Lista de payments adicionados */}
-                    {editPayEntries.length > 0 && (
-                      <div className="space-y-1.5">
-                        {editPayEntries.map((entry, i) => (
-                          <div key={i} className="flex items-center justify-between bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2">
-                            <span className="text-sm text-zinc-300">{PAY_LABEL[entry.method]}</span>
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="number" min="0.01" step="0.01"
-                                value={entry.amount}
-                                onChange={e => { const v = parseFloat(e.target.value) || 0; setEditPayEntries(prev => prev.map((en, j) => j === i ? { ...en, amount: v } : en)); }}
-                                className="w-24 px-2 py-1 bg-zinc-900 border border-zinc-700 rounded-lg text-sm text-white text-right focus:outline-none focus:border-violet-500" />
-                              <button onClick={() => setEditPayEntries(prev => prev.filter((_, j) => j !== i))}
-                                className="p-1 text-zinc-600 hover:text-red-400 rounded-md transition-colors">
-                                <X className="w-3 h-3" />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                        <div className="flex items-center justify-between px-4 py-2.5 bg-zinc-800 rounded-xl border border-zinc-700">
-                          <span className="text-sm font-semibold">Total pago</span>
-                          <span className="text-base font-black text-emerald-400">{fmt(editPayEntries.reduce((s, e) => s + e.amount, 0))}</span>
+                    {/* Payments atuais — cada um com seletor de método e valor */}
+                    {editPayEntries.map((entry, i) => (
+                      <div key={i} className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-zinc-500">Forma {i + 1}</span>
+                          <button onClick={() => setEditPayEntries(prev => prev.filter((_, j) => j !== i))}
+                            className="p-1 text-zinc-600 hover:text-red-400 rounded transition-colors">
+                            <X className="w-3 h-3" />
+                          </button>
                         </div>
+                        <div className="grid grid-cols-3 gap-1">
+                          {EDIT_PAY_METHODS.map(pm => (
+                            <button key={pm.method}
+                              onClick={() => setEditPayEntries(prev => prev.map((e, j) => j === i ? { ...e, method: pm.method } : e))}
+                              className={`flex items-center gap-1 px-2 py-1.5 border rounded-lg text-xs font-medium transition-all ${entry.method === pm.method ? pm.color : "border-zinc-700 text-zinc-400 hover:border-zinc-600"}`}>
+                              {pm.icon} {pm.label}
+                            </button>
+                          ))}
+                        </div>
+                        <input type="number" min="0.01" step="0.01" value={entry.amount}
+                          onChange={e => { const v = parseFloat(e.target.value) || 0; setEditPayEntries(prev => prev.map((en, j) => j === i ? { ...en, amount: v } : en)); }}
+                          className={inputCls} />
+                      </div>
+                    ))}
+
+                    {/* Adicionar forma */}
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-3 gap-1">
+                        {EDIT_PAY_METHODS.map(pm => (
+                          <button key={pm.method} onClick={() => setEditPayMethod(pm.method)}
+                            className={`flex items-center gap-1 px-2 py-1.5 border rounded-lg text-xs font-medium transition-all ${editPayMethod === pm.method ? pm.color : "border-zinc-700 text-zinc-400 hover:border-zinc-600"}`}>
+                            {pm.icon} {pm.label}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="flex gap-2">
+                        <input value={editPayInput} onChange={e => setEditPayInput(e.target.value)}
+                          onKeyDown={e => e.key === "Enter" && addEditPayEntry()}
+                          placeholder="Valor" type="number" min="0.01" step="0.01" className={inputCls + " flex-1"} />
+                        <button onClick={addEditPayEntry} disabled={!editPayInput}
+                          className="px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white rounded-xl text-sm font-semibold transition-colors">
+                          <Plus className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {editPayEntries.length > 0 && (
+                      <div className="flex items-center justify-between px-4 py-2.5 bg-zinc-800 rounded-xl border border-zinc-700">
+                        <span className="text-sm font-semibold">Total</span>
+                        <span className="text-base font-black text-emerald-400">{fmt(editPayEntries.reduce((s, e) => s + e.amount, 0))}</span>
                       </div>
                     )}
                   </div>
