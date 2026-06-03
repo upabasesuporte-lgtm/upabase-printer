@@ -35,10 +35,31 @@ interface CustomerMovement {
 }
 
 interface SaleItemInfo {
+  item_id: string;
+  product_id: string;
   name: string;
   quantity: number;
   unit_price: number;
   notes: string | null;
+}
+
+interface EditSaleItem {
+  item_id?: string;
+  product_id: string;
+  name: string;
+  quantity: number;
+  unit_price: number;
+  notes: string | null;
+  orig_quantity?: number;
+  orig_product_id?: string;
+  isNew?: boolean;
+}
+
+interface ProductOption {
+  id: string;
+  name: string;
+  price: number;
+  stock: number;
 }
 
 interface CustomerSale {
@@ -154,6 +175,12 @@ export default function CustomersPage() {
   const [editPayInput, setEditPayInput] = useState("");
   const [editDesc, setEditDesc] = useState("");
 
+  // Edit movement – products (for debit type)
+  const [editSaleItems, setEditSaleItems] = useState<EditSaleItem[]>([]);
+  const [allProducts, setAllProducts] = useState<ProductOption[]>([]);
+  const [productSearch, setProductSearch] = useState("");
+  const [showProductPicker, setShowProductPicker] = useState(false);
+
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -220,12 +247,14 @@ export default function CustomersPage() {
     if (saleIds.length > 0) {
       const { data: items } = await supabase
         .from("sale_items")
-        .select("sale_id, quantity, unit_price, notes, products(name)")
+        .select("id, sale_id, product_id, quantity, unit_price, notes, products(name)")
         .in("sale_id", saleIds);
       const map: Record<string, SaleItemInfo[]> = {};
       for (const item of items ?? []) {
         if (!map[(item as any).sale_id]) map[(item as any).sale_id] = [];
         map[(item as any).sale_id].push({
+          item_id: (item as any).id,
+          product_id: (item as any).product_id,
           name: (item as any).products?.name ?? "Produto",
           quantity: (item as any).quantity,
           unit_price: (item as any).unit_price,
@@ -463,74 +492,160 @@ export default function CustomersPage() {
 
   // ── Edit movement ───────────────────────────────────────────────────────────
 
-  function openEditMovement(m: CustomerMovement) {
+  async function openEditMovement(m: CustomerMovement) {
     setEditingMovement(m);
+    setEditDesc(m.description ?? "");
     setEditPayEntries((m.payment_methods ?? []).map(p => ({ method: p.method as PayMethod, amount: p.amount })));
     setEditPayMethod("cash");
     setEditPayInput("");
-    setEditDesc(m.description ?? "");
+    setProductSearch("");
+    setShowProductPicker(false);
+
+    if (m.type === "debit" && m.sale_id) {
+      const { data: items } = await supabase
+        .from("sale_items")
+        .select("id, product_id, quantity, unit_price, notes, products(name)")
+        .eq("sale_id", m.sale_id);
+      setEditSaleItems((items ?? []).map((i: any) => ({
+        item_id: i.id,
+        product_id: i.product_id,
+        name: i.products?.name ?? "Produto",
+        quantity: i.quantity,
+        unit_price: i.unit_price,
+        notes: i.notes,
+        orig_quantity: i.quantity,
+        orig_product_id: i.product_id,
+      })));
+
+      if (allProducts.length === 0) {
+        const { data: prods } = await supabase.from("products").select("id, name, price, stock").neq("is_active", false).order("name");
+        setAllProducts((prods ?? []) as any[]);
+      }
+    }
+
     setModal("editMovement");
   }
 
   function addEditPayEntry() {
     const amt = parseFloat(editPayInput.replace(",", "."));
     if (isNaN(amt) || amt <= 0) return;
-    if (editPayEntries.some(e => e.method === editPayMethod)) {
-      setEditPayEntries(prev => prev.map(e => e.method === editPayMethod ? { ...e, amount: amt } : e));
-    } else {
-      setEditPayEntries(prev => [...prev, { method: editPayMethod, amount: amt }]);
-    }
+    setEditPayEntries(prev => {
+      if (prev.some(e => e.method === editPayMethod)) {
+        return prev.map(e => e.method === editPayMethod ? { ...e, amount: amt } : e);
+      }
+      return [...prev, { method: editPayMethod, amount: amt }];
+    });
     setEditPayInput("");
   }
 
   async function saveMovementEdit() {
     if (!editingMovement || !selected || saving) return;
-    if (editPayEntries.length === 0) { alert("Adicione pelo menos uma forma de pagamento."); return; }
     setSaving(true);
     try {
-      const { error, data: updatedRows } = await supabase
-        .from("customer_movements")
-        .update({ payment_methods: editPayEntries, description: editDesc.trim() || null })
-        .eq("id", editingMovement.id)
-        .select();
-      if (error) throw error;
-      if (!updatedRows || updatedRows.length === 0) {
-        throw new Error("Sem permissão para editar. Adicione a política UPDATE na tabela customer_movements no Supabase.");
-      }
+      if (editingMovement.type === "payment") {
+        if (editPayEntries.length === 0) throw new Error("Adicione pelo menos uma forma de pagamento.");
 
-      // Atualiza cash_movements correspondentes (delete + re-insert)
-      const movDate = new Date(editingMovement.created_at);
-      const fromDate = new Date(movDate.getTime() - 120000).toISOString();
-      const toDate   = new Date(movDate.getTime() + 120000).toISOString();
-      const cashDesc = `Pgto fiado - ${selected.name}`;
+        const { error, data: updatedRows } = await supabase
+          .from("customer_movements")
+          .update({ payment_methods: editPayEntries, description: editDesc.trim() || null })
+          .eq("id", editingMovement.id)
+          .select();
+        if (error) throw error;
+        if (!updatedRows || updatedRows.length === 0)
+          throw new Error("Sem permissão. Execute no Supabase SQL Editor:\nCREATE POLICY \"edit own movements\" ON customer_movements FOR UPDATE TO authenticated USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());");
 
-      const { data: existingCash } = await supabase
-        .from("cash_movements")
-        .select("register_id, user_id")
-        .eq("description", cashDesc)
-        .eq("user_id", userId)
-        .gte("created_at", fromDate)
-        .lte("created_at", toDate)
-        .limit(1);
+        // Atualiza cash_movements (delete + re-insert filtrado por user)
+        const movDate = new Date(editingMovement.created_at);
+        const fromDate = new Date(movDate.getTime() - 120000).toISOString();
+        const toDate   = new Date(movDate.getTime() + 120000).toISOString();
+        const cashDesc = `Pgto fiado - ${selected.name}`;
+        const { data: existingCash } = await supabase
+          .from("cash_movements").select("register_id, user_id")
+          .eq("description", cashDesc).eq("user_id", userId)
+          .gte("created_at", fromDate).lte("created_at", toDate).limit(1);
+        if (existingCash && existingCash.length > 0) {
+          const { register_id: regId, user_id: uId } = existingCash[0] as any;
+          await supabase.from("cash_movements").delete()
+            .eq("description", cashDesc).eq("user_id", userId)
+            .gte("created_at", fromDate).lte("created_at", toDate);
+          for (const p of editPayEntries) {
+            await supabase.from("cash_movements").insert({
+              register_id: regId, user_id: uId,
+              movement_type: "sale", amount: p.amount,
+              payment_method: p.method, channel: "pdv", description: cashDesc,
+            });
+          }
+        }
 
-      if (existingCash && existingCash.length > 0) {
-        const { register_id: regId, user_id: uId } = existingCash[0] as any;
+      } else if (editingMovement.type === "debit" && editingMovement.sale_id) {
+        // ── Editar itens do fiado ──────────────────────────────────────────
 
-        await supabase
-          .from("cash_movements")
-          .delete()
-          .eq("description", cashDesc)
-          .eq("user_id", userId)
-          .gte("created_at", fromDate)
-          .lte("created_at", toDate);
+        const origItems = editSaleItems.filter(i => !i.isNew);
+        const newItems  = editSaleItems.filter(i => i.isNew);
 
-        for (const p of editPayEntries) {
-          await supabase.from("cash_movements").insert({
-            register_id: regId, user_id: uId,
-            movement_type: "sale", amount: p.amount,
-            payment_method: p.method, channel: "pdv",
-            description: cashDesc,
+        // Itens removidos (estavam antes, não estão mais no array)
+        const origItemIds = origItems.map(i => i.item_id);
+        const { data: allOriginal } = await supabase
+          .from("sale_items").select("id, product_id, quantity")
+          .eq("sale_id", editingMovement.sale_id);
+
+        for (const orig of allOriginal ?? []) {
+          const kept = origItems.find(i => i.item_id === orig.id);
+          if (!kept) {
+            // Removido: devolve estoque
+            const { data: p } = await supabase.from("products").select("stock").eq("id", orig.product_id).single();
+            if (p) await supabase.from("products").update({ stock: (p as any).stock + orig.quantity }).eq("id", orig.product_id);
+            await supabase.from("sale_items").delete().eq("id", orig.id);
+          } else {
+            // Mantido: ajusta estoque pela diferença
+            const qtyDiff = kept.quantity - orig.quantity;
+            const prodChanged = kept.product_id !== orig.product_id;
+            if (prodChanged) {
+              // Produto trocado: devolve estoque do antigo, baixa do novo
+              const { data: oldP } = await supabase.from("products").select("stock").eq("id", orig.product_id).single();
+              if (oldP) await supabase.from("products").update({ stock: (oldP as any).stock + orig.quantity }).eq("id", orig.product_id);
+              const { data: newP } = await supabase.from("products").select("stock").eq("id", kept.product_id).single();
+              if (newP) await supabase.from("products").update({ stock: Math.max(0, (newP as any).stock - kept.quantity) }).eq("id", kept.product_id);
+            } else if (qtyDiff !== 0) {
+              // Mesmo produto, quantidade diferente
+              const { data: p } = await supabase.from("products").select("stock").eq("id", orig.product_id).single();
+              if (p) await supabase.from("products").update({ stock: Math.max(0, (p as any).stock - qtyDiff) }).eq("id", orig.product_id);
+            }
+            await supabase.from("sale_items").update({
+              product_id: kept.product_id,
+              quantity: kept.quantity,
+              unit_price: kept.unit_price,
+              notes: kept.notes,
+            }).eq("id", orig.id);
+          }
+        }
+
+        // Novos itens adicionados
+        for (const ni of newItems) {
+          await supabase.from("sale_items").insert({
+            sale_id: editingMovement.sale_id,
+            product_id: ni.product_id,
+            quantity: ni.quantity,
+            unit_price: ni.unit_price,
+            notes: ni.notes,
           });
+          const { data: p } = await supabase.from("products").select("stock").eq("id", ni.product_id).single();
+          if (p) await supabase.from("products").update({ stock: Math.max(0, (p as any).stock - ni.quantity) }).eq("id", ni.product_id);
+        }
+
+        // Recalcula total da venda e atualiza customer_movement
+        const newTotal = editSaleItems.reduce((s, i) => s + i.quantity * i.unit_price, 0);
+        await supabase.from("sales").update({ total: newTotal }).eq("id", editingMovement.sale_id);
+        await supabase.from("customer_movements")
+          .update({ amount: newTotal, description: editDesc.trim() || null })
+          .eq("id", editingMovement.id);
+
+        // Atualiza fiado_balance do cliente pela diferença de valor
+        const diff = newTotal - editingMovement.amount;
+        if (diff !== 0) {
+          const { data: curr } = await supabase.from("customers").select("fiado_balance").eq("id", selected.id).single();
+          if (curr) await supabase.from("customers").update({ fiado_balance: Math.max(0, (curr as any).fiado_balance + diff) }).eq("id", selected.id);
+          await refreshSelected(selected.id);
         }
       }
 
@@ -1000,11 +1115,11 @@ export default function CustomersPage() {
                           <span className={`text-sm font-bold ${effectiveType === "saldo" ? "text-teal-400" : isPos ? "text-emerald-400" : "text-red-400"}`}>
                             {isPos ? "+" : "-"}{fmt(m.amount)}
                           </span>
-                          {m.type === "payment" && (
+                          {(m.type === "payment" || (m.type === "debit" && m.sale_id)) && (
                             <button
                               onClick={() => openEditMovement(m)}
                               className="p-1.5 bg-zinc-800 hover:bg-violet-600 text-zinc-300 hover:text-white rounded-lg transition-all border border-zinc-700 hover:border-violet-500"
-                              title="Editar forma de pagamento">
+                              title="Editar movimentação">
                               <Edit2 className="w-3.5 h-3.5" />
                             </button>
                           )}
@@ -1414,7 +1529,9 @@ export default function CustomersPage() {
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 flex-shrink-0">
               <div>
-                <h2 className="text-base font-semibold">Editar Movimentação</h2>
+                <h2 className="text-base font-semibold">
+                  {editingMovement.type === "payment" ? "Editar Pagamento" : "Editar Fiado"}
+                </h2>
                 <p className="text-xs text-zinc-500 mt-0.5">{new Date(editingMovement.created_at).toLocaleString("pt-BR")}</p>
               </div>
               <button onClick={() => { setModal("none"); setEditingMovement(null); }} className="p-1.5 text-zinc-400 hover:text-white rounded-lg"><X className="w-4 h-4" /></button>
@@ -1424,61 +1541,194 @@ export default function CustomersPage() {
               {/* Descrição */}
               <div>
                 <label className="block text-xs font-medium text-zinc-400 mb-1.5">Descrição</label>
-                <input
-                  value={editDesc}
-                  onChange={e => setEditDesc(e.target.value)}
-                  placeholder="Descrição do pagamento"
-                  className={inputCls} />
+                <input value={editDesc} onChange={e => setEditDesc(e.target.value)}
+                  placeholder="Descrição" className={inputCls} />
               </div>
 
-              {/* Formas de pagamento */}
-              <div>
-                <p className="text-xs font-medium text-zinc-400 mb-2">Forma de pagamento</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {PAY_METHODS.map(pm => (
-                    <button key={pm.method}
-                      onClick={() => setEditPayMethod(pm.method)}
-                      className={`flex items-center gap-2 px-3 py-2.5 border rounded-xl text-sm font-medium transition-all ${editPayMethod === pm.method ? pm.color + " border-opacity-100" : "border-zinc-700 text-zinc-400 hover:border-zinc-600"}`}>
-                      {pm.icon} {pm.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Input de valor */}
-              <div className="flex gap-2">
-                <input
-                  value={editPayInput}
-                  onChange={e => setEditPayInput(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && addEditPayEntry()}
-                  placeholder="Valor"
-                  type="number" min="0.01" step="0.01"
-                  className={inputCls + " flex-1"} />
-                <button onClick={addEditPayEntry} disabled={!editPayInput}
-                  className="px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white rounded-xl text-sm font-semibold transition-colors flex-shrink-0">
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Entradas de pagamento */}
-              {editPayEntries.length > 0 && (
-                <div className="space-y-1.5">
-                  {editPayEntries.map((e, i) => (
-                    <div key={i} className="flex items-center justify-between bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5">
-                      <span className="text-sm text-zinc-300">{PAY_LABEL[e.method]}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-white">{fmt(e.amount)}</span>
+              {/* ── MODO PAGAMENTO: troca de forma de pagamento ── */}
+              {editingMovement.type === "payment" && (
+                <div className="space-y-3">
+                  <p className="text-xs font-medium text-zinc-400">Formas de pagamento</p>
+                  {editPayEntries.map((entry, i) => (
+                    <div key={i} className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-zinc-500">Entrada {i + 1}</span>
                         <button onClick={() => setEditPayEntries(prev => prev.filter((_, j) => j !== i))}
-                          className="p-1 text-zinc-600 hover:text-red-400 rounded-md transition-colors">
+                          className="p-1 text-zinc-600 hover:text-red-400 rounded transition-colors">
                           <X className="w-3 h-3" />
                         </button>
                       </div>
+                      {/* Seletor de método direto para este item */}
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {PAY_METHODS.map(pm => (
+                          <button key={pm.method}
+                            onClick={() => setEditPayEntries(prev => prev.map((e, j) => j === i ? { ...e, method: pm.method } : e))}
+                            className={`flex items-center gap-1.5 px-2.5 py-2 border rounded-lg text-xs font-medium transition-all ${entry.method === pm.method ? pm.color : "border-zinc-700 text-zinc-400 hover:border-zinc-600"}`}>
+                            {pm.icon} {pm.label}
+                          </button>
+                        ))}
+                      </div>
+                      {/* Valor editável */}
+                      <input type="number" min="0.01" step="0.01"
+                        value={entry.amount}
+                        onChange={e => {
+                          const v = parseFloat(e.target.value) || 0;
+                          setEditPayEntries(prev => prev.map((en, j) => j === i ? { ...en, amount: v } : en));
+                        }}
+                        className={inputCls} />
                     </div>
                   ))}
-                  <div className="flex items-center justify-between px-4 py-2.5 bg-zinc-800 rounded-xl">
-                    <span className="text-sm font-medium">Total</span>
-                    <span className="text-base font-bold text-emerald-400">{fmt(editPayEntries.reduce((s, e) => s + e.amount, 0))}</span>
+                  {/* Adicionar nova entrada */}
+                  <div className="space-y-2">
+                    <p className="text-xs text-zinc-600">+ Adicionar outra forma</p>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {PAY_METHODS.map(pm => (
+                        <button key={pm.method}
+                          onClick={() => setEditPayMethod(pm.method)}
+                          className={`flex items-center gap-1.5 px-2.5 py-2 border rounded-lg text-xs font-medium transition-all ${editPayMethod === pm.method ? pm.color : "border-zinc-700 text-zinc-400 hover:border-zinc-600"}`}>
+                          {pm.icon} {pm.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <input value={editPayInput} onChange={e => setEditPayInput(e.target.value)}
+                        onKeyDown={e => e.key === "Enter" && addEditPayEntry()}
+                        placeholder="Valor" type="number" min="0.01" step="0.01"
+                        className={inputCls + " flex-1"} />
+                      <button onClick={addEditPayEntry} disabled={!editPayInput}
+                        className="px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white rounded-xl text-sm font-semibold transition-colors">
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
+                  {editPayEntries.length > 0 && (
+                    <div className="flex items-center justify-between px-4 py-2.5 bg-zinc-800 rounded-xl">
+                      <span className="text-sm font-medium">Total</span>
+                      <span className="text-base font-bold text-emerald-400">{fmt(editPayEntries.reduce((s, e) => s + e.amount, 0))}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── MODO FIADO: editar produtos ── */}
+              {editingMovement.type === "debit" && (
+                <div className="space-y-3">
+                  <p className="text-xs font-medium text-zinc-400">Produtos</p>
+                  {editSaleItems.map((item, i) => (
+                    <div key={i} className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-white">{item.name}</span>
+                        <button onClick={() => setEditSaleItems(prev => prev.filter((_, j) => j !== i))}
+                          className="p-1 text-zinc-600 hover:text-red-400 rounded transition-colors">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                      {/* Troca de produto */}
+                      <div>
+                        <p className="text-xs text-zinc-600 mb-1">Trocar produto</p>
+                        <input
+                          placeholder="Buscar produto..."
+                          className="w-full px-3 py-1.5 bg-zinc-900 border border-zinc-700 rounded-lg text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500"
+                          onChange={e => {
+                            const q = e.target.value.toLowerCase();
+                            if (!q) return;
+                            const found = allProducts.find(p => p.name.toLowerCase().includes(q));
+                            if (found) {
+                              setEditSaleItems(prev => prev.map((it, j) => j === i
+                                ? { ...it, product_id: found.id, name: found.name, unit_price: found.price }
+                                : it));
+                              e.target.value = "";
+                            }
+                          }}
+                        />
+                        {allProducts.length > 0 && (
+                          <div className="mt-1 max-h-24 overflow-y-auto rounded-lg border border-zinc-800 bg-zinc-950">
+                            {allProducts.filter(p => p.name !== item.name).slice(0, 5).map(p => (
+                              <button key={p.id}
+                                onClick={() => setEditSaleItems(prev => prev.map((it, j) => j === i
+                                  ? { ...it, product_id: p.id, name: p.name, unit_price: p.price }
+                                  : it))}
+                                className="w-full text-left px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 transition-colors">
+                                {p.name} — {fmt(p.price)}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <p className="text-xs text-zinc-600 mb-1">Quantidade</p>
+                          <input type="number" min="1" step="1"
+                            value={item.quantity}
+                            onChange={e => {
+                              const v = parseInt(e.target.value) || 1;
+                              setEditSaleItems(prev => prev.map((it, j) => j === i ? { ...it, quantity: v } : it));
+                            }}
+                            className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-sm text-white focus:outline-none focus:border-violet-500" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-zinc-600 mb-1">Valor unitário</p>
+                          <input type="number" min="0" step="0.01"
+                            value={item.unit_price}
+                            onChange={e => {
+                              const v = parseFloat(e.target.value) || 0;
+                              setEditSaleItems(prev => prev.map((it, j) => j === i ? { ...it, unit_price: v } : it));
+                            }}
+                            className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-sm text-white focus:outline-none focus:border-violet-500" />
+                        </div>
+                      </div>
+                      <div className="text-xs text-right text-zinc-400">
+                        Subtotal: <span className="text-white font-semibold">{fmt(item.quantity * item.unit_price)}</span>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Adicionar produto */}
+                  <div>
+                    <button onClick={() => setShowProductPicker(v => !v)}
+                      className="flex items-center gap-2 text-xs text-violet-400 hover:text-violet-300 transition-colors">
+                      <Plus className="w-3.5 h-3.5" /> Adicionar produto
+                    </button>
+                    {showProductPicker && (
+                      <div className="mt-2 space-y-1.5">
+                        <input
+                          autoFocus
+                          value={productSearch}
+                          onChange={e => setProductSearch(e.target.value)}
+                          placeholder="Buscar produto..."
+                          className="w-full px-3 py-2 bg-zinc-950 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500" />
+                        <div className="max-h-36 overflow-y-auto rounded-lg border border-zinc-800 bg-zinc-950">
+                          {allProducts
+                            .filter(p => productSearch === "" || p.name.toLowerCase().includes(productSearch.toLowerCase()))
+                            .slice(0, 10)
+                            .map(p => (
+                              <button key={p.id}
+                                onClick={() => {
+                                  setEditSaleItems(prev => [...prev, {
+                                    product_id: p.id, name: p.name,
+                                    quantity: 1, unit_price: p.price,
+                                    notes: null, isNew: true,
+                                  }]);
+                                  setProductSearch("");
+                                  setShowProductPicker(false);
+                                }}
+                                className="w-full text-left px-3 py-2 text-xs text-zinc-300 hover:bg-zinc-800 transition-colors border-b border-zinc-800/50">
+                                <span className="font-medium">{p.name}</span>
+                                <span className="text-zinc-500 ml-2">{fmt(p.price)}</span>
+                                <span className="text-zinc-600 ml-2">estoque: {p.stock}</span>
+                              </button>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {editSaleItems.length > 0 && (
+                    <div className="flex items-center justify-between px-4 py-2.5 bg-zinc-800 rounded-xl">
+                      <span className="text-sm font-medium">Total</span>
+                      <span className="text-base font-bold text-red-400">{fmt(editSaleItems.reduce((s, i) => s + i.quantity * i.unit_price, 0))}</span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1488,7 +1738,7 @@ export default function CustomersPage() {
                 className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">
                 Cancelar
               </button>
-              <button onClick={saveMovementEdit} disabled={editPayEntries.length === 0 || saving}
+              <button onClick={saveMovementEdit} disabled={saving || (editingMovement.type === "payment" && editPayEntries.length === 0) || (editingMovement.type === "debit" && editSaleItems.length === 0)}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
                 {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 Salvar alterações
