@@ -690,7 +690,7 @@ export default function CashPage() {
       )}
 
       {subTab === "history" && (
-        <HistoryTab regs={historyRegs} loading={historyLoading} />
+        <HistoryTab regs={historyRegs} loading={historyLoading} userId={userId} salesTotals={histSalesTotals} salesCounts={histSalesCounts} />
       )}
 
       {/* ══ Modais ══════════════════════════════════════════════════════════ */}
