@@ -1168,9 +1168,8 @@ function HistoryTab({
                               <span className="font-bold" style={{ color: "#7B2FBE" }}>{fmtCur(gross)}</span>
                               <button
                                 onClick={() => openEditSale(sale, reg.id)}
-                                className="p-1 bg-zinc-800 hover:bg-violet-600 text-zinc-400 hover:text-white rounded-lg transition-all border border-zinc-700 hover:border-violet-500"
-                                title="Editar venda">
-                                <Edit2 className="w-3 h-3" />
+                                className="flex items-center gap-1 px-2 py-1 bg-zinc-800 hover:bg-violet-600 text-zinc-300 hover:text-white rounded-lg transition-all text-xs font-medium border border-zinc-700 hover:border-violet-500">
+                                <Edit2 className="w-3 h-3" /> Editar
                               </button>
                             </div>
                           </div>
