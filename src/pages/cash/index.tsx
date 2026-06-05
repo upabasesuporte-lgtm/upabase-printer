@@ -1026,6 +1026,7 @@ function HistoryTab({
   const fmtCur = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   return (
+    <>
     <div className="space-y-3">
       <div className="flex items-center gap-2 text-xs text-zinc-500 px-1">
         <History className="w-3.5 h-3.5" />
@@ -1380,7 +1381,7 @@ function HistoryTab({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
