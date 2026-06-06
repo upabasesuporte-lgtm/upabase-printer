@@ -452,6 +452,10 @@ export default function CustomersPage() {
 
   async function payDebt() {
     if (!selected || payEntries.length === 0 || saving || selected.fiado_balance <= 0) return;
+    if (!cashRegisterId) {
+      alert("Caixa deve estar aberto para quitar fiado.");
+      return;
+    }
     setSaving(true);
     try {
       const totalPaid = payEntries.reduce((s, e) => s + e.amount, 0);
