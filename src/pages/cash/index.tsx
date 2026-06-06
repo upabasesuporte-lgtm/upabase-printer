@@ -4,10 +4,10 @@ import { useTheme } from "../../contexts/ThemeContext";
 import {
   Wallet, ArrowDownCircle, ArrowUpCircle, Lock, Unlock,
   CreditCard, Banknote, Smartphone, Ticket, BarChart2,
-  X, CheckCircle2, AlertCircle, RefreshCw, Clock,
+  X, AlertCircle, RefreshCw, Clock,
   TrendingUp, TrendingDown, ShoppingBag, Utensils, Monitor,
-  History, BookOpen, ChevronRight, ChevronDown, Package, Eye,
-  Edit2, Plus, Minus, Trash2, Search, Save,
+  History, BookOpen, ChevronDown, Package, Eye,
+  RotateCcw,
 } from "lucide-react";
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
@@ -158,7 +158,6 @@ export default function CashPage() {
   const [operatorName,    setOperatorName]    = useState("");
   const [movAmount,       setMovAmount]       = useState("");
   const [movDescription,  setMovDescription]  = useState("");
-  const [movPayment,      setMovPayment]      = useState<PaymentMethod>("cash");
   const [actionLoading,   setActionLoading]   = useState(false);
   const [error,           setError]           = useState<string | null>(null);
 
@@ -461,7 +460,7 @@ export default function CashPage() {
           )}
 
           {subTab === "history" && (
-            <HistoryTab regs={historyRegs} loading={historyLoading} userId={userId} salesTotals={histSalesTotals} salesCounts={histSalesCounts} />
+            <HistoryTab regs={historyRegs} loading={historyLoading} userId={userId} salesTotals={histSalesTotals} salesCounts={histSalesCounts} openRegister={register} onReopen={() => { loadData(); setSubTab("current"); }} />
           )}
         </div>
 
@@ -691,7 +690,7 @@ export default function CashPage() {
       )}
 
       {subTab === "history" && (
-        <HistoryTab regs={historyRegs} loading={historyLoading} userId={userId} salesTotals={histSalesTotals} salesCounts={histSalesCounts} />
+        <HistoryTab regs={historyRegs} loading={historyLoading} userId={userId} salesTotals={histSalesTotals} salesCounts={histSalesCounts} openRegister={register} onReopen={() => { loadData(); setSubTab("current"); }} />
       )}
 
       {/* ══ Modais ══════════════════════════════════════════════════════════ */}
@@ -843,13 +842,15 @@ export default function CashPage() {
 interface HistSaleRow { id: string; total_amount: number; discount: number | null; payments: any; origin: string | null; created_at: string; }
 
 function HistoryTab({
-  regs, loading, userId, salesTotals, salesCounts,
+  regs, loading, userId, salesTotals, salesCounts, openRegister, onReopen,
 }: {
   regs: CashRegister[];
   loading: boolean;
   userId: string | null;
   salesTotals: Record<string, number>;
   salesCounts: Record<string, number>;
+  openRegister: CashRegister | null;
+  onReopen: () => void;
 }) {
   const { theme } = useTheme();
   const isLight = theme === "light";
@@ -866,123 +867,26 @@ function HistoryTab({
   const [expanded, setExpanded] = useState<string | null>(null);
   const [details, setDetails] = useState<Record<string, { movs: Movement[]; sales: HistSaleRow[] }>>({});
   const [detailLoading, setDetailLoading] = useState<string | null>(null);
+  const [reopening, setReopening] = useState<string | null>(null);
+  const [reopenError, setReopenError] = useState<string | null>(null);
 
-  // ── Editar venda do histórico ─────────────────────────────────────────────
-  const [editingSale, setEditingSale] = useState<any | null>(null);
-  const [editRegId, setEditRegId] = useState<string | null>(null);
-  const [editItems, setEditItems] = useState<any[]>([]);
-  const [editPayments, setEditPayments] = useState<{ method: string; amount: number }[]>([]);
-  const [editProducts, setEditProducts] = useState<any[]>([]);
-  const [editItemPriceId, setEditItemPriceId] = useState<string | null>(null);
-  const [editItemPriceVal, setEditItemPriceVal] = useState("");
-  const [editProductSearch, setEditProductSearch] = useState("");
-  const [editSaving, setEditSaving] = useState(false);
-  const [editPayMethod, setEditPayMethod] = useState<PaymentMethod>("cash");
-
-  const fmtEdit = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-
-  async function openEditSale(sale: HistSaleRow, regId: string) {
-    const { data: fullSale } = await supabase.from("sales").select("*").eq("id", sale.id).single();
-    const { data: items } = await supabase.from("sale_items").select("*, products(name)").eq("sale_id", sale.id);
-    if (editProducts.length === 0) {
-      const { data: prods } = await supabase.from("products").select("*").neq("is_active", false).order("name");
-      setEditProducts(prods ?? []);
+  async function reopenRegister(reg: CashRegister) {
+    if (openRegister) {
+      setReopenError("Feche o caixa atual antes de reabrir um caixa histórico.");
+      return;
     }
-    setEditingSale(fullSale ?? sale);
-    setEditRegId(regId);
-    setEditItems(items ?? []);
-    setEditPayments(Array.isArray((fullSale ?? sale).payments) ? (fullSale ?? sale).payments : []);
-    setEditItemPriceId(null); setEditItemPriceVal(""); setEditProductSearch("");
-  }
-
-  async function histUpdateQty(item: any, delta: number) {
-    const newQty = Math.max(1, item.quantity + delta);
-    await supabase.from("sale_items").update({ quantity: newQty, total_price: item.unit_price * newQty }).eq("id", item.id);
-    setEditItems(prev => prev.map((i: any) => i.id === item.id ? { ...i, quantity: newQty, total_price: item.unit_price * newQty } : i));
-  }
-
-  async function histConfirmPrice(item: any) {
-    const newPrice = parseFloat(editItemPriceVal.replace(",", ".")) || 0;
-    await supabase.from("sale_items").update({ unit_price: newPrice, total_price: newPrice * item.quantity }).eq("id", item.id);
-    setEditItems(prev => prev.map((i: any) => i.id === item.id ? { ...i, unit_price: newPrice, total_price: newPrice * item.quantity } : i));
-    setEditItemPriceId(null); setEditItemPriceVal("");
-  }
-
-  async function histDeleteItem(itemId: string) {
-    await supabase.from("sale_items").delete().eq("id", itemId);
-    setEditItems(prev => prev.filter((i: any) => i.id !== itemId));
-  }
-
-  async function histAddItem(product: any) {
-    if (!editingSale) return;
-    const existing = editItems.find((i: any) => i.product_id === product.id);
-    if (existing) { await histUpdateQty(existing, 1); }
-    else {
-      const price = product.sale_price ?? product.price ?? 0;
-      const { data } = await supabase.from("sale_items").insert({
-        sale_id: editingSale.id, product_id: product.id,
-        quantity: 1, unit_price: price, total_price: price, notes: null,
-      }).select("*, products(name)").single();
-      if (data) setEditItems(prev => [...prev, data]);
-    }
-    setEditProductSearch("");
-  }
-
-  async function saveEditSale() {
-    if (!editingSale || !editRegId || editSaving) return;
-    setEditSaving(true);
+    setReopening(reg.id);
     try {
-      const saleId = editingSale.id;
-      const orderNum = saleId.slice(-6).toUpperCase();
-      const newTotal = editItems.reduce((s: number, i: any) => s + i.unit_price * i.quantity, 0);
-      const payments = editPayments.filter(p => p.amount > 0);
-
-      const { error } = await supabase.from("sales")
-        .update({ payments, total_amount: newTotal }).eq("id", saleId);
+      const { error } = await supabase.from("cash_registers")
+        .update({ status: "open", closed_at: null })
+        .eq("id", reg.id).eq("user_id", userId);
       if (error) throw error;
-
-      // Atualiza cash_movements do caixa FECHADO original
-      await supabase.from("cash_movements").delete()
-        .eq("movement_type", "sale").eq("user_id", userId)
-        .like("description", `%#${orderNum}%`);
-      for (const p of payments) {
-        const desc = p.method === "fiado" ? `Fiado - Venda #${orderNum}` :
-                     p.method === "house_credit" ? `Saldo Cliente - Venda #${orderNum}` :
-                     `Venda #${orderNum}`;
-        await supabase.from("cash_movements").insert({
-          register_id: editRegId, user_id: userId, movement_type: "sale",
-          amount: p.amount, payment_method: p.method as PaymentMethod,
-          channel: "pdv", description: desc,
-        });
-      }
-
-      // Sincroniza customer_movements se houver fiado
-      if (editingSale.customer_id) {
-        const newFiado = payments.filter(p => p.method === "fiado").reduce((s, p) => s + p.amount, 0);
-        const { data: oldMovs } = await supabase.from("customer_movements").select("amount, type").eq("sale_id", saleId);
-        const oldFiado = (oldMovs ?? []).filter((m: any) => m.type === "debit").reduce((s: number, m: any) => s + m.amount, 0);
-        await supabase.from("customer_movements").delete().eq("sale_id", saleId);
-        if (oldFiado !== newFiado) {
-          const { data: cust } = await supabase.from("customers").select("fiado_balance").eq("id", editingSale.customer_id).single();
-          await supabase.from("customers").update({ fiado_balance: Math.max(0, (cust as any)?.fiado_balance - oldFiado + newFiado) }).eq("id", editingSale.customer_id);
-        }
-        if (newFiado > 0) {
-          await supabase.from("customer_movements").insert({
-            customer_id: editingSale.customer_id, user_id: userId,
-            type: "debit", amount: newFiado, description: `Fiado - Venda #${orderNum}`,
-            sale_id: saleId, payment_methods: [],
-          });
-        }
-      }
-
-      // Recarrega os detalhes deste registro
-      const { data: updSales } = await supabase.from("sales")
-        .select("id, total_amount, discount, payments, origin, created_at")
-        .eq("register_id", editRegId).eq("status", "paid").order("created_at", { ascending: false });
-      setDetails(prev => ({ ...prev, [editRegId!]: { ...prev[editRegId!], sales: updSales ?? [] } }));
-      setEditingSale(null);
-    } catch (e: any) { alert("Erro ao salvar: " + (e?.message ?? String(e))); }
-    finally { setEditSaving(false); }
+      onReopen();
+    } catch (e: any) {
+      setReopenError("Erro ao reabrir caixa: " + (e?.message ?? String(e)));
+    } finally {
+      setReopening(null);
+    }
   }
 
   async function toggleDetail(reg: CashRegister) {
@@ -1120,15 +1024,28 @@ function HistoryTab({
                 </div>
               </div>
 
-              {/* Botão expandir */}
-              <button
-                onClick={() => toggleDetail(reg)}
-                className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all"
-                style={{ background: isExpanded ? "rgba(123,47,190,0.1)" : (isLight ? "#f3f4f6" : "rgba(39,39,42,0.5)"), color: isExpanded ? "#7B2FBE" : "#71717a", border: isExpanded ? "1px solid rgba(123,47,190,0.25)" : "1px solid transparent" }}>
-                {detailLoading === reg.id
-                  ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Carregando...</>
-                  : <><Eye className="w-3.5 h-3.5" /> {isExpanded ? "Ocultar detalhes" : "Ver vendas e movimentos"} <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isExpanded ? "rotate-180" : ""}`} /></>}
-              </button>
+              {/* Botões ação */}
+              <div className="mt-3 flex gap-2">
+                <button
+                  onClick={() => toggleDetail(reg)}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all"
+                  style={{ background: isExpanded ? "rgba(123,47,190,0.1)" : (isLight ? "#f3f4f6" : "rgba(39,39,42,0.5)"), color: isExpanded ? "#7B2FBE" : "#71717a", border: isExpanded ? "1px solid rgba(123,47,190,0.25)" : "1px solid transparent" }}>
+                  {detailLoading === reg.id
+                    ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Carregando...</>
+                    : <><Eye className="w-3.5 h-3.5" /> {isExpanded ? "Ocultar" : "Ver vendas"} <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isExpanded ? "rotate-180" : ""}`} /></>}
+                </button>
+                {!isOpen && (
+                  <button
+                    onClick={() => reopenRegister(reg)}
+                    disabled={reopening === reg.id}
+                    className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white"
+                  >
+                    {reopening === reg.id
+                      ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /></>
+                      : <><RotateCcw className="w-3.5 h-3.5" /> Reabrir</>}
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Painel de detalhes expandido */}
@@ -1165,14 +1082,7 @@ function HistoryTab({
                               <span className="text-zinc-400 truncate">{payStr}</span>
                               <span className="text-zinc-600 flex-shrink-0">{chLabel}</span>
                             </div>
-                            <div className="flex items-center gap-2 flex-shrink-0">
-                              <span className="font-bold" style={{ color: "#7B2FBE" }}>{fmtCur(gross)}</span>
-                              <button
-                                onClick={() => openEditSale(sale, reg.id)}
-                                className="flex items-center gap-1 px-2 py-1 bg-zinc-800 hover:bg-violet-600 text-zinc-300 hover:text-white rounded-lg transition-all text-xs font-medium border border-zinc-700 hover:border-violet-500">
-                                <Edit2 className="w-3 h-3" /> Editar
-                              </button>
-                            </div>
+                            <span className="font-bold" style={{ color: "#7B2FBE" }}>{fmtCur(gross)}</span>
                           </div>
                         );
                       })}
@@ -1212,172 +1122,21 @@ function HistoryTab({
       })}
     </div>
 
-      {/* ── Modal: Editar Venda do Histórico ─────────────────────────────── */}
-      {editingSale && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 flex-shrink-0">
+      {/* Modal: Aviso de reabrir caixa */}
+      {reopenError && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+          <div className="bg-zinc-900 border border-red-500/20 rounded-2xl shadow-2xl w-full max-w-sm p-5 space-y-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
               <div>
-                <h2 className="text-base font-semibold">Editar Venda · #{editingSale.id?.slice(-6).toUpperCase()}</h2>
-                <p className="text-xs text-zinc-500 mt-0.5">
-                  {new Date(editingSale.created_at).toLocaleString("pt-BR")} · Caixa fechado
-                </p>
-              </div>
-              <button onClick={() => setEditingSale(null)} className="p-1.5 text-zinc-400 hover:text-white rounded-lg">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-5 space-y-5">
-              {/* Resumo */}
-              <div className="grid grid-cols-2 gap-2">
-                <div className="bg-zinc-950 rounded-xl p-3">
-                  <p className="text-xs text-zinc-500 mb-0.5">Total atual</p>
-                  <p className="text-sm font-black" style={{ color: "#7B2FBE" }}>
-                    {fmtEdit(editItems.reduce((s: number, i: any) => s + i.unit_price * i.quantity, 0))}
-                  </p>
-                </div>
-                <div className="bg-zinc-950 rounded-xl p-3">
-                  <p className="text-xs text-zinc-500 mb-0.5">Itens</p>
-                  <p className="text-sm font-semibold">{editItems.length}</p>
-                </div>
-              </div>
-
-              {/* Itens */}
-              <div>
-                <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wide mb-2">Itens da venda</p>
-                <div className="space-y-1.5 max-h-52 overflow-y-auto">
-                  {editItems.map((item: any) => (
-                    <div key={item.id} className="flex items-center gap-2 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{item.products?.name ?? "Produto"}</p>
-                        {editItemPriceId === item.id ? (
-                          <div className="flex items-center gap-1 mt-0.5">
-                            <span className="text-xs text-zinc-500">R$</span>
-                            <input autoFocus type="text" inputMode="decimal" value={editItemPriceVal}
-                              onChange={e => setEditItemPriceVal(e.target.value)}
-                              onKeyDown={e => { if (e.key === "Enter") histConfirmPrice(item); if (e.key === "Escape") { setEditItemPriceId(null); } }}
-                              onBlur={() => histConfirmPrice(item)}
-                              className="w-20 text-xs px-1.5 py-0.5 bg-zinc-800 border border-violet-500 rounded text-white focus:outline-none" />
-                            <span className="text-xs text-zinc-500">/ un.</span>
-                          </div>
-                        ) : (
-                          <button onClick={() => { setEditItemPriceId(item.id); setEditItemPriceVal(String(item.unit_price)); }}
-                            className="text-xs text-zinc-500 hover:text-violet-400 text-left mt-0.5">
-                            {fmtEdit(item.unit_price)} / un. · <span className="text-white font-semibold">{fmtEdit(item.unit_price * item.quantity)}</span>
-                            <span className="ml-1 text-violet-500 text-[10px]">(editar)</span>
-                          </button>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        <button onClick={() => histUpdateQty(item, -1)} className="w-6 h-6 bg-zinc-800 hover:bg-zinc-700 rounded-md flex items-center justify-center"><Minus className="w-3 h-3" /></button>
-                        <span className="w-6 text-center text-sm font-bold">{item.quantity}</span>
-                        <button onClick={() => histUpdateQty(item, 1)} className="w-6 h-6 bg-zinc-800 hover:bg-zinc-700 rounded-md flex items-center justify-center"><Plus className="w-3 h-3" /></button>
-                      </div>
-                      <button onClick={() => histDeleteItem(item.id)}
-                        className="p-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg text-red-400 flex-shrink-0">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                  {editItems.length === 0 && <p className="text-center py-4 text-xs text-zinc-600">Nenhum item.</p>}
-                </div>
-              </div>
-
-              {/* Adicionar produto */}
-              <div>
-                <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wide mb-2">Adicionar produto</p>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-                  <input value={editProductSearch} onChange={e => setEditProductSearch(e.target.value)}
-                    onKeyDown={e => { if (e.key === "Enter") { const f = editProducts.filter(p => p.name.toLowerCase().includes(editProductSearch.toLowerCase())); if (f.length > 0) histAddItem(f[0]); } }}
-                    placeholder="Digite o nome e pressione Enter..."
-                    className="w-full pl-10 pr-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-violet-500" />
-                </div>
-                {editProductSearch.length >= 1 && (
-                  <div className="mt-1.5 space-y-1 max-h-36 overflow-y-auto">
-                    {editProducts.filter(p => p.name.toLowerCase().includes(editProductSearch.toLowerCase())).slice(0, 6).map((p: any) => (
-                      <button key={p.id} onClick={() => histAddItem(p)}
-                        className="w-full flex items-center justify-between px-3 py-2 bg-zinc-950 hover:bg-violet-600/10 border border-zinc-800 hover:border-violet-500/30 rounded-xl text-left">
-                        <div><p className="text-sm font-medium text-white">{p.name}</p><p className="text-xs text-zinc-500">{fmtEdit(p.sale_price ?? p.price)}</p></div>
-                        <Plus className="w-4 h-4 text-violet-400" />
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Formas de pagamento */}
-              <div>
-                <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wide mb-2">Formas de pagamento</p>
-                {/* Entradas existentes com troca direta de método */}
-                {editPayments.map((entry, i) => (
-                  <div key={i} className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 space-y-2 mb-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-zinc-500">Clique para trocar</span>
-                      <button onClick={() => setEditPayments(prev => prev.filter((_, j) => j !== i))} className="p-1 text-zinc-600 hover:text-red-400 rounded"><X className="w-3 h-3" /></button>
-                    </div>
-                    <div className="grid grid-cols-4 gap-1">
-                      {(["cash","pix","credit","debit","fiado"] as PaymentMethod[]).map(m => (
-                        <button key={m}
-                          onClick={() => setEditPayments(prev => prev.map((e, j) => j === i ? { ...e, method: m } : e))}
-                          className={`px-2 py-1.5 border rounded-lg text-xs font-medium transition-all ${entry.method === m ? PAYMENT_INFO[m].color.replace("text-","text-") + " border-current bg-current/10" : "border-zinc-700 text-zinc-400 hover:border-zinc-600"}`}>
-                          {PAYMENT_INFO[m]?.label ?? m}
-                        </button>
-                      ))}
-                    </div>
-                    <input type="number" min="0.01" step="0.01" value={entry.amount}
-                      onChange={e => { const v = parseFloat(e.target.value) || 0; setEditPayments(prev => prev.map((en, j) => j === i ? { ...en, amount: v } : en)); }}
-                      className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500" />
-                  </div>
-                ))}
-                {/* Adicionar forma */}
-                <div className="grid grid-cols-4 gap-1 mb-2">
-                  {(["cash","pix","credit","debit","fiado"] as PaymentMethod[]).map(m => (
-                    <button key={m} onClick={() => setEditPayMethod(m)}
-                      className={`px-2 py-1.5 border rounded-lg text-xs font-medium transition-all ${editPayMethod === m ? "border-violet-500 bg-violet-500/10 text-violet-300" : "border-zinc-700 text-zinc-400 hover:border-zinc-600"}`}>
-                      {PAYMENT_INFO[m]?.label ?? m}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <input type="number" min="0.01" step="0.01"
-                    placeholder="Valor"
-                    id="hist-pay-input"
-                    className="flex-1 px-3 py-2 bg-zinc-950 border border-zinc-700 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500"
-                    onKeyDown={e => {
-                      if (e.key === "Enter") {
-                        const v = parseFloat((e.target as HTMLInputElement).value) || 0;
-                        if (v > 0) { setEditPayments(prev => [...prev.filter(p => p.method !== editPayMethod), { method: editPayMethod, amount: v }]); (e.target as HTMLInputElement).value = ""; }
-                      }
-                    }} />
-                  <button
-                    onClick={() => {
-                      const inp = document.getElementById("hist-pay-input") as HTMLInputElement;
-                      const v = parseFloat(inp?.value) || 0;
-                      if (v > 0) { setEditPayments(prev => [...prev.filter(p => p.method !== editPayMethod), { method: editPayMethod, amount: v }]); if (inp) inp.value = ""; }
-                    }}
-                    className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-sm font-semibold">
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </div>
-                {editPayments.length > 0 && (
-                  <div className="flex items-center justify-between px-4 py-2.5 bg-zinc-800 rounded-xl mt-2">
-                    <span className="text-sm font-semibold">Total</span>
-                    <span className="text-base font-black text-emerald-400">{fmtEdit(editPayments.reduce((s, p) => s + p.amount, 0))}</span>
-                  </div>
-                )}
+                <h3 className="font-semibold text-white">Ação não permitida</h3>
+                <p className="text-sm text-zinc-300 mt-2">{reopenError}</p>
               </div>
             </div>
-
-            <div className="flex gap-3 px-6 py-4 border-t border-zinc-800 flex-shrink-0">
-              <button onClick={() => setEditingSale(null)} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium">Cancelar</button>
-              <button onClick={saveEditSale} disabled={editSaving}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-xl text-sm font-semibold">
-                {editSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                Salvar alterações
-              </button>
-            </div>
+            <button onClick={() => setReopenError(null)}
+              className="w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg text-sm font-medium">
+              OK
+            </button>
           </div>
         </div>
       )}
