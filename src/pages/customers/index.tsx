@@ -452,10 +452,6 @@ export default function CustomersPage() {
 
   async function payDebt() {
     if (!selected || payEntries.length === 0 || saving || selected.fiado_balance <= 0) return;
-    if (!cashRegisterId) {
-      alert("Caixa deve estar aberto para quitar fiado.");
-      return;
-    }
     setSaving(true);
     try {
       const totalPaid = payEntries.reduce((s, e) => s + e.amount, 0);
@@ -1036,7 +1032,13 @@ export default function CustomersPage() {
                   <p className="text-xs text-emerald-400/60">Pré-pago / crédito</p>
                 </div>
               </button>
-              <button onClick={() => { setPayEntries([]); const d = selected.fiado_balance ?? 0; setPayInput(d > 0 ? d.toFixed(2) : ""); setModal("payDebt"); }}
+              <button onClick={() => {
+                if (!cashRegisterId) {
+                  alert("Caixa deve estar aberto para quitar fiado.");
+                  return;
+                }
+                setPayEntries([]); const d = selected.fiado_balance ?? 0; setPayInput(d > 0 ? d.toFixed(2) : ""); setModal("payDebt");
+              }}
                 className="flex flex-col items-center justify-center gap-2 p-4 bg-violet-500/10 border border-violet-500/20 hover:bg-violet-500/20 rounded-2xl transition-colors text-violet-400">
                 <DollarSign className="w-6 h-6" />
                 <div className="text-center">
