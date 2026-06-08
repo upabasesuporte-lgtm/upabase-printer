@@ -706,6 +706,7 @@ export default function CustomersPage() {
   // ── Print ───────────────────────────────────────────────────────────────────
 
   function printHistory() {
+    console.log("🖨️ printHistory chamado, saleItemsMap:", saleItemsMap);
     if (!selected) return;
     const win = window.open("", "_blank", "width=800,height=900");
     if (!win) return;
@@ -728,12 +729,17 @@ export default function CustomersPage() {
       const itemsRow = items.length > 0
         ? `<tr><td colspan="5" style="padding:2px 10px 8px;background:#f9fafb;border-bottom:1px solid #e5e7eb">
             <div style="font-size:10px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Itens consumidos</div>
-            ${items.map(item =>
-              `<div style="display:flex;justify-content:space-between;font-size:11px;padding:1.5px 0">
-                <span style="color:#374151">${item.quantity}x ${item.name}${item.notes ? ` <span style="color:#9ca3af">(${item.notes})</span>` : ""}</span>
-                <span style="color:#374151;font-weight:600">${fmt(item.unit_price * item.quantity)}</span>
-              </div>`
-            ).join("")}
+            ${items.map(item => {
+              const unitPriceFormatted = fmt(item.unit_price);
+              const totalFormatted = fmt(item.unit_price * item.quantity);
+              return `<div style="display:flex;justify-content:space-between;font-size:11px;padding:1.5px 0">
+                <div style="flex:1;color:#374151">
+                  <div>${item.quantity}x ${item.name}${item.notes ? ` <span style="color:#9ca3af">(${item.notes})</span>` : ""}</div>
+                  <div style="font-size:10px;color:#6b7280;margin-top:2px">${unitPriceFormatted} cada</div>
+                </div>
+                <span style="color:#374151;font-weight:600;text-align:right;flex-shrink:0">${totalFormatted}</span>
+              </div>`;
+            }).join("")}
           </td></tr>`
         : "";
       return `<tr style="border-bottom:${items.length === 0 ? "1px solid #e5e7eb" : "none"}">

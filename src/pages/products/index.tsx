@@ -324,6 +324,30 @@ function ProductModal({ product, categories, onClose, onSave }: {
 
   useEffect(() => {
     if (product) {
+      setForm({
+        name: product.name,
+        description: product.description,
+        sku: product.sku,
+        barcode: product.barcode,
+        image_url: product.image_url,
+        category_id: product.category_id,
+        subcategory_id: product.subcategory_id,
+        sale_price: product.sale_price,
+        cost_price: product.cost_price ?? 0,
+        promo_price: product.promo_price,
+        promo_price_until: product.promo_price_until,
+        unit: product.unit ?? "unidade",
+        stock: product.stock ?? 0,
+        stock_type: product.stock_type ?? "controlled",
+        stock_min: product.stock_min ?? 0,
+        stock_max: product.stock_max,
+        visible_pdv: product.visible_pdv ?? true,
+        visible_tables: product.visible_tables ?? true,
+        visible_digital_menu: product.visible_digital_menu ?? true,
+        printer_destination: product.printer_destination ?? "balcao",
+        status: product.status ?? "active",
+        is_active: product.is_active ?? true,
+      });
       supabase.from("product_variations").select("*").eq("product_id", product.id).then(({ data }) => setVariations(data ?? []));
     }
   }, [product]);
@@ -371,7 +395,13 @@ function ProductModal({ product, categories, onClose, onSave }: {
       let savedId = product?.id;
 
       if (isEdit && product) {
-        const { error: err } = await supabase.from("products").update(payload).eq("id", product.id);
+        console.log("🔧 UPDATE - Tentando atualizar:", {
+          id: product.id,
+          oldPrice: product.sale_price,
+          newPrice: form.sale_price,
+        });
+        const { data, error: err } = await supabase.from("products").update(payload).eq("id", product.id).select();
+        console.log("✅ Result:", { success: !err, linhasAfetadas: data?.length, erro: err });
         if (err) throw err;
       } else {
         const { data, error: err } = await supabase.from("products").insert(payload).select("id").single();
@@ -748,6 +778,7 @@ export default function ProductsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [showCatModal, setShowCatModal] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const loadCategories = useCallback(async () => {
     const { data } = await supabase.from("categories").select("*").order("name");
@@ -781,21 +812,70 @@ export default function ProductsPage() {
   function openEdit(p: Product) { setEditProduct(p); setShowModal(true); }
 
   async function duplicate(p: Product) {
-    const { id, created_at, ...rest } = p;
-    await supabase.from("products").insert({ ...rest, name: `${p.name} (cópia)`, sku: null, barcode: null, stock: 0 });
-    loadProducts();
+    try {
+      const { id, created_at, ...rest } = p;
+      const { error } = await supabase.from("products").insert({ ...rest, name: `${p.name} (cópia)`, sku: null, barcode: null, stock: 0 });
+      if (error) throw error;
+      await loadProducts();
+    } catch (e: any) {
+      setActionError(`Erro ao duplicar: ${e?.message || String(e)}`);
+      setTimeout(() => setActionError(null), 4000);
+    }
   }
 
   async function toggleActive(p: Product) {
     const newStatus = p.status === "active" ? "inactive" : "active";
-    await supabase.from("products").update({ status: newStatus, is_active: newStatus === "active" }).eq("id", p.id);
-    loadProducts();
+    console.log("🔄 Toggle de", p.status, "para", newStatus, "-", p.id, p.name);
+
+    const { error, status } = await supabase
+      .from("products")
+      .update({ status: newStatus, is_active: newStatus === "active" })
+      .eq("id", p.id);
+
+    console.log("Toggle resultado:", { error, status });
+
+    if (error) {
+      console.error("❌ ERRO:", error);
+      setActionError(`Erro: ${error.message || JSON.stringify(error)}`);
+      setTimeout(() => setActionError(null), 5000);
+      return;
+    }
+
+    console.log("✓ Toggle ok, recarregando...");
+    await loadProducts();
   }
 
   async function remove(p: Product) {
     if (!confirm(`Excluir "${p.name}"? Esta ação não pode ser desfeita.`)) return;
-    await supabase.from("products").delete().eq("id", p.id);
-    loadProducts();
+
+    try {
+      // Se o produto tem vendas vinculadas, só desativa ao invés de deletar
+      const { error: delError } = await supabase.from("products").delete().eq("id", p.id);
+
+      if (delError) {
+        // Se é erro de FK, desativa o produto como alternativa
+        if (delError.code === "23503") {
+          const { error: updateError } = await supabase
+            .from("products")
+            .update({ status: "inactive", is_active: false })
+            .eq("id", p.id);
+
+          if (updateError) throw updateError;
+
+          setActionError("Produto desativado (possui vendas vinculadas - não pode ser totalmente removido)");
+          setTimeout(() => setActionError(null), 4000);
+          await loadProducts();
+          return;
+        }
+
+        throw delError;
+      }
+
+      await loadProducts();
+    } catch (e: any) {
+      setActionError(`Erro: ${e?.message || String(e)}`);
+      setTimeout(() => setActionError(null), 5000);
+    }
   }
 
   function toggleSort(col: string) {
@@ -812,6 +892,11 @@ export default function ProductsPage() {
 
   return (
     <div className="space-y-5">
+      {actionError && (
+        <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm p-3 rounded-xl flex gap-2 items-center">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" /> {actionError}
+        </div>
+      )}
       {/* Header */}
       <div className="relative overflow-hidden rounded-2xl p-5"
         style={{ background: card.bg, border: card.border, boxShadow: card.shadow,
