@@ -728,7 +728,7 @@ export default function CustomersPage() {
       const items = m.sale_id ? (saleItemsMap[m.sale_id] ?? []) : [];
       const itemsRow = items.length > 0
         ? `<tr><td colspan="5" style="padding:2px 10px 8px;background:#f9fafb;border-bottom:1px solid #e5e7eb">
-            <div style="font-size:10px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Itens consumidos</div>
+            <div style="font-size:10px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">🔴 TESTE - Itens consumidos</div>
             ${items.map(item => {
               const unitPriceFormatted = fmt(item.unit_price);
               const totalFormatted = fmt(item.unit_price * item.quantity);
