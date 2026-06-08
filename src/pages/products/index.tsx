@@ -6,7 +6,7 @@ import {
   Package, Tag, Boxes, Monitor, UtensilsCrossed,
   ShoppingBag, Printer, RefreshCw, AlertTriangle, CheckCircle2,
   AlertCircle, ToggleLeft, ToggleRight, FolderOpen,
-  Image, BarChart2, Infinity, Upload, Camera,
+  BarChart2, Infinity, Upload, Camera,
 } from "lucide-react";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -342,41 +342,46 @@ function ProductModal({ product, categories, onClose, onSave }: {
     if (!form.name.trim()) { setError("Nome do produto é obrigatório."); setTab("Geral"); return; }
     setSaving(true); setError(null);
 
-    const payload = {
-      ...form,
-      name: form.name.trim(),
-      sku: form.sku?.trim() || null,
-      barcode: form.barcode?.trim() || null,
-      description: form.description?.trim() || null,
-      image_url: form.image_url?.trim() || null,
-      is_active: form.status === "active",
-    };
+    try {
+      const payload = {
+        ...form,
+        name: form.name.trim(),
+        sku: form.sku?.trim() || null,
+        barcode: form.barcode?.trim() || null,
+        description: form.description?.trim() || null,
+        image_url: form.image_url?.trim() || null,
+        is_active: form.status === "active",
+      };
 
-    let savedId = product?.id;
+      let savedId = product?.id;
 
-    if (isEdit && product) {
-      const { error: err } = await supabase.from("products").update(payload).eq("id", product.id);
-      if (err) { setError("Erro ao salvar produto."); setSaving(false); return; }
-    } else {
-      const { data, error: err } = await supabase.from("products").insert(payload).select("id").single();
-      if (err || !data) { setError("Erro ao criar produto."); setSaving(false); return; }
-      savedId = data.id;
-    }
-
-    if (savedId) {
-      // Salvar variações: deletar antigas e recriar
-      if (isEdit) await supabase.from("product_variations").delete().eq("product_id", savedId);
-      if (variations.length > 0) {
-        await supabase.from("product_variations").insert(variations.map(v => ({
-          product_id: savedId, type: v.type, name: v.name,
-          additional_price: v.additional_price, stock: v.stock, is_active: v.is_active,
-        })));
+      if (isEdit && product) {
+        const { error: err } = await supabase.from("products").update(payload).eq("id", product.id);
+        if (err) throw err;
+      } else {
+        const { data, error: err } = await supabase.from("products").insert(payload).select("id").single();
+        if (err || !data) throw err || new Error("Sem dados retornados");
+        savedId = data.id;
       }
-    }
 
-    setSaving(false);
-    onSave();
-    onClose();
+      if (savedId) {
+        if (isEdit) await supabase.from("product_variations").delete().eq("product_id", savedId);
+        if (variations.length > 0) {
+          const { error: varErr } = await supabase.from("product_variations").insert(variations.map(v => ({
+            product_id: savedId, type: v.type, name: v.name,
+            additional_price: v.additional_price, stock: v.stock, is_active: v.is_active,
+          })));
+          if (varErr) throw varErr;
+        }
+      }
+
+      setSaving(false);
+      onSave();
+      onClose();
+    } catch (e: any) {
+      setError(`Erro ao salvar: ${e?.message || String(e)}`);
+      setSaving(false);
+    }
   }
 
   return (
