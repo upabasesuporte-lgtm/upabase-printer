@@ -344,12 +344,27 @@ function ProductModal({ product, categories, onClose, onSave }: {
 
     try {
       const payload = {
-        ...form,
         name: form.name.trim(),
+        description: form.description?.trim() || null,
         sku: form.sku?.trim() || null,
         barcode: form.barcode?.trim() || null,
-        description: form.description?.trim() || null,
         image_url: form.image_url?.trim() || null,
+        category_id: form.category_id,
+        subcategory_id: form.subcategory_id,
+        sale_price: form.sale_price,
+        cost_price: form.cost_price,
+        promo_price: form.promo_price,
+        promo_price_until: form.promo_price_until,
+        unit: form.unit,
+        stock: form.stock,
+        stock_type: form.stock_type,
+        stock_min: form.stock_min,
+        stock_max: form.stock_max,
+        visible_pdv: form.visible_pdv,
+        visible_tables: form.visible_tables,
+        visible_digital_menu: form.visible_digital_menu,
+        printer_destination: form.printer_destination,
+        status: form.status,
         is_active: form.status === "active",
       };
 
