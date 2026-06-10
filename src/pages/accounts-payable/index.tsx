@@ -304,18 +304,34 @@ export default function AccountsPayablePage() {
   // ── Summary cards
   const summary = useMemo(() => {
     const now = new Date();
-    const month = bills.filter(b => {
-      const d = new Date(b.due_date + "T12:00:00");
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    });
+    let relevantBills = bills;
+
+    // Apply period filter to summary
+    if (periodF !== "all") {
+      relevantBills = bills.filter(b => {
+        const due = new Date(b.due_date + "T12:00:00");
+        if (periodF === "today") { return b.due_date === todayStr(); }
+        else if (periodF === "week") {
+          const start = new Date(now); start.setDate(start.getDate() - start.getDay());
+          const end   = new Date(start); end.setDate(end.getDate() + 6);
+          return due >= start && due <= end;
+        } else if (periodF === "month") {
+          return due.getMonth() === now.getMonth() && due.getFullYear() === now.getFullYear();
+        } else if (periodF === "overdue") {
+          return b.status === "overdue";
+        }
+        return true;
+      });
+    }
+
     return {
-      total:   month.reduce((s, b) => s + finalAmt(b), 0),
-      pending: month.filter(b => b.status === "pending" || b.status === "overdue").reduce((s, b) => s + finalAmt(b), 0),
-      paid:    month.filter(b => b.status === "paid" || b.status === "partial").reduce((s, b) => s + (b.paid_amount || finalAmt(b)), 0),
+      total:   relevantBills.reduce((s, b) => s + finalAmt(b), 0),
+      pending: relevantBills.filter(b => b.status === "pending" || b.status === "overdue").reduce((s, b) => s + finalAmt(b), 0),
+      paid:    relevantBills.filter(b => b.status === "paid" || b.status === "partial").reduce((s, b) => s + (b.paid_amount || finalAmt(b)), 0),
       overdue: bills.filter(b => b.status === "overdue").reduce((s, b) => s + finalAmt(b), 0),
       overdueCount: bills.filter(b => b.status === "overdue").length,
     };
-  }, [bills]);
+  }, [bills, periodF]);
 
   // ── Report data
   const reportByCat = useMemo(() => {
