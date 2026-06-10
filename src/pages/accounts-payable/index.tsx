@@ -561,8 +561,15 @@ export default function AccountsPayablePage() {
 
       {/* ── Summary Cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {[
-          { label:"Total do Mês",    value:fmt(summary.total),      gFrom:"#f97316", gTo:"#fb923c", glow:"rgba(249,115,22,0.15)",  sub:"todas as contas"      },
+        {(() => {
+          const totalLabel = periodF === "all" ? "Total Geral"
+            : periodF === "today" ? "Total de Hoje"
+            : periodF === "week" ? "Total da Semana"
+            : periodF === "month" ? "Total do Mês"
+            : periodF === "overdue" ? "Total Vencido"
+            : "Total do Mês";
+          return [
+          { label: totalLabel,       value:fmt(summary.total),      gFrom:"#f97316", gTo:"#fb923c", glow:"rgba(249,115,22,0.15)",  sub:"todas as contas"      },
           { label:"A Pagar",         value:fmt(summary.pending),    gFrom:"#f59e0b", gTo:"#fbbf24", glow:"rgba(245,158,11,0.15)",  sub:"em aberto e vencidos" },
           { label:"Pago no Mês",     value:fmt(summary.paid),       gFrom:"#10b981", gTo:"#34d399", glow:"rgba(16,185,129,0.15)",  sub:"liquidado"            },
           { label:"Contas Vencidas", value:fmt(summary.overdue),    gFrom:"#f43f5e", gTo:"#fb7185", glow:"rgba(244,63,94,0.15)",   sub:"títulos em atraso"    },
@@ -592,7 +599,7 @@ export default function AccountsPayablePage() {
               <p className="text-[11px] mt-1" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>{s.sub}</p>
             </div>
           </div>
-        ))}
+        ));})()}
       </div>
 
       {/* ── Quick Input Bar ── */}
