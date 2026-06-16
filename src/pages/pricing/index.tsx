@@ -993,12 +993,12 @@ export default function PricingPage() {
                   }}
                   onMouseEnter={(e) => {
                     if (!isOpen) {
-                      (e.currentTarget as HTMLButtonElement).borderColor = PRIMARY + "40";
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = PRIMARY + "40";
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (!isOpen) {
-                      (e.currentTarget as HTMLButtonElement).borderColor = "#e5e7eb";
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = "#e5e7eb";
                     }
                   }}
                 >
