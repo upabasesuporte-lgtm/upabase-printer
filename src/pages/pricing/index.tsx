@@ -199,7 +199,7 @@ export default function PricingPage() {
             letterSpacing: "-0.02em",
           }}
         >
-          Controle seu restaurante, delivery e PDV em um único sistema
+          Tudo o que sua empresa precisa em um só lugar
         </h1>
 
         {/* Subtítulo */}
@@ -209,11 +209,25 @@ export default function PricingPage() {
             color: "#6B7280",
             textAlign: "center",
             maxWidth: "700px",
+            margin: "0 auto 24px",
+            lineHeight: 1.6,
+          }}
+        >
+          Controle vendas, estoque, clientes, financeiro e delivery com uma plataforma simples, completa e feita para pequenas empresas.
+        </p>
+
+        {/* Tipos de negócios */}
+        <p
+          style={{
+            fontSize: "14px",
+            color: "#6B7280",
+            textAlign: "center",
+            maxWidth: "700px",
             margin: "0 auto 32px",
             lineHeight: 1.6,
           }}
         >
-          Venda mais, organize seu caixa e acompanhe tudo em tempo real com uma plataforma completa para gestão do seu negócio.
+          🏪 Lojas • 🛒 Mercadinhos • 👟 Calçados • 👕 Roupas • 🍔 Restaurantes • 🛵 Delivery
         </p>
 
         {/* Benefícios */}
