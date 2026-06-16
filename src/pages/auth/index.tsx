@@ -193,13 +193,9 @@ export default function AuthPage() {
                 <button
                   key={s.id}
                   onClick={() => setCurrentScreen(i)}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-                    currentScreen === i
-                      ? "text-white shadow-lg"
-                      : "text-gray-500 hover:text-gray-700"
-                  }`}
+                  className="px-3 py-1 rounded-lg text-xs font-semibold transition-all"
                   style={currentScreen === i
-                    ? { background: "#2563EB", boxShadow: "0 4px 14px rgba(37,99,235,0.35)", color: "#ffffff" }
+                    ? { background: "#2563EB", boxShadow: "0 4px 14px rgba(37,99,235,0.35)", color: "#ffffff !important" }
                     : { background: "#F3F4F6", color: "#6B7280" }}
                 >
                   {s.label}
@@ -449,8 +445,8 @@ export default function AuthPage() {
               <button
                 type="submit"
                 disabled={loading || googleLoading}
-                className="w-full disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-sm py-2.5 rounded-lg transition-all duration-200 mt-1"
-                style={{ background: "#2563EB", boxShadow: "0 4px 14px rgba(37,99,235,0.3)" }}
+                className="w-full disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-sm py-2.5 rounded-lg transition-all duration-200 mt-1"
+                style={{ background: "#2563EB", boxShadow: "0 4px 14px rgba(37,99,235,0.3)", color: "#FFFFFF", textDecoration: "none" }}
               >
                 {loading
                   ? "Carregando..."
