@@ -537,20 +537,52 @@ export default function TablesPage() {
     const LABEL = (t: string) =>
       `<div style="font-size:11px;font-weight:700;color:#000;text-transform:uppercase;letter-spacing:0.5px;margin:6px 0 3px">--- ${t} ---</div>`;
 
-    const itemsHtml = orderItems.length > 0 ? orderItems.map(i => {
+    const isDrink = (name: string) => /bebida|coca|água|suco|refrigerante|vinho|cerveja|chopp|açaí|milkshake|café|leite/i.test(name);
+    const mainItems = orderItems.filter(i => !isDrink(i.products?.name ?? ""));
+    const drinkItems = orderItems.filter(i => isDrink(i.products?.name ?? ""));
+
+    const mainItemsHtml = mainItems.length > 0 ? mainItems.map(i => {
       const name = i.products?.name ?? "Produto";
       const unitLine = i.quantity > 1
-        ? `<div style="font-size:12px;font-weight:600;color:#000;margin-top:1px">${i.quantity} un x ${fmt(i.unit_price)}</div>` : "";
+        ? `<div style="font-size:11px;font-weight:500;color:#333;margin-top:1px">${i.quantity} un x ${fmt(i.unit_price)}</div>` : "";
       const obsLine = i.notes
-        ? `<div style="font-size:12px;font-weight:600;color:#000;margin-top:1px">Obs: ${i.notes}</div>` : "";
-      return `<div style="display:flex;justify-content:space-between;align-items:flex-start;padding:6px 0;border-bottom:1px dashed #000">
-        <div style="flex:1;padding-right:8px">
-          <div style="font-size:13px;font-weight:600;color:#000">${i.quantity}x ${name}</div>
-          ${unitLine}${obsLine}
+        ? `<div style="font-size:9px;font-weight:400;color:#666;margin-top:1px;font-style:italic">Obs: ${i.notes}</div>` : "";
+      return `<div style="padding:6px 0;border-bottom:1px dashed #ccc">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div style="flex:1;padding-right:8px">
+            <div style="font-size:13px;font-weight:600;color:#000">${i.quantity}x ${name}</div>
+            ${unitLine}
+          </div>
+          <div style="font-size:11px;font-weight:600;color:#000;white-space:nowrap">${fmt(i.unit_price * i.quantity)}</div>
         </div>
-        <div style="font-size:13px;font-weight:700;color:#000;white-space:nowrap">${fmt(i.unit_price * i.quantity)}</div>
+        ${obsLine}
       </div>`;
-    }).join("") : `<div style="font-size:12px;font-weight:600;color:#000;padding:6px 0">Sem itens</div>`;
+    }).join("") : "";
+
+    const drinksHtml = drinkItems.length > 0 ? `
+      ${mainItems.length > 0 ? `<div style="margin:10px 0;padding:8px 0;border-top:2px solid #000;border-bottom:2px solid #000;text-align:center">
+        <div style="font-size:11px;font-weight:600;color:#000;text-transform:uppercase;letter-spacing:0.5px">🍹 BEBIDAS 🍹</div>
+      </div>` : ""}
+      ${drinkItems.map(i => {
+        const name = i.products?.name ?? "Produto";
+        const unitLine = i.quantity > 1
+          ? `<div style="font-size:10px;font-weight:500;color:#333;margin-top:1px">${i.quantity} un x ${fmt(i.unit_price)}</div>` : "";
+        const obsLine = i.notes
+          ? `<div style="font-size:9px;font-weight:400;color:#666;margin-top:1px;font-style:italic">Obs: ${i.notes}</div>` : "";
+        return `<div style="padding:5px 0;border-bottom:1px dashed #ccc">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div style="flex:1;padding-right:8px">
+              <div style="font-size:12px;font-weight:600;color:#000">${i.quantity}x ${name}</div>
+              ${unitLine}
+            </div>
+            <div style="font-size:11px;font-weight:600;color:#000;white-space:nowrap">${fmt(i.unit_price * i.quantity)}</div>
+          </div>
+          ${obsLine}
+        </div>`;
+      }).join("")}
+    ` : "";
+
+    const itemsHtml = mainItemsHtml + drinksHtml || `<div style="font-size:12px;font-weight:600;color:#000;padding:6px 0">Sem itens</div>`;
 
     const paymentsHtml = checkoutPayments.map(p =>
       ROW(PAY_INFO[p.method]?.label ?? p.method, fmt(p.amount))
