@@ -195,7 +195,12 @@ export default function AuthPage() {
                   onClick={() => setCurrentScreen(i)}
                   className="px-3 py-1 rounded-lg text-xs font-semibold transition-all"
                   style={currentScreen === i
-                    ? { background: "#2563EB", boxShadow: "0 4px 14px rgba(37,99,235,0.35)", color: "#ffffff !important" }
+                    ? {
+                        background: "#2563EB",
+                        boxShadow: "0 4px 14px rgba(37,99,235,0.35)",
+                        color: "#ffffff",
+                        WebkitTextFillColor: "#ffffff"
+                      }
                     : { background: "#F3F4F6", color: "#6B7280" }}
                 >
                   {s.label}
