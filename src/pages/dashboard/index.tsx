@@ -443,7 +443,7 @@ export default function DashboardPage() {
             className="px-4 py-2 rounded-xl text-xs font-bold transition-all"
             style={period === p
               ? isLight
-                ? { background: "#3B82F6", color: "#fff", border: "1px solid #3B82F6", boxShadow: "0 2px 8px rgba(59,130,246,0.3)" }
+                ? { background: "#2563eb", color: "#fff", border: "1px solid #2563eb", boxShadow: "0 2px 8px rgba(37,99,235,0.3)" }
                 : { background: "rgba(139,92,246,0.2)", color: "#c4b5fd", border: "1px solid rgba(139,92,246,0.4)", boxShadow: "0 0 12px rgba(139,92,246,0.2)" }
               : isLight
                 ? { background: "#fff", color: "#6B7280", border: "1px solid #e5e7eb" }
