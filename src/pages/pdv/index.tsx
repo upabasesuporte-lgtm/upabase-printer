@@ -1315,10 +1315,10 @@ export default function PdvPage() {
               <div className="grid grid-cols-2 gap-2">
                 <button onClick={savePending} disabled={cart.length === 0}
                   className="flex items-center justify-center gap-1.5 py-2.5 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold rounded-xl transition-all"
-                  style={{ border:"1px solid rgba(16,185,129,0.4)", color:"#10b981", background:"rgba(16,185,129,0.07)" }}>
+                  style={isLight ? { border:"1px solid #2563eb", color:"#fff", background:"#2563eb" } : { border:"1px solid rgba(16,185,129,0.4)", color:"#10b981", background:"rgba(16,185,129,0.07)" }}>
                   <Clock className="w-3.5 h-3.5" />
                   Pausar
-                  <kbd className="text-[10px] px-1 py-0.5 rounded font-bold" style={{ background:"rgba(16,185,129,0.15)", border:"1px solid rgba(16,185,129,0.3)", color:"#10b981" }}>F2</kbd>
+                  <kbd className="text-[10px] px-1 py-0.5 rounded font-bold" style={isLight ? { background:"rgba(255,255,255,0.2)", border:"1px solid rgba(255,255,255,0.3)", color:"#fff" } : { background:"rgba(16,185,129,0.15)", border:"1px solid rgba(16,185,129,0.3)", color:"#10b981" }}>F2</kbd>
                 </button>
                 <button onClick={openCheckout} disabled={cart.length === 0 || !cashRegisterId}
                   className="flex items-center justify-center gap-1.5 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold rounded-xl transition-colors shadow-lg shadow-violet-900/30"
@@ -1387,7 +1387,7 @@ export default function PdvPage() {
                                 {ORIGIN_INFO[sale.origin].label}
                               </span>
                             )}
-                            <span className="text-sm font-bold text-white font-mono">#{orderNum}</span>
+                            <span className="text-sm font-bold text-white font-mono px-2.5 py-0.5 rounded-lg" style={{background: isLight ? "#2563eb" : "#7B2FBE"}}>#{orderNum}</span>
                             <span className="text-xs text-zinc-500">{new Date(sale.created_at).toLocaleString("pt-BR")}</span>
                             {sale.seller_name && <span className="text-xs text-zinc-500">· {sale.seller_name}</span>}
                           </div>
@@ -1405,17 +1405,23 @@ export default function PdvPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-1.5 flex-shrink-0">
-                          <span className="text-base font-bold text-violet-400 mr-1">{fmt(displayTotal)}</span>
+                          <span className="text-base font-bold mr-1" style={{color: isLight ? "#10b981" : "#fbbf24"}}>{fmt(displayTotal)}</span>
                           <button onClick={() => openEditSale(sale)}
-                            className="p-1.5 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 rounded-lg text-violet-400 hover:text-violet-300 transition-colors" title="Editar">
+                            className="p-1.5 hover:bg-opacity-20 border rounded-lg transition-colors"
+                            style={isLight ? { background:"rgba(37,99,235,0.1)", border:"1px solid rgba(37,99,235,0.3)", color:"#2563eb" } : { background:"rgba(123,47,190,0.1)", border:"1px solid rgba(123,47,190,0.3)", color:"#b49bff" }}
+                            title="Editar">
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button onClick={() => printSale(sale, saleItems)}
-                            className="p-1.5 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-lg text-blue-400 hover:text-blue-300 transition-colors" title="Reimprimir">
+                            className="p-1.5 hover:bg-opacity-20 border rounded-lg transition-colors"
+                            style={isLight ? { background:"rgba(16,185,129,0.1)", border:"1px solid rgba(16,185,129,0.3)", color:"#10b981" } : { background:"rgba(16,185,129,0.1)", border:"1px solid rgba(16,185,129,0.3)", color:"#6ee7b7" }}
+                            title="Reimprimir">
                             <Printer className="w-4 h-4" />
                           </button>
                           <button onClick={() => deleteSale(sale.id)}
-                            className="p-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-lg text-red-400 hover:text-red-300 transition-colors" title="Excluir venda">
+                            className="p-1.5 hover:bg-opacity-20 border rounded-lg transition-colors"
+                            style={isLight ? { background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.3)", color:"#ef4444" } : { background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.3)", color:"#fca5a5" }}
+                            title="Excluir venda">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
@@ -1437,7 +1443,7 @@ export default function PdvPage() {
                         )}
                         <div className="flex justify-between text-xs font-bold border-t border-zinc-800 pt-1">
                           <span>{isIfood ? "Total bruto (recibo)" : "Total"}</span>
-                          <span className="text-violet-400">{fmt(displayTotal)}</span>
+                          <span style={{color: isLight ? "#10b981" : "#fbbf24"}}>{fmt(displayTotal)}</span>
                         </div>
                         {isIfood && (sale.discount ?? 0) > 0 && (
                           <div className="flex justify-between text-xs text-zinc-500 pt-0.5">
