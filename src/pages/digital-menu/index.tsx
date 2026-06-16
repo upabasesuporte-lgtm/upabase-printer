@@ -911,7 +911,7 @@ export default function DigitalMenuPage() {
 
             {/* Visibilidade das categorias no cardápio digital */}
             {categories.length > 0 && (
-              <div className="rounded-xl p-3 flex-shrink-0" style={{ background: isLight ? "#f9fafb" : "rgba(24,24,27,0.6)", border: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" }}>
+              <div className="rounded-xl p-3 flex-shrink-0" style={{ background: isLight ? "#ffffff" : "rgba(24,24,27,0.6)", border: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" }}>
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">Categorias no cardápio</p>
                   <p className="text-[10px] text-zinc-600 flex items-center gap-1"><GripVertical className="w-3 h-3" /> arraste para reordenar</p>
