@@ -268,65 +268,33 @@ export default function PricingPage() {
             marginBottom: "60px",
           }}
         >
-          {userEmail ? (
-            <a
-              href={getMpCheckoutUrl(PLAN_INFO.loja.mp_id_monthly, userEmail)}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "8px",
-                padding: "14px 32px",
-                background: PRIMARY,
-                color: "#fff",
-                borderRadius: "8px",
-                fontWeight: 700,
-                fontSize: "15px",
-                textDecoration: "none",
-                boxShadow: `0 4px 16px ${PRIMARY}40`,
-                transition: "all 0.2s",
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-2px)";
-                (e.currentTarget as HTMLAnchorElement).style.boxShadow = `0 8px 24px ${PRIMARY}50`;
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(0)";
-                (e.currentTarget as HTMLAnchorElement).style.boxShadow = `0 4px 16px ${PRIMARY}40`;
-              }}
-            >
-              Testar grátis <ArrowRight size={16} />
-            </a>
-          ) : (
-            <Link
-              to="/auth?register=1"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "8px",
-                padding: "14px 32px",
-                background: PRIMARY,
-                color: "#fff",
-                borderRadius: "8px",
-                fontWeight: 700,
-                fontSize: "15px",
-                textDecoration: "none",
-                boxShadow: `0 4px 16px ${PRIMARY}40`,
-                transition: "all 0.2s",
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-2px)";
-                (e.currentTarget as HTMLAnchorElement).style.boxShadow = `0 8px 24px ${PRIMARY}50`;
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(0)";
-                (e.currentTarget as HTMLAnchorElement).style.boxShadow = `0 4px 16px ${PRIMARY}40`;
-              }}
-            >
-              Testar grátis <ArrowRight size={16} />
-            </Link>
-          )}
+          <Link
+            to="/auth?register=1"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "14px 32px",
+              background: PRIMARY,
+              color: "#fff",
+              borderRadius: "8px",
+              fontWeight: 700,
+              fontSize: "15px",
+              textDecoration: "none",
+              boxShadow: `0 4px 16px ${PRIMARY}40`,
+              transition: "all 0.2s",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-2px)";
+              (e.currentTarget as HTMLAnchorElement).style.boxShadow = `0 8px 24px ${PRIMARY}50`;
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(0)";
+              (e.currentTarget as HTMLAnchorElement).style.boxShadow = `0 4px 16px ${PRIMARY}40`;
+            }}
+          >
+            Testar grátis <ArrowRight size={16} />
+          </Link>
           <button
             style={{
               display: "inline-flex",
@@ -899,71 +867,36 @@ export default function PricingPage() {
             </div>
 
             {/* CTA */}
-            {userEmail ? (
-              <a
-                href={getMpCheckoutUrl(PLAN_INFO.loja.mp_id_monthly, userEmail)}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "8px",
-                  width: "100%",
-                  padding: "16px 0",
-                  background: PRIMARY,
-                  color: "#fff",
-                  borderRadius: "8px",
-                  fontWeight: 700,
-                  fontSize: "15px",
-                  textDecoration: "none",
-                  boxShadow: `0 4px 16px ${PRIMARY}40`,
-                  transition: "all 0.2s",
-                  marginBottom: "16px",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-2px)";
-                  (e.currentTarget as HTMLAnchorElement).style.boxShadow = `0 8px 24px ${PRIMARY}50`;
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(0)";
-                  (e.currentTarget as HTMLAnchorElement).style.boxShadow = `0 4px 16px ${PRIMARY}40`;
-                }}
-              >
-                Começar teste grátis
-              </a>
-            ) : (
-              <Link
-                to="/auth?register=1"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "8px",
-                  width: "100%",
-                  padding: "16px 0",
-                  background: PRIMARY,
-                  color: "#fff",
-                  borderRadius: "8px",
-                  fontWeight: 700,
-                  fontSize: "15px",
-                  textDecoration: "none",
-                  boxShadow: `0 4px 16px ${PRIMARY}40`,
-                  transition: "all 0.2s",
-                  marginBottom: "16px",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-2px)";
-                  (e.currentTarget as HTMLAnchorElement).style.boxShadow = `0 8px 24px ${PRIMARY}50`;
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(0)";
-                  (e.currentTarget as HTMLAnchorElement).style.boxShadow = `0 4px 16px ${PRIMARY}40`;
-                }}
-              >
-                Começar teste grátis
-              </Link>
-            )}
+            <Link
+              to="/auth?register=1"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+                width: "100%",
+                padding: "16px 0",
+                background: PRIMARY,
+                color: "#fff",
+                borderRadius: "8px",
+                fontWeight: 700,
+                fontSize: "15px",
+                textDecoration: "none",
+                boxShadow: `0 4px 16px ${PRIMARY}40`,
+                transition: "all 0.2s",
+                marginBottom: "16px",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-2px)";
+                (e.currentTarget as HTMLAnchorElement).style.boxShadow = `0 8px 24px ${PRIMARY}50`;
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(0)";
+                (e.currentTarget as HTMLAnchorElement).style.boxShadow = `0 4px 16px ${PRIMARY}40`;
+              }}
+            >
+              Começar teste grátis
+            </Link>
 
             <p
               style={{
@@ -1174,61 +1107,31 @@ export default function PricingPage() {
             Experimente gratuitamente e descubra como simplificar sua operação.
           </p>
 
-          {userEmail ? (
-            <a
-              href={getMpCheckoutUrl(PLAN_INFO.loja.mp_id_monthly, userEmail)}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "8px",
-                padding: "14px 32px",
-                background: "#fff",
-                color: PRIMARY,
-                borderRadius: "8px",
-                fontWeight: 700,
-                fontSize: "15px",
-                textDecoration: "none",
-                boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
-                transition: "all 0.2s",
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-2px)";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(0)";
-              }}
-            >
-              Testar grátis agora <ArrowRight size={16} />
-            </a>
-          ) : (
-            <Link
-              to="/auth?register=1"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "8px",
-                padding: "14px 32px",
-                background: "#fff",
-                color: PRIMARY,
-                borderRadius: "8px",
-                fontWeight: 700,
-                fontSize: "15px",
-                textDecoration: "none",
-                boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
-                transition: "all 0.2s",
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-2px)";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(0)";
-              }}
-            >
-              Testar grátis agora <ArrowRight size={16} />
-            </Link>
-          )}
+          <Link
+            to="/auth?register=1"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "14px 32px",
+              background: "#fff",
+              color: PRIMARY,
+              borderRadius: "8px",
+              fontWeight: 700,
+              fontSize: "15px",
+              textDecoration: "none",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
+              transition: "all 0.2s",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-2px)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(0)";
+            }}
+          >
+            Testar grátis agora <ArrowRight size={16} />
+          </Link>
 
           <p
             style={{
