@@ -90,6 +90,11 @@ export default function AuthPage() {
     setSuccessMessage(null);
   }
 
+  function validateEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+
   async function handleGoogleLogin() {
     setGoogleLoading(true);
     clearMessages();
@@ -108,6 +113,12 @@ export default function AuthPage() {
     setLoading(true);
     clearMessages();
 
+    if (!validateEmail(email)) {
+      setErrorMessage("E-mail inválido.");
+      setLoading(false);
+      return;
+    }
+
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error || !data.session) {
@@ -116,7 +127,7 @@ export default function AuthPage() {
       return;
     }
 
-    if (inviteToken) localStorage.setItem("pending_invite", inviteToken);
+    if (inviteToken) sessionStorage.setItem("pending_invite", inviteToken);
     setSuccessMessage("Login realizado com sucesso!");
     setTimeout(() => { window.location.href = "/"; }, 400);
     setLoading(false);
@@ -133,6 +144,18 @@ export default function AuthPage() {
       return;
     }
 
+    if (!validateEmail(email)) {
+      setErrorMessage("E-mail inválido.");
+      setLoading(false);
+      return;
+    }
+
+    if (password.length < 8) {
+      setErrorMessage("Senha deve ter no mínimo 8 caracteres.");
+      setLoading(false);
+      return;
+    }
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -145,7 +168,7 @@ export default function AuthPage() {
       return;
     }
 
-    if (inviteToken) localStorage.setItem("pending_invite", inviteToken);
+    if (inviteToken) sessionStorage.setItem("pending_invite", inviteToken);
     setSuccessMessage("Conta criada! Verifique seu e-mail e depois faça login.");
     setTimeout(() => { setMode("login"); setPassword(""); }, 1200);
     setLoading(false);

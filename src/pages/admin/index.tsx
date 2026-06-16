@@ -7,7 +7,7 @@ import {
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
 
-const ADMIN_EMAIL = "upabasesuporte@gmail.com";
+const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || "";
 
 interface UserPlan {
   id: string;

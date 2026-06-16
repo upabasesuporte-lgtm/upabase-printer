@@ -647,6 +647,15 @@ export default function DigitalMenuPage() {
 
   async function uploadImage(file: File, type: "logo" | "banner"): Promise<string | null> {
     if (!userId) return null;
+
+    // Validação de segurança de arquivo
+    const allowedMimeTypes = ["image/jpeg", "image/png", "image/webp"];
+    const maxSizeBytes = 5 * 1024 * 1024; // 5MB
+    if (!allowedMimeTypes.includes(file.type) || file.size > maxSizeBytes) {
+      alert("Apenas JPEG, PNG e WebP até 5MB permitidos");
+      return null;
+    }
+
     const ext = file.name.split(".").pop() ?? "jpg";
     const path = `${userId}/${type}.${ext}`;
     const { error } = await supabase.storage.from("menu-assets").upload(path, file, { upsert: true, contentType: file.type });
@@ -671,6 +680,15 @@ export default function DigitalMenuPage() {
 
   async function handleUploadProductImage(file: File) {
     if (!userId) return;
+
+    // Validação de segurança de arquivo
+    const allowedMimeTypes = ["image/jpeg", "image/png", "image/webp"];
+    const maxSizeBytes = 5 * 1024 * 1024; // 5MB
+    if (!allowedMimeTypes.includes(file.type) || file.size > maxSizeBytes) {
+      alert("Apenas JPEG, PNG e WebP até 5MB permitidos");
+      return;
+    }
+
     setProductImgUploading(true);
     const ext = file.name.split(".").pop() ?? "jpg";
     const path = `${userId}/products/${Date.now()}.${ext}`;

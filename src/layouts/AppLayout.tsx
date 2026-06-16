@@ -35,7 +35,7 @@ import {
 } from "lucide-react";
 import { AvaliacaoModal } from "../components/AvaliacaoModal";
 
-const ADMIN_EMAIL = "upabasesuporte@gmail.com";
+const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || "";
 
 const menuItems = [
   { label: "Dashboard",       icon: LayoutDashboard, path: "/",                color: "#3b82f6" },
@@ -215,10 +215,10 @@ export function AppLayout() {
       const uid = data.user.id;
       setUserId(uid);
 
-      // Handle pending invite from localStorage
-      const pendingInvite = localStorage.getItem("pending_invite");
+      // Handle pending invite from sessionStorage (expires on session end)
+      const pendingInvite = sessionStorage.getItem("pending_invite");
       if (pendingInvite) {
-        localStorage.removeItem("pending_invite");
+        sessionStorage.removeItem("pending_invite");
         await processInvite(pendingInvite, uid);
       }
 
@@ -381,6 +381,20 @@ export function AppLayout() {
   async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file || !userId) return;
+
+    const allowedMimeTypes = ["image/jpeg", "image/png", "image/webp"];
+    const maxSizeBytes = 5 * 1024 * 1024; // 5MB
+
+    if (!allowedMimeTypes.includes(file.type)) {
+      alert("Apenas JPEG, PNG e WebP permitidos");
+      return;
+    }
+
+    if (file.size > maxSizeBytes) {
+      alert("Arquivo muito grande (máximo 5MB)");
+      return;
+    }
+
     setAvatarUploading(true);
     const ext = file.name.split(".").pop() ?? "jpg";
     const path = `avatars/${userId}.${ext}`;
