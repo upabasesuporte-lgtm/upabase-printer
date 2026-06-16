@@ -989,7 +989,6 @@ export default function DashboardPage() {
       )}
 
       {/* 8. Ranking de Clientes */}
-      {topCustomers.length > 0 || sales.filter(s => s.customer_id).length > 0 ? (
         <div className="rounded-2xl p-5" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-sm font-bold" style={{ color: isLight ? "#111" : "#fff" }}>👥 Clientes Mais Frequentes</h2>
@@ -1034,7 +1033,7 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
-      ) : null}
+      </div>
 
     </div>
   );
