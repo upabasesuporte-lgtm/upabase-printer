@@ -781,10 +781,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="text-[10px] mt-2 space-y-1" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>
                       <p className="flex items-center gap-2 flex-wrap">
-                        <span>📦 {itemCount} item{itemCount !== 1 ? "s" : ""}</span>
-                        <span>•</span>
                         <span>{paymentMethod}</span>
-                      </p>
                       {sale.discount && sale.discount > 0 && (
                         <p className="flex items-center gap-2">
                           <span style={{ color: "#f59e0b" }}>🏷️ Desconto: {fmt(sale.discount)}</span>
@@ -1034,63 +1031,6 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
-
-      {/* 6. Atividades Recentes */}
-      <div className="rounded-2xl p-5" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-sm font-bold" style={{ color: isLight ? "#111" : "#fff" }}>Atividades Recentes</h2>
-          <Clock className="w-4 h-4" style={{ color: isLight ? "#9CA3AF" : "#52525b" }} />
-        </div>
-        {recentSales.length === 0 && pendingDig === 0 ? (
-          <div className="text-center py-8">
-            <Zap className="w-8 h-8 mx-auto mb-2" style={{ color: isLight ? "#D1D5DB" : "#3f3f46" }} />
-            <p className="text-xs" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>Nenhuma atividade registrada</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {pendingDig > 0 && (
-              <div className="flex items-start gap-3 p-3 rounded-lg" style={{ background: isLight ? "rgba(245,158,11,0.05)" : "rgba(245,158,11,0.1)" }}>
-                <div className="flex-shrink-0 mt-1">
-                  <ShoppingCart className="w-4 h-4" style={{ color: "#f59e0b" }} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold" style={{ color: isLight ? "#374151" : "#d4d4d8" }}>
-                    Pedido Digital Recebido
-                  </p>
-                  <p className="text-[10px] mt-0.5" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>
-                    {pendingDig} pedido{pendingDig !== 1 ? "s" : ""} aguardando processamento
-                  </p>
-                </div>
-              </div>
-            )}
-            {recentSales.slice(0, 3).map((sale, idx) => {
-              const originIcon = sale.origin === "ifood" ? "🛵" : sale.origin === "mesa" ? "🍽️" : "💳";
-              const originLabel = !sale.origin || sale.origin === "pdv" ? "Venda PDV" : sale.origin === "mesa" ? "Venda Mesa" : sale.origin === "ifood" ? "Pedido iFood" : "Venda Digital";
-              return (
-                <div key={`${sale.id}-${idx}`} className="flex items-start gap-3 p-3 rounded-lg" style={{ background: isLight ? "rgba(123,47,190,0.03)" : "rgba(255,255,255,0.02)" }}>
-                  <div className="flex-shrink-0 mt-1 text-lg">{originIcon}</div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold" style={{ color: isLight ? "#374151" : "#d4d4d8" }}>
-                      {originLabel}
-                    </p>
-                    <p className="text-[10px] mt-0.5 flex items-center gap-1" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>
-                      <Clock className="w-3 h-3" />
-                      {new Date(sale.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                      {sale.seller_name && <span>• {sale.seller_name}</span>}
-                    </p>
-                  </div>
-                  <p className="text-xs font-bold flex-shrink-0" style={{ color: "#10b981" }}>+{fmt(sale.total_amount)}</p>
-                </div>
-              );
-            })}
-            {recentSales.length > 3 && (
-              <p className="text-xs text-center mt-3" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>
-                +{recentSales.length - 3} atividade{recentSales.length - 3 !== 1 ? "s" : ""} recente{recentSales.length - 3 !== 1 ? "s" : ""}
-              </p>
-            )}
-          </div>
-        )}
-      </div>
 
     </div>
   );
