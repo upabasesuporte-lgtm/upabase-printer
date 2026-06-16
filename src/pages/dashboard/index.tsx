@@ -859,56 +859,50 @@ export default function DashboardPage() {
           <h2 className="text-sm font-bold" style={{ color: isLight ? "#111" : "#fff" }}>Insights Inteligentes</h2>
           <Zap className="w-4 h-4" style={{ color: "#8b5cf6" }} />
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <div className="space-y-3">
           {revChange !== null && (
-            <div className="p-4 rounded-xl" style={{ background: revChange >= 0 ? "linear-gradient(135deg,rgba(16,185,129,0.1),rgba(16,185,129,0.05))" : "linear-gradient(135deg,rgba(244,63,94,0.1),rgba(244,63,94,0.05))", border: `1px solid ${revChange >= 0 ? "rgba(16,185,129,0.2)" : "rgba(244,63,94,0.2)"}` }}>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-2xl">{revChange >= 0 ? "📈" : "📉"}</span>
-                <span className="text-lg font-black" style={{ color: revChange >= 0 ? "#10b981" : "#f43f5e" }}>
-                  {revChange >= 0 ? "+" : ""}{Math.abs(revChange).toFixed(1)}%
-                </span>
+            <div className="flex items-start gap-3 p-3 rounded-lg" style={{ background: isLight ? "rgba(16,185,129,0.05)" : "rgba(16,185,129,0.1)" }}>
+              <div className="flex-shrink-0 mt-0.5">
+                <TrendingUp className="w-4 h-4" style={{ color: revChange >= 0 ? "#10b981" : "#f43f5e" }} />
               </div>
-              <p className="text-xs" style={{ color: isLight ? "#6B7280" : "#a1a1aa" }}>
-                Faturamento vs período anterior
+              <p className="text-xs" style={{ color: isLight ? "#374151" : "#d4d4d8" }}>
+                Seu faturamento <span style={{ fontWeight: "bold", color: revChange >= 0 ? "#10b981" : "#f43f5e" }}>
+                  {revChange >= 0 ? "aumentou" : "caiu"} {Math.abs(revChange).toFixed(1)}%
+                </span> em relação ao período anterior.
               </p>
             </div>
           )}
           {avgChange !== null && (
-            <div className="p-4 rounded-xl" style={{ background: avgChange >= 0 ? "linear-gradient(135deg,rgba(34,197,94,0.1),rgba(34,197,94,0.05))" : "linear-gradient(135deg,rgba(245,158,11,0.1),rgba(245,158,11,0.05))", border: `1px solid ${avgChange >= 0 ? "rgba(34,197,94,0.2)" : "rgba(245,158,11,0.2)"}` }}>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-2xl">{avgChange >= 0 ? "💹" : "📉"}</span>
-                <span className="text-lg font-black" style={{ color: avgChange >= 0 ? "#22c55e" : "#f59e0b" }}>
-                  {avgChange >= 0 ? "+" : ""}{Math.abs(avgChange).toFixed(1)}%
-                </span>
+            <div className="flex items-start gap-3 p-3 rounded-lg" style={{ background: isLight ? "rgba(245,158,11,0.05)" : "rgba(245,158,11,0.1)" }}>
+              <div className="flex-shrink-0 mt-0.5">
+                {avgChange >= 0 ? <TrendingUp className="w-4 h-4" style={{ color: "#f59e0b" }} /> : <TrendingDown className="w-4 h-4" style={{ color: "#f59e0b" }} />}
               </div>
-              <p className="text-xs" style={{ color: isLight ? "#6B7280" : "#a1a1aa" }}>
-                Ticket médio
+              <p className="text-xs" style={{ color: isLight ? "#374151" : "#d4d4d8" }}>
+                Seu ticket médio <span style={{ fontWeight: "bold", color: avgChange >= 0 ? "#10b981" : "#f59e0b" }}>
+                  {avgChange >= 0 ? "aumentou" : "caiu"} {Math.abs(avgChange).toFixed(1)}%
+                </span>.
               </p>
             </div>
           )}
           {ifoodCount > 0 && (
-            <div className="p-4 rounded-xl" style={{ background: "linear-gradient(135deg,rgba(239,68,68,0.1),rgba(239,68,68,0.05))", border: "1px solid rgba(239,68,68,0.2)" }}>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-2xl">🛵</span>
-                <span className="text-lg font-black" style={{ color: "#ef4444" }}>
-                  {ifoodCount > 0 ? ((ifoodCommission / totalRev) * 100).toFixed(1) : "0"}%
-                </span>
+            <div className="flex items-start gap-3 p-3 rounded-lg" style={{ background: isLight ? "rgba(239,68,68,0.05)" : "rgba(239,68,68,0.1)" }}>
+              <div className="flex-shrink-0 mt-0.5">
+                <AlertTriangle className="w-4 h-4" style={{ color: "#ef4444" }} />
               </div>
-              <p className="text-xs" style={{ color: isLight ? "#6B7280" : "#a1a1aa" }}>
-                Comissão iFood
+              <p className="text-xs" style={{ color: isLight ? "#374151" : "#d4d4d8" }}>
+                O iFood está consumindo <span style={{ fontWeight: "bold", color: "#ef4444" }}>
+                  {ifoodCount > 0 ? ((ifoodCommission / totalRev) * 100).toFixed(1) : "0"}%
+                </span> do seu faturamento bruto.
               </p>
             </div>
           )}
           {lowStock.length > 0 && (
-            <div className="p-4 rounded-xl" style={{ background: "linear-gradient(135deg,rgba(244,63,94,0.1),rgba(244,63,94,0.05))", border: "1px solid rgba(244,63,94,0.2)" }}>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-2xl">⚠️</span>
-                <span className="text-lg font-black" style={{ color: "#f43f5e" }}>
-                  {lowStock.length}
-                </span>
+            <div className="flex items-start gap-3 p-3 rounded-lg" style={{ background: isLight ? "rgba(244,63,94,0.05)" : "rgba(244,63,94,0.1)" }}>
+              <div className="flex-shrink-0 mt-0.5">
+                <Package className="w-4 h-4" style={{ color: "#f43f5e" }} />
               </div>
-              <p className="text-xs" style={{ color: isLight ? "#6B7280" : "#a1a1aa" }}>
-                Produto{lowStock.length !== 1 ? "s" : ""} com estoque baixo
+              <p className="text-xs" style={{ color: isLight ? "#374151" : "#d4d4d8" }}>
+                Existem <span style={{ fontWeight: "bold", color: "#f43f5e" }}>{lowStock.length} produto{lowStock.length !== 1 ? "s" : ""}</span> com estoque abaixo do mínimo.
               </p>
             </div>
           )}
@@ -995,45 +989,52 @@ export default function DashboardPage() {
       )}
 
       {/* 8. Ranking de Clientes */}
-      {topCustomers.length > 0 && (
+      {topCustomers.length > 0 || sales.filter(s => s.customer_id).length > 0 ? (
         <div className="rounded-2xl p-5" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-sm font-bold" style={{ color: isLight ? "#111" : "#fff" }}>👥 Clientes Mais Frequentes</h2>
             <Users className="w-4 h-4" style={{ color: "#d946ef" }} />
           </div>
-          <div className="space-y-3">
-            {topCustomers.map((customer, idx) => {
-              const maxTotal = topCustomers[0]?.total || 1;
-              const percentage = (customer.total / maxTotal) * 100;
-              return (
-                <div key={customer.name}>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-base font-black" style={{ color: idx === 0 ? "#f59e0b" : idx === 1 ? "#c0c0c0" : "#cd7f32", minWidth: "20px" }}>
-                        {idx === 0 ? "🥇" : idx === 1 ? "🥈" : "🥉"}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold truncate" style={{ color: isLight ? "#111" : "#fff" }}>
-                          Cliente #{customer.name.slice(-6).toUpperCase()}
-                        </p>
-                        <p className="text-[10px]" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>
-                          {customer.count} compra{customer.count !== 1 ? "s" : ""}
-                        </p>
+          {topCustomers.length === 0 ? (
+            <div className="text-center py-8">
+              <Users className="w-8 h-8 mx-auto mb-2" style={{ color: isLight ? "#D1D5DB" : "#3f3f46" }} />
+              <p className="text-xs" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>Nenhum cliente com registro de compra ainda</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {topCustomers.map((customer, idx) => {
+                const maxTotal = topCustomers[0]?.total || 1;
+                const percentage = (customer.total / maxTotal) * 100;
+                return (
+                  <div key={customer.name}>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-base font-black" style={{ color: idx === 0 ? "#f59e0b" : idx === 1 ? "#c0c0c0" : "#cd7f32", minWidth: "20px" }}>
+                          {idx === 0 ? "🥇" : idx === 1 ? "🥈" : "🥉"}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold truncate" style={{ color: isLight ? "#111" : "#fff" }}>
+                            Cliente #{customer.name.slice(-6).toUpperCase()}
+                          </p>
+                          <p className="text-[10px]" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>
+                            {customer.count} compra{customer.count !== 1 ? "s" : ""}
+                          </p>
+                        </div>
                       </div>
+                      <p className="text-sm font-black flex-shrink-0" style={{ color: "#d946ef" }}>
+                        {fmt(customer.total)}
+                      </p>
                     </div>
-                    <p className="text-sm font-black flex-shrink-0" style={{ color: "#d946ef" }}>
-                      {fmt(customer.total)}
-                    </p>
+                    <div className="h-2 rounded-full overflow-hidden" style={{ background: isLight ? "#f3f4f6" : "#27272a" }}>
+                      <div className="h-full rounded-full transition-all" style={{ width: `${percentage}%`, background: "linear-gradient(90deg,#d946ef,#e879f9)" }} />
+                    </div>
                   </div>
-                  <div className="h-2 rounded-full overflow-hidden" style={{ background: isLight ? "#f3f4f6" : "#27272a" }}>
-                    <div className="h-full rounded-full transition-all" style={{ width: `${percentage}%`, background: "linear-gradient(90deg,#d946ef,#e879f9)" }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
-      )}
+      ) : null}
 
     </div>
   );
