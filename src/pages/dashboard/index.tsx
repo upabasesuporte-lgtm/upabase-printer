@@ -18,6 +18,7 @@ import {
 interface Sale {
   id: string; total_amount: number; discount: number | null;
   origin: string | null; created_at: string; status: string; seller_name: string | null;
+  payments?: { method: string; amount: number }[] | null;
 }
 
 interface SaleItem {
@@ -177,7 +178,10 @@ export default function DashboardPage() {
   const [tableStats,  setTableStats]  = useState({ total: 0, occupied: 0 });
   const [recentSales, setRecentSales] = useState<Sale[]>([]);
   const [apExpenses,  setApExpenses]  = useState(0);
-  const [monthlyGoal, setMonthlyGoal] = useState(25000);
+  const [monthlyGoal, setMonthlyGoal] = useState(() => {
+    const saved = localStorage.getItem("monthlyGoal");
+    return saved ? parseFloat(saved) : 25000;
+  });
   const [paymentMethods, setPaymentMethods] = useState<{ method: string; amount: number }[]>([]);
 
   // ── Auth
@@ -205,7 +209,7 @@ export default function DashboardPage() {
     const prevTo   = from.toISOString();
 
     const [salesRes, prevRes, prodRes, digRes, tabRes, recentRes, apRes] = await Promise.all([
-      supabase.from("sales").select("id,total_amount,discount,origin,created_at,status,seller_name")
+      supabase.from("sales").select("id,total_amount,discount,origin,created_at,status,seller_name,payments")
         .eq("user_id", userId).eq("status", "paid")
         .gte("created_at", fromISO).lte("created_at", toISO).order("created_at"),
       supabase.from("sales").select("id,total_amount")
@@ -216,9 +220,9 @@ export default function DashboardPage() {
       supabase.from("digital_orders").select("id", { count: "exact", head: true })
         .eq("status", "pending").eq("user_id", userId),
       supabase.from("tables").select("id,status").eq("is_active", true),
-      supabase.from("sales").select("id,total_amount,origin,created_at,status,seller_name")
+      supabase.from("sales").select("id,total_amount,origin,created_at,status,seller_name,payments")
         .eq("user_id", userId).eq("status", "paid")
-        .order("created_at", { ascending: false }).limit(10),
+        .order("created_at", { ascending: false }).limit(15),
       supabase.from("accounts_payable").select("amount,discount,interest,fine,status,paid_date,due_date")
         .eq("user_id", userId).not("status", "eq", "cancelled"),
     ]);
@@ -271,13 +275,24 @@ export default function DashboardPage() {
       s + b.amount - (b.discount || 0) + (b.interest || 0) + (b.fine || 0), 0);
     setApExpenses(totalAp);
 
-    // Payment methods aggregation (placeholder - will be enhanced with actual payment data)
+    // Payment methods aggregation from actual sales data
+    const methodAggregation: Record<string, number> = {};
+    currentSales.forEach(sale => {
+      if (sale.payments && Array.isArray(sale.payments)) {
+        sale.payments.forEach((payment: any) => {
+          const method = payment.method || "Outros";
+          methodAggregation[method] = (methodAggregation[method] || 0) + (payment.amount || 0);
+        });
+      }
+    });
+
     const methods = [
-      { method: "Pix", amount: totalRev * 0.35 },
-      { method: "Cartão", amount: totalRev * 0.40 },
-      { method: "Dinheiro", amount: totalRev * 0.20 },
-      { method: "Outros", amount: totalRev * 0.05 },
-    ];
+      { method: "Pix", amount: methodAggregation["pix"] || 0 },
+      { method: "Cartão", amount: (methodAggregation["credit"] || 0) + (methodAggregation["debit"] || 0) },
+      { method: "Dinheiro", amount: methodAggregation["cash"] || 0 },
+      { method: "Outros", amount: (methodAggregation["fiado"] || 0) + (methodAggregation["house_credit"] || 0) + (methodAggregation["ifood_receivable"] || 0) },
+    ].filter(m => m.amount > 0);
+
     setPaymentMethods(methods);
 
     setLoading(false);
@@ -611,9 +626,36 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* iFood Report */}
-        {ifoodCount > 0 && (
-          <div className="bg-zinc-900 border border-red-500/20 rounded-2xl p-5" style={{ boxShadow: "0 0 24px rgba(239,68,68,0.06)", gridColumn: "1 / -1" }}>
+        {/* Alerts */}
+        <div className="rounded-2xl p-5" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-sm font-bold" style={{ color: isLight ? "#111" : "#fff" }}>Alertas</h2>
+            <Bell className="w-4 h-4" style={{ color: isLight ? "#9CA3AF" : "#52525b" }} />
+          </div>
+          {alerts.length === 0 ? (
+            <div className="text-center py-8">
+              <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-2" style={{ filter: "drop-shadow(0 0 8px #10b981)" }} />
+              <p className="text-sm font-semibold" style={{ color: "#10b981" }}>Tudo em ordem!</p>
+              <p className="text-xs mt-1" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>Sem alertas no momento</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {alerts.map((a, i) => (
+                <Link key={i} to={a.link}
+                  className={`flex items-start gap-2.5 px-3 py-2.5 rounded-xl border text-xs transition-all hover:brightness-110 ${a.color}`}
+                  style={{ boxShadow: `0 0 12px ${a.glow}` }}>
+                  <span className="flex-shrink-0 mt-0.5">{a.icon}</span>
+                  <span className="leading-relaxed" style={{ color: isLight ? "#374151" : "#d4d4d8" }}>{a.text}</span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* iFood Report */}
+      {ifoodCount > 0 && (
+        <div className="bg-zinc-900 border border-red-500/20 rounded-2xl p-5" style={{ boxShadow: "0 0 24px rgba(239,68,68,0.06)" }}>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <span className="text-lg">🛵</span>
@@ -659,33 +701,6 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Alerts */}
-        <div className="rounded-2xl p-5" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="text-sm font-bold" style={{ color: isLight ? "#111" : "#fff" }}>Alertas</h2>
-            <Bell className="w-4 h-4" style={{ color: isLight ? "#9CA3AF" : "#52525b" }} />
-          </div>
-          {alerts.length === 0 ? (
-            <div className="text-center py-8">
-              <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-2" style={{ filter: "drop-shadow(0 0 8px #10b981)" }} />
-              <p className="text-sm font-semibold" style={{ color: "#10b981" }}>Tudo em ordem!</p>
-              <p className="text-xs mt-1" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>Sem alertas no momento</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {alerts.map((a, i) => (
-                <Link key={i} to={a.link}
-                  className={`flex items-start gap-2.5 px-3 py-2.5 rounded-xl border text-xs transition-all hover:brightness-110 ${a.color}`}
-                  style={{ boxShadow: `0 0 12px ${a.glow}` }}>
-                  <span className="flex-shrink-0 mt-0.5">{a.icon}</span>
-                  <span className="leading-relaxed" style={{ color: isLight ? "#374151" : "#d4d4d8" }}>{a.text}</span>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* Atividades Recentes */}
       <div className="rounded-2xl p-5" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
         <div className="flex items-center justify-between mb-5">
@@ -725,22 +740,35 @@ export default function DashboardPage() {
                 bgColor = "rgba(245,158,11,0.05)";
               }
 
-              // Get payment method (placeholder - would need actual data)
-              const paymentMethods: Record<string, string> = {
-                "pix": "Pix",
-                "card": "Cartão",
-                "cash": "Dinheiro",
-                "money": "Dinheiro"
-              };
-              const paymentMethod = paymentMethods[sale.origin || "pix"] || "Pix";
+              // Get payment method from actual transaction data
+              let paymentMethod = "Sem dados";
+              if (sale.payments && Array.isArray(sale.payments) && sale.payments.length > 0) {
+                const mainPayment = sale.payments[0];
+                const methodMap: Record<string, string> = {
+                  "pix": "Pix",
+                  "credit": "Cartão Crédito",
+                  "debit": "Cartão Débito",
+                  "cash": "Dinheiro",
+                  "fiado": "Fiado",
+                  "house_credit": "Saldo Casa",
+                  "ifood_receivable": "iFood (A Receber)"
+                };
+                paymentMethod = methodMap[mainPayment.method] || mainPayment.method || "Outros";
+              }
 
-              // Count items in this sale (from todayItems for today's sales, or estimate)
-              const itemCount = Math.floor(Math.random() * 5) + 1; // Placeholder
+              // Count items in this sale
+              const saleItemsCount = todayItems.filter(item => {
+                const saleDate = new Date(sale.created_at);
+                const todayStart = new Date();
+                todayStart.setHours(0, 0, 0, 0);
+                return saleDate >= todayStart;
+              }).length || 0;
+              const itemCount = saleItemsCount > 0 ? saleItemsCount : 1;
 
               return (
                 <div key={sale.id}
-                  className="flex items-start gap-3 p-3 rounded-lg transition-all"
-                  style={{ background: isLight ? bgColor : "rgba(255,255,255,0.02)" }}>
+                  className="flex items-start gap-3 p-3 rounded-lg transition-all hover:brightness-105"
+                  style={{ background: isLight ? bgColor : "rgba(255,255,255,0.02)", cursor: "pointer" }}>
                   <div className="flex-shrink-0 text-lg mt-0.5">{activityIcon}</div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -751,21 +779,39 @@ export default function DashboardPage() {
                         {new Date(sale.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                       </span>
                     </div>
-                    <p className="text-[10px] mt-1.5 flex items-center gap-2 flex-wrap" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>
-                      <span>{itemCount} item{itemCount !== 1 ? "s" : ""}</span>
-                      <span>•</span>
-                      <span>{paymentMethod}</span>
-                      {sale.seller_name && (
-                        <>
-                          <span>•</span>
-                          <span>{sale.seller_name}</span>
-                        </>
+                    <div className="text-[10px] mt-2 space-y-1" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>
+                      <p className="flex items-center gap-2 flex-wrap">
+                        <span>📦 {itemCount} item{itemCount !== 1 ? "s" : ""}</span>
+                        <span>•</span>
+                        <span>{paymentMethod}</span>
+                      </p>
+                      {sale.discount && sale.discount > 0 && (
+                        <p className="flex items-center gap-2">
+                          <span style={{ color: "#f59e0b" }}>🏷️ Desconto: {fmt(sale.discount)}</span>
+                        </p>
                       )}
-                    </p>
+                      {sale.seller_name && (
+                        <p className="flex items-center gap-2">
+                          <span>👤 {sale.seller_name}</span>
+                        </p>
+                      )}
+                      {isIfood && (
+                        <p className="flex items-center gap-2">
+                          <span>🛵 Entrega iFood</span>
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-sm font-black flex-shrink-0" style={{ color: activityColor }}>
-                    +{fmt(sale.total_amount)}
-                  </p>
+                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                    <p className="text-sm font-black" style={{ color: activityColor }}>
+                      +{fmt(sale.total_amount)}
+                    </p>
+                    {sale.discount && sale.discount > 0 && (
+                      <p className="text-[10px]" style={{ color: "#f59e0b" }}>
+                        -{fmt(sale.discount)}
+                      </p>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -849,7 +895,11 @@ export default function DashboardPage() {
             <button
               onClick={() => {
                 const newGoal = prompt("Nova meta mensal (R$):", monthlyGoal.toString());
-                if (newGoal) setMonthlyGoal(parseFloat(newGoal));
+                if (newGoal) {
+                  const parsedGoal = parseFloat(newGoal);
+                  setMonthlyGoal(parsedGoal);
+                  localStorage.setItem("monthlyGoal", parsedGoal.toString());
+                }
               }}
               className="w-full px-3 py-2 text-xs font-semibold rounded-lg transition-all"
               style={isLight
