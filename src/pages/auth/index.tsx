@@ -25,10 +25,10 @@ function GoogleIcon() {
 // ─── DADOS ────────────────────────────────────────────────────────────────────
 
 const screens = [
-  { id: "dashboard", label: "Dashboard",        url: "https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/Captura%20de%20tela%202026-05-21%20222427.png" },
-  { id: "pdv",       label: "PDV",              url: "https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/Captura%20de%20tela%202026-05-21%20222544.png" },
-  { id: "caixa",     label: "Caixa",            url: "https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/Captura%20de%20tela%202026-05-21%20222842.png" },
-  { id: "cardapio",  label: "Cardápio Digital", url: "https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/Captura%20de%20tela%202026-05-28%20181810.png" },
+  { id: "dashboard", label: "Dashboard",        url: "https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/ChatGPT%20Image%2015%20de%20jun.%20de%202026,%2023_27_14.png" },
+  { id: "pdv",       label: "PDV",              url: "https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/pdv.png" },
+  { id: "caixa",     label: "Caixa",            url: "https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/caixa.png" },
+  { id: "cardapio",  label: "Cardápio Digital", url: "https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/cardapio%20digital.png" },
 ];
 
 const features = [
@@ -159,13 +159,10 @@ export default function AuthPage() {
   const activeScreen = screens[currentScreen];
 
   return (
-    <div className="flex" style={{ height: "100vh", overflow: "hidden", background: "#F8F9FA", color: "#111" }}>
+    <div className="flex" style={{ height: "100vh", overflow: "hidden", background: "#ffffff", color: "#111" }}>
 
       {/* PAINEL ESQUERDO */}
-      <div className="hidden lg:flex w-1/2 relative flex-col justify-between border-r" style={{ height: "100vh", overflowY: "auto", padding: "0px 40px 40px 40px", borderColor: "#e5e7eb", background: "#fff" }}>
-        <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(135deg, rgba(123,47,190,0.04) 0%, #fff 60%)" }} />
-        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full blur-3xl pointer-events-none" style={{ background: "rgba(123,47,190,0.08)" }} />
-        <div className="absolute -bottom-24 -right-16 w-80 h-80 rounded-full blur-3xl pointer-events-none" style={{ background: "rgba(0,180,216,0.08)" }} />
+      <div className="hidden lg:flex w-1/2 relative flex-col justify-between border-r" style={{ height: "100vh", overflowY: "auto", padding: "0px 40px 40px 40px", borderColor: "#e5e7eb", background: "#ffffff" }}>
 
         <div className="relative z-10 flex flex-col gap-4">
 
@@ -202,7 +199,7 @@ export default function AuthPage() {
                       : "text-gray-500 hover:text-gray-700"
                   }`}
                   style={currentScreen === i
-                    ? { background: "linear-gradient(135deg, #7B2FBE, #00B4D8)", boxShadow: "0 4px 14px rgba(123,47,190,0.35)" }
+                    ? { background: "#2563EB", boxShadow: "0 4px 14px rgba(37,99,235,0.35)" }
                     : { background: "#F3F4F6" }}
                 >
                   {s.label}
@@ -232,7 +229,7 @@ export default function AuthPage() {
                 <button
                   key={i}
                   onClick={() => setCurrentScreen(i)}
-                  style={{ borderRadius: 99, transition: "all 0.3s", width: currentScreen === i ? 16 : 6, height: 6, background: currentScreen === i ? "#7B2FBE" : "#D1D5DB" }}
+                  style={{ borderRadius: 99, transition: "all 0.3s", width: currentScreen === i ? 16 : 6, height: 6, background: currentScreen === i ? "#2563EB" : "#D1D5DB" }}
                 />
               ))}
             </div>
@@ -264,7 +261,7 @@ export default function AuthPage() {
           <div className="grid grid-cols-3 gap-2 pt-4" style={{ borderTop: "1px solid #e5e7eb" }}>
             {honestCards.map(({ value, label }) => (
               <div key={value} className="rounded-xl overflow-hidden text-center" style={{ border: "1px solid #e5e7eb" }}>
-                <div style={{ height: 3, background: "linear-gradient(90deg, #7B2FBE, #00B4D8)" }} />
+                <div style={{ height: 3, background: "#2563EB" }} />
                 <div className="p-3">
                   <p className="text-xs font-bold leading-tight" style={{ color: "#111" }}>{value}</p>
                   <p className="text-[10px] mt-0.5 leading-tight" style={{ color: "#9CA3AF" }}>{label}</p>
@@ -286,7 +283,7 @@ export default function AuthPage() {
       </div>
 
       {/* PAINEL DIREITO */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-6" style={{ height: "100vh", overflowY: "auto", background: "#F8F9FA" }}>
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-6" style={{ height: "100vh", overflowY: "auto", background: "#ffffff" }}>
         <div className="w-full max-w-md">
 
           {/* Logo mobile */}
@@ -453,7 +450,7 @@ export default function AuthPage() {
                 type="submit"
                 disabled={loading || googleLoading}
                 className="w-full disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-sm py-2.5 rounded-lg transition-all duration-200 mt-1"
-                style={{ background: "linear-gradient(135deg, #7B2FBE, #00B4D8)", boxShadow: "0 4px 14px rgba(123,47,190,0.3)" }}
+                style={{ background: "#2563EB", boxShadow: "0 4px 14px rgba(37,99,235,0.3)" }}
               >
                 {loading
                   ? "Carregando..."
@@ -465,9 +462,9 @@ export default function AuthPage() {
               <Link
                 to="/planos"
                 className="block w-full text-center py-2.5 rounded-lg text-sm font-medium transition-colors"
-                style={{ border: "1px solid #e5e7eb", color: "#6B7280" }}
-                onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.borderColor = "#7B2FBE"; (e.currentTarget as HTMLAnchorElement).style.color = "#7B2FBE"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.borderColor = "#e5e7eb"; (e.currentTarget as HTMLAnchorElement).style.color = "#6B7280"; }}
+                style={{ background: "#2563EB", color: "#ffffff", border: "1px solid #2563EB" }}
+                onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = "#1D4ED8"; (e.currentTarget as HTMLAnchorElement).style.borderColor = "#1D4ED8"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = "#2563EB"; (e.currentTarget as HTMLAnchorElement).style.borderColor = "#2563EB"; }}
               >
                 Ver planos
               </Link>
@@ -478,9 +475,9 @@ export default function AuthPage() {
               <button
                 onClick={switchMode}
                 className="font-medium transition-colors"
-                style={{ color: "#7B2FBE" }}
-                onMouseEnter={e => (e.currentTarget.style.color = "#00B4D8")}
-                onMouseLeave={e => (e.currentTarget.style.color = "#7B2FBE")}
+                style={{ color: "#2563EB" }}
+                onMouseEnter={e => (e.currentTarget.style.color = "#1D4ED8")}
+                onMouseLeave={e => (e.currentTarget.style.color = "#2563EB")}
               >
                 {mode === "login" ? "Criar agora" : "Entrar"}
               </button>
@@ -492,9 +489,9 @@ export default function AuthPage() {
             <Link
               to="/planos"
               className="inline-flex items-center gap-1.5 text-xs font-semibold transition-colors"
-              style={{ color: "#7B2FBE" }}
-              onMouseEnter={e => ((e.currentTarget as HTMLAnchorElement).style.color = "#00B4D8")}
-              onMouseLeave={e => ((e.currentTarget as HTMLAnchorElement).style.color = "#7B2FBE")}
+              style={{ color: "#2563EB" }}
+              onMouseEnter={e => ((e.currentTarget as HTMLAnchorElement).style.color = "#1D4ED8")}
+              onMouseLeave={e => ((e.currentTarget as HTMLAnchorElement).style.color = "#2563EB")}
             >
               Ver planos e preços
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
