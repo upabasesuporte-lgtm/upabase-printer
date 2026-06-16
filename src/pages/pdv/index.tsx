@@ -1379,15 +1379,15 @@ export default function PdvPage() {
                         <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setExpandedSaleId(isExpanded ? null : sale.id)}>
                           {/* Linha 1: status + número (destaque) + hora */}
                           <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${sale.status === "paid" ? "bg-emerald-500/15 text-emerald-400" : sale.status === "open" ? "bg-amber-500/15 text-amber-400" : "bg-red-500/15 text-red-400"}`}>
+                            <span style={isLight ? { background:"#10b981", color:"#fff" } : { background:"bg-emerald-500/15", color:"text-emerald-400" }} className="text-xs font-medium px-2 py-0.5 rounded-full">
                               {sale.status === "paid" ? "Concluída" : sale.status === "open" ? "Pendente" : "Cancelada"}
                             </span>
                             {sale.origin && ORIGIN_INFO[sale.origin] && (
-                              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${ORIGIN_INFO[sale.origin].color}`}>
+                              <span style={isLight ? { background:"#2563eb", color:"#fff" } : {}} className={`text-xs font-medium px-2 py-0.5 rounded-full ${!isLight ? ORIGIN_INFO[sale.origin].color : ""}`}>
                                 {ORIGIN_INFO[sale.origin].label}
                               </span>
                             )}
-                            <span className="text-sm font-bold text-white font-mono px-2.5 py-0.5 rounded-lg" style={{background: isLight ? "#2563eb" : "#7B2FBE"}}>#{orderNum}</span>
+                            <span className="text-sm font-bold font-mono px-2.5 py-0.5 rounded-lg" style={{background: isLight ? "rgba(239,68,68,0.15)" : "#7B2FBE", color: isLight ? "#000" : "#fff"}}>#{orderNum}</span>
                             <span className="text-xs text-zinc-500">{new Date(sale.created_at).toLocaleString("pt-BR")}</span>
                             {sale.seller_name && <span className="text-xs text-zinc-500">· {sale.seller_name}</span>}
                           </div>
