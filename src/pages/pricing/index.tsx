@@ -10,9 +10,9 @@ import { supabase } from "../../lib/supabase";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
-const PRIMARY = "#7B2FBE";
-const GRAD    = "linear-gradient(135deg,#7B2FBE,#00B4D8)";
-const PLAN_ORDER: PlanType[] = ["loja", "delivery", "pro"];
+const PRIMARY = "#2563eb";
+const GRAD    = "linear-gradient(135deg,#2563eb,#10b981)";
+const PLAN_ORDER: PlanType[] = ["loja"];
 
 const ANNUAL_SAVINGS: Record<PlanType, number> = {
   loja:     (59.90 - 49.90) * 12,   // 120
@@ -29,19 +29,18 @@ const TRUST_BADGES = [
   "✓ Suporte humano",
 ];
 
-const COMPARISON_FEATURES = [
-  { label: "Dashboard completo",   loja: true,  delivery: true,  pro: true  },
-  { label: "PDV (Ponto de Venda)", loja: true,  delivery: true,  pro: true  },
-  { label: "Controle de estoque",  loja: true,  delivery: true,  pro: true  },
-  { label: "Financeiro",           loja: true,  delivery: true,  pro: true  },
-  { label: "Relatórios",           loja: true,  delivery: true,  pro: true  },
-  { label: "Cardápio digital",     loja: false, delivery: true,  pro: true  },
-  { label: "QR Code",              loja: false, delivery: true,  pro: true  },
-  { label: "Pedidos online",       loja: false, delivery: true,  pro: true  },
-  { label: "Chat com cliente",     loja: false, delivery: true,  pro: true  },
-  { label: "Gestão de mesas",      loja: false, delivery: false, pro: true  },
-  { label: "Comandas",             loja: false, delivery: false, pro: true  },
-  { label: "Atendimento no salão", loja: false, delivery: false, pro: true  },
+const FEATURES_ALL_INCLUDED = [
+  { emoji: "📊", label: "Dashboard completo",   desc: "Visualize todos os seus dados em tempo real" },
+  { emoji: "🛍️", label: "PDV (Ponto de Venda)", desc: "Sistema completo de vendas e caixa" },
+  { emoji: "📦", label: "Controle de estoque",  desc: "Gerencie produtos e quantidades" },
+  { emoji: "💰", label: "Gestão financeira",    desc: "Controle de entradas, saídas e lucro" },
+  { emoji: "📈", label: "Relatórios detalhados", desc: "Análise completa de vendas e desempenho" },
+  { emoji: "📱", label: "Cardápio digital",     desc: "QR Code para acesso dos clientes" },
+  { emoji: "👥", label: "Gestão de clientes",   desc: "Cadastro completo e histórico de pedidos" },
+  { emoji: "🏪", label: "Gestão de mesas",      desc: "Controle de atendimento no salão" },
+  { emoji: "📋", label: "Comandas",             desc: "Organização eficiente de pedidos" },
+  { emoji: "💳", label: "Múltiplas formas de pagamento", desc: "Dinheiro, cartão, Pix e mais" },
+  { emoji: "⚙️", label: "Configurações avançadas", desc: "Personalização completa do sistema" },
 ];
 
 const DIFFERENTIALS = [
@@ -131,45 +130,38 @@ export default function PricingPage() {
       {/* ── Hero ────────────────────────────────────────────────────────────── */}
       <section className="pricing-hero" style={{
         textAlign: "center",
-        padding: "10px 1rem 0",
-        background: "linear-gradient(180deg,rgba(123,47,190,0.04) 0%,transparent 100%)",
+        padding: "60px 1rem 80px",
+        background: `linear-gradient(135deg, rgba(37, 99, 235, 0.9) 0%, rgba(16, 185, 129, 0.9) 100%), url('https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/ChatGPT%20Image%2015%20de%20jun.%20de%202026,%2023_27_14.png')`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        color: "#fff",
       }}>
-        {/* Logo centralizada */}
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: -48 }}>
-          <img
-            src="https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/ChatGPT%20Image%2021%20de%20mai.%20de%202026,%2019_48_48.png"
-            alt="Logo" style={{ height: 240, width: "auto" }}
-          />
-        </div>
 
         {/* Badge de destaque */}
         <div style={{
           display: "inline-flex", alignItems: "center", gap: 6,
-          background: "rgba(123,47,190,0.08)", border: "1px solid rgba(123,47,190,0.2)",
+          background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)",
           borderRadius: 999, padding: "5px 14px", marginBottom: 8,
         }}>
-          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#10b981", display: "inline-block" }} />
-          <span style={{ fontSize: 12, fontWeight: 600, color: PRIMARY }}>15 dias grátis · Sem cartão</span>
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff", display: "inline-block" }} />
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>15 dias grátis · Sem cartão</span>
         </div>
 
         {/* Título */}
         <h1 style={{
           fontSize: "clamp(28px, 5vw, 52px)", fontWeight: 900, lineHeight: 1.15,
-          color: "#0f172a", margin: "0 auto 16px", maxWidth: 700, letterSpacing: "-0.02em",
+          color: "#fff", margin: "0 auto 16px", maxWidth: 700, letterSpacing: "-0.02em",
         }}>
-          Controle seu negócio em{" "}
-          <span style={{ background: GRAD, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text", display: "inline-block" }}>
-            um único sistema
-          </span>
+          Tudo que você precisa para gerenciar seu negócio
         </h1>
 
         {/* Subtítulo */}
         <p style={{
-          fontSize: "clamp(15px, 2vw, 18px)", color: "#6B7280",
+          fontSize: "clamp(15px, 2vw, 18px)", color: "rgba(255,255,255,0.85)",
           maxWidth: 560, margin: "0 auto 32px", lineHeight: 1.6,
         }}>
-          Gestão completa para lojas, restaurantes e delivery. Controle vendas, estoque,
-          financeiro, pedidos online e muito mais.
+          Um plano único com acesso a todas as funcionalidades. Gestão completa para lojas,
+          restaurantes, delivery e muito mais.
         </p>
 
         {/* Selos de confiança */}
@@ -416,78 +408,44 @@ export default function PricingPage() {
         </div>
       </section>
 
-      {/* ── Comparação de recursos ───────────────────────────────────────────── */}
+      {/* ── Funcionalidades incluídas ───────────────────────────────────────── */}
       <section className="pricing-section" style={{ padding: "0 1rem 80px" }}>
-        <div style={{ maxWidth: 820, margin: "0 auto" }}>
+        <div style={{ maxWidth: 960, margin: "0 auto" }}>
           <h2 style={{
             textAlign: "center", fontSize: "clamp(20px,3vw,28px)", fontWeight: 800,
             color: "#0f172a", marginBottom: 8, letterSpacing: "-0.02em",
           }}>
-            Compare os planos
+            Tudo incluído no seu plano
           </h2>
-          <p style={{ textAlign: "center", fontSize: 14, color: "#6B7280", marginBottom: 40 }}>
-            Veja o que cada plano inclui
+          <p style={{ textAlign: "center", fontSize: 14, color: "#6B7280", marginBottom: 48 }}>
+            Acesso completo a todas as funcionalidades do sistema
           </p>
 
           <div style={{
-            background: "#fff", borderRadius: 20,
-            border: "1px solid #e5e7eb",
-            boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
-            overflow: "hidden",
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: 24,
           }}>
-            {/* Cabeçalho */}
-            <div style={{
-              display: "grid", gridTemplateColumns: "1fr 80px 80px 80px",
-              background: "#F8FAFC", borderBottom: "1px solid #e5e7eb",
-              padding: "16px 24px",
-            }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.8px" }}>
-                Recurso
-              </span>
-              {PLAN_ORDER.map(k => (
-                <span key={k} style={{
-                  fontSize: 12, fontWeight: 800, color: PLAN_INFO[k].color,
-                  textAlign: "center", textTransform: "uppercase", letterSpacing: "0.8px",
-                }}>
-                  {k === "loja" ? "Loja" : k === "delivery" ? "Delivery" : "Pro"}
-                </span>
-              ))}
-            </div>
-
-            {/* Linhas */}
-            {COMPARISON_FEATURES.map(({ label, loja, delivery, pro }, i) => (
-              <div key={label} style={{
-                display: "grid", gridTemplateColumns: "1fr 80px 80px 80px",
-                padding: "13px 24px",
-                background: i % 2 === 0 ? "#fff" : "#FAFBFC",
-                borderBottom: i < COMPARISON_FEATURES.length - 1 ? "1px solid #F3F4F6" : "none",
-                alignItems: "center",
-              }}>
-                <span style={{ fontSize: 13.5, color: "#374151", fontWeight: 500 }}>{label}</span>
-                {[loja, delivery, pro].map((has, ci) => {
-                  const planColor = PLAN_INFO[PLAN_ORDER[ci]].color;
-                  return (
-                    <div key={ci} style={{ display: "flex", justifyContent: "center" }}>
-                      {has ? (
-                        <div style={{
-                          width: 24, height: 24, borderRadius: 8,
-                          background: `${planColor}15`,
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                        }}>
-                          <Check size={13} style={{ color: planColor, strokeWidth: 2.5 }} />
-                        </div>
-                      ) : (
-                        <div style={{
-                          width: 24, height: 24, borderRadius: 8,
-                          background: "#F3F4F6",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                        }}>
-                          <X size={12} style={{ color: "#D1D5DB", strokeWidth: 2.5 }} />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+            {FEATURES_ALL_INCLUDED.map(({ emoji, label, desc }, i) => (
+              <div key={i} style={{
+                background: "#fff", borderRadius: 16,
+                padding: "28px 24px",
+                border: "1px solid #e5e7eb",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+                transition: "box-shadow 0.2s, transform 0.2s",
+              }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLDivElement).style.boxShadow = "0 8px 24px rgba(0,0,0,0.1)";
+                  (e.currentTarget as HTMLDivElement).style.transform = "translateY(-3px)";
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLDivElement).style.boxShadow = "0 2px 8px rgba(0,0,0,0.04)";
+                  (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
+                }}
+              >
+                <div style={{ fontSize: 32, marginBottom: 12 }}>{emoji}</div>
+                <h3 style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", marginBottom: 6 }}>{label}</h3>
+                <p style={{ fontSize: 13, color: "#6B7280", lineHeight: 1.55, margin: 0 }}>{desc}</p>
               </div>
             ))}
           </div>

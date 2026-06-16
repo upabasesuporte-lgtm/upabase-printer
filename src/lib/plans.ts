@@ -14,7 +14,7 @@ export interface UserPlanRecord {
 
 export const PLAN_ROUTES: Record<PlanType, string[]> = {
   loja: [
-    '/', '/cash', '/pdv', '/products', '/stock',
+    '/', '/cash', '/pdv', '/digital-menu', '/tables', '/products', '/stock',
     '/customers', '/accounts-payable', '/reports', '/settings',
   ],
   delivery: [
@@ -44,12 +44,12 @@ export const PLAN_INFO: Record<PlanType, {
 }> = {
   loja: {
     label: 'Plano Loja',
-    description: 'Para lojas e comércios em geral',
+    description: 'Acesso completo a todas as funcionalidades',
     price_monthly: 59.90,
     price_annual_monthly: 49.90,
     price_annual_total: 598.80,
     color: '#10b981',
-    highlight: false,
+    highlight: true,
     features: [
       'Dashboard completo',
       'Caixa com relatórios',
@@ -59,6 +59,8 @@ export const PLAN_INFO: Record<PlanType, {
       'Cadastro de clientes',
       'Contas a pagar',
       'Relatórios',
+      'Cardápio digital com QR Code',
+      'Gestão de mesas',
       'Configurações',
     ],
     mp_id_monthly: '972256de953c4c65b3ee06365d1f0808',
