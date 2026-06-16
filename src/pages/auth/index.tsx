@@ -207,12 +207,13 @@ export default function AuthPage() {
                 </button>
               ))}
             </div>
-            <div className="rounded-xl overflow-hidden shadow-xl" style={{ height: 200, border: "1px solid #e5e7eb", boxShadow: "0 8px 32px rgba(123,47,190,0.08)" }}>
+            <div className="rounded-xl overflow-hidden shadow-xl" style={{ height: 350, border: "1px solid #e5e7eb", boxShadow: "0 8px 32px rgba(123,47,190,0.08)" }}>
               {activeScreen.url ? (
                 <img
                   src={activeScreen.url}
                   alt={activeScreen.label}
-                  className="w-full h-full object-cover object-top"
+                  className="w-full h-full"
+                  style={{ objectFit: "contain", objectPosition: "center" }}
                 />
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center gap-2"
