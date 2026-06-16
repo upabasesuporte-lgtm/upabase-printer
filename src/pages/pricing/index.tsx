@@ -714,158 +714,132 @@ export default function PricingPage() {
 
           <div
             style={{
-              position: "relative",
               maxWidth: "600px",
               margin: "0 auto",
             }}
           >
-            {/* Glow Background */}
-            <div
-              style={{
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                width: "100%",
-                height: "100%",
-                background: "radial-gradient(circle, rgba(37,99,235,.12), rgba(124,58,237,.08), transparent 70%)",
-                filter: "blur(80px)",
-                opacity: 0.8,
-                zIndex: -1,
-                borderRadius: "28px",
-              }}
-            />
-
             {/* Premium Top Bar */}
             <div
               style={{
-                height: "4px",
-                background: "linear-gradient(90deg, #2563EB, #7C3AED, #14B8A6)",
-                borderRadius: "28px 28px 0 0",
-                position: "relative",
-                zIndex: 1,
+                height: "5px",
+                background: "linear-gradient(90deg, #2563EB, #7C3AED)",
+                borderRadius: "24px 24px 0 0",
               }}
             />
 
-            {/* Card Container */}
+            {/* Card */}
             <div
               style={{
-                background: "linear-gradient(145deg, #FFFFFF, #F8FAFC)",
-                borderRadius: "0 0 28px 28px",
-                padding: "48px",
+                background: "#FFFFFF",
+                border: "1px solid #E5E7EB",
+                borderRadius: "0 0 24px 24px",
+                padding: "48px 40px",
                 textAlign: "center",
-                boxShadow: "0 25px 80px rgba(15,23,42,.08), 0 0 0 1px rgba(255,255,255,.8) inset",
+                boxShadow: "0 20px 50px rgba(15,23,42,.08)",
                 transition: "all .3s ease",
-                position: "relative",
-                zIndex: 1,
               }}
               onMouseEnter={(e) => {
-                (e.currentTarget as HTMLDivElement).style.transform = "translateY(-8px)";
+                (e.currentTarget as HTMLDivElement).style.transform = "translateY(-4px)";
               }}
               onMouseLeave={(e) => {
                 (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
               }}
             >
-              {/* Plan Name Badge */}
+              {/* Badge */}
               <div
                 style={{
                   display: "inline-block",
-                  background: "linear-gradient(135deg, #2563EB, #7C3AED)",
-                  color: "white",
-                  padding: "10px 20px",
+                  background: "#EFF6FF",
+                  color: "#2563EB",
+                  padding: "6px 14px",
                   borderRadius: "9999px",
-                  fontWeight: 700,
-                  fontSize: "12px",
+                  fontWeight: 600,
+                  fontSize: "11px",
                   marginBottom: "24px",
                   letterSpacing: "0.5px",
                 }}
               >
-                UPABASE PRO
+                MAIS POPULAR
               </div>
 
-              {/* Recommended Badge */}
-              <div
-                style={{
-                  display: "inline-block",
-                  background: "#EEF2FF",
-                  color: "#4F46E5",
-                  padding: "8px 16px",
-                  borderRadius: "9999px",
-                  fontWeight: 600,
-                  fontSize: "12px",
-                  marginBottom: "24px",
-                  marginLeft: "12px",
-                  letterSpacing: "0.3px",
-                }}
-              >
-                ⭐ RECOMENDADO
-              </div>
-
-              {/* Plan Description */}
-              <div style={{ marginBottom: "32px" }}>
-                <p
+              {/* Toggle Mensal/Anual */}
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: "32px" }}>
+                <div
                   style={{
-                    fontSize: "14px",
-                    color: "#64748B",
-                    margin: "0 0 8px 0",
-                    fontWeight: 500,
+                    display: "inline-flex",
+                    background: "#F3F4F6",
+                    borderRadius: "12px",
+                    padding: "4px",
+                    gap: "0",
                   }}
                 >
-                  Tudo incluso
-                </p>
-                <p
-                  style={{
-                    fontSize: "13px",
-                    color: "#94A3B8",
-                    margin: "4px 0 0 0",
-                    lineHeight: 1.6,
-                  }}
-                >
-                  Sem limite de usuários<br />
-                  Sem taxas extras<br />
-                  Sem cobranças escondidas
-                </p>
+                  {[
+                    { label: "Mensal", isAnnual: false },
+                    { label: "Anual", isAnnual: true },
+                  ].map(({ label, isAnnual: annual }) => (
+                    <button
+                      key={label}
+                      onClick={() => setIsAnnual(annual)}
+                      style={{
+                        padding: "8px 20px",
+                        borderRadius: "10px",
+                        border: "none",
+                        cursor: "pointer",
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        background: isAnnual === annual ? "#FFFFFF" : "transparent",
+                        color: isAnnual === annual ? "#111827" : "#6B7280",
+                        boxShadow: isAnnual === annual ? "0 1px 3px rgba(0,0,0,.1)" : "none",
+                        transition: "all .2s ease",
+                      }}
+                    >
+                      {label}
+                      {annual && <span style={{ marginLeft: "6px", color: "#2563EB", fontWeight: 700 }}>−18%</span>}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Price */}
-              <div style={{ marginBottom: "24px" }}>
+              <div style={{ marginBottom: "32px" }}>
                 <div
                   style={{
-                    fontSize: "72px",
+                    fontSize: "56px",
                     fontWeight: 900,
-                    letterSpacing: "-3px",
                     color: "#111827",
                     lineHeight: 1,
                     marginBottom: "4px",
                   }}
                 >
-                  R$ 59,90
+                  R$ {isAnnual ? "49,90" : "59,90"}
                 </div>
-                <p style={{ fontSize: "14px", color: "#64748B", margin: "8px 0 0 0" }}>
-                  por mês
+                <p style={{ fontSize: "14px", color: "#6B7280", margin: "8px 0 0 0" }}>
+                  por mês {isAnnual && <span style={{ fontSize: "12px" }}>(cobrado anualmente)</span>}
                 </p>
-                <p
-                  style={{
-                    fontSize: "13px",
-                    color: "#10B981",
-                    fontWeight: 600,
-                    margin: "12px 0 0 0",
-                  }}
-                >
-                  Economize 18% no plano anual
-                </p>
+                {isAnnual && (
+                  <p
+                    style={{
+                      fontSize: "12px",
+                      color: "#2563EB",
+                      fontWeight: 600,
+                      margin: "12px 0 0 0",
+                    }}
+                  >
+                    Economize 18%
+                  </p>
+                )}
               </div>
 
               {/* Divider */}
               <div
                 style={{
                   height: "1px",
-                  background: "linear-gradient(90deg, transparent, rgba(0,0,0,0.1), transparent)",
+                  background: "#E5E7EB",
                   margin: "32px 0",
                 }}
               />
 
-              {/* Features List */}
+              {/* Features */}
               <div
                 style={{
                   textAlign: "left",
@@ -893,62 +867,15 @@ export default function PricingPage() {
                     style={{
                       display: "flex",
                       alignItems: "center",
-                      gap: "16px",
-                      paddingTop: "12px",
-                      paddingBottom: "12px",
-                      fontSize: "15px",
-                      color: "#1F2937",
+                      gap: "12px",
+                      paddingTop: "11px",
+                      paddingBottom: "11px",
+                      fontSize: "14px",
+                      color: "#374151",
                     }}
                   >
-                    <div
-                      style={{
-                        width: "40px",
-                        height: "40px",
-                        borderRadius: "50%",
-                        background: "#ECFDF5",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        flexShrink: 0,
-                      }}
-                    >
-                      <Check size={20} color="#10B981" strokeWidth={3} />
-                    </div>
+                    <Check size={18} color="#2563EB" strokeWidth={2.5} />
                     {feature}
-                  </div>
-                ))}
-              </div>
-
-              {/* Trust Area */}
-              <div
-                style={{
-                  background: "#F8FAFC",
-                  borderRadius: "16px",
-                  padding: "20px",
-                  marginBottom: "32px",
-                  display: "grid",
-                  gridTemplateColumns: "repeat(3, 1fr)",
-                  gap: "16px",
-                  textAlign: "center",
-                }}
-              >
-                {[
-                  { icon: "🛡️", text: "Dados protegidos" },
-                  { icon: "⚡", text: "Atualizações constantes" },
-                  { icon: "💬", text: "Suporte rápido" },
-                ].map((item, i) => (
-                  <div key={i}>
-                    <div style={{ fontSize: "20px", marginBottom: "4px" }}>{item.icon}</div>
-                    <p
-                      style={{
-                        fontSize: "12px",
-                        color: "#64748B",
-                        margin: 0,
-                        fontWeight: 500,
-                      }}
-                    >
-                      {item.text}
-                    </p>
                   </div>
                 ))}
               </div>
@@ -961,19 +888,19 @@ export default function PricingPage() {
                   alignItems: "center",
                   justifyContent: "center",
                   width: "100%",
-                  height: "60px",
+                  height: "56px",
                   background: "#2563EB",
                   color: "#fff",
-                  borderRadius: "16px",
+                  borderRadius: "14px",
                   fontWeight: 700,
                   fontSize: "15px",
                   textDecoration: "none",
-                  boxShadow: "0 10px 30px rgba(37,99,235,.25)",
+                  boxShadow: "0 10px 25px rgba(37,99,235,.25)",
                   transition: "all .3s ease",
-                  marginBottom: "20px",
+                  marginBottom: "24px",
                   border: "none",
                   cursor: "pointer",
-                  letterSpacing: "0.5px",
+                  letterSpacing: "0.3px",
                 }}
                 onMouseEnter={(e) => {
                   (e.currentTarget as HTMLAnchorElement).style.background = "#1D4ED8";
@@ -984,29 +911,19 @@ export default function PricingPage() {
                   (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(0)";
                 }}
               >
-                COMEÇAR TESTE GRÁTIS
+                Começar teste grátis
               </Link>
 
-              {/* Footer Text */}
+              {/* Footer */}
               <div style={{ textAlign: "center" }}>
                 <p
                   style={{
                     fontSize: "13px",
-                    color: "#64748B",
-                    margin: "8px 0 0 0",
-                    fontWeight: 500,
+                    color: "#6B7280",
+                    margin: "0",
                   }}
                 >
-                  Teste grátis por 7 dias
-                </p>
-                <p
-                  style={{
-                    fontSize: "13px",
-                    color: "#64748B",
-                    margin: "4px 0 0 0",
-                  }}
-                >
-                  Sem cartão de crédito
+                  7 dias grátis • Sem cartão de crédito
                 </p>
               </div>
             </div>
