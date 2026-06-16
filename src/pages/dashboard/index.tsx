@@ -184,7 +184,7 @@ export default function DashboardPage() {
   });
   const [paymentMethods, setPaymentMethods] = useState<{ method: string; amount: number }[]>([]);
   const [topSellers, setTopSellers] = useState<{ name: string; total: number; count: number }[]>([]);
-  const [topCustomers, setTopCustomers] = useState<{ name: string; total: number; count: number }[]>([]);
+  const [topCustomers, setTopCustomers] = useState<{ name: string; id: string; total: number; count: number }[]>([]);
 
   // ── Auth
   useEffect(() => {
@@ -314,27 +314,28 @@ export default function DashboardPage() {
       .slice(0, 5);
     setTopSellers(sellers);
 
-    // Top customers ranking - from customer_movements (captures fiado and all transactions)
+    // Top customers ranking - from customer_movements with customer names
     const { data: customerMovements } = await supabase
       .from("customer_movements")
-      .select("customer_id,amount,created_at")
+      .select("customer_id,amount,created_at,customers(name)")
       .eq("user_id", userId)
       .gte("created_at", fromISO)
       .lte("created_at", toISO);
 
-    const customerAgg: Record<string, { total: number; count: number }> = {};
+    const customerAgg: Record<string, { total: number; count: number; name: string }> = {};
 
     if (customerMovements && customerMovements.length > 0) {
       customerMovements.forEach((mov: any) => {
         const custKey = mov.customer_id;
-        if (!customerAgg[custKey]) customerAgg[custKey] = { total: 0, count: 0 };
+        const custName = (mov.customers as any)?.name || `Cliente #${custKey.slice(-6).toUpperCase()}`;
+        if (!customerAgg[custKey]) customerAgg[custKey] = { total: 0, count: 0, name: custName };
         customerAgg[custKey].total += mov.amount || 0;
         customerAgg[custKey].count += 1;
       });
     }
 
     const customers = Object.entries(customerAgg)
-      .map(([id, data]) => ({ name: id, total: Math.abs(data.total), count: data.count }))
+      .map(([id, data]) => ({ name: data.name, id, total: Math.abs(data.total), count: data.count }))
       .filter(c => c.total > 0)
       .sort((a, b) => b.total - a.total)
       .slice(0, 5);
@@ -1014,8 +1015,15 @@ export default function DashboardPage() {
               {topCustomers.map((customer, idx) => {
                 const maxTotal = topCustomers[0]?.total || 1;
                 const percentage = (customer.total / maxTotal) * 100;
+                const colors = ["#d946ef", "#06b6d4", "#f59e0b", "#10b981", "#8b5cf6"];
+                const color = colors[idx % colors.length];
+                const gradientColor = idx === 0 ? "linear-gradient(90deg,#d946ef,#e879f9)" :
+                                      idx === 1 ? "linear-gradient(90deg,#06b6d4,#67e8f9)" :
+                                      idx === 2 ? "linear-gradient(90deg,#f59e0b,#fbbf24)" :
+                                      idx === 3 ? "linear-gradient(90deg,#10b981,#34d399)" :
+                                      "linear-gradient(90deg,#8b5cf6,#a78bfa)";
                 return (
-                  <div key={customer.name}>
+                  <div key={customer.id}>
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="text-base font-black" style={{ color: idx === 0 ? "#f59e0b" : idx === 1 ? "#c0c0c0" : "#cd7f32", minWidth: "20px" }}>
@@ -1023,19 +1031,19 @@ export default function DashboardPage() {
                         </span>
                         <div className="min-w-0">
                           <p className="text-xs font-semibold truncate" style={{ color: isLight ? "#111" : "#fff" }}>
-                            Cliente #{customer.name.slice(-6).toUpperCase()}
+                            {customer.name}
                           </p>
                           <p className="text-[10px]" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>
                             {customer.count} compra{customer.count !== 1 ? "s" : ""}
                           </p>
                         </div>
                       </div>
-                      <p className="text-sm font-black flex-shrink-0" style={{ color: "#d946ef" }}>
+                      <p className="text-sm font-black flex-shrink-0" style={{ color }}>
                         {fmt(customer.total)}
                       </p>
                     </div>
                     <div className="h-2 rounded-full overflow-hidden" style={{ background: isLight ? "#f3f4f6" : "#27272a" }}>
-                      <div className="h-full rounded-full transition-all" style={{ width: `${percentage}%`, background: "linear-gradient(90deg,#d946ef,#e879f9)" }} />
+                      <div className="h-full rounded-full transition-all" style={{ width: `${percentage}%`, background: gradientColor }} />
                     </div>
                   </div>
                 );
