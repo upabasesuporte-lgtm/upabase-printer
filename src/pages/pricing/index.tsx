@@ -288,7 +288,8 @@ export default function PricingPage() {
           >
             Testar grátis <ArrowRight size={16} />
           </Link>
-          <button
+          <Link
+            to="/auth?register=1"
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -302,18 +303,19 @@ export default function PricingPage() {
               border: "none",
               cursor: "pointer",
               transition: "all 0.2s",
+              textDecoration: "none",
             }}
             onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background = "#e5e7eb";
-              (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
+              (e.currentTarget as HTMLAnchorElement).style.background = "#e5e7eb";
+              (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-2px)";
             }}
             onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.background = "#f3f4f6";
-              (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+              (e.currentTarget as HTMLAnchorElement).style.background = "#f3f4f6";
+              (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(0)";
             }}
           >
             Ver demonstração
-          </button>
+          </Link>
         </div>
 
         {/* Mockup */}
