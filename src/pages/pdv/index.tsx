@@ -1207,7 +1207,7 @@ export default function PdvPage() {
               <div className="flex items-center gap-2">
                 <ShoppingCart className="w-4 h-4 text-zinc-400" />
                 <span className="text-sm font-semibold">Carrinho</span>
-                {cart.length > 0 && <span className="text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold" style={{ background: isLight ? "#10b981" : "linear-gradient(135deg,#7B2FBE,#00B4D8)", color: isLight ? "#000" : "#fff" }}>{cart.reduce((s, i) => s + i.quantity, 0)}</span>}
+                {cart.length > 0 && <span className="text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold" style={{ background: isLight ? "#10b981" : "linear-gradient(135deg,#7B2FBE,#00B4D8)", color: "#fff" }}>{cart.reduce((s, i) => s + i.quantity, 0)}</span>}
               </div>
               {cart.length > 0 && <button onClick={clearCart} className="text-xs text-red-400 hover:text-red-300 transition-colors">Limpar tudo</button>}
             </div>
