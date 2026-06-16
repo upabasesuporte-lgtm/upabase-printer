@@ -10,7 +10,7 @@ import {
   TrendingUp, TrendingDown, ShoppingCart, Package,
   AlertTriangle, UtensilsCrossed, Store, ArrowRight,
   RefreshCw, Bell, Clock, Banknote, BarChart3,
-  CheckCircle2, Zap, Wallet, Calendar,
+  CheckCircle2, Zap, Wallet, Calendar, Users,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
