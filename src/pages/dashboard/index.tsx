@@ -368,42 +368,37 @@ export default function DashboardPage() {
 
       {/* Header */}
       <div className="relative overflow-hidden rounded-2xl p-6" style={isLight ? {
-          background: "#ffffff",
-          backgroundImage: "radial-gradient(rgba(123,47,190,0.12) 1px, transparent 1px)",
-          backgroundSize: "24px 24px",
-          border: "1px solid #e5e7eb",
-          boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 8px 24px rgba(123,47,190,0.08), 0 24px 48px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.9)",
+          background: "#3B82F6",
+          border: "1px solid #3B82F6",
+          boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 8px 24px rgba(59,130,246,0.08), 0 24px 48px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.2)",
         } : {
           background: "linear-gradient(135deg,#18181b 0%,#09090b 100%)",
           backgroundImage: "radial-gradient(rgba(139,92,246,0.07) 1px, transparent 1px)",
           backgroundSize: "24px 24px",
           border: "1px solid rgba(39,39,42,0.8)",
         }}>
-        {isLight
-          ? <div className="absolute inset-0 pointer-events-none" style={{ background: "linear-gradient(135deg, rgba(123,47,190,0.04) 0%, rgba(0,180,216,0.03) 100%)" }} />
-          : <div className="absolute inset-0 bg-gradient-to-r from-violet-900/10 to-cyan-900/5 pointer-events-none" />
-        }
+        {isLight ? null : <div className="absolute inset-0 bg-gradient-to-r from-violet-900/10 to-cyan-900/5 pointer-events-none" />}
         <div className="relative flex items-center justify-between gap-4 flex-wrap">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" style={{ boxShadow: "0 0 6px #10b981" }} />
-              <span className="text-[11px] font-semibold text-emerald-600 uppercase tracking-widest">Ao vivo</span>
+              <div className="w-2 h-2 rounded-full bg-white animate-pulse" style={{ boxShadow: "0 0 6px rgba(255,255,255,0.6)" }} />
+              <span className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: isLight ? "#fff" : "#a1a1aa" }}>Ao vivo</span>
             </div>
-            <h1 className="text-2xl font-black g-text g-text-purple">
+            <h1 className="text-2xl font-black" style={{ color: isLight ? "#fff" : "var(--gradient-text, #fff)" }}>
               {greeting}!
             </h1>
-            <p className="text-xs mt-1" style={{ color: isLight ? "#9CA3AF" : "#71717a" }}>{now.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}</p>
+            <p className="text-xs mt-1" style={{ color: isLight ? "rgba(255,255,255,0.8)" : "#71717a" }}>{now.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}</p>
           </div>
           <button onClick={load} disabled={loading}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all"
             style={isLight ? {
-              background: "#fff", border: "1px solid #e5e7eb", color: "#374151",
-              boxShadow: loading ? "none" : "0 2px 8px rgba(123,47,190,0.12)",
+              background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.3)", color: "#fff",
+              boxShadow: loading ? "none" : "0 2px 8px rgba(0,0,0,0.1)",
             } : {
               background: "#18181b", border: "1px solid #3f3f46", color: "#a1a1aa",
               boxShadow: loading ? "none" : "0 0 12px rgba(139,92,246,0.2)",
             }}>
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} style={{ color: loading ? "#7B2FBE" : isLight ? "#9CA3AF" : "#71717a" }} />
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} style={{ color: isLight ? "#fff" : loading ? "#7B2FBE" : "#71717a" }} />
             {loading ? "Carregando..." : "Atualizar"}
           </button>
         </div>
@@ -417,7 +412,7 @@ export default function DashboardPage() {
             className="px-4 py-2 rounded-xl text-xs font-bold transition-all"
             style={period === p
               ? isLight
-                ? { background: "linear-gradient(135deg,#7B2FBE,#00B4D8)", color: "#fff", border: "1px solid transparent", boxShadow: "0 2px 8px rgba(123,47,190,0.3)" }
+                ? { background: "#3B82F6", color: "#fff", border: "1px solid #3B82F6", boxShadow: "0 2px 8px rgba(59,130,246,0.3)" }
                 : { background: "rgba(139,92,246,0.2)", color: "#c4b5fd", border: "1px solid rgba(139,92,246,0.4)", boxShadow: "0 0 12px rgba(139,92,246,0.2)" }
               : isLight
                 ? { background: "#fff", color: "#6B7280", border: "1px solid #e5e7eb" }
