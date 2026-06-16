@@ -183,6 +183,8 @@ export default function DashboardPage() {
     return saved ? parseFloat(saved) : 25000;
   });
   const [paymentMethods, setPaymentMethods] = useState<{ method: string; amount: number }[]>([]);
+  const [topSellers, setTopSellers] = useState<{ name: string; total: number; count: number }[]>([]);
+  const [topCustomers, setTopCustomers] = useState<{ name: string; total: number; count: number }[]>([]);
 
   // ── Auth
   useEffect(() => {
@@ -280,7 +282,7 @@ export default function DashboardPage() {
     currentSales.forEach(sale => {
       if (sale.payments && Array.isArray(sale.payments)) {
         sale.payments.forEach((payment: any) => {
-          const method = payment.method || "Outros";
+          const method = payment.method || "outros";
           methodAggregation[method] = (methodAggregation[method] || 0) + (payment.amount || 0);
         });
       }
@@ -288,12 +290,45 @@ export default function DashboardPage() {
 
     const methods = [
       { method: "Pix", amount: methodAggregation["pix"] || 0 },
-      { method: "Cartão", amount: (methodAggregation["credit"] || 0) + (methodAggregation["debit"] || 0) },
+      { method: "Cartão Crédito", amount: methodAggregation["credit"] || 0 },
+      { method: "Cartão Débito", amount: methodAggregation["debit"] || 0 },
       { method: "Dinheiro", amount: methodAggregation["cash"] || 0 },
-      { method: "Outros", amount: (methodAggregation["fiado"] || 0) + (methodAggregation["house_credit"] || 0) + (methodAggregation["ifood_receivable"] || 0) },
+      { method: "Fiado", amount: methodAggregation["fiado"] || 0 },
+      { method: "Saldo Casa", amount: methodAggregation["house_credit"] || 0 },
+      { method: "iFood (A Receber)", amount: methodAggregation["ifood_receivable"] || 0 },
     ].filter(m => m.amount > 0);
 
     setPaymentMethods(methods);
+
+    // Top sellers ranking
+    const sellerAgg: Record<string, { total: number; count: number }> = {};
+    currentSales.forEach(sale => {
+      const seller = sale.seller_name || "Sem vendedor";
+      if (!sellerAgg[seller]) sellerAgg[seller] = { total: 0, count: 0 };
+      sellerAgg[seller].total += sale.total_amount;
+      sellerAgg[seller].count += 1;
+    });
+    const sellers = Object.entries(sellerAgg)
+      .map(([name, data]) => ({ name, total: data.total, count: data.count }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 5);
+    setTopSellers(sellers);
+
+    // Top customers ranking
+    const customerAgg: Record<string, { total: number; count: number }> = {};
+    currentSales.forEach(sale => {
+      if (sale.customer_id) {
+        const custKey = sale.customer_id;
+        if (!customerAgg[custKey]) customerAgg[custKey] = { total: 0, count: 0 };
+        customerAgg[custKey].total += sale.total_amount;
+        customerAgg[custKey].count += 1;
+      }
+    });
+    const customers = Object.entries(customerAgg)
+      .map(([id, data]) => ({ name: id, total: data.total, count: data.count }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 5);
+    setTopCustomers(customers);
 
     setLoading(false);
   }, [userId, period, customFrom, customTo]);
@@ -908,6 +943,70 @@ export default function DashboardPage() {
                 +{lowStock.length - 5} produto{lowStock.length - 5 !== 1 ? "s" : ""} com estoque baixo
               </p>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 7. Ranking de Vendedores */}
+      {topSellers.length > 0 && (
+        <div className="rounded-2xl p-5" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-sm font-bold" style={{ color: isLight ? "#111" : "#fff" }}>Ranking de Vendedores</h2>
+            <TrendingUp className="w-4 h-4" style={{ color: "#8b5cf6" }} />
+          </div>
+          <div className="space-y-3">
+            {topSellers.map((seller, idx) => (
+              <div key={seller.name} className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0" style={{ background: "#8b5cf6", color: "#fff", fontWeight: "bold", fontSize: "12px" }}>
+                  {idx + 1}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold truncate" style={{ color: isLight ? "#111" : "#fff" }}>
+                    {seller.name}
+                  </p>
+                  <p className="text-[10px] mt-0.5" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>
+                    {seller.count} venda{seller.count !== 1 ? "s" : ""} • {fmt(seller.total)}
+                  </p>
+                </div>
+                <div className="flex-shrink-0">
+                  <p className="text-sm font-black" style={{ color: "#8b5cf6" }}>
+                    {fmt(seller.total)}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 8. Ranking de Clientes */}
+      {topCustomers.length > 0 && (
+        <div className="rounded-2xl p-5" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-sm font-bold" style={{ color: isLight ? "#111" : "#fff" }}>Clientes Mais Frequentes</h2>
+            <Users className="w-4 h-4" style={{ color: "#d946ef" }} />
+          </div>
+          <div className="space-y-3">
+            {topCustomers.map((customer, idx) => (
+              <div key={customer.name} className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0" style={{ background: "#d946ef", color: "#fff", fontWeight: "bold", fontSize: "12px" }}>
+                  {idx + 1}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold truncate" style={{ color: isLight ? "#111" : "#fff" }}>
+                    Cliente #{customer.name.slice(-6).toUpperCase()}
+                  </p>
+                  <p className="text-[10px] mt-0.5" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>
+                    {customer.count} compra{customer.count !== 1 ? "s" : ""} • {fmt(customer.total)}
+                  </p>
+                </div>
+                <div className="flex-shrink-0">
+                  <p className="text-sm font-black" style={{ color: "#d946ef" }}>
+                    {fmt(customer.total)}
+                  </p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
