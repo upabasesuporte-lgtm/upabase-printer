@@ -234,15 +234,12 @@ export default function DashboardPage() {
     setSales(currentSales);
     setPrevSales((prevRes.data ?? []) as Sale[]);
 
-    // Load today's sale items using sale IDs (avoids complex join)
-    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-    const todaySaleIds = currentSales
-      .filter(s => new Date(s.created_at) >= todayStart)
-      .map(s => s.id);
-    if (todaySaleIds.length > 0) {
+    // Load sale items for the selected period (not just today)
+    const periodSaleIds = currentSales.map(s => s.id);
+    if (periodSaleIds.length > 0) {
       const { data: itemsData } = await supabase
         .from("sale_items").select("product_id,quantity,unit_price,products(name)")
-        .in("sale_id", todaySaleIds);
+        .in("sale_id", periodSaleIds);
       setTodayItems((itemsData ?? []) as unknown as SaleItem[]);
     } else {
       setTodayItems([]);
@@ -603,13 +600,13 @@ export default function DashboardPage() {
         {/* Top products */}
         <div className="rounded-2xl p-5" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
           <div className="flex items-center justify-between mb-5">
-            <h2 className="text-sm font-bold" style={{ color: isLight ? "#111" : "#fff" }}>Top Produtos Hoje</h2>
+            <h2 className="text-sm font-bold" style={{ color: isLight ? "#111" : "#fff" }}>Top Produtos — {PERIOD_LABELS[period]}</h2>
             <BarChart3 className="w-4 h-4" style={{ color: isLight ? "#9CA3AF" : "#52525b" }} />
           </div>
           {topProducts.length === 0 ? (
             <div className="text-center py-8">
               <Package className="w-8 h-8 mx-auto mb-2" style={{ color: isLight ? "#D1D5DB" : "#3f3f46" }} />
-              <p className="text-xs" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>Nenhuma venda hoje</p>
+              <p className="text-xs" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>Nenhuma venda no período</p>
             </div>
           ) : (
             <div className="space-y-3">
