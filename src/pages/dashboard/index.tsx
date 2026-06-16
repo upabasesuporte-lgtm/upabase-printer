@@ -813,11 +813,6 @@ export default function DashboardPage() {
                 </div>
               );
             })}
-            {recentSales.length > 8 && (
-              <p className="text-xs text-center mt-3 py-2" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>
-                +{recentSales.length - 8} atividade{recentSales.length - 8 !== 1 ? "s" : ""} anterior{recentSales.length - 8 !== 1 ? "es" : ""}
-              </p>
-            )}
           </div>
         )}
       </div>
