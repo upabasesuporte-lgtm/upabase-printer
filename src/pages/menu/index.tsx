@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useTheme } from "../../contexts/ThemeContext";
 import { supabase } from "../../lib/supabase";
 import {
   ShoppingCart, Plus, Minus, X, Search, Clock, CheckCircle2,
@@ -152,6 +153,7 @@ function isStoreOpenNow(settings: StoreSettings): boolean {
 export default function PublicMenuPage() {
   const { uid } = useParams<{ uid: string }>();
   const navigate = useNavigate();
+  const { isLight } = useTheme();
 
   const [settings, setSettings]     = useState<StoreSettings>(DEFAULT_SETTINGS);
   const [storeFound, setStoreFound] = useState<boolean | null>(null);
@@ -1301,7 +1303,7 @@ export default function PublicMenuPage() {
       )}
 
       {/* Search + Category tabs — sticky */}
-      <div className="sticky top-0 z-20 bg-zinc-950/95 backdrop-blur pt-2 pb-2 border-b border-zinc-800/60">
+      <div className="sticky top-0 z-20 backdrop-blur pt-2 pb-2" style={{ background: isLight ? "#ffffff" : "rgba(24,24,27,0.95)", borderBottom: isLight ? "1px solid #e5e7eb" : "1px solid rgba(39,39,42,0.6)" }}>
         <div className="px-4 pb-2">
           <div className="relative">
             <Search className="w-4 h-4 text-teal-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
