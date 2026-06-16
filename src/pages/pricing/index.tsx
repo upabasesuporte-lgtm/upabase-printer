@@ -714,248 +714,301 @@ export default function PricingPage() {
 
           <div
             style={{
-              background: "#fff",
-              border: "none",
-              borderRadius: "24px",
-              padding: "48px 40px",
-              textAlign: "center",
-              maxWidth: "520px",
+              position: "relative",
+              maxWidth: "600px",
               margin: "0 auto",
-              boxShadow: "0 20px 60px rgba(0,0,0,0.08)",
-              transition: "all 0.3s ease",
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLDivElement).style.transform = "translateY(-6px)";
-              (e.currentTarget as HTMLDivElement).style.boxShadow = "0 30px 80px rgba(0,0,0,0.12)";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
-              (e.currentTarget as HTMLDivElement).style.boxShadow = "0 20px 60px rgba(0,0,0,0.08)";
             }}
           >
-            {/* Toggle Mensal/Anual */}
-            <div style={{ display: "flex", justifyContent: "center", marginBottom: "32px" }}>
+            {/* Glow Background */}
+            <div
+              style={{
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+                width: "100%",
+                height: "100%",
+                background: "radial-gradient(circle, rgba(37,99,235,.12), rgba(124,58,237,.08), transparent 70%)",
+                filter: "blur(80px)",
+                opacity: 0.8,
+                zIndex: -1,
+                borderRadius: "28px",
+              }}
+            />
+
+            {/* Premium Top Bar */}
+            <div
+              style={{
+                height: "4px",
+                background: "linear-gradient(90deg, #2563EB, #7C3AED, #14B8A6)",
+                borderRadius: "28px 28px 0 0",
+                position: "relative",
+                zIndex: 1,
+              }}
+            />
+
+            {/* Card Container */}
+            <div
+              style={{
+                background: "linear-gradient(145deg, #FFFFFF, #F8FAFC)",
+                borderRadius: "0 0 28px 28px",
+                padding: "48px",
+                textAlign: "center",
+                boxShadow: "0 25px 80px rgba(15,23,42,.08), 0 0 0 1px rgba(255,255,255,.8) inset",
+                transition: "all .3s ease",
+                position: "relative",
+                zIndex: 1,
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLDivElement).style.transform = "translateY(-8px)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
+              }}
+            >
+              {/* Plan Name Badge */}
               <div
                 style={{
-                  display: "inline-flex",
-                  background: "#f3f4f6",
-                  borderRadius: "16px",
-                  padding: "6px",
-                  gap: "0",
+                  display: "inline-block",
+                  background: "linear-gradient(135deg, #2563EB, #7C3AED)",
+                  color: "white",
+                  padding: "10px 20px",
+                  borderRadius: "9999px",
+                  fontWeight: 700,
+                  fontSize: "12px",
+                  marginBottom: "24px",
+                  letterSpacing: "0.5px",
+                }}
+              >
+                UPABASE PRO
+              </div>
+
+              {/* Recommended Badge */}
+              <div
+                style={{
+                  display: "inline-block",
+                  background: "#EEF2FF",
+                  color: "#4F46E5",
+                  padding: "8px 16px",
+                  borderRadius: "9999px",
+                  fontWeight: 600,
+                  fontSize: "12px",
+                  marginBottom: "24px",
+                  marginLeft: "12px",
+                  letterSpacing: "0.3px",
+                }}
+              >
+                ⭐ RECOMENDADO
+              </div>
+
+              {/* Plan Description */}
+              <div style={{ marginBottom: "32px" }}>
+                <p
+                  style={{
+                    fontSize: "14px",
+                    color: "#64748B",
+                    margin: "0 0 8px 0",
+                    fontWeight: 500,
+                  }}
+                >
+                  Tudo incluso
+                </p>
+                <p
+                  style={{
+                    fontSize: "13px",
+                    color: "#94A3B8",
+                    margin: "4px 0 0 0",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  Sem limite de usuários<br />
+                  Sem taxas extras<br />
+                  Sem cobranças escondidas
+                </p>
+              </div>
+
+              {/* Price */}
+              <div style={{ marginBottom: "24px" }}>
+                <div
+                  style={{
+                    fontSize: "72px",
+                    fontWeight: 900,
+                    letterSpacing: "-3px",
+                    color: "#111827",
+                    lineHeight: 1,
+                    marginBottom: "4px",
+                  }}
+                >
+                  R$ 59,90
+                </div>
+                <p style={{ fontSize: "14px", color: "#64748B", margin: "8px 0 0 0" }}>
+                  por mês
+                </p>
+                <p
+                  style={{
+                    fontSize: "13px",
+                    color: "#10B981",
+                    fontWeight: 600,
+                    margin: "12px 0 0 0",
+                  }}
+                >
+                  Economize 18% no plano anual
+                </p>
+              </div>
+
+              {/* Divider */}
+              <div
+                style={{
+                  height: "1px",
+                  background: "linear-gradient(90deg, transparent, rgba(0,0,0,0.1), transparent)",
+                  margin: "32px 0",
+                }}
+              />
+
+              {/* Features List */}
+              <div
+                style={{
+                  textAlign: "left",
+                  marginBottom: "32px",
                 }}
               >
                 {[
-                  { label: "Mensal", isAnnual: false },
-                  { label: "Anual", isAnnual: true },
-                ].map(({ label, isAnnual: annual }) => (
-                  <button
-                    key={label}
-                    onClick={() => setIsAnnual(annual)}
+                  "Dashboard Completo",
+                  "Caixa",
+                  "PDV",
+                  "Produtos",
+                  "Estoque",
+                  "Mesas",
+                  "Cardápio Digital",
+                  "Relatórios Avançados",
+                  "Clientes",
+                  "Controle Financeiro",
+                  "Contas a Pagar",
+                  "Multi Dispositivos",
+                  "Suporte WhatsApp",
+                  "Atualizações Gratuitas",
+                ].map((feature, i) => (
+                  <div
+                    key={i}
                     style={{
                       display: "flex",
                       alignItems: "center",
-                      gap: "6px",
-                      padding: "10px 18px",
-                      borderRadius: "12px",
-                      border: "none",
-                      cursor: "pointer",
-                      fontSize: "14px",
-                      fontWeight: 600,
-                      background: isAnnual === annual ? "#fff" : "transparent",
-                      color: isAnnual === annual ? PRIMARY : "#6B7280",
-                      boxShadow: isAnnual === annual ? "0 2px 6px rgba(0,0,0,0.08)" : "none",
-                      transition: "all 0.3s ease",
+                      gap: "16px",
+                      paddingTop: "12px",
+                      paddingBottom: "12px",
+                      fontSize: "15px",
+                      color: "#1F2937",
                     }}
                   >
-                    {label}
-                    {annual && <span style={{ color: PRIMARY, fontWeight: 700 }}>−18%</span>}
-                  </button>
+                    <div
+                      style={{
+                        width: "40px",
+                        height: "40px",
+                        borderRadius: "50%",
+                        background: "#ECFDF5",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Check size={20} color="#10B981" strokeWidth={3} />
+                    </div>
+                    {feature}
+                  </div>
                 ))}
               </div>
-            </div>
 
-            {/* Badge */}
-            <div
-              style={{
-                display: "inline-block",
-                background: "linear-gradient(135deg,#2563EB,#7C3AED)",
-                color: "#fff",
-                padding: "6px 16px",
-                borderRadius: "9999px",
-                fontSize: "12px",
-                fontWeight: 700,
-                marginBottom: "24px",
-              }}
-            >
-              🔥 PLANO MAIS ESCOLHIDO
-            </div>
-
-            {/* Preço */}
-            <div style={{ marginBottom: "32px" }}>
+              {/* Trust Area */}
               <div
                 style={{
-                  fontSize: "64px",
-                  fontWeight: 800,
-                  background: "linear-gradient(135deg, #2563EB, #7C3AED)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                  lineHeight: 1,
-                  marginBottom: "4px",
+                  background: "#F8FAFC",
+                  borderRadius: "16px",
+                  padding: "20px",
+                  marginBottom: "32px",
+                  display: "grid",
+                  gridTemplateColumns: "repeat(3, 1fr)",
+                  gap: "16px",
+                  textAlign: "center",
                 }}
               >
-                R$ {isAnnual ? "49,90" : "59,90"}
+                {[
+                  { icon: "🛡️", text: "Dados protegidos" },
+                  { icon: "⚡", text: "Atualizações constantes" },
+                  { icon: "💬", text: "Suporte rápido" },
+                ].map((item, i) => (
+                  <div key={i}>
+                    <div style={{ fontSize: "20px", marginBottom: "4px" }}>{item.icon}</div>
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "#64748B",
+                        margin: 0,
+                        fontWeight: 500,
+                      }}
+                    >
+                      {item.text}
+                    </p>
+                  </div>
+                ))}
               </div>
-              <p style={{ fontSize: "16px", color: "#6B7280", margin: 0 }}>
-                por mês {isAnnual && <span style={{ fontSize: "13px" }}>(cobrado anualmente)</span>}
-              </p>
-              {isAnnual && (
+
+              {/* CTA Button */}
+              <Link
+                to="/auth?register=1"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "100%",
+                  height: "60px",
+                  background: "#2563EB",
+                  color: "#fff",
+                  borderRadius: "16px",
+                  fontWeight: 700,
+                  fontSize: "15px",
+                  textDecoration: "none",
+                  boxShadow: "0 10px 30px rgba(37,99,235,.25)",
+                  transition: "all .3s ease",
+                  marginBottom: "20px",
+                  border: "none",
+                  cursor: "pointer",
+                  letterSpacing: "0.5px",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLAnchorElement).style.background = "#1D4ED8";
+                  (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-2px)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLAnchorElement).style.background = "#2563EB";
+                  (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(0)";
+                }}
+              >
+                COMEÇAR TESTE GRÁTIS
+              </Link>
+
+              {/* Footer Text */}
+              <div style={{ textAlign: "center" }}>
                 <p
                   style={{
-                    fontSize: "12px",
-                    color: PRIMARY,
-                    marginTop: "8px",
-                    fontWeight: 600,
-                }}
+                    fontSize: "13px",
+                    color: "#64748B",
+                    margin: "8px 0 0 0",
+                    fontWeight: 500,
+                  }}
                 >
-                  🎉 Economize R$ 120/ano
+                  Teste grátis por 7 dias
                 </p>
-              )}
-            </div>
-
-            {/* Features */}
-            <div
-              style={{
-                textAlign: "left",
-                marginBottom: "32px",
-                paddingTop: "32px",
-                paddingBottom: "32px",
-                borderTop: "1px solid rgba(229, 231, 235, 0.5)",
-                borderBottom: "1px solid rgba(229, 231, 235, 0.5)",
-              }}
-            >
-              {[
-                "Dashboard completo",
-                "Caixa",
-                "PDV",
-                "Produtos",
-                "Estoque",
-                "Mesas",
-                "Clientes",
-                "Relatórios",
-                "Cardápio Digital",
-                "Backup automático",
-                "Atualizações",
-                "Suporte",
-              ].map((feature, i) => (
-                <div
-                  key={i}
+                <p
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "12px",
-                    paddingTop: "14px",
-                    paddingBottom: "14px",
-                    fontSize: "15px",
-                    color: "#374151",
+                    fontSize: "13px",
+                    color: "#64748B",
+                    margin: "4px 0 0 0",
                   }}
                 >
-                  <div
-                    style={{
-                      width: "32px",
-                      height: "32px",
-                      borderRadius: "50%",
-                      background: "rgba(16, 185, 129, 0.1)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Check size={18} color="#10b981" strokeWidth={3} />
-                  </div>
-                  {feature}
-                </div>
-              ))}
-            </div>
-
-            {/* Additional Benefits */}
-            <div
-              style={{
-                marginBottom: "32px",
-              }}
-            >
-              {[
-                "✓ Atualizações gratuitas",
-                "✓ Suporte WhatsApp",
-                "✓ Backup automático",
-              ].map((benefit, i) => (
-                <div
-                  key={i}
-                  style={{
-                    fontSize: "14px",
-                    color: "#6B7280",
-                    paddingTop: "10px",
-                    paddingBottom: "10px",
-                  }}
-                >
-                  {benefit}
-                </div>
-              ))}
-            </div>
-
-            {/* CTA */}
-            <Link
-              to="/auth?register=1"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "8px",
-                width: "100%",
-                height: "56px",
-                background: "linear-gradient(135deg,#2563EB,#7C3AED)",
-                color: "#fff",
-                borderRadius: "16px",
-                fontWeight: 700,
-                fontSize: "16px",
-                textDecoration: "none",
-                boxShadow: "0 10px 30px rgba(37, 99, 235, 0.25)",
-                transition: "all 0.3s ease",
-                marginBottom: "20px",
-                border: "none",
-                cursor: "pointer",
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-2px)";
-                (e.currentTarget as HTMLAnchorElement).style.boxShadow = "0 15px 40px rgba(37, 99, 235, 0.35)";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(0)";
-                (e.currentTarget as HTMLAnchorElement).style.boxShadow = "0 10px 30px rgba(37, 99, 235, 0.25)";
-              }}
-            >
-              Começar teste grátis
-            </Link>
-
-            <div style={{ textAlign: "center" }}>
-              <p
-                style={{
-                  fontSize: "13px",
-                  color: "#6B7280",
-                  margin: "8px 0 0 0",
-                }}
-              >
-                Teste grátis por 7 dias
-              </p>
-              <p
-                style={{
-                  fontSize: "13px",
-                  color: "#9CA3AF",
-                  margin: "4px 0 0 0",
-                }}
-              >
-                Sem cartão de crédito
-              </p>
+                  Sem cartão de crédito
+                </p>
+              </div>
             </div>
           </div>
         </div>
