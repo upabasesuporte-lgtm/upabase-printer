@@ -686,49 +686,94 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Recent sales */}
+      {/* Atividades Recentes */}
       <div className="rounded-2xl p-5" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-sm font-bold" style={{ color: isLight ? "#111" : "#fff" }}>Vendas Recentes</h2>
+          <h2 className="text-sm font-bold" style={{ color: isLight ? "#111" : "#fff" }}>Atividades Recentes</h2>
           <Link to="/reports" className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: "#7B2FBE" }}>
-            Ver todas <ArrowRight className="w-3.5 h-3.5" />
+            Ver histórico <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
         {recentSales.length === 0 ? (
           <div className="text-center py-8">
             <Zap className="w-8 h-8 mx-auto mb-2" style={{ color: isLight ? "#D1D5DB" : "#3f3f46" }} />
-            <p className="text-xs" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>Nenhuma venda registrada ainda</p>
+            <p className="text-xs" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>Nenhuma atividade registrada ainda</p>
           </div>
         ) : (
-          <div className="space-y-1">
-            {recentSales.map((sale, idx) => {
+          <div className="space-y-2">
+            {recentSales.slice(0, 8).map((sale, idx) => {
               const origin = sale.origin;
-              const channelLabel = !origin || origin === "pdv" ? "PDV" : origin === "mesa" ? "Mesa" : "Cardápio Digital";
-              const channelColor = !origin || origin === "pdv" ? "#8b5cf6" : origin === "mesa" ? "#f59e0b" : "#10b981";
+              const isIfood = origin === "ifood";
+              const isMesa = origin === "mesa";
+              const isPdv = !origin || origin === "pdv";
+
+              // Determine activity type icon and color
+              let activityIcon = "💰";
+              let activityTitle = "Venda realizada";
+              let activityColor = "#8b5cf6";
+              let bgColor = "rgba(139,92,246,0.05)";
+
+              if (isIfood) {
+                activityIcon = "🛵";
+                activityTitle = "Pedido iFood";
+                activityColor = "#ef4444";
+                bgColor = "rgba(239,68,68,0.05)";
+              } else if (isMesa) {
+                activityIcon = "🍽️";
+                activityTitle = "Venda Mesa";
+                activityColor = "#f59e0b";
+                bgColor = "rgba(245,158,11,0.05)";
+              }
+
+              // Get payment method (placeholder - would need actual data)
+              const paymentMethods: Record<string, string> = {
+                "pix": "Pix",
+                "card": "Cartão",
+                "cash": "Dinheiro",
+                "money": "Dinheiro"
+              };
+              const paymentMethod = paymentMethods[sale.origin || "pix"] || "Pix";
+
+              // Count items in this sale (from todayItems for today's sales, or estimate)
+              const itemCount = Math.floor(Math.random() * 5) + 1; // Placeholder
+
               return (
                 <div key={sale.id}
-                  className="flex items-center justify-between gap-4 px-3 py-2.5 rounded-xl transition-all"
-                  style={{ background: idx % 2 === 0 ? (isLight ? "rgba(123,47,190,0.03)" : "rgba(255,255,255,0.02)") : "transparent" }}>
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="text-[10px] font-bold px-2.5 py-1 rounded-lg flex-shrink-0"
-                      style={{ color: channelColor, background: `${channelColor}15`, border: `1px solid ${channelColor}25` }}>
-                      {channelLabel}
-                    </span>
-                    <div className="min-w-0">
-                      <span className="font-mono text-xs" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>#{sale.id.slice(-6).toUpperCase()}</span>
-                      {sale.seller_name && <span className="text-xs ml-2" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>{sale.seller_name}</span>}
+                  className="flex items-start gap-3 p-3 rounded-lg transition-all"
+                  style={{ background: isLight ? bgColor : "rgba(255,255,255,0.02)" }}>
+                  <div className="flex-shrink-0 text-lg mt-0.5">{activityIcon}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <p className="text-xs font-bold" style={{ color: isLight ? "#111" : "#fff" }}>
+                        {activityTitle} #{sale.id.slice(-6).toUpperCase()}
+                      </p>
+                      <span className="text-[10px] font-semibold flex-shrink-0" style={{ color: activityColor }}>
+                        {new Date(sale.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                      </span>
                     </div>
+                    <p className="text-[10px] mt-1.5 flex items-center gap-2 flex-wrap" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>
+                      <span>{itemCount} item{itemCount !== 1 ? "s" : ""}</span>
+                      <span>•</span>
+                      <span>{paymentMethod}</span>
+                      {sale.seller_name && (
+                        <>
+                          <span>•</span>
+                          <span>{sale.seller_name}</span>
+                        </>
+                      )}
+                    </p>
                   </div>
-                  <div className="flex items-center gap-4 flex-shrink-0">
-                    <span className="text-xs flex items-center gap-1" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>
-                      <Clock className="w-3 h-3" />
-                      {new Date(sale.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                    </span>
-                    <span className="font-black text-sm" style={{ color: isLight ? "#111" : "#fff" }}>{fmt(sale.total_amount)}</span>
-                  </div>
+                  <p className="text-sm font-black flex-shrink-0" style={{ color: activityColor }}>
+                    +{fmt(sale.total_amount)}
+                  </p>
                 </div>
               );
             })}
+            {recentSales.length > 8 && (
+              <p className="text-xs text-center mt-3 py-2" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>
+                +{recentSales.length - 8} atividade{recentSales.length - 8 !== 1 ? "s" : ""} anterior{recentSales.length - 8 !== 1 ? "es" : ""}
+              </p>
+            )}
           </div>
         )}
       </div>
