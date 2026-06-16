@@ -172,19 +172,19 @@ function printLabel(order: DigitalOrder) {
   // Renderizar itens principais com acompanhamentos organizados
   const mainItemsHtml = mainItems.length > 0 ? mainItems.map(it => {
     const unitLine = it.quantity > 1
-      ? `<div style="font-size:11px;font-weight:600;color:#000;margin-top:2px">${it.quantity} un x ${fmt(it.unit_price)}</div>` : "";
+      ? `<div style="font-size:11px;font-weight:500;color:#333;margin-top:1px">${it.quantity} un x ${fmt(it.unit_price)}</div>` : "";
     const optLines = (it.options ?? []).map(o =>
-      `<div style="font-size:10px;font-weight:500;color:#333;margin-top:3px;padding-left:12px">→ ${o.option_name}${o.additional_price > 0 ? ` (+${fmt(o.additional_price)})` : ""}</div>`
+      `<div style="font-size:10px;font-weight:400;color:#555;margin-top:2px;padding-left:12px">→ ${o.option_name}${o.additional_price > 0 ? ` (+${fmt(o.additional_price)})` : ""}</div>`
     ).join("");
     const obsLine = it.notes
-      ? `<div style="font-size:10px;font-weight:500;color:#555;margin-top:2px;font-style:italic">Obs: ${it.notes}</div>` : "";
-    return `<div style="padding:8px 0;border-bottom:1px dashed #000">
+      ? `<div style="font-size:9px;font-weight:400;color:#666;margin-top:2px;font-style:italic">Obs: ${it.notes}</div>` : "";
+    return `<div style="padding:6px 0;border-bottom:1px dashed #ccc">
       <div style="display:flex;justify-content:space-between;align-items:flex-start">
         <div style="flex:1;padding-right:8px">
-          <div style="font-size:14px;font-weight:700;color:#000">${it.quantity}x ${it.product_name}</div>
+          <div style="font-size:13px;font-weight:600;color:#000">${it.quantity}x ${it.product_name}</div>
           ${unitLine}
         </div>
-        <div style="font-size:12px;font-weight:700;color:#000;white-space:nowrap">${fmt(it.total_price ?? it.unit_price * it.quantity)}</div>
+        <div style="font-size:11px;font-weight:600;color:#000;white-space:nowrap">${fmt(it.total_price ?? it.unit_price * it.quantity)}</div>
       </div>
       ${optLines}${obsLine}
     </div>`;
@@ -192,21 +192,21 @@ function printLabel(order: DigitalOrder) {
 
   // Renderizar bebidas em seção separada com quebra clara
   const drinksHtml = drinkItems.length > 0 ? `
-    ${mainItems.length > 0 ? `<div style="margin:12px 0;padding:12px 0;border-top:2px solid #000;border-bottom:2px solid #000;text-align:center">
-      <div style="font-size:12px;font-weight:700;color:#000;text-transform:uppercase;letter-spacing:1px">🍹 BEBIDAS 🍹</div>
+    ${mainItems.length > 0 ? `<div style="margin:10px 0;padding:8px 0;border-top:2px solid #000;border-bottom:2px solid #000;text-align:center">
+      <div style="font-size:11px;font-weight:600;color:#000;text-transform:uppercase;letter-spacing:0.5px">🍹 BEBIDAS 🍹</div>
     </div>` : ""}
     ${drinkItems.map(it => {
       const unitLine = it.quantity > 1
-        ? `<div style="font-size:11px;font-weight:600;color:#000;margin-top:2px">${it.quantity} un x ${fmt(it.unit_price)}</div>` : "";
+        ? `<div style="font-size:10px;font-weight:500;color:#333;margin-top:1px">${it.quantity} un x ${fmt(it.unit_price)}</div>` : "";
       const obsLine = it.notes
-        ? `<div style="font-size:10px;font-weight:500;color:#555;margin-top:2px;font-style:italic">Obs: ${it.notes}</div>` : "";
-      return `<div style="padding:6px 0;border-bottom:1px dashed #ccc">
+        ? `<div style="font-size:9px;font-weight:400;color:#666;margin-top:1px;font-style:italic">Obs: ${it.notes}</div>` : "";
+      return `<div style="padding:5px 0;border-bottom:1px dashed #ccc">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div style="flex:1;padding-right:8px">
-            <div style="font-size:13px;font-weight:600;color:#000">${it.quantity}x ${it.product_name}</div>
+            <div style="font-size:12px;font-weight:600;color:#000">${it.quantity}x ${it.product_name}</div>
             ${unitLine}
           </div>
-          <div style="font-size:12px;font-weight:700;color:#000;white-space:nowrap">${fmt(it.total_price ?? it.unit_price * it.quantity)}</div>
+          <div style="font-size:11px;font-weight:600;color:#000;white-space:nowrap">${fmt(it.total_price ?? it.unit_price * it.quantity)}</div>
         </div>
         ${obsLine}
       </div>`;
