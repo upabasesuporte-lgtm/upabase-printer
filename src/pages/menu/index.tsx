@@ -1303,14 +1303,15 @@ export default function PublicMenuPage() {
       )}
 
       {/* Search + Category tabs — sticky */}
-      <div className="sticky top-0 z-20 backdrop-blur pt-2 pb-2" style={{ background: isLight ? "#ffffff" : "rgba(24,24,27,0.95)", borderBottom: isLight ? "1px solid #e5e7eb" : "1px solid rgba(39,39,42,0.6)" }}>
+      <div className="sticky top-0 z-20 backdrop-blur pt-2 pb-2" style={{ background: "#ffffff", borderBottom: "1px solid #e5e7eb" }}>
         <div className="px-4 pb-2">
           <div className="relative">
-            <Search className="w-4 h-4 text-teal-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: "#9ca3af" }} />
             <input
               value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Buscar no cardápio..."
-              className="w-full px-4 py-2.5 pl-10 bg-zinc-900 border border-zinc-800 rounded-2xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-teal-500 transition-all"
+              className="w-full px-4 py-2.5 pl-10 rounded-2xl text-sm focus:outline-none transition-all"
+              style={{ background: "#f3f4f6", border: "1px solid #e5e7eb", color: "#111", placeholderColor: "#9ca3af" }}
             />
             {search && (
               <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white">
@@ -1325,10 +1326,8 @@ export default function PublicMenuPage() {
             <div className="flex gap-2 min-w-max">
               <button
                 onClick={() => setActiveCat("all")}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
-                  activeCat === "all" ? "text-white" : "bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800"
-                }`}
-                style={activeCat === "all" ? { background:"linear-gradient(135deg,#14b8a6,#0d9488)", boxShadow:"0 3px 12px rgba(13,148,136,0.4)" } : {}}
+                className="px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap"
+                style={activeCat === "all" ? { background:"#14b8a6", color:"#fff", boxShadow:"0 3px 12px rgba(13,148,136,0.4)" } : { background:"#f3f4f6", color:"#6b7280", border:"1px solid #e5e7eb" }}
               >
                 Todos
               </button>
@@ -1336,10 +1335,8 @@ export default function PublicMenuPage() {
                 <button
                   key={cat.id}
                   onClick={() => setActiveCat(cat.id)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
-                    activeCat === cat.id ? "text-white" : "bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800"
-                  }`}
-                  style={activeCat === cat.id ? { background:"linear-gradient(135deg,#14b8a6,#0d9488)", boxShadow:"0 3px 12px rgba(13,148,136,0.4)" } : {}}
+                  className="px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap"
+                  style={activeCat === cat.id ? { background:"#14b8a6", color:"#fff", boxShadow:"0 3px 12px rgba(13,148,136,0.4)" } : { background:"#f3f4f6", color:"#6b7280", border:"1px solid #e5e7eb" }}
                 >
                   {cat.name}
                 </button>
