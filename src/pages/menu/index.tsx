@@ -145,7 +145,15 @@ function isStoreOpenNow(settings: StoreSettings): boolean {
   const [oh, om] = day.open.split(":").map(Number);
   const [ch, cm] = day.close.split(":").map(Number);
   const cur = now.getHours() * 60 + now.getMinutes();
-  return cur >= oh * 60 + om && cur < ch * 60 + cm;
+  const openMin = oh * 60 + om;
+  const closeMin = ch * 60 + cm;
+
+  // Se horário de fechamento é menor que abertura, significa que fecha depois da meia-noite
+  if (closeMin < openMin) {
+    return cur >= openMin || cur < closeMin;
+  }
+
+  return cur >= openMin && cur < closeMin;
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
