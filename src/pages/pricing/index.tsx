@@ -58,22 +58,30 @@ const FEATURES = [
   {
     title: "Caixa e PDV",
     desc: "Controle abertura de caixa, vendas, sangrias, reforços e fechamento.",
+    images: [
+      "https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/caixa.png",
+      "https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/pdv.png",
+    ],
   },
   {
     title: "Cardápio Digital",
     desc: "Receba pedidos online sem pagar comissão para marketplaces.",
+    images: ["https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/cardapio%20digital.png"],
   },
   {
     title: "Gestão de Mesas",
     desc: "Organize comandas e acompanhe ocupação em tempo real.",
+    images: ["https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/mesas.png"],
   },
   {
     title: "Controle de Estoque",
     desc: "Movimentação automática de produtos e ingredientes.",
+    images: ["https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/estoque.png"],
   },
   {
     title: "Relatórios",
     desc: "Visualize vendas, lucro e desempenho do negócio.",
+    images: ["https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/relatorios.png"],
   },
 ];
 
@@ -123,6 +131,7 @@ const FAQS: FAQItem[] = [
 export default function PricingPage() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [caixaPdvImageIndex, setCaixaPdvImageIndex] = useState(0);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -572,17 +581,49 @@ export default function PricingPage() {
                     style={{
                       background: "#fff",
                       borderRadius: "12px",
-                      padding: "40px",
                       border: "1px solid #e5e7eb",
-                      minHeight: "300px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "#9CA3AF",
-                      fontSize: "14px",
+                      overflow: "hidden",
+                      position: "relative",
                     }}
                   >
-                    [Screenshot da aba {feature.title}]
+                    <img
+                      src={feature.images && feature.images.length > 0 ? feature.images[i === 0 ? caixaPdvImageIndex : 0] : ""}
+                      alt={feature.title}
+                      style={{
+                        width: "100%",
+                        height: "400px",
+                        objectFit: "cover",
+                        display: "block",
+                      }}
+                    />
+                    {feature.images && feature.images.length > 1 && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          bottom: "16px",
+                          left: "50%",
+                          transform: "translateX(-50%)",
+                          display: "flex",
+                          gap: "8px",
+                        }}
+                      >
+                        {feature.images.map((_, imgIdx) => (
+                          <button
+                            key={imgIdx}
+                            onClick={() => setCaixaPdvImageIndex(imgIdx)}
+                            style={{
+                              width: "8px",
+                              height: "8px",
+                              borderRadius: "50%",
+                              background: caixaPdvImageIndex === imgIdx ? PRIMARY : "rgba(255,255,255,0.5)",
+                              border: "none",
+                              cursor: "pointer",
+                              transition: "all 0.2s",
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </>
               ) : (
@@ -591,17 +632,49 @@ export default function PricingPage() {
                     style={{
                       background: "#fff",
                       borderRadius: "12px",
-                      padding: "40px",
                       border: "1px solid #e5e7eb",
-                      minHeight: "300px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "#9CA3AF",
-                      fontSize: "14px",
+                      overflow: "hidden",
+                      position: "relative",
                     }}
                   >
-                    [Screenshot da aba {feature.title}]
+                    <img
+                      src={feature.images && feature.images.length > 0 ? feature.images[i === 0 ? caixaPdvImageIndex : 0] : ""}
+                      alt={feature.title}
+                      style={{
+                        width: "100%",
+                        height: "400px",
+                        objectFit: "cover",
+                        display: "block",
+                      }}
+                    />
+                    {feature.images && feature.images.length > 1 && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          bottom: "16px",
+                          left: "50%",
+                          transform: "translateX(-50%)",
+                          display: "flex",
+                          gap: "8px",
+                        }}
+                      >
+                        {feature.images.map((_, imgIdx) => (
+                          <button
+                            key={imgIdx}
+                            onClick={() => setCaixaPdvImageIndex(imgIdx)}
+                            style={{
+                              width: "8px",
+                              height: "8px",
+                              borderRadius: "50%",
+                              background: caixaPdvImageIndex === imgIdx ? PRIMARY : "rgba(255,255,255,0.5)",
+                              border: "none",
+                              cursor: "pointer",
+                              transition: "all 0.2s",
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <h3
