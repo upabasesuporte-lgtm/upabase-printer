@@ -83,11 +83,12 @@ const FAQS = [
 // ─── Componente principal ────────────────────────────────────────────────────
 
 export default function PricingPage() {
-  const [annual,      setAnnual]      = useState(false);
-  const [openFaq,     setOpenFaq]     = useState<number | null>(null);
-  const [userEmail,   setUserEmail]   = useState<string | null>(null);
-  const [hoveredPlan, setHoveredPlan] = useState<string | null>(null);
-  const [hoveredCta,  setHoveredCta]  = useState<string | null>(null);
+  const [annual,          setAnnual]          = useState(false);
+  const [openFaq,         setOpenFaq]         = useState<number | null>(null);
+  const [userEmail,       setUserEmail]       = useState<string | null>(null);
+  const [hoveredPlan,     setHoveredPlan]     = useState<string | null>(null);
+  const [hoveredCta,      setHoveredCta]      = useState<string | null>(null);
+  const [expandedFeature, setExpandedFeature] = useState<number | null>(null);
   const styleRef = useRef<HTMLStyleElement | null>(null);
 
   useEffect(() => {
@@ -213,291 +214,259 @@ export default function PricingPage() {
         </div>
       </section>
 
-      {/* ── Cards dos planos ─────────────────────────────────────────────────── */}
+      {/* ── Plano com imagem lado a lado ──────────────────────────────────────── */}
       <section className="pricing-plans" style={{ padding: "0 1rem 80px" }}>
         <div style={{
-          display: "flex", flexWrap: "wrap", gap: 24,
-          justifyContent: "center", maxWidth: 1080, margin: "0 auto",
-          alignItems: "flex-start",
+          maxWidth: 1200, margin: "0 auto",
+          display: "grid", gridTemplateColumns: "1fr 1fr", gap: 48,
+          alignItems: "center",
         }}>
-          {PLAN_ORDER.map((key, idx) => {
-            const p          = PLAN_INFO[key];
-            const price      = annual ? p.price_annual_monthly : p.price_monthly;
-            const mpId       = annual ? p.mp_id_annual : p.mp_id_monthly;
-            const isHigh     = p.highlight;
-            const savings    = ANNUAL_SAVINGS[key];
-            const isHovered  = hoveredPlan === key;
-            const isCtaHov   = hoveredCta === key;
+          {/* Esquerda — Imagem */}
+          <div style={{
+            borderRadius: 20,
+            overflow: "hidden",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
+          }}>
+            <img
+              src="https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/ChatGPT%20Image%2015%20de%20jun.%20de%202026,%2023_27_14.png"
+              alt="Sistema UpaBase"
+              style={{ width: "100%", height: "auto", display: "block" }}
+            />
+          </div>
 
-            const intPart    = Math.floor(price);
-            const decPart    = price.toFixed(2).split(".")[1];
-            const hasDecimal = decPart !== "00";
+          {/* Direita — Plano */}
+          <div style={{
+            background: "#fff",
+            border: `2px solid ${PRIMARY}`,
+            borderRadius: 24,
+            padding: "40px 32px",
+            boxShadow: `0 20px 60px ${PRIMARY}30, 0 4px 16px rgba(0,0,0,0.08)`,
+          }}>
+            <div style={{ height: 5, background: PRIMARY, marginLeft: -32, marginRight: -32, marginTop: -40, marginBottom: 24 }} />
 
-            return (
-              <div
-                key={key}
-                className={isHigh ? "plan-card-highlight" : ""}
-                onMouseEnter={() => setHoveredPlan(key)}
-                onMouseLeave={() => setHoveredPlan(null)}
+            <p style={{
+              fontSize: 11, fontWeight: 800, letterSpacing: "1.5px",
+              textTransform: "uppercase", color: PRIMARY, marginBottom: 12,
+            }}>
+              Plano Loja
+            </p>
+
+            <h3 style={{
+              fontSize: 24, fontWeight: 800, color: "#0f172a", marginBottom: 8, lineHeight: 1.3,
+            }}>
+              Acesso completo a todas as funcionalidades
+            </h3>
+
+            <p style={{ fontSize: 14, color: "#6B7280", marginBottom: 32, lineHeight: 1.6 }}>
+              Um plano único com tudo que você precisa para gerenciar seu negócio de forma completa.
+            </p>
+
+            {/* Preço */}
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 1, marginBottom: 12 }}>
+              <span style={{ fontSize: 16, fontWeight: 700, color: PRIMARY, marginTop: 10 }}>R$</span>
+              <span style={{ fontSize: 64, fontWeight: 900, lineHeight: 1, color: PRIMARY }}>
+                {Math.floor(annual ? 49.90 : 59.90)}
+              </span>
+              <span style={{ fontSize: 16, fontWeight: 700, color: PRIMARY, marginTop: 44 }}>
+                ,{(annual ? 49.90 : 59.90).toFixed(2).split(".")[1]}
+              </span>
+              <span style={{ fontSize: 13, color: "#9CA3AF", fontWeight: 500, marginTop: 48 }}>
+                /mês
+              </span>
+            </div>
+
+            {/* Toggle Mensal/Anual */}
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 28 }}>
+              <button
+                onClick={() => setAnnual(false)}
                 style={{
-                  width: "100%",
-                  maxWidth: isHigh ? 360 : 320,
-                  background: "#fff",
-                  border: isHigh
-                    ? `2px solid ${p.color}`
-                    : isHovered
-                      ? `2px solid ${p.color}66`
-                      : "1px solid #e5e7eb",
-                  borderRadius: 24,
-                  boxShadow: isHigh
-                    ? `0 20px 60px ${p.color}30, 0 4px 16px rgba(0,0,0,0.08)`
-                    : isHovered
-                      ? `0 12px 40px rgba(0,0,0,0.12)`
-                      : "0 2px 12px rgba(0,0,0,0.06)",
-                  overflow: "hidden",
-                  position: "relative",
-                  transition: "all 0.25s ease",
-                  transform: isHigh
-                    ? undefined
-                    : isHovered ? "translateY(-6px)" : "translateY(0)",
-                  zIndex: isHigh ? 2 : 1,
-                  marginTop: isHigh ? -8 : 0,
+                  padding: "8px 16px", borderRadius: 8,
+                  border: annual ? "1px solid #e5e7eb" : `1px solid ${PRIMARY}`,
+                  background: annual ? "#fff" : `${PRIMARY}10`,
+                  color: annual ? "#6B7280" : PRIMARY,
+                  fontSize: 13, fontWeight: 600,
+                  cursor: "pointer", transition: "all 0.2s",
                 }}
               >
-                {/* Faixa superior */}
-                <div style={{ height: 5, background: p.color }} />
+                Mensal
+              </button>
+              <button
+                onClick={() => setAnnual(true)}
+                style={{
+                  padding: "8px 16px", borderRadius: 8,
+                  border: !annual ? "1px solid #e5e7eb" : `1px solid ${PRIMARY}`,
+                  background: !annual ? "#fff" : `${PRIMARY}10`,
+                  color: !annual ? "#6B7280" : PRIMARY,
+                  fontSize: 13, fontWeight: 600,
+                  cursor: "pointer", transition: "all 0.2s",
+                }}
+              >
+                Anual {annual && <span style={{ marginLeft: 6, color: PRIMARY, fontWeight: 800 }}>−18%</span>}
+              </button>
+            </div>
 
-                {/* Badge "Mais popular" */}
-                {isHigh && (
-                  <div style={{
-                    position: "absolute", top: 18, right: 18,
-                    background: p.color, color: "#fff",
-                    fontSize: 10, fontWeight: 800, padding: "4px 12px",
-                    borderRadius: 999, display: "flex", alignItems: "center", gap: 4,
-                    boxShadow: `0 2px 8px ${p.color}66`,
-                    letterSpacing: "0.5px", textTransform: "uppercase",
-                  }}>
-                    <Star size={8} fill="white" /> Mais popular
-                  </div>
-                )}
-
-                <div style={{ padding: isHigh ? "28px 28px 32px" : "24px 24px 28px" }}>
-
-                  {/* Nome do plano */}
-                  <p style={{
-                    fontSize: 11, fontWeight: 800, letterSpacing: "1.5px",
-                    textTransform: "uppercase", color: p.color, marginBottom: 6,
-                  }}>
-                    {p.label}
-                  </p>
-                  <p style={{ fontSize: 13, color: "#6B7280", marginBottom: 24, lineHeight: 1.5 }}>
-                    {p.description}
-                  </p>
-
-                  {/* Preço */}
-                  <div style={{ display: "flex", alignItems: "flex-start", gap: 1, marginBottom: 6 }}>
-                    <span style={{ fontSize: 16, fontWeight: 700, color: p.color, marginTop: 10 }}>R$</span>
-                    <span style={{ fontSize: isHigh ? 64 : 56, fontWeight: 900, lineHeight: 1, color: p.color }}>
-                      {intPart}
-                    </span>
-                    {hasDecimal && (
-                      <span style={{ fontSize: 16, fontWeight: 700, color: p.color, marginTop: isHigh ? 44 : 38 }}>
-                        ,{decPart}
-                      </span>
-                    )}
-                    <span style={{ fontSize: 13, color: "#9CA3AF", fontWeight: 500, marginTop: isHigh ? 48 : 42 }}>
-                      /mês
-                    </span>
-                  </div>
-
-                  {/* Economia anual */}
-                  {annual ? (
-                    <div style={{
-                      display: "inline-flex", alignItems: "center", gap: 6,
-                      background: `${p.color}12`, border: `1px solid ${p.color}30`,
-                      borderRadius: 8, padding: "5px 10px", marginBottom: 22,
-                    }}>
-                      <span style={{ fontSize: 11, fontWeight: 800, color: p.color }}>
-                        🎉 Economize R$ {fmt(savings)}/ano
-                      </span>
-                    </div>
-                  ) : (
-                    <p style={{ fontSize: 12, color: "#9CA3AF", marginBottom: 22 }}>
-                      cobrado mensalmente
-                    </p>
-                  )}
-
-                  {/* CTA */}
-                  {userEmail ? (
-                    <a
-                      href={getMpCheckoutUrl(mpId, userEmail)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onMouseEnter={() => setHoveredCta(key)}
-                      onMouseLeave={() => setHoveredCta(null)}
-                      style={{
-                        display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                        width: "100%", padding: "14px 0",
-                        background: isCtaHov
-                          ? `linear-gradient(135deg, ${p.color}dd, ${p.color})`
-                          : p.color,
-                        color: "#fff", borderRadius: 12,
-                        fontWeight: 700, fontSize: 14,
-                        textDecoration: "none",
-                        boxShadow: isCtaHov
-                          ? `0 8px 24px ${p.color}55`
-                          : `0 4px 14px ${p.color}44`,
-                        transition: "all 0.2s",
-                        transform: isCtaHov ? "translateY(-1px)" : "none",
-                      }}
-                    >
-                      Assinar {p.label} <ArrowRight size={15} />
-                    </a>
-                  ) : (
-                    <Link
-                      to="/auth?register=1"
-                      onMouseEnter={() => setHoveredCta(key)}
-                      onMouseLeave={() => setHoveredCta(null)}
-                      style={{
-                        display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                        width: "100%", padding: "14px 0",
-                        background: isCtaHov
-                          ? `linear-gradient(135deg, ${p.color}dd, ${p.color})`
-                          : p.color,
-                        color: "#fff", borderRadius: 12,
-                        fontWeight: 700, fontSize: 14,
-                        textDecoration: "none",
-                        boxShadow: isCtaHov
-                          ? `0 8px 24px ${p.color}55`
-                          : `0 4px 14px ${p.color}44`,
-                        transition: "all 0.2s",
-                        transform: isCtaHov ? "translateY(-1px)" : "none",
-                      }}
-                    >
-                      Testar grátis agora <ArrowRight size={15} />
-                    </Link>
-                  )}
-
-                  <p style={{ fontSize: 11, color: "#9CA3AF", textAlign: "center", marginTop: 8 }}>
-                    {userEmail ? "Pagamento seguro via Mercado Pago" : "Sem cartão de crédito"}
-                  </p>
-
-                  {/* Divisória */}
-                  <div style={{ borderTop: `1px solid ${p.color}20`, margin: "20px 0" }} />
-
-                  {/* Features do plano */}
-                  <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                    {p.features.map((feat, i) => (
-                      <li key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "6px 0" }}>
-                        <div style={{
-                          width: 18, height: 18, borderRadius: 5,
-                          flexShrink: 0, marginTop: 1,
-                          background: `${p.color}15`,
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                        }}>
-                          <Check size={10} style={{ color: p.color, strokeWidth: 3 }} />
-                        </div>
-                        <span style={{ fontSize: 13, color: "#374151", lineHeight: 1.45 }}>{feat}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+            {annual && (
+              <div style={{
+                background: `${PRIMARY}12`, border: `1px solid ${PRIMARY}30`,
+                borderRadius: 8, padding: "8px 12px", marginBottom: 24, display: "inline-block",
+              }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: PRIMARY }}>
+                  🎉 Economize R$ 120/ano
+                </span>
               </div>
-            );
-          })}
+            )}
+
+            {/* CTA */}
+            {userEmail ? (
+              <a
+                href={getMpCheckoutUrl(annual ? PLAN_INFO.loja.mp_id_annual : PLAN_INFO.loja.mp_id_monthly, userEmail)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onMouseEnter={() => setHoveredCta("loja")}
+                onMouseLeave={() => setHoveredCta(null)}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  width: "100%", padding: "14px 0", marginBottom: 12,
+                  background: hoveredCta === "loja" ? `linear-gradient(135deg, ${PRIMARY}dd, ${PRIMARY})` : PRIMARY,
+                  color: "#fff", borderRadius: 12,
+                  fontWeight: 700, fontSize: 14,
+                  textDecoration: "none",
+                  boxShadow: hoveredCta === "loja" ? `0 8px 24px ${PRIMARY}55` : `0 4px 14px ${PRIMARY}44`,
+                  transition: "all 0.2s",
+                  transform: hoveredCta === "loja" ? "translateY(-1px)" : "none",
+                }}
+              >
+                Assinar agora <ArrowRight size={15} />
+              </a>
+            ) : (
+              <Link
+                to="/auth?register=1"
+                onMouseEnter={() => setHoveredCta("loja")}
+                onMouseLeave={() => setHoveredCta(null)}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  width: "100%", padding: "14px 0", marginBottom: 12,
+                  background: hoveredCta === "loja" ? `linear-gradient(135deg, ${PRIMARY}dd, ${PRIMARY})` : PRIMARY,
+                  color: "#fff", borderRadius: 12,
+                  fontWeight: 700, fontSize: 14,
+                  textDecoration: "none",
+                  boxShadow: hoveredCta === "loja" ? `0 8px 24px ${PRIMARY}55` : `0 4px 14px ${PRIMARY}44`,
+                  transition: "all 0.2s",
+                  transform: hoveredCta === "loja" ? "translateY(-1px)" : "none",
+                }}
+              >
+                Testar grátis agora <ArrowRight size={15} />
+              </Link>
+            )}
+
+            <p style={{ fontSize: 11, color: "#9CA3AF", textAlign: "center", marginTop: 8, marginBottom: 20 }}>
+              {userEmail ? "Pagamento seguro via Mercado Pago" : "Sem cartão de crédito"}
+            </p>
+
+            <div style={{ borderTop: `1px solid ${PRIMARY}20`, margin: "20px 0" }} />
+
+            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              {PLAN_INFO.loja.features.map((feat, i) => (
+                <li key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "8px 0" }}>
+                  <div style={{
+                    width: 18, height: 18, borderRadius: 5,
+                    flexShrink: 0, marginTop: 2,
+                    background: `${PRIMARY}15`,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    <Check size={10} style={{ color: PRIMARY, strokeWidth: 3 }} />
+                  </div>
+                  <span style={{ fontSize: 13, color: "#374151", lineHeight: 1.45 }}>{feat}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </section>
 
-      {/* ── Funcionalidades incluídas ───────────────────────────────────────── */}
+      {/* ── Funcionalidades incluídas (clicáveis) ────────────────────────────── */}
       <section className="pricing-section" style={{ padding: "0 1rem 80px" }}>
         <div style={{ maxWidth: 960, margin: "0 auto" }}>
           <h2 style={{
             textAlign: "center", fontSize: "clamp(20px,3vw,28px)", fontWeight: 800,
             color: "#0f172a", marginBottom: 8, letterSpacing: "-0.02em",
           }}>
-            Tudo incluído no seu plano
+            Funcionalidades do Sistema
           </h2>
           <p style={{ textAlign: "center", fontSize: 14, color: "#6B7280", marginBottom: 48 }}>
-            Acesso completo a todas as funcionalidades do sistema
+            Conheça cada aba e como funciona
           </p>
 
           <div style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-            gap: 24,
-          }}>
-            {FEATURES_ALL_INCLUDED.map(({ emoji, label, desc }, i) => (
-              <div key={i} style={{
-                background: "#fff", borderRadius: 16,
-                padding: "28px 24px",
-                border: "1px solid #e5e7eb",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
-                transition: "box-shadow 0.2s, transform 0.2s",
-              }}
-                onMouseEnter={e => {
-                  (e.currentTarget as HTMLDivElement).style.boxShadow = "0 8px 24px rgba(0,0,0,0.1)";
-                  (e.currentTarget as HTMLDivElement).style.transform = "translateY(-3px)";
-                }}
-                onMouseLeave={e => {
-                  (e.currentTarget as HTMLDivElement).style.boxShadow = "0 2px 8px rgba(0,0,0,0.04)";
-                  (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
-                }}
-              >
-                <div style={{ fontSize: 32, marginBottom: 12 }}>{emoji}</div>
-                <h3 style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", marginBottom: 6 }}>{label}</h3>
-                <p style={{ fontSize: 13, color: "#6B7280", lineHeight: 1.55, margin: 0 }}>{desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Diferenciais ─────────────────────────────────────────────────────── */}
-      <section className="pricing-section" style={{
-        padding: "80px 1rem",
-        background: "linear-gradient(180deg,#F0F4FF 0%,#F8F9FA 100%)",
-      }}>
-        <div style={{ maxWidth: 960, margin: "0 auto" }}>
-          <h2 style={{
-            textAlign: "center", fontSize: "clamp(20px,3vw,28px)", fontWeight: 800,
-            color: "#0f172a", marginBottom: 8, letterSpacing: "-0.02em",
-          }}>
-            Por que escolher o Upabase?
-          </h2>
-          <p style={{ textAlign: "center", fontSize: 14, color: "#6B7280", marginBottom: 48 }}>
-            Tudo que você precisa para gerir seu negócio em um só lugar
-          </p>
-
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
             gap: 20,
           }}>
-            {DIFFERENTIALS.map(({ emoji, title, desc }, i) => (
-              <div key={i} style={{
-                background: "#fff", borderRadius: 16,
-                padding: "24px 22px",
-                border: "1px solid #e5e7eb",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
-                transition: "box-shadow 0.2s, transform 0.2s",
-              }}
-                onMouseEnter={e => {
-                  (e.currentTarget as HTMLDivElement).style.boxShadow = "0 8px 24px rgba(0,0,0,0.1)";
-                  (e.currentTarget as HTMLDivElement).style.transform = "translateY(-3px)";
-                }}
-                onMouseLeave={e => {
-                  (e.currentTarget as HTMLDivElement).style.boxShadow = "0 2px 8px rgba(0,0,0,0.04)";
-                  (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
-                }}
-              >
-                <div style={{ fontSize: 28, marginBottom: 12 }}>{emoji}</div>
-                <h3 style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", marginBottom: 6 }}>{title}</h3>
-                <p style={{ fontSize: 13, color: "#6B7280", lineHeight: 1.55, margin: 0 }}>{desc}</p>
-              </div>
-            ))}
+            {FEATURES_ALL_INCLUDED.map(({ emoji, label, desc }, i) => {
+              const isExpanded = expandedFeature === i;
+              return (
+                <button
+                  key={i}
+                  onClick={() => setExpandedFeature(isExpanded ? null : i)}
+                  style={{
+                    background: "#fff", borderRadius: 16,
+                    padding: "24px",
+                    border: isExpanded ? `2px solid ${PRIMARY}` : "1px solid #e5e7eb",
+                    boxShadow: isExpanded ? `0 12px 32px ${PRIMARY}20` : "0 2px 8px rgba(0,0,0,0.04)",
+                    transition: "all 0.2s",
+                    cursor: "pointer",
+                    textAlign: "left",
+                  }}
+                  onMouseEnter={e => {
+                    if (!isExpanded) {
+                      (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 8px 24px rgba(0,0,0,0.1)";
+                      (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-2px)";
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    if (!isExpanded) {
+                      (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 2px 8px rgba(0,0,0,0.04)";
+                      (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+                    }
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                    <div style={{ fontSize: 28 }}>{emoji}</div>
+                    <div style={{ flex: 1 }}>
+                      <h3 style={{ fontSize: 15, fontWeight: 700, color: "#0f172a", marginBottom: 4, margin: 0 }}>
+                        {label}
+                      </h3>
+                      <p style={{ fontSize: 13, color: "#6B7280", lineHeight: 1.5, margin: 0 }}>
+                        {desc}
+                      </p>
+                    </div>
+                  </div>
+                  {isExpanded && (
+                    <div style={{
+                      marginTop: 16, paddingTop: 16,
+                      borderTop: `1px solid ${PRIMARY}20`,
+                      fontSize: 13, lineHeight: 1.6, color: "#374151",
+                    }}>
+                      {label.includes("Dashboard") && "Visualize gráficos, métricas e KPIs em tempo real. Acompanhe vendas, lucro, estoque e desempenho do seu negócio."}
+                      {label.includes("PDV") && "Sistema completo de vendas com suporte a múltiplas formas de pagamento, desconto, notas fiscais e histórico de transações."}
+                      {label.includes("estoque") && "Controle quantidade de produtos em tempo real, receba alertas de baixo estoque e gerencie movimentações de produtos."}
+                      {label.includes("financeira") && "Acompanhe entradas e saídas, crie orçamentos, visualize fluxo de caixa e projete resultados futuros."}
+                      {label.includes("Relatórios") && "Exporte dados em PDF/Excel, crie relatórios customizados de vendas, clientes e desempenho financeiro."}
+                      {label.includes("Cardápio") && "Crie cardápio digital com fotos, descrições e preços. Compartilhe QR Code para clientes acessarem."}
+                      {label.includes("clientes") && "Cadastre clientes com telefone, endereço e histórico de compras. Acompanhe preferências e frequência."}
+                      {label.includes("mesas") && "Controle mesas do seu estabelecimento, gerencie atendimento no salão e comandas por mesa."}
+                      {label.includes("Comandas") && "Imprima comandas com os itens pedidos, envie diretamente para a cozinha e acompanhe preparação."}
+                      {label.includes("pagamento") && "Aceite Dinheiro, Cartão Crédito/Débito, Pix, Fiado, Saldo em Casa e integração com iFood."}
+                      {label.includes("Configurações") && "Personalize cores, logos, nomes de campos, permissões de usuários e integrações do seu sistema."}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
       </section>
+
 
       {/* ── Garantias ────────────────────────────────────────────────────────── */}
       <section className="pricing-section" style={{ padding: "80px 1rem" }}>
