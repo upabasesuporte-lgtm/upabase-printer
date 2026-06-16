@@ -825,7 +825,10 @@ export default function PricingPage() {
                     fontSize: "72px",
                     fontWeight: 800,
                     lineHeight: 1,
-                    color: "#111827",
+                    background: "linear-gradient(90deg, #2563EB 0%, #4F46E5 50%, #7C3AED 100%)",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    backgroundClip: "text",
                   }}
                 >
                   R$ {isAnnual ? "49,90" : "59,90"}
@@ -837,20 +840,33 @@ export default function PricingPage() {
                     marginTop: "12px",
                   }}
                 >
-                  por mês {isAnnual && <span style={{ fontSize: "14px" }}>(cobrado anualmente)</span>}
+                  {isAnnual ? "por mês (cobrado anualmente)" : "por mês"}
                 </div>
                 {isAnnual && (
                   <div
                     style={{
-                      color: "#10B981",
+                      fontSize: "16px",
                       fontWeight: 600,
-                      fontSize: "15px",
-                      marginTop: "16px",
+                      color: "#111827",
+                      marginTop: "12px",
+                      padding: "12px",
+                      background: "#F3F4F6",
+                      borderRadius: "10px",
                     }}
                   >
-                    Economize 18% no plano anual
+                    Total: R$ 598,80/ano
                   </div>
                 )}
+                <div
+                  style={{
+                    color: "#10B981",
+                    fontWeight: 600,
+                    fontSize: "15px",
+                    marginTop: "16px",
+                  }}
+                >
+                  Economize 18% no plano anual
+                </div>
               </div>
 
               {/* Divisor */}
