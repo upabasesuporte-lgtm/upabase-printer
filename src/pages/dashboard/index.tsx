@@ -314,36 +314,28 @@ export default function DashboardPage() {
       .slice(0, 5);
     setTopSellers(sellers);
 
-    // Top customers ranking - include all sales with customer_id (paid, fiado, etc)
+    // Top customers ranking - from customer_movements (captures fiado and all transactions)
+    const { data: customerMovements } = await supabase
+      .from("customer_movements")
+      .select("customer_id,amount,created_at")
+      .eq("user_id", userId)
+      .gte("created_at", fromISO)
+      .lte("created_at", toISO);
+
     const customerAgg: Record<string, { total: number; count: number }> = {};
 
-    // Get all sales including pending/fiado that have customer_id
-    const allCustomerSales = currentSales.filter(s => s.customer_id);
-
-    // If no customer sales in current period, try broader search
-    if (allCustomerSales.length === 0) {
-      // Fallback: aggregate from all sales data available (including previous periods)
-      if (recentSales) {
-        recentSales.forEach(sale => {
-          if (sale.customer_id) {
-            const custKey = sale.customer_id;
-            if (!customerAgg[custKey]) customerAgg[custKey] = { total: 0, count: 0 };
-            customerAgg[custKey].total += sale.total_amount;
-            customerAgg[custKey].count += 1;
-          }
-        });
-      }
-    } else {
-      allCustomerSales.forEach(sale => {
-        const custKey = sale.customer_id!;
+    if (customerMovements && customerMovements.length > 0) {
+      customerMovements.forEach((mov: any) => {
+        const custKey = mov.customer_id;
         if (!customerAgg[custKey]) customerAgg[custKey] = { total: 0, count: 0 };
-        customerAgg[custKey].total += sale.total_amount;
+        customerAgg[custKey].total += mov.amount || 0;
         customerAgg[custKey].count += 1;
       });
     }
 
     const customers = Object.entries(customerAgg)
-      .map(([id, data]) => ({ name: id, total: data.total, count: data.count }))
+      .map(([id, data]) => ({ name: id, total: Math.abs(data.total), count: data.count }))
+      .filter(c => c.total > 0)
       .sort((a, b) => b.total - a.total)
       .slice(0, 5);
     setTopCustomers(customers);
