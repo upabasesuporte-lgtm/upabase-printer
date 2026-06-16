@@ -199,8 +199,8 @@ export default function AuthPage() {
                       : "text-gray-500 hover:text-gray-700"
                   }`}
                   style={currentScreen === i
-                    ? { background: "#2563EB", boxShadow: "0 4px 14px rgba(37,99,235,0.35)" }
-                    : { background: "#F3F4F6" }}
+                    ? { background: "#2563EB", boxShadow: "0 4px 14px rgba(37,99,235,0.35)", color: "#ffffff" }
+                    : { background: "#F3F4F6", color: "#6B7280" }}
                 >
                   {s.label}
                 </button>
@@ -462,9 +462,9 @@ export default function AuthPage() {
               <Link
                 to="/planos"
                 className="block w-full text-center py-2.5 rounded-lg text-sm font-medium transition-colors"
-                style={{ background: "#2563EB", color: "#ffffff", border: "1px solid #2563EB" }}
-                onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = "#1D4ED8"; (e.currentTarget as HTMLAnchorElement).style.borderColor = "#1D4ED8"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = "#2563EB"; (e.currentTarget as HTMLAnchorElement).style.borderColor = "#2563EB"; }}
+                style={{ border: "1px solid #e5e7eb", color: "#6B7280", background: "transparent" }}
+                onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.borderColor = "#2563EB"; (e.currentTarget as HTMLAnchorElement).style.color = "#2563EB"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.borderColor = "#e5e7eb"; (e.currentTarget as HTMLAnchorElement).style.color = "#6B7280"; }}
               >
                 Ver planos
               </Link>
