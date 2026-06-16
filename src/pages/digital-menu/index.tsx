@@ -113,7 +113,14 @@ function isStoreOpenNow(s: StoreSettings): boolean {
   const [oh, om] = day.open.split(":").map(Number);
   const [ch, cm] = day.close.split(":").map(Number);
   const cur = now.getHours() * 60 + now.getMinutes();
-  return cur >= oh * 60 + om && cur < ch * 60 + cm;
+  const openMin = oh * 60 + om;
+  const closeMin = ch * 60 + cm;
+
+  // Se fecha depois da meia-noite (closeMin < openMin), valida para dias diferentes
+  if (closeMin < openMin) {
+    return cur >= openMin || cur < closeMin;
+  }
+  return cur >= openMin && cur < closeMin;
 }
 
 function startAlertLoop(ref: React.MutableRefObject<ReturnType<typeof setInterval> | null>) {
