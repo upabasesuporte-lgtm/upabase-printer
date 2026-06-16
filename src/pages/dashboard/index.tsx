@@ -314,16 +314,34 @@ export default function DashboardPage() {
       .slice(0, 5);
     setTopSellers(sellers);
 
-    // Top customers ranking
+    // Top customers ranking - include all sales with customer_id (paid, fiado, etc)
     const customerAgg: Record<string, { total: number; count: number }> = {};
-    currentSales.forEach(sale => {
-      if (sale.customer_id) {
-        const custKey = sale.customer_id;
+
+    // Get all sales including pending/fiado that have customer_id
+    const allCustomerSales = currentSales.filter(s => s.customer_id);
+
+    // If no customer sales in current period, try broader search
+    if (allCustomerSales.length === 0) {
+      // Fallback: aggregate from all sales data available (including previous periods)
+      if (recentSales) {
+        recentSales.forEach(sale => {
+          if (sale.customer_id) {
+            const custKey = sale.customer_id;
+            if (!customerAgg[custKey]) customerAgg[custKey] = { total: 0, count: 0 };
+            customerAgg[custKey].total += sale.total_amount;
+            customerAgg[custKey].count += 1;
+          }
+        });
+      }
+    } else {
+      allCustomerSales.forEach(sale => {
+        const custKey = sale.customer_id!;
         if (!customerAgg[custKey]) customerAgg[custKey] = { total: 0, count: 0 };
         customerAgg[custKey].total += sale.total_amount;
         customerAgg[custKey].count += 1;
-      }
-    });
+      });
+    }
+
     const customers = Object.entries(customerAgg)
       .map(([id, data]) => ({ name: id, total: data.total, count: data.count }))
       .sort((a, b) => b.total - a.total)
@@ -1033,7 +1051,6 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
-      </div>
 
     </div>
   );
