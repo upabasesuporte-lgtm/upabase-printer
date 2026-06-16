@@ -185,6 +185,7 @@ export default function DashboardPage() {
   const [paymentMethods, setPaymentMethods] = useState<{ method: string; amount: number }[]>([]);
   const [topSellers, setTopSellers] = useState<{ name: string; total: number; count: number }[]>([]);
   const [topCustomers, setTopCustomers] = useState<{ name: string; id: string; total: number; count: number }[]>([]);
+  const [customerPage, setCustomerPage] = useState(0);
 
   // ── Auth
   useEffect(() => {
@@ -338,8 +339,9 @@ export default function DashboardPage() {
       .map(([id, data]) => ({ name: data.name, id, total: Math.abs(data.total), count: data.count }))
       .filter(c => c.total > 0)
       .sort((a, b) => b.total - a.total)
-      .slice(0, 5);
+      .slice(0, 50);
     setTopCustomers(customers);
+    setCustomerPage(0);
 
     setLoading(false);
   }, [userId, period, customFrom, customTo]);
@@ -1003,7 +1005,12 @@ export default function DashboardPage() {
         <div className="rounded-2xl p-5" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-sm font-bold" style={{ color: isLight ? "#111" : "#fff" }}>👥 Clientes Mais Frequentes</h2>
-            <Users className="w-4 h-4" style={{ color: "#d946ef" }} />
+            <div className="flex items-center gap-2">
+              <span className="text-xs" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>
+                {topCustomers.length > 0 ? `${customerPage + 1} de ${Math.ceil(topCustomers.length / 5)}` : ""}
+              </span>
+              <Users className="w-4 h-4" style={{ color: "#d946ef" }} />
+            </div>
           </div>
           {topCustomers.length === 0 ? (
             <div className="text-center py-8">
@@ -1011,44 +1018,70 @@ export default function DashboardPage() {
               <p className="text-xs" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>Nenhum cliente com registro de compra ainda</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {topCustomers.map((customer, idx) => {
-                const maxTotal = topCustomers[0]?.total || 1;
-                const percentage = (customer.total / maxTotal) * 100;
-                const colors = ["#d946ef", "#06b6d4", "#f59e0b", "#10b981", "#8b5cf6"];
-                const color = colors[idx % colors.length];
-                const gradientColor = idx === 0 ? "linear-gradient(90deg,#d946ef,#e879f9)" :
-                                      idx === 1 ? "linear-gradient(90deg,#06b6d4,#67e8f9)" :
-                                      idx === 2 ? "linear-gradient(90deg,#f59e0b,#fbbf24)" :
-                                      idx === 3 ? "linear-gradient(90deg,#10b981,#34d399)" :
-                                      "linear-gradient(90deg,#8b5cf6,#a78bfa)";
-                return (
-                  <div key={customer.id}>
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-base font-black" style={{ color: idx === 0 ? "#f59e0b" : idx === 1 ? "#c0c0c0" : "#cd7f32", minWidth: "20px" }}>
-                          {idx === 0 ? "🥇" : idx === 1 ? "🥈" : "🥉"}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold truncate" style={{ color: isLight ? "#111" : "#fff" }}>
-                            {customer.name}
-                          </p>
-                          <p className="text-[10px]" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>
-                            {customer.count} compra{customer.count !== 1 ? "s" : ""}
-                          </p>
+            <>
+              <div className="space-y-3 mb-4">
+                {topCustomers.slice(customerPage * 5, (customerPage + 1) * 5).map((customer, idx) => {
+                  const actualIdx = customerPage * 5 + idx;
+                  const maxTotal = topCustomers[0]?.total || 1;
+                  const percentage = (customer.total / maxTotal) * 100;
+                  const colors = ["#d946ef", "#06b6d4", "#f59e0b", "#10b981", "#8b5cf6"];
+                  const color = colors[actualIdx % colors.length];
+                  const gradientColor = actualIdx === 0 ? "linear-gradient(90deg,#d946ef,#e879f9)" :
+                                        actualIdx === 1 ? "linear-gradient(90deg,#06b6d4,#67e8f9)" :
+                                        actualIdx === 2 ? "linear-gradient(90deg,#f59e0b,#fbbf24)" :
+                                        actualIdx === 3 ? "linear-gradient(90deg,#10b981,#34d399)" :
+                                        "linear-gradient(90deg,#8b5cf6,#a78bfa)";
+                  return (
+                    <div key={customer.id}>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-base font-black" style={{ color: actualIdx === 0 ? "#f59e0b" : actualIdx === 1 ? "#c0c0c0" : "#cd7f32", minWidth: "20px" }}>
+                            {actualIdx === 0 ? "🥇" : actualIdx === 1 ? "🥈" : actualIdx === 2 ? "🥉" : actualIdx + 1}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold truncate" style={{ color: isLight ? "#111" : "#fff" }}>
+                              {customer.name}
+                            </p>
+                            <p className="text-[10px]" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>
+                              {customer.count} compra{customer.count !== 1 ? "s" : ""}
+                            </p>
+                          </div>
                         </div>
+                        <p className="text-sm font-black flex-shrink-0" style={{ color }}>
+                          {fmt(customer.total)}
+                        </p>
                       </div>
-                      <p className="text-sm font-black flex-shrink-0" style={{ color }}>
-                        {fmt(customer.total)}
-                      </p>
+                      <div className="h-2 rounded-full overflow-hidden" style={{ background: isLight ? "#f3f4f6" : "#27272a" }}>
+                        <div className="h-full rounded-full transition-all" style={{ width: `${percentage}%`, background: gradientColor }} />
+                      </div>
                     </div>
-                    <div className="h-2 rounded-full overflow-hidden" style={{ background: isLight ? "#f3f4f6" : "#27272a" }}>
-                      <div className="h-full rounded-full transition-all" style={{ width: `${percentage}%`, background: gradientColor }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+
+              {topCustomers.length > 5 && (
+                <div className="flex items-center justify-between gap-2">
+                  <button
+                    onClick={() => setCustomerPage(Math.max(0, customerPage - 1))}
+                    disabled={customerPage === 0}
+                    className="flex-1 px-3 py-2 rounded-lg text-xs font-semibold transition-all"
+                    style={customerPage === 0
+                      ? { background: isLight ? "#f3f4f6" : "#27272a", color: isLight ? "#9CA3AF" : "#52525b", opacity: 0.5 }
+                      : { background: isLight ? "#f3f4f6" : "#27272a", color: isLight ? "#374151" : "#d4d4d8" }}>
+                    ← Anterior
+                  </button>
+                  <button
+                    onClick={() => setCustomerPage(Math.min(Math.ceil(topCustomers.length / 5) - 1, customerPage + 1))}
+                    disabled={customerPage >= Math.ceil(topCustomers.length / 5) - 1}
+                    className="flex-1 px-3 py-2 rounded-lg text-xs font-semibold transition-all"
+                    style={customerPage >= Math.ceil(topCustomers.length / 5) - 1
+                      ? { background: isLight ? "#f3f4f6" : "#27272a", color: isLight ? "#9CA3AF" : "#52525b", opacity: 0.5 }
+                      : { background: isLight ? "#f3f4f6" : "#27272a", color: isLight ? "#374151" : "#d4d4d8" }}>
+                    Próximo →
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
 
