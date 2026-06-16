@@ -132,11 +132,19 @@ export default function PricingPage() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [caixaPdvImageIndex, setCaixaPdvImageIndex] = useState(0);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       setUserEmail(data.user?.email ?? null);
     });
+
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   return (
@@ -527,11 +535,11 @@ export default function PricingPage() {
             <div
               key={i}
               style={{
-                display: "grid",
-                gridTemplateColumns: i % 2 === 0 ? "1fr 1fr" : "1fr 1fr",
-                gap: "60px",
-                alignItems: "center",
-                marginBottom: "120px",
+                display: "flex",
+                flexDirection: isMobile ? "column" : i % 2 === 0 ? "row" : "row-reverse",
+                gap: isMobile ? "24px" : "60px",
+                alignItems: isMobile ? "stretch" : "center",
+                marginBottom: isMobile ? "80px" : "120px",
               }}
             >
               {i % 2 === 0 ? (
@@ -591,7 +599,7 @@ export default function PricingPage() {
                       alt={feature.title}
                       style={{
                         width: "100%",
-                        height: "400px",
+                        height: isMobile ? "250px" : "400px",
                         objectFit: "cover",
                         display: "block",
                       }}
@@ -642,7 +650,7 @@ export default function PricingPage() {
                       alt={feature.title}
                       style={{
                         width: "100%",
-                        height: "400px",
+                        height: isMobile ? "250px" : "400px",
                         objectFit: "cover",
                         display: "block",
                       }}
