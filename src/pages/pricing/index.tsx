@@ -133,6 +133,7 @@ export default function PricingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [caixaPdvImageIndex, setCaixaPdvImageIndex] = useState(0);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [isAnnual, setIsAnnual] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -426,6 +427,78 @@ export default function PricingPage() {
           background: "#fff",
         }}
       >
+        <div style={{ maxWidth: "900px", margin: "0 auto" }}>
+          <h2
+            style={{
+              fontSize: "clamp(28px, 5vw, 40px)",
+              fontWeight: 800,
+              color: "#0f172a",
+              textAlign: "center",
+              marginBottom: "48px",
+              letterSpacing: "-0.02em",
+            }}
+          >
+            Ainda controla tudo no papel ou em várias planilhas?
+          </h2>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+              gap: "16px",
+              marginBottom: "60px",
+            }}
+          >
+            {PROBLEMS.map((problem, i) => (
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                  padding: "16px",
+                  background: "#fef2f2",
+                  borderRadius: "8px",
+                  fontSize: "15px",
+                  color: "#991b1b",
+                  fontWeight: 600,
+                }}
+              >
+                <span style={{ fontSize: "20px" }}>❌</span>
+                {problem}
+              </div>
+            ))}
+          </div>
+
+          <div style={{ textAlign: "center" }}>
+            <h3
+              style={{
+                fontSize: "28px",
+                fontWeight: 800,
+                color: "#0f172a",
+                marginBottom: "16px",
+                letterSpacing: "-0.02em",
+              }}
+            >
+              Resolva tudo em um único sistema
+            </h3>
+            <p
+              style={{
+                fontSize: "16px",
+                color: "#6B7280",
+                maxWidth: "600px",
+                margin: "0 auto",
+                lineHeight: 1.6,
+              }}
+            >
+              Centralize sua operação e tenha controle total do seu negócio em qualquer dispositivo.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── PROBLEMAS ────────────────────────────────────────────────────────────── */}
+      <section style={{ padding: "80px 1rem", background: "#fff" }}>
         <div style={{ maxWidth: "900px", margin: "0 auto" }}>
           <h2
             style={{
@@ -805,6 +878,47 @@ export default function PricingPage() {
               textAlign: "center",
             }}
           >
+            {/* Toggle Mensal/Anual */}
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: "32px" }}>
+              <div
+                style={{
+                  display: "inline-flex",
+                  background: "#f3f4f6",
+                  borderRadius: "12px",
+                  padding: "4px",
+                  gap: "2px",
+                }}
+              >
+                {[
+                  { label: "Mensal", isAnnual: false },
+                  { label: "Anual", isAnnual: true },
+                ].map(({ label, isAnnual: annual }) => (
+                  <button
+                    key={label}
+                    onClick={() => setIsAnnual(annual)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "8px 16px",
+                      borderRadius: "10px",
+                      border: "none",
+                      cursor: "pointer",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      background: isAnnual === annual ? "#fff" : "transparent",
+                      color: isAnnual === annual ? PRIMARY : "#6B7280",
+                      boxShadow: isAnnual === annual ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                      transition: "all 0.2s",
+                    }}
+                  >
+                    {label}
+                    {annual && <span style={{ color: PRIMARY, fontWeight: 700 }}>−18%</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Preço */}
             <div style={{ marginBottom: "32px" }}>
               <div
@@ -816,11 +930,23 @@ export default function PricingPage() {
                   marginBottom: "4px",
                 }}
               >
-                R$ 59,90
+                R$ {isAnnual ? "49,90" : "59,90"}
               </div>
               <p style={{ fontSize: "16px", color: "#6B7280", margin: 0 }}>
-                por mês
+                por mês {isAnnual && <span style={{ fontSize: "13px" }}>(cobrado anualmente)</span>}
               </p>
+              {isAnnual && (
+                <p
+                  style={{
+                    fontSize: "12px",
+                    color: PRIMARY,
+                    marginTop: "8px",
+                    fontWeight: 600,
+                }}
+                >
+                  🎉 Economize R$ 120/ano
+                </p>
+              )}
             </div>
 
             {/* Features */}
