@@ -46,14 +46,6 @@ const BENEFITS: BenefitCard[] = [
   },
 ];
 
-const PROBLEMS = [
-  "Caixa desorganizado",
-  "Estoque sem controle",
-  "Pedidos perdidos",
-  "Falta de relatórios",
-  "Dificuldade para acompanhar resultados",
-];
-
 const FEATURES = [
   {
     title: "Caixa e PDV",
@@ -416,83 +408,6 @@ export default function PricingPage() {
                 </p>
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── PROBLEMAS ────────────────────────────────────────────────────────────── */}
-      <section
-        style={{
-          padding: "80px 1rem",
-          background: "#fff",
-        }}
-      >
-        <div style={{ maxWidth: "900px", margin: "0 auto" }}>
-          <h2
-            style={{
-              fontSize: "clamp(28px, 5vw, 40px)",
-              fontWeight: 800,
-              color: "#0f172a",
-              textAlign: "center",
-              marginBottom: "48px",
-              letterSpacing: "-0.02em",
-            }}
-          >
-            Ainda controla tudo no papel ou em várias planilhas?
-          </h2>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-              gap: "16px",
-              marginBottom: "60px",
-            }}
-          >
-            {PROBLEMS.map((problem, i) => (
-              <div
-                key={i}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "12px",
-                  padding: "16px",
-                  background: "#fef2f2",
-                  borderRadius: "8px",
-                  fontSize: "15px",
-                  color: "#991b1b",
-                  fontWeight: 600,
-                }}
-              >
-                <span style={{ fontSize: "20px" }}>❌</span>
-                {problem}
-              </div>
-            ))}
-          </div>
-
-          <div style={{ textAlign: "center" }}>
-            <h3
-              style={{
-                fontSize: "28px",
-                fontWeight: 800,
-                color: "#0f172a",
-                marginBottom: "16px",
-                letterSpacing: "-0.02em",
-              }}
-            >
-              Resolva tudo em um único sistema
-            </h3>
-            <p
-              style={{
-                fontSize: "16px",
-                color: "#6B7280",
-                maxWidth: "600px",
-                margin: "0 auto",
-                lineHeight: 1.6,
-              }}
-            >
-              Centralize sua operação e tenha controle total do seu negócio em qualquer dispositivo.
-            </p>
           </div>
         </div>
       </section>
