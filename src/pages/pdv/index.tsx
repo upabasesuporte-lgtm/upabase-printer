@@ -1048,12 +1048,12 @@ export default function PdvPage() {
           <button key={t} onClick={() => setTab(t)}
             className="relative flex items-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-t-xl transition-all overflow-hidden"
             style={tab===t
-              ? { color: isLight ? "#7B2FBE" : "#c4b5fd", background: isLight ? "rgba(123,47,190,0.07)" : "rgba(123,47,190,0.10)" }
-              : { color:"#52525b" }}>
-            {/* Linha gradiente no fundo — só aparece na aba ativa */}
+              ? { color: isLight ? "#2563eb" : "#c4b5fd", background: "transparent" }
+              : { color:"#9ca3af" }}>
+            {/* Linha azul sólida no fundo — só aparece na aba ativa */}
             {tab === t && (
               <span className="absolute bottom-0 left-0 right-0 pointer-events-none"
-                style={{ height: 2, background: "linear-gradient(90deg,#7B2FBE,#00B4D8)" }} />
+                style={{ height: 2, background: isLight ? "#2563eb" : "linear-gradient(90deg,#7B2FBE,#00B4D8)" }} />
             )}
             {t === "venda" ? <><ShoppingCart className="w-4 h-4" />Nova Venda</> : <><History className="w-4 h-4" />Histórico</>}
           </button>
