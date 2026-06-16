@@ -715,10 +715,22 @@ export default function PricingPage() {
           <div
             style={{
               background: "#fff",
-              border: `2px solid ${PRIMARY}`,
-              borderRadius: "16px",
+              border: "none",
+              borderRadius: "24px",
               padding: "48px 40px",
               textAlign: "center",
+              maxWidth: "520px",
+              margin: "0 auto",
+              boxShadow: "0 20px 60px rgba(0,0,0,0.08)",
+              transition: "all 0.3s ease",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLDivElement).style.transform = "translateY(-6px)";
+              (e.currentTarget as HTMLDivElement).style.boxShadow = "0 30px 80px rgba(0,0,0,0.12)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
+              (e.currentTarget as HTMLDivElement).style.boxShadow = "0 20px 60px rgba(0,0,0,0.08)";
             }}
           >
             {/* Toggle Mensal/Anual */}
@@ -727,9 +739,9 @@ export default function PricingPage() {
                 style={{
                   display: "inline-flex",
                   background: "#f3f4f6",
-                  borderRadius: "12px",
-                  padding: "4px",
-                  gap: "2px",
+                  borderRadius: "16px",
+                  padding: "6px",
+                  gap: "0",
                 }}
               >
                 {[
@@ -743,16 +755,16 @@ export default function PricingPage() {
                       display: "flex",
                       alignItems: "center",
                       gap: "6px",
-                      padding: "8px 16px",
-                      borderRadius: "10px",
+                      padding: "10px 18px",
+                      borderRadius: "12px",
                       border: "none",
                       cursor: "pointer",
-                      fontSize: "13px",
+                      fontSize: "14px",
                       fontWeight: 600,
                       background: isAnnual === annual ? "#fff" : "transparent",
                       color: isAnnual === annual ? PRIMARY : "#6B7280",
-                      boxShadow: isAnnual === annual ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
-                      transition: "all 0.2s",
+                      boxShadow: isAnnual === annual ? "0 2px 6px rgba(0,0,0,0.08)" : "none",
+                      transition: "all 0.3s ease",
                     }}
                   >
                     {label}
@@ -762,13 +774,31 @@ export default function PricingPage() {
               </div>
             </div>
 
+            {/* Badge */}
+            <div
+              style={{
+                display: "inline-block",
+                background: "linear-gradient(135deg,#2563EB,#7C3AED)",
+                color: "#fff",
+                padding: "6px 16px",
+                borderRadius: "9999px",
+                fontSize: "12px",
+                fontWeight: 700,
+                marginBottom: "24px",
+              }}
+            >
+              🔥 PLANO MAIS ESCOLHIDO
+            </div>
+
             {/* Preço */}
             <div style={{ marginBottom: "32px" }}>
               <div
                 style={{
-                  fontSize: "48px",
-                  fontWeight: 900,
-                  color: PRIMARY,
+                  fontSize: "64px",
+                  fontWeight: 800,
+                  background: "linear-gradient(135deg, #2563EB, #7C3AED)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
                   lineHeight: 1,
                   marginBottom: "4px",
                 }}
@@ -796,11 +826,11 @@ export default function PricingPage() {
             <div
               style={{
                 textAlign: "left",
-                marginBottom: "40px",
+                marginBottom: "32px",
                 paddingTop: "32px",
                 paddingBottom: "32px",
-                borderTop: "1px solid #e5e7eb",
-                borderBottom: "1px solid #e5e7eb",
+                borderTop: "1px solid rgba(229, 231, 235, 0.5)",
+                borderBottom: "1px solid rgba(229, 231, 235, 0.5)",
               }}
             >
               {[
@@ -823,14 +853,52 @@ export default function PricingPage() {
                     display: "flex",
                     alignItems: "center",
                     gap: "12px",
-                    paddingTop: "12px",
-                    paddingBottom: "12px",
+                    paddingTop: "14px",
+                    paddingBottom: "14px",
                     fontSize: "15px",
                     color: "#374151",
                   }}
                 >
-                  <Check size={18} color={PRIMARY} strokeWidth={3} />
+                  <div
+                    style={{
+                      width: "32px",
+                      height: "32px",
+                      borderRadius: "50%",
+                      background: "rgba(16, 185, 129, 0.1)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Check size={18} color="#10b981" strokeWidth={3} />
+                  </div>
                   {feature}
+                </div>
+              ))}
+            </div>
+
+            {/* Additional Benefits */}
+            <div
+              style={{
+                marginBottom: "32px",
+              }}
+            >
+              {[
+                "✓ Atualizações gratuitas",
+                "✓ Suporte WhatsApp",
+                "✓ Backup automático",
+              ].map((benefit, i) => (
+                <div
+                  key={i}
+                  style={{
+                    fontSize: "14px",
+                    color: "#6B7280",
+                    paddingTop: "10px",
+                    paddingBottom: "10px",
+                  }}
+                >
+                  {benefit}
                 </div>
               ))}
             </div>
@@ -839,43 +907,56 @@ export default function PricingPage() {
             <Link
               to="/auth?register=1"
               style={{
-                display: "inline-flex",
+                display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 gap: "8px",
                 width: "100%",
-                padding: "16px 0",
-                background: PRIMARY,
+                height: "56px",
+                background: "linear-gradient(135deg,#2563EB,#7C3AED)",
                 color: "#fff",
-                borderRadius: "8px",
+                borderRadius: "16px",
                 fontWeight: 700,
-                fontSize: "15px",
+                fontSize: "16px",
                 textDecoration: "none",
-                boxShadow: `0 4px 16px ${PRIMARY}40`,
-                transition: "all 0.2s",
-                marginBottom: "16px",
+                boxShadow: "0 10px 30px rgba(37, 99, 235, 0.25)",
+                transition: "all 0.3s ease",
+                marginBottom: "20px",
+                border: "none",
+                cursor: "pointer",
               }}
               onMouseEnter={(e) => {
                 (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-2px)";
-                (e.currentTarget as HTMLAnchorElement).style.boxShadow = `0 8px 24px ${PRIMARY}50`;
+                (e.currentTarget as HTMLAnchorElement).style.boxShadow = "0 15px 40px rgba(37, 99, 235, 0.35)";
               }}
               onMouseLeave={(e) => {
                 (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(0)";
-                (e.currentTarget as HTMLAnchorElement).style.boxShadow = `0 4px 16px ${PRIMARY}40`;
+                (e.currentTarget as HTMLAnchorElement).style.boxShadow = "0 10px 30px rgba(37, 99, 235, 0.25)";
               }}
             >
               Começar teste grátis
             </Link>
 
-            <p
-              style={{
-                fontSize: "13px",
-                color: "#6B7280",
-                margin: 0,
-              }}
-            >
-              15 dias grátis • Sem cartão de crédito
-            </p>
+            <div style={{ textAlign: "center" }}>
+              <p
+                style={{
+                  fontSize: "13px",
+                  color: "#6B7280",
+                  margin: "8px 0 0 0",
+                }}
+              >
+                Teste grátis por 7 dias
+              </p>
+              <p
+                style={{
+                  fontSize: "13px",
+                  color: "#9CA3AF",
+                  margin: "4px 0 0 0",
+                }}
+              >
+                Sem cartão de crédito
+              </p>
+            </div>
           </div>
         </div>
       </section>
