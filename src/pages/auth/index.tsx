@@ -461,10 +461,20 @@ export default function AuthPage() {
 
               <Link
                 to="/planos"
-                className="block w-full text-center py-2.5 rounded-lg text-sm font-medium transition-colors"
-                style={{ border: "1px solid #e5e7eb", color: "#6B7280", background: "transparent" }}
-                onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.borderColor = "#2563EB"; (e.currentTarget as HTMLAnchorElement).style.color = "#2563EB"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.borderColor = "#e5e7eb"; (e.currentTarget as HTMLAnchorElement).style.color = "#6B7280"; }}
+                className="block w-full text-center py-2.5 rounded-lg text-sm font-medium transition-all"
+                style={{
+                  border: "1px solid #e5e7eb",
+                  color: "#6B7280",
+                  backgroundColor: "transparent !important"
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLAnchorElement).style.borderColor = "#2563EB";
+                  (e.currentTarget as HTMLAnchorElement).style.color = "#2563EB";
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLAnchorElement).style.borderColor = "#e5e7eb";
+                  (e.currentTarget as HTMLAnchorElement).style.color = "#6B7280";
+                }}
               >
                 Ver planos
               </Link>
