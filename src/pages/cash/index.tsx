@@ -409,16 +409,20 @@ export default function CashPage() {
     <div className="flex gap-1 rounded-xl p-1 w-fit" style={{ background: card.bg, border: card.border }}>
       <button onClick={() => setSubTab("current")}
         className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all"
-        style={subTab === "current"
-          ? { background: "rgba(123,47,190,0.15)", color: "#7B2FBE", border: "1px solid rgba(123,47,190,0.3)" }
+        style={subTab === "current" && isLight
+          ? { background: "#2563eb", color: "#fff", border: "1px solid #2563eb" }
+          : subTab === "current"
+          ? { background: "rgba(139,92,246,0.2)", color: "#c4b5fd", border: "1px solid rgba(139,92,246,0.4)" }
           : { color: "#71717a", border: "1px solid transparent" }}>
         <BookOpen className="w-3.5 h-3.5" />
         Caixa Atual
       </button>
       <button onClick={() => setSubTab("history")}
         className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all"
-        style={subTab === "history"
-          ? { background: "rgba(139,92,246,0.15)", color: "#c4b5fd", border: "1px solid rgba(139,92,246,0.3)" }
+        style={subTab === "history" && isLight
+          ? { background: "#2563eb", color: "#fff", border: "1px solid #2563eb" }
+          : subTab === "history"
+          ? { background: "rgba(139,92,246,0.2)", color: "#c4b5fd", border: "1px solid rgba(139,92,246,0.4)" }
           : { color: "#71717a", border: "1px solid transparent" }}>
         <History className="w-3.5 h-3.5" />
         Histórico de Caixas
@@ -493,7 +497,7 @@ export default function CashPage() {
               <span className="text-[11px] font-semibold uppercase tracking-widest" style={{color:"#10b981"}}>Caixa Aberto</span>
             </div>
             <h1 className="text-2xl font-black"
-              style={{background: "linear-gradient(135deg,#7B2FBE,#00B4D8)", WebkitBackgroundClip:"text", display:"inline-block",WebkitTextFillColor:"transparent", backgroundClip:"text"}}>
+              style={isLight ? {color: "#2563eb"} : {background: "linear-gradient(135deg,#7B2FBE,#00B4D8)", WebkitBackgroundClip:"text", display:"inline-block",WebkitTextFillColor:"transparent", backgroundClip:"text"}}>
               Controle de Caixa
             </h1>
             <p className="text-xs text-zinc-500 mt-0.5">
@@ -507,7 +511,8 @@ export default function CashPage() {
               <RefreshCw className="w-4 h-4" />
             </button>
             <button onClick={() => { setShowClose(true); setClosingOperator(""); setCountedAmount(""); }}
-              className="flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl transition-all border border-red-500/30 text-red-400 hover:bg-red-500/10">
+              className="flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl transition-all"
+              style={isLight ? {background: "#dc2626", color: "#fff", border: "1px solid #dc2626"} : {border: "1px solid rgba(239,68,68,0.3)", color: "#f87171"}}>
               <Lock className="w-4 h-4" />
               Fechar Caixa
             </button>
