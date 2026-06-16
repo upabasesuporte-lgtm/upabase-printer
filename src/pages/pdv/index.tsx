@@ -1060,7 +1060,7 @@ export default function PdvPage() {
         ))}
         <button onClick={() => { loadPending(); setShowPending(true); }}
           className="ml-auto flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-xl mb-1 transition-all"
-          style={{ color:"#10b981", background:"rgba(16,185,129,0.12)", border:"1px solid rgba(16,185,129,0.3)", boxShadow:"0 0 12px rgba(16,185,129,0.15)" }}>
+          style={isLight ? { color:"#fff", background:"#2563eb", border:"1px solid #2563eb", boxShadow:"0 0 12px rgba(37,99,235,0.3)" } : { color:"#10b981", background:"rgba(16,185,129,0.12)", border:"1px solid rgba(16,185,129,0.3)", boxShadow:"0 0 12px rgba(16,185,129,0.15)" }}>
           <Clock className="w-4 h-4" />
           <span>Venda em Pausa</span>
           {pendingSales.length > 0 && (
