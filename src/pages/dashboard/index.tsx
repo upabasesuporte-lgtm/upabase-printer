@@ -782,6 +782,7 @@ export default function DashboardPage() {
                     <div className="text-[10px] mt-2 space-y-1" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>
                       <p className="flex items-center gap-2 flex-wrap">
                         <span>{paymentMethod}</span>
+                      </p>
                       {sale.discount && sale.discount > 0 && (
                         <p className="flex items-center gap-2">
                           <span style={{ color: "#f59e0b" }}>🏷️ Desconto: {fmt(sale.discount)}</span>
