@@ -31,6 +31,7 @@ import {
   MessageSquare,
   Sun,
   Moon,
+  HelpCircle,
 } from "lucide-react";
 import { AvaliacaoModal } from "../components/AvaliacaoModal";
 
@@ -556,34 +557,44 @@ export function AppLayout() {
           )}
         </nav>
 
-        {/* Rodapé minimalista — tema + sair */}
-        <div className="px-3 py-2 flex items-center gap-2" style={{ borderTop: `1px solid ${T.border}` }}>
-          <button
-            onClick={toggleTheme}
-            title={isLight ? "Tema escuro" : "Tema claro"}
-            className="flex items-center justify-center w-8 h-8 rounded-lg transition-all flex-shrink-0"
-            style={isLight
-              ? { color: "#7B2FBE", background: "rgba(123,47,190,0.08)", border: "1px solid rgba(123,47,190,0.18)" }
-              : { color: "#a78bfa", background: "rgba(167,139,250,0.08)", border: "1px solid rgba(167,139,250,0.18)" }}
-          >
-            {isLight ? <Moon size={14} /> : <Sun size={14} />}
-          </button>
-
-          {userEmail !== ADMIN_EMAIL && (
+        {/* Rodapé minimalista — tema + feedback + suporte + sair */}
+        <div className="px-3 py-3 space-y-2" style={{ borderTop: `1px solid ${T.border}` }}>
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => setShowReview(true)}
-              title="Avaliar sistema"
-              className="flex items-center justify-center w-8 h-8 rounded-lg transition-all text-amber-500 hover:text-amber-400 hover:bg-amber-500/10 flex-shrink-0"
-              style={{ border: "1px solid transparent" }}>
-              <MessageSquare size={14} />
+              onClick={toggleTheme}
+              title={isLight ? "Tema escuro" : "Tema claro"}
+              className="flex items-center justify-center w-8 h-8 rounded-lg transition-all flex-shrink-0"
+              style={isLight
+                ? { color: "#7B2FBE", background: "rgba(123,47,190,0.08)", border: "1px solid rgba(123,47,190,0.18)" }
+                : { color: "#a78bfa", background: "rgba(167,139,250,0.08)", border: "1px solid rgba(167,139,250,0.18)" }}
+            >
+              {isLight ? <Moon size={14} /> : <Sun size={14} />}
             </button>
-          )}
 
-          <button onClick={handleLogout}
-            title="Sair"
-            className="flex items-center justify-center w-8 h-8 rounded-lg transition-all text-zinc-500 hover:text-red-400 hover:bg-red-500/10 flex-shrink-0"
-            style={{ border: "1px solid transparent" }}>
-            <LogOut size={14} />
+            {userEmail !== ADMIN_EMAIL && (
+              <button
+                onClick={() => setShowReview(true)}
+                title="Avaliar sistema"
+                className="flex items-center justify-center w-8 h-8 rounded-lg transition-all text-amber-500 hover:text-amber-400 hover:bg-amber-500/10 flex-shrink-0"
+                style={{ border: "1px solid transparent" }}>
+                <MessageSquare size={14} />
+              </button>
+            )}
+
+            <button onClick={handleLogout}
+              title="Sair"
+              className="flex items-center justify-center w-8 h-8 rounded-lg transition-all text-zinc-500 hover:text-red-400 hover:bg-red-500/10 flex-shrink-0"
+              style={{ border: "1px solid transparent" }}>
+              <LogOut size={14} />
+            </button>
+          </div>
+
+          <button
+            onClick={() => window.open("https://wa.me/5518997066843?text=upabase%20atendente%20wesley", "_blank")}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg transition-all text-green-600 hover:text-green-500 font-medium text-sm"
+            style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", hover: { background: "rgba(34,197,94,0.12)" } }}>
+            <HelpCircle size={16} />
+            <span>Suporte</span>
           </button>
         </div>
       </aside>
