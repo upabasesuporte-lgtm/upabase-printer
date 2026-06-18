@@ -1114,7 +1114,7 @@ export default function PdvPage() {
             {/* Busca */}
             <div className="p-4 border-b border-zinc-800 flex-shrink-0">
               <div className="relative">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400 pointer-events-none" />
                 <input ref={searchRef} placeholder="Buscar produto por nome ou código de barras..." value={search}
                   onChange={e => setSearch(e.target.value)}
                   onKeyDown={e => {
@@ -1124,9 +1124,9 @@ export default function PdvPage() {
                       setSearch("");
                     }
                   }}
-                  className="w-full pl-10 pr-10 py-2.5 rounded-xl text-sm placeholder-zinc-500 focus:outline-none focus:border-violet-500 transition-colors"
+                  className="w-full pl-11 pr-10 py-2.5 rounded-xl text-sm placeholder-zinc-500 focus:outline-none focus:border-violet-500 transition-colors"
                   style={{ background: card.bg, border: card.border, color: isLight ? "#111" : "#fff" }} />
-                {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white"><X className="w-4 h-4" /></button>}
+                {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white"><X className="w-5 h-5" /></button>}
               </div>
             </div>
 
