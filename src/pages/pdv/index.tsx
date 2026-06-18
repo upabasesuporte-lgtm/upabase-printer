@@ -1114,7 +1114,7 @@ export default function PdvPage() {
             {/* Busca */}
             <div className="p-4 border-b border-zinc-800 flex-shrink-0">
               <div className="flex items-center gap-2">
-                <button className="flex-shrink-0 p-2 rounded-lg" style={{ background: "rgba(59,182,243,0.2)", color: "#3bb6f3" }}>
+                <button className="flex-shrink-0 p-2 rounded-lg" style={{ background: "rgba(59,182,243,0.2)", color: "#3bb6f3", minWidth: "44px", minHeight: "44px", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <Search className="w-6 h-6" />
                 </button>
                 <input ref={searchRef} placeholder="Buscar produto..." value={search}
