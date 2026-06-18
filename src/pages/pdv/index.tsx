@@ -369,6 +369,7 @@ export default function PdvPage() {
     // Sempre cria nova linha — permite lançar o mesmo produto múltiplas vezes
     const cartId = `${product.id}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     setCart(prev => [...prev, { cartId, product, quantity: 1, notes: "" }]);
+    setSearch(""); // Limpa o campo de busca após adicionar produto
   }
 
   function updateQty(cartId: string, delta: number) {
