@@ -1112,13 +1112,12 @@ export default function PdvPage() {
           <div className="flex flex-col flex-1 overflow-hidden border-r border-zinc-800">
 
             {/* Busca */}
-            <div style={{ padding: "16px", borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%" }}>
-                <Search style={{ width: "24px", height: "24px", color: "#10b981", flexShrink: 0, minWidth: "24px" }} />
-                <input
-                  ref={searchRef}
-                  placeholder="Buscar produto..."
-                  value={search}
+            <div className="p-4 border-b border-zinc-800 flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <button className="flex-shrink-0 p-2 rounded-lg" style={{ background: "rgba(59,182,243,0.2)", color: "#3bb6f3" }}>
+                  <Search className="w-6 h-6" />
+                </button>
+                <input ref={searchRef} placeholder="Buscar produto..." value={search}
                   onChange={e => setSearch(e.target.value)}
                   onKeyDown={e => {
                     if (e.key === "Enter" && filtered.length > 0) {
@@ -1127,18 +1126,9 @@ export default function PdvPage() {
                       setSearch("");
                     }
                   }}
-                  style={{
-                    flex: 1,
-                    padding: "10px 12px",
-                    borderRadius: "8px",
-                    fontSize: "14px",
-                    border: card.border,
-                    background: card.bg,
-                    color: isLight ? "#111" : "#fff",
-                    outline: "none"
-                  }}
-                />
-                {search && <button onClick={() => setSearch("")} style={{ flexShrink: 0, minWidth: "24px", cursor: "pointer", background: "none", border: "none", color: "#71717a" }}><X style={{ width: "20px", height: "20px" }} /></button>}
+                  className="flex-1 px-3 py-2.5 rounded-xl text-sm placeholder-zinc-500 focus:outline-none focus:border-violet-500 transition-colors"
+                  style={{ background: card.bg, border: card.border, color: isLight ? "#111" : "#fff" }} />
+                {search && <button onClick={() => setSearch("")} className="flex-shrink-0 p-2 text-zinc-500 hover:text-white" title="Limpar busca"><X className="w-5 h-5" /></button>}
               </div>
             </div>
 
