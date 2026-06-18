@@ -1113,8 +1113,10 @@ export default function PdvPage() {
 
             {/* Busca */}
             <div className="p-4 border-b border-zinc-800 flex-shrink-0">
-              <div className="relative flex items-center">
-                <Search className="absolute left-3.5 w-5 h-5 text-violet-400 pointer-events-none flex-shrink-0" />
+              <div className="flex items-center gap-2">
+                <button className="flex-shrink-0 p-2 rounded-lg" style={{ background: "rgba(59,182,243,0.2)", color: "#3bb6f3" }}>
+                  <Search className="w-6 h-6" />
+                </button>
                 <input ref={searchRef} placeholder="Buscar produto..." value={search}
                   onChange={e => setSearch(e.target.value)}
                   onKeyDown={e => {
@@ -1124,9 +1126,9 @@ export default function PdvPage() {
                       setSearch("");
                     }
                   }}
-                  className="w-full pl-12 pr-10 py-2.5 rounded-xl text-sm placeholder-zinc-500 focus:outline-none focus:border-violet-500 transition-colors"
+                  className="flex-1 px-3 py-2.5 rounded-xl text-sm placeholder-zinc-500 focus:outline-none focus:border-violet-500 transition-colors"
                   style={{ background: card.bg, border: card.border, color: isLight ? "#111" : "#fff" }} />
-                {search && <button onClick={() => setSearch("")} className="absolute right-3 text-zinc-500 hover:text-white flex-shrink-0" title="Limpar busca"><X className="w-5 h-5" /></button>}
+                {search && <button onClick={() => setSearch("")} className="flex-shrink-0 p-2 text-zinc-500 hover:text-white" title="Limpar busca"><X className="w-5 h-5" /></button>}
               </div>
             </div>
 
