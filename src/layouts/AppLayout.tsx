@@ -32,6 +32,8 @@ import {
   Sun,
   Moon,
   HelpCircle,
+  Menu,
+  X,
 } from "lucide-react";
 import { AvaliacaoModal } from "../components/AvaliacaoModal";
 
@@ -150,6 +152,7 @@ export function AppLayout() {
   const [companyName,     setCompanyName]     = useState<string | null>(null);
   const [avatarUrl,       setAvatarUrl]       = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [sidebarOpen,     setSidebarOpen]     = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
   // Badge + alarme de pedidos pendentes no Cardápio Digital
@@ -453,8 +456,13 @@ export function AppLayout() {
   return (
     <div className="h-screen flex overflow-hidden" style={{ background: T.pageBg, color: T.text }}>
 
+      {/* ── Overlay móvel ───────────────────────────────────────────────── */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+
       {/* ── Sidebar ───────────────────────────────────────────────────────── */}
-      <aside className="w-72 flex flex-col flex-shrink-0"
+      <aside className={`w-72 flex flex-col flex-shrink-0 fixed md:relative h-screen z-50 md:z-auto transition-all duration-300 md:duration-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
         style={{ background: T.sidebarBg, borderRight: `1px solid ${T.border}` }}>
 
         {/* Logo */}
@@ -475,6 +483,7 @@ export function AppLayout() {
                 key={item.path}
                 to={item.path}
                 end={item.path === "/"}
+                onClick={() => setSidebarOpen(false)}
                 className="block"
                 style={({ isActive }) => ({
                   display: "flex",
@@ -519,6 +528,7 @@ export function AppLayout() {
               <NavLink
                 to="/admin"
                 end
+                onClick={() => setSidebarOpen(false)}
                 className="block"
                 style={({ isActive }) => ({
                   display: "flex", alignItems: "center", gap: "10px",
@@ -544,6 +554,7 @@ export function AppLayout() {
               </NavLink>
               <NavLink
                 to="/admin/avaliacoes"
+                onClick={() => setSidebarOpen(false)}
                 className="block"
                 style={({ isActive }) => ({
                   display: "flex", alignItems: "center", gap: "10px",
@@ -617,15 +628,22 @@ export function AppLayout() {
       <main className="flex-1 flex flex-col overflow-hidden">
 
         {/* ── Top bar ─────────────────────────────────────────────────────── */}
-        <header className="h-16 px-6 flex items-center justify-between flex-shrink-0 gap-4"
+        <header className="h-16 px-4 md:px-6 flex items-center justify-between flex-shrink-0 gap-3 md:gap-4"
           style={{ background: T.headerBg, borderBottom: `1px solid ${T.border}` }}>
 
+          {/* Menu hambúrguer móvel */}
+          <button onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="md:hidden flex-shrink-0 p-2 hover:bg-zinc-800 rounded-lg transition-colors"
+            style={{ color: T.text }}>
+            {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+
           {/* Esquerda — online + relógio + data */}
-          <div className="flex items-center gap-4 flex-shrink-0">
+          <div className="flex items-center gap-2 md:gap-4 flex-shrink-0 md:flex-1">
             {/* Online */}
-            <div className="flex items-center gap-1.5">
+            <div className="hidden sm:flex items-center gap-1.5">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" style={{ boxShadow:"0 0 6px #10b981" }} />
-              <span className="text-[10px] text-zinc-600 uppercase tracking-widest font-medium hidden sm:block">Online</span>
+              <span className="text-[10px] text-zinc-600 uppercase tracking-widest font-medium">Online</span>
             </div>
 
             <div className="w-px h-5 bg-zinc-800" />
@@ -645,8 +663,8 @@ export function AppLayout() {
             <span className="text-xs text-zinc-500 capitalize hidden md:block">{dateStr}</span>
           </div>
 
-          {/* Centro — métricas operacionais */}
-          <div className="flex items-center gap-1 flex-1 justify-center">
+          {/* Centro — métricas operacionais (apenas desktop) */}
+          <div className="hidden lg:flex items-center gap-1 flex-1 justify-center">
 
             {/* Vendas do dia */}
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border"
@@ -697,9 +715,11 @@ export function AppLayout() {
           </div>
 
           {/* Direita — plan badge + empresa + avatar */}
-          <div className="flex-shrink-0 flex items-center gap-3">
+          <div className="flex-shrink-0 flex items-center gap-2 md:gap-3">
             {userEmail !== ADMIN_EMAIL && userPlan && (
-              <PlanBadge plan={userPlan} />
+              <div className="hidden sm:block">
+                <PlanBadge plan={userPlan} />
+              </div>
             )}
 
             {companyName && (
