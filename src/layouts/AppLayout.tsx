@@ -475,7 +475,7 @@ export function AppLayout() {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+        <nav className="flex-1 px-3 pt-3 pb-0 space-y-1 overflow-y-auto">
           {visibleMenuItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -489,9 +489,9 @@ export function AppLayout() {
                   display: "flex",
                   alignItems: "center",
                   gap: "10px",
-                  padding: "9px 14px",
+                  padding: "11px 14px",
                   borderRadius: "12px",
-                  fontSize: "13px",
+                  fontSize: "14px",
                   fontWeight: isActive ? 600 : 500,
                   transition: "all 0.15s",
                   color: isActive ? item.color : "#71717a",
@@ -532,7 +532,7 @@ export function AppLayout() {
                 className="block"
                 style={({ isActive }) => ({
                   display: "flex", alignItems: "center", gap: "10px",
-                  padding: "9px 14px", borderRadius: "12px", fontSize: "13px",
+                  padding: "11px 14px", borderRadius: "12px", fontSize: "14px",
                   fontWeight: isActive ? 600 : 500, transition: "all 0.15s",
                   color: isActive ? "#8b5cf6" : "#71717a",
                   background: isActive ? "#8b5cf615" : "transparent",
@@ -558,7 +558,7 @@ export function AppLayout() {
                 className="block"
                 style={({ isActive }) => ({
                   display: "flex", alignItems: "center", gap: "10px",
-                  padding: "9px 14px", borderRadius: "12px", fontSize: "13px",
+                  padding: "11px 14px", borderRadius: "12px", fontSize: "14px",
                   fontWeight: isActive ? 600 : 500, transition: "all 0.15s",
                   color: isActive ? "#f59e0b" : "#71717a",
                   background: isActive ? "#f59e0b15" : "transparent",
@@ -583,7 +583,7 @@ export function AppLayout() {
         </nav>
 
         {/* Rodapé minimalista — tema + feedback + suporte + sair */}
-        <div className="px-3 py-3 space-y-2" style={{ borderTop: `1px solid ${T.border}` }}>
+        <div className="px-3 pt-2 pb-3 space-y-1.5" style={{ borderTop: `1px solid ${T.border}` }}>
           <div className="flex items-center gap-2">
             <button
               onClick={toggleTheme}
