@@ -1132,9 +1132,9 @@ export default function PdvPage() {
               </div>
             </div>
 
-            {/* Atalhos por categoria — preenche espaço restante e rola verticalmente */}
+            {/* Atalhos por categoria — preenche espaço restante e rola verticalmente (desktop only) */}
             {search === "" && (
-              <div className="px-4 py-3 flex-1 overflow-y-auto">
+              <div className="hidden md:flex px-4 py-3 flex-1 overflow-y-auto flex-col">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-xs text-zinc-500 flex items-center gap-1">
                     <Star className="w-3 h-3 fill-amber-400 text-amber-400" /> Atalhos rápidos
@@ -1235,7 +1235,7 @@ export default function PdvPage() {
           </div>
 
           {/* DIREITA — Carrinho */}
-          <div className="w-full md:w-[380px] flex flex-col flex-shrink-0 overflow-hidden" style={{ background: isLight ? "#f9fafb" : "#09090b" }}>
+          <div className="w-full md:w-[380px] flex flex-col flex-shrink-0 overflow-hidden max-h-[45vh] md:max-h-none" style={{ background: isLight ? "#f9fafb" : "#09090b" }}>
 
             <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 flex-shrink-0">
               <div className="flex items-center gap-2">
