@@ -1106,7 +1106,7 @@ export default function PdvPage() {
 
       {/* ── ABA VENDA ── */}
       {tab === "venda" && (
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 overflow-hidden flex-col md:flex-row">
 
           {/* ESQUERDA — Produtos */}
           <div className="flex flex-col flex-1 overflow-hidden border-r border-zinc-800">
@@ -1235,7 +1235,7 @@ export default function PdvPage() {
           </div>
 
           {/* DIREITA — Carrinho */}
-          <div className="w-[380px] flex flex-col flex-shrink-0 overflow-hidden" style={{ background: isLight ? "#f9fafb" : "#09090b" }}>
+          <div className="w-full md:w-[380px] flex flex-col flex-shrink-0 overflow-hidden" style={{ background: isLight ? "#f9fafb" : "#09090b" }}>
 
             <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 flex-shrink-0">
               <div className="flex items-center gap-2">
