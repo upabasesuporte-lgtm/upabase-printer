@@ -552,7 +552,7 @@ export default function ReportsPage() {
         {/* ════ VISÃO GERAL ════ */}
         {tab==="overview" && (
           <div className="space-y-5">
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <KPICard label="Faturamento" value={fmt(totalRevenue)} sub={`${orderCount} pedidos no período`}
                 from="#8b5cf6" to="#06b6d4" glow="rgba(139,92,246,0.15)"
                 icon={<TrendingUp className="w-4 h-4" style={{color:"#8b5cf6"}} />} />
@@ -590,7 +590,7 @@ export default function ReportsPage() {
               )}
             </Card>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card className="p-5">
                 <CardTitle>Por Canal</CardTitle>
                 {channelData.length===0 ? <Empty text="Sem dados" /> : (
@@ -670,7 +670,7 @@ export default function ReportsPage() {
         {/* ════ VENDAS ════ */}
         {tab==="sales" && (
           <div className="space-y-5">
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <KPICard label="Faturamento" value={fmt(totalRevenue)} sub={`${orderCount} pedidos`}
                 from="#06b6d4" to="#3b82f6" glow="rgba(6,182,212,0.15)"
                 icon={<TrendingUp className="w-4 h-4" style={{color:"#06b6d4"}} />} />
@@ -711,7 +711,7 @@ export default function ReportsPage() {
               )}
             </Card>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <Card className="p-5">
                 <CardTitle sub="Total de pedidos por dia da semana">Por Dia da Semana</CardTitle>
                 <ResponsiveContainer width="100%" height={180}>
@@ -729,7 +729,7 @@ export default function ReportsPage() {
 
               <Card className="p-5">
                 <CardTitle sub="Intensidade de vendas por hora">Heatmap por Hora</CardTitle>
-                <div className="grid grid-cols-12 gap-1 mt-2">
+                <div className="grid grid-cols-6 sm:grid-cols-12 gap-1 mt-2">
                   {hourMap.map((rev,h)=>{
                     const intensity = rev/maxHour;
                     return (

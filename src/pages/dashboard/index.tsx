@@ -595,7 +595,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Row 3: Top products + Channel + Alerts */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
         {/* Top products */}
         <div className="rounded-2xl p-5" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
@@ -709,7 +709,7 @@ export default function DashboardPage() {
               <span className="text-xs text-red-400 font-semibold px-2 py-0.5 bg-red-500/10 border border-red-500/20 rounded-full">{ifoodCount} pedido{ifoodCount !== 1 ? "s" : ""}</span>
             </div>
             {/* Cards de valor */}
-            <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
               <div className="bg-zinc-950 rounded-xl p-3 border border-zinc-800">
                 <p className="text-[10px] text-zinc-500 uppercase tracking-wide mb-1">Valor Bruto</p>
                 <p className="text-base font-black text-white">{fmt(ifoodGross)}</p>
@@ -804,7 +804,7 @@ export default function DashboardPage() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
               <div>
                 <p style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>Meta</p>
                 <p className="font-bold" style={{ color: isLight ? "#111" : "#fff" }}>{fmt(monthlyGoal)}</p>
