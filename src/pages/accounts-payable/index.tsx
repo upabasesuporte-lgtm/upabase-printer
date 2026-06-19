@@ -784,7 +784,6 @@ export default function AccountsPayablePage() {
                           <p className="text-xs text-zinc-500 mt-2 md:mt-0.5">Pago: {fmt(b.paid_amount)}</p>
                         )}
                       </div>
-                    </div>
 
                       {/* Category badge — click to edit e outros elementos */}
                       <div className="flex items-center gap-2 mt-2 flex-wrap">
