@@ -266,23 +266,11 @@ export default function DashboardPage() {
     // Filtra despesas pelo período com lógica de fluxo de caixa real:
     // - contas PAGAS: usa paid_date (quando o dinheiro saiu de verdade)
     // - contas PENDENTES/VENCIDAS: usa due_date (quando o dinheiro deveria sair)
-    const allAp = apRes.data ?? [];
-    console.log("📊 DEBUG Despesas:", { period, fromDate, toDate, totalRecords: allAp.length });
-    if (allAp.length > 0) {
-      console.log("Primeira despesa raw:", allAp[0]);
-    }
-    const filteredAp = allAp.filter((b: any) => {
+    const filteredAp = (apRes.data ?? []).filter((b: any) => {
       const dateRef = b.status === "paid" ? (b.paid_date ?? b.due_date) : b.due_date;
       if (!dateRef) return false;
-      const dateRefDate = new Date(dateRef);
-      const dateRefLocal = toLocalDate(dateRefDate);
-      const matches = dateRefLocal >= fromDate && dateRefLocal <= toDate;
-      if (allAp.length <= 5) {
-        console.log(`  Despesa: ${dateRef} → ${dateRefLocal} (range: ${fromDate}-${toDate}) → ${matches ? "✓" : "✗"}`);
-      }
-      return matches;
+      return dateRef >= fromDate && dateRef <= toDate;
     });
-    console.log(`Filtradas: ${filteredAp.length} de ${allAp.length}`);
     const totalAp = filteredAp.reduce((s: number, b: any) =>
       s + b.amount - (b.discount || 0) + (b.interest || 0) + (b.fine || 0), 0);
     setApExpenses(totalAp);
