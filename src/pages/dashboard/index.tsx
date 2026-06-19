@@ -266,20 +266,26 @@ export default function DashboardPage() {
     // Filtra despesas pelo período com lógica de fluxo de caixa real:
     // - contas PAGAS: usa paid_date (quando o dinheiro saiu de verdade)
     // - contas PENDENTES/VENCIDAS: usa due_date (quando o dinheiro deveria sair)
-    const allExpenses = apRes.data ?? [];
-    console.log("🔍 EXPENSE FILTER DEBUG:", { period, fromDate, toDate, totalExpenses: allExpenses.length });
-    allExpenses.forEach((b: any, idx: number) => {
-      const dateRef = b.status === "paid" ? (b.paid_date ?? b.due_date) : b.due_date;
-      console.log(`  [${idx}] status=${b.status}, paid_date=${b.paid_date}, due_date=${b.due_date} → dateRef=${dateRef}`);
-    });
-    const filteredAp = allExpenses.filter((b: any) => {
+    const now = new Date();
+    const filteredAp = (apRes.data ?? []).filter((b: any) => {
       const dateRef = b.status === "paid" ? (b.paid_date ?? b.due_date) : b.due_date;
       if (!dateRef) return false;
-      const matches = dateRef >= fromDate && dateRef <= toDate;
-      console.log(`    ${dateRef} >= ${fromDate} && ${dateRef} <= ${toDate} ? ${matches}`);
-      return matches;
+
+      const dateRefObj = new Date(dateRef + "T12:00:00");
+
+      if (period === "day") {
+        return dateRef === fromDate;
+      } else if (period === "week") {
+        return dateRefObj >= from && dateRefObj <= to;
+      } else if (period === "month") {
+        return dateRefObj.getMonth() === from.getMonth() && dateRefObj.getFullYear() === from.getFullYear();
+      } else if (period === "year") {
+        return dateRefObj.getFullYear() === from.getFullYear();
+      } else if (period === "custom") {
+        return dateRefObj >= from && dateRefObj <= to;
+      }
+      return true;
     });
-    console.log(`✓ Filtered: ${filteredAp.length} of ${allExpenses.length}`);
     const totalAp = filteredAp.reduce((s: number, b: any) =>
       s + b.amount - (b.discount || 0) + (b.interest || 0) + (b.fine || 0), 0);
     setApExpenses(totalAp);
