@@ -779,7 +779,8 @@ export default function AccountsPayablePage() {
                         </div>
                       </div>
 
-                        {/* Category badge — click to edit */}
+                      {/* Category badge — click to edit */}
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <div className="relative">
                           <button onClick={() => setEditCatId(editCatId === b.id ? null : b.id)}
                             className="text-[11px] px-2 py-0.5 rounded-lg flex items-center gap-1 transition-all hover:opacity-80"
@@ -836,6 +837,7 @@ export default function AccountsPayablePage() {
                         {b.cost_center && (
                           <span className="text-[11px] text-zinc-600 bg-zinc-800 px-1.5 py-0.5 rounded">{b.cost_center}</span>
                         )}
+                      </div>
                       </div>
                     </div>
 
