@@ -781,8 +781,8 @@ export default function AccountsPayablePage() {
                         </div>
                       </div>
 
-                      {/* Category badge — click to edit */}
-                      <div className="relative">
+                        {/* Category badge — click to edit */}
+                        <div className="relative">
                           <button onClick={() => setEditCatId(editCatId === b.id ? null : b.id)}
                             className="text-[11px] px-2 py-0.5 rounded-lg flex items-center gap-1 transition-all hover:opacity-80"
                             style={{background:`${cat.color}20`,color:cat.color,border:`1px solid ${cat.color}40`}}>
@@ -838,7 +838,6 @@ export default function AccountsPayablePage() {
                         {b.cost_center && (
                           <span className="text-[11px] text-zinc-600 bg-zinc-800 px-1.5 py-0.5 rounded">{b.cost_center}</span>
                         )}
-                      </div>
                       </div>
                     </div>
 
