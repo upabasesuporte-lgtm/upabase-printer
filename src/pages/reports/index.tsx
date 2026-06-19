@@ -786,7 +786,7 @@ export default function ReportsPage() {
         {/* ════ PRODUTOS ════ */}
         {tab==="products" && (
           <div className="space-y-5">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <KPICard label="Produtos Vendidos" value={String(Object.keys(itemMap).length)} sub="itens distintos"
                 from="#10b981" to="#059669" glow="rgba(16,185,129,0.15)"
                 icon={<Package className="w-4 h-4" style={{color:"#10b981"}} />} />
@@ -832,7 +832,7 @@ export default function ReportsPage() {
               )}
             </Card>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {[
                 { label:"Classe A", desc:"80% do faturamento", color:"#10b981", items:abcProducts.filter(p=>p.abc==="A") },
                 { label:"Classe B", desc:"15% do faturamento", color:"#f59e0b", items:abcProducts.filter(p=>p.abc==="B") },
@@ -863,7 +863,7 @@ export default function ReportsPage() {
         {/* ════ PAGAMENTOS ════ */}
         {tab==="payments" && (
           <div className="space-y-5">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <KPICard label="Total de Vendas" value={fmt(totalRevenue)} sub={`${orderCount} pedidos`}
                 from="#10b981" to="#059669" glow="rgba(16,185,129,0.15)"
                 icon={<TrendingUp className="w-4 h-4" style={{color:"#10b981"}} />} />
@@ -875,7 +875,7 @@ export default function ReportsPage() {
                 icon={<Wallet className="w-4 h-4" style={{color:"#f59e0b"}} />} />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <Card className="p-5">
                 <CardTitle sub="Distribuição por forma de pagamento">Por Método</CardTitle>
                 {payData.length===0 ? <Empty text="Sem dados de pagamento" /> : (
@@ -950,7 +950,7 @@ export default function ReportsPage() {
         {/* ════ VENDEDORES ════ */}
         {tab==="sellers" && (
           <div className="space-y-5">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <KPICard label="Vendedores Ativos" value={String(sellerRanking.filter(s=>s.name!=="Sem vendedor").length)} sub="no período"
                 from="#d946ef" to="#8b5cf6" glow="rgba(217,70,239,0.15)"
                 icon={<Award className="w-4 h-4" style={{color:"#d946ef"}} />} />
@@ -1006,7 +1006,7 @@ export default function ReportsPage() {
         {/* ════ CLIENTES ════ */}
         {tab==="customers" && (
           <div className="space-y-5">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <KPICard label="Crédito / Pagamentos" value={fmt(totalCred)} sub={`${custMovs.filter(m=>m.type==="credit"||m.type==="payment").length} lançamentos`}
                 from="#10b981" to="#059669" glow="rgba(16,185,129,0.15)"
                 icon={<TrendingUp className="w-4 h-4" style={{color:"#10b981"}} />} />
@@ -1074,7 +1074,7 @@ export default function ReportsPage() {
         {/* ════ ESTOQUE ════ */}
         {tab==="stock" && (
           <div className="space-y-5">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <KPICard label="Alertas de Estoque" value={String(lowStockItems.length+lowStockProds.length)} sub="abaixo do mínimo"
                 from="#f59e0b" to="#f97316" glow="rgba(245,158,11,0.15)"
                 icon={<AlertTriangle className="w-4 h-4" style={{color:"#f59e0b"}} />} />
@@ -1095,7 +1095,7 @@ export default function ReportsPage() {
                   <p className="text-xs text-zinc-600 mt-1">Todos os insumos estão acima do estoque mínimo</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
                   {[...outOfStockItems,...lowStockItems.filter(i=>i.current_qty>0)].map(item=>{
                     const isOut=item.current_qty<=0;
                     return (
