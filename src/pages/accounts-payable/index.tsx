@@ -838,7 +838,6 @@ export default function AccountsPayablePage() {
                           <span className="text-[11px] text-zinc-600 bg-zinc-800 px-1.5 py-0.5 rounded">{b.cost_center}</span>
                         )}
                       </div>
-                      </div>
                     </div>
 
                     {/* Action buttons */}
