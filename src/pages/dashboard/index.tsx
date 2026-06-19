@@ -226,7 +226,7 @@ export default function DashboardPage() {
       supabase.from("sales").select("id,total_amount,origin,created_at,status,seller_name,payments")
         .eq("user_id", userId).eq("status", "paid")
         .order("created_at", { ascending: false }).limit(15),
-      supabase.from("accounts_payable").select("amount,discount,interest,fine,status,paid_date,due_date")
+      supabase.from("accounts_payable").select("*")
         .eq("user_id", userId).not("status", "eq", "cancelled"),
     ]);
 
