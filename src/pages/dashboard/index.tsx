@@ -519,7 +519,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Resultado do Período (Receita - Despesas) ── */}
-      <div className="relative overflow-hidden rounded-2xl p-5 flex flex-col md:flex-row md:items-center gap-5" style={isLight ? {
+      <div className="relative overflow-hidden rounded-2xl p-4 sm:p-5 grid grid-cols-3 gap-3 sm:gap-4" style={isLight ? {
           background: netResult >= 0 ? "rgba(16,185,129,0.06)" : "rgba(244,63,94,0.06)",
           border: `1px solid ${netResult >= 0 ? "rgba(16,185,129,0.25)" : "rgba(244,63,94,0.25)"}`,
           boxShadow: `0 1px 2px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.8)`,
@@ -528,29 +528,20 @@ export default function DashboardPage() {
           border: `1px solid ${netResult >= 0 ? "rgba(16,185,129,0.3)" : "rgba(244,63,94,0.3)"}`,
           boxShadow: `0 0 24px ${netResult >= 0 ? "rgba(16,185,129,0.08)" : "rgba(244,63,94,0.08)"}`,
         }}>
-        <div className="flex-1 min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-widest mb-1" style={{ color: isLight ? "#9CA3AF" : "#71717a" }}>
-            Resultado — {PERIOD_LABELS[period]}
-          </p>
-          <div className="flex items-baseline gap-2 flex-wrap">
-            <span className="text-2xl sm:text-3xl font-black tabular-nums break-all" style={{ color: netResult >= 0 ? "#10b981" : "#f43f5e" }}>
-              {netResult >= 0 ? "+" : ""}{fmt(netResult)}
-            </span>
-            <span className="text-xs sm:text-sm" style={{ color: isLight ? "#6B7280" : "#71717a" }}>
-              {netResult >= 0 ? "Lucro" : "Prejuízo"} no período
-            </span>
-          </div>
+        <div className="text-center flex flex-col items-center justify-center">
+          <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-widest mb-1" style={{ color: isLight ? "#9CA3AF" : "#71717a" }}>Resultado</p>
+          <p className="text-lg sm:text-2xl font-black tabular-nums" style={{ color: netResult >= 0 ? "#10b981" : "#f43f5e" }}>{netResult >= 0 ? "+" : ""}{fmt(netResult)}</p>
+          <p className="text-[9px] sm:text-[10px] mt-0.5" style={{ color: isLight ? "#6B7280" : "#71717a" }}>{netResult >= 0 ? "Lucro" : "Prejuízo"}</p>
         </div>
-        <div className="flex items-center justify-center gap-6 md:gap-8 flex-wrap">
-          <div className="text-center">
-            <p className="text-[11px] mb-0.5" style={{ color: isLight ? "#9CA3AF" : "#71717a" }}>Receitas</p>
-            <p className="text-sm sm:text-base font-bold break-all" style={{ color: "#10b981" }}>{fmt(totalRev)}</p>
-          </div>
-          <div className="text-center">
-            <p className="text-[11px] mb-0.5" style={{ color: isLight ? "#9CA3AF" : "#71717a" }}>Despesas</p>
-            <p className="text-sm sm:text-base font-bold break-all" style={{ color: "#f43f5e" }}>{fmt(apExpenses)}</p>
-            <Link to="/accounts-payable" className="text-[10px] underline" style={{ color: isLight ? "#7B2FBE" : "#71717a" }}>ver contas</Link>
-          </div>
+        <div className="text-center flex flex-col items-center justify-center">
+          <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-widest mb-1" style={{ color: isLight ? "#9CA3AF" : "#71717a" }}>Receitas</p>
+          <p className="text-lg sm:text-2xl font-black tabular-nums" style={{ color: "#10b981" }}>{fmt(totalRev)}</p>
+          <p className="text-[9px] sm:text-[10px] mt-0.5" style={{ color: isLight ? "#6B7280" : "#71717a" }}>vendas</p>
+        </div>
+        <div className="text-center flex flex-col items-center justify-center">
+          <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-widest mb-1" style={{ color: isLight ? "#9CA3AF" : "#71717a" }}>Despesas</p>
+          <p className="text-lg sm:text-2xl font-black tabular-nums" style={{ color: "#f43f5e" }}>{fmt(apExpenses)}</p>
+          <Link to="/accounts-payable" className="text-[9px] sm:text-[10px] underline mt-0.5" style={{ color: isLight ? "#7B2FBE" : "#71717a" }}>ver contas</Link>
         </div>
       </div>
 

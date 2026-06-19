@@ -750,13 +750,13 @@ export default function AccountsPayablePage() {
 
                     {/* Content */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2 flex-wrap">
-                        <div className="min-w-0">
+                      <div className="flex flex-col md:flex-row md:items-start md:justify-between md:gap-2 gap-2">
+                        <div className="min-w-0 flex-1">
                           <p className="font-semibold text-sm text-white truncate">{b.description}</p>
                           {b.supplier && <p className="text-xs text-zinc-500">{b.supplier}</p>}
                         </div>
-                        <div className="text-right flex-shrink-0">
-                          <p className="font-black text-base" style={{
+                        <div className="text-right md:flex-shrink-0">
+                          <p className="font-black text-base tabular-nums" style={{
                             color: b.status === "paid" ? "#10b981" : b.status === "overdue" ? "#f43f5e" : "#fff"
                           }}>{fmt(fin)}</p>
                           {b.status === "partial" && (
