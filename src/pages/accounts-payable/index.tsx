@@ -749,32 +749,35 @@ export default function AccountsPayablePage() {
                     <div className="w-2 h-2 rounded-full flex-shrink-0 mt-2" style={{background: cat.color}} />
 
                     {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-col md:flex-row md:items-start md:justify-between md:gap-2 gap-2">
-                        <div className="min-w-0 flex-1">
-                          <p className="font-semibold text-sm text-white truncate">{b.description}</p>
-                          {b.supplier && <p className="text-xs text-zinc-500">{b.supplier}</p>}
-                        </div>
-                        <div className="text-right md:flex-shrink-0">
-                          <p className="font-black text-base tabular-nums" style={{
-                            color: b.status === "paid" ? "#10b981" : b.status === "overdue" ? "#f43f5e" : "#fff"
-                          }}>{fmt(fin)}</p>
-                          {b.status === "partial" && (
-                            <p className="text-xs text-zinc-500">Pago: {fmt(b.paid_amount)}</p>
-                          )}
-                        </div>
+                    <div className="flex-1 min-w-0 space-y-1.5">
+                      {/* Descrição */}
+                      <div className="pb-1.5">
+                        <p className="font-bold text-sm text-white leading-tight">{b.description}</p>
+                        {b.supplier && <p className="text-xs text-zinc-400 mt-0.5">{b.supplier}</p>}
                       </div>
 
                       {/* Risco divisor */}
-                      <div style={{ height: "1px", background: "rgba(255,255,255,0.08)", margin: "6px 0" }} />
+                      <div style={{ height: "1px", background: "rgba(255,255,255,0.1)" }} />
 
-                      <div className="flex items-center gap-2 mt-2 flex-wrap">
-                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-lg"
-                          style={{background: sc.bg, color: sc.color, border:`1px solid ${sc.border}`}}>
-                          {sc.label}
-                        </span>
-                        <span className="text-[11px] text-zinc-500">Venc: {fmtD(b.due_date)}</span>
-                        {b.paid_date && <span className="text-[11px] text-zinc-600">Pago: {fmtD(b.paid_date)}</span>}
+                      {/* Status e Valor */}
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between md:gap-3 gap-1.5 pt-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md"
+                            style={{background: sc.bg, color: sc.color, border:`1px solid ${sc.border}`}}>
+                            {sc.label}
+                          </span>
+                          <span className="text-[10px] text-zinc-500">Venc: {fmtD(b.due_date)}</span>
+                          {b.paid_date && <span className="text-[10px] text-zinc-500">Pago: {fmtD(b.paid_date)}</span>}
+                        </div>
+                        <div className="text-right md:text-right md:flex-shrink-0">
+                          <p className="font-black text-lg md:text-base tabular-nums" style={{
+                            color: b.status === "paid" ? "#10b981" : b.status === "overdue" ? "#f43f5e" : "#fff"
+                          }}>{fmt(fin)}</p>
+                          {b.status === "partial" && (
+                            <p className="text-[10px] text-zinc-500 mt-0.5">Pago: {fmt(b.paid_amount)}</p>
+                          )}
+                        </div>
+                      </div>
 
                         {/* Category badge — click to edit */}
                         <div className="relative">
