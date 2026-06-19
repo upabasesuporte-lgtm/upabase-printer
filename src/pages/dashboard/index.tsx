@@ -269,8 +269,8 @@ export default function DashboardPage() {
     const filteredAp = (apRes.data ?? []).filter((b: any) => {
       const dateRef = b.status === "paid" ? (b.paid_date ?? b.due_date) : b.due_date;
       if (!dateRef) return false;
-      const dateRefLocal = dateRef.split("T")[0];
-      return dateRefLocal >= fromDate && dateRefLocal <= toDate;
+      const dateRefDate = new Date(dateRef);
+      return dateRefDate >= from && dateRefDate <= to;
     });
     const totalAp = filteredAp.reduce((s: number, b: any) =>
       s + b.amount - (b.discount || 0) + (b.interest || 0) + (b.fine || 0), 0);
