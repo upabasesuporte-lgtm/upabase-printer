@@ -263,26 +263,20 @@ export default function DashboardPage() {
     setTableStats({ total: tabs.length, occupied: tabs.filter(t => t.status === "occupied").length });
     setRecentSales((recentRes.data ?? []) as Sale[]);
 
-    // Filtra despesas pelo período com lógica de fluxo de caixa real:
-    // - contas PAGAS: usa paid_date (quando o dinheiro saiu de verdade)
-    // - contas PENDENTES/VENCIDAS: usa due_date (quando o dinheiro deveria sair)
+    // Filtra despesas pelo período (mesmo padrão de accounts-payable)
     const now = new Date();
     const filteredAp = (apRes.data ?? []).filter((b: any) => {
-      const dateStr = b.status === "paid" ? (b.paid_date ?? b.due_date) : b.due_date;
-      if (!dateStr) return false;
-
-      const dateObj = new Date(dateStr + "T12:00:00");
-
+      const due = new Date(b.due_date + "T12:00:00");
       if (period === "day") {
-        return dateStr === fromDate;
+        return b.due_date === fromDate;
       } else if (period === "week") {
-        return dateObj >= from && dateObj <= to;
+        return due >= from && due <= to;
       } else if (period === "month") {
-        return dateObj.getMonth() === from.getMonth() && dateObj.getFullYear() === from.getFullYear();
+        return due.getMonth() === from.getMonth() && due.getFullYear() === from.getFullYear();
       } else if (period === "year") {
-        return dateObj.getFullYear() === from.getFullYear();
+        return due.getFullYear() === from.getFullYear();
       } else if (period === "custom") {
-        return dateObj >= from && dateObj <= to;
+        return due >= from && due <= to;
       }
       return true;
     });
