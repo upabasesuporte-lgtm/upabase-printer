@@ -748,44 +748,43 @@ export default function AccountsPayablePage() {
                     {/* Category dot */}
                     <div className="w-2 h-2 rounded-full flex-shrink-0 mt-2" style={{background: cat.color}} />
 
-                    {/* Content */}
-                    <div className="flex-1 min-w-0 space-y-3 md:space-y-2">
-                      {/* Descrição - Mobile card style */}
-                      <div className="md:mb-0 md:pb-2">
-                        <p className="font-semibold text-sm text-white truncate">{b.description}</p>
-                        {b.supplier && <p className="text-xs text-zinc-500 mt-0.5">{b.supplier}</p>}
+                    {/* Content - Modern Card Layout */}
+                    <div className="flex-1 min-w-0">
+                      {/* Section 1: Descrição */}
+                      <div className="pb-3 md:pb-2 md:border-b md:border-zinc-800">
+                        <p className="font-bold text-sm text-white leading-snug">{b.description}</p>
+                        {b.supplier && <p className="text-xs text-zinc-500 mt-1">{b.supplier}</p>}
                       </div>
 
-                      {/* Divisor - Mobile visible, Desktop subtle */}
-                      <div className="hidden md:block" style={{ height: "1px", background: "rgba(255,255,255,0.08)" }} />
+                      {/* Divisor Mobile */}
+                      <div className="md:hidden my-3" style={{ height: "1px", background: "rgba(255,255,255,0.1)" }} />
 
-                      {/* Status, Datas e Valor - Responsive */}
-                      <div className="md:flex md:items-start md:justify-between md:gap-2">
-                        {/* Status e Datas - Mobile: card com fundo, Desktop: inline */}
-                        <div className="bg-zinc-900/50 rounded-lg p-2.5 md:p-0 md:bg-transparent">
-                          <div className="flex items-center gap-2 flex-wrap mb-2 md:mb-1">
-                            <span className="text-[11px] font-bold px-2 py-0.5 rounded-lg"
-                              style={{background: sc.bg, color: sc.color, border:`1px solid ${sc.border}`}}>
-                              {sc.label}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 flex-wrap text-[11px] text-zinc-400 md:text-zinc-500">
-                            <span>Venc: {fmtD(b.due_date)}</span>
-                            {b.paid_date && <span className="text-zinc-500">Pago: {fmtD(b.paid_date)}</span>}
-                          </div>
-                        </div>
-
-                        {/* Valor - Mobile: grande e destacado, Desktop: normal */}
-                        <div className="md:text-right md:flex-shrink-0">
-                          <p className="text-xs text-zinc-600 md:mb-1 mb-1.5">Valor</p>
-                          <p className="font-black text-2xl md:text-base tabular-nums leading-tight" style={{
-                            color: b.status === "paid" ? "#10b981" : b.status === "overdue" ? "#f43f5e" : "#fff"
-                          }}>{fmt(fin)}</p>
-                          {b.status === "partial" && (
-                            <p className="text-xs text-zinc-500 mt-1 md:mt-0.5">Pago: {fmt(b.paid_amount)}</p>
-                          )}
+                      {/* Section 2: Status e Datas */}
+                      <div className="py-3 md:py-2 md:border-b md:border-zinc-800">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[11px] font-bold px-2.5 py-1 rounded-md"
+                            style={{background: sc.bg, color: sc.color, border:`1px solid ${sc.border}`}}>
+                            {sc.label}
+                          </span>
+                          <span className="text-[11px] text-zinc-400 md:text-zinc-500">Venc: {fmtD(b.due_date)}</span>
+                          {b.paid_date && <span className="text-[11px] text-zinc-500">Pago: {fmtD(b.paid_date)}</span>}
                         </div>
                       </div>
+
+                      {/* Divisor Mobile */}
+                      <div className="md:hidden my-3" style={{ height: "1px", background: "rgba(255,255,255,0.1)" }} />
+
+                      {/* Section 3: Valor - DESTAQUE PRINCIPAL */}
+                      <div className="pt-3 md:pt-2 text-center md:text-left">
+                        <p className="text-xs text-zinc-600 mb-2 md:mb-1">Valor</p>
+                        <p className="font-black text-3xl md:text-base tabular-nums" style={{
+                          color: b.status === "paid" ? "#10b981" : b.status === "overdue" ? "#f43f5e" : "#fff"
+                        }}>{fmt(fin)}</p>
+                        {b.status === "partial" && (
+                          <p className="text-xs text-zinc-500 mt-2 md:mt-0.5">Pago: {fmt(b.paid_amount)}</p>
+                        )}
+                      </div>
+                    </div>
 
                       {/* Category badge — click to edit e outros elementos */}
                       <div className="flex items-center gap-2 mt-2 flex-wrap">
