@@ -288,6 +288,7 @@ export default function DashboardPage() {
     });
     const totalAp = filteredAp.reduce((s: number, b: any) =>
       s + b.amount - (b.discount || 0) + (b.interest || 0) + (b.fine || 0), 0);
+    console.log(`💰 DESPESAS: period=${period}, total=${totalAp}, filtradas=${filteredAp.length} de ${(apRes.data ?? []).length}`);
     setApExpenses(totalAp);
 
     // Payment methods aggregation from actual sales data
