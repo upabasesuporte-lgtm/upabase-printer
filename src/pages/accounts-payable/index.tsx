@@ -750,20 +750,21 @@ export default function AccountsPayablePage() {
 
                     {/* Content */}
                     <div className="flex-1 min-w-0 space-y-2">
-                      {/* Header: Descrição + Categoria */}
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <p className="font-bold text-sm text-white leading-tight truncate">{b.description}</p>
-                          {b.supplier && <p className="text-xs text-zinc-400 mt-0.5">{b.supplier}</p>}
-                        </div>
-                        <div className="relative flex-shrink-0">
-                          <button onClick={() => setEditCatId(editCatId === b.id ? null : b.id)}
-                            className="text-[10px] px-2 py-1 rounded-md flex items-center gap-1 transition-all hover:opacity-80 whitespace-nowrap"
-                            style={{background:`${cat.color}20`,color:cat.color,border:`1px solid ${cat.color}40`}}>
-                            {cat.label} <ChevronDown className="w-3 h-3" />
-                          </button>
-                          {editCatId === b.id && (
-                            <div className="absolute top-full right-0 mt-1 z-20 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl overflow-hidden w-52">
+                      {/* Descrição + Supplier */}
+                      <div>
+                        <p className="font-bold text-sm text-white leading-tight">{b.description}</p>
+                        {b.supplier && <p className="text-xs text-zinc-400 mt-0.5">{b.supplier}</p>}
+                      </div>
+
+                      {/* Categoria */}
+                      <div className="relative">
+                        <button onClick={() => setEditCatId(editCatId === b.id ? null : b.id)}
+                          className="text-[10px] px-2 py-1 rounded-md flex items-center gap-1 transition-all hover:opacity-80"
+                          style={{background:`${cat.color}20`,color:cat.color,border:`1px solid ${cat.color}40`}}>
+                          {cat.label} <ChevronDown className="w-3 h-3" />
+                        </button>
+                        {editCatId === b.id && (
+                          <div className="absolute top-full left-0 mt-1 z-20 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl overflow-hidden w-52">
                               <div className="max-h-56 overflow-y-auto">
                                 {CATS.map(c => (
                                   <button key={c.key} onClick={() => { updateCategory(b.id, c.key); setInlineNewCat(""); }}
@@ -807,24 +808,24 @@ export default function AccountsPayablePage() {
                       {/* Risco divisor */}
                       <div style={{ height: "1px", background: "rgba(255,255,255,0.1)" }} />
 
-                      {/* Status, Vencimento, Pago + Valor */}
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2 flex-wrap min-w-0">
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md flex-shrink-0"
-                            style={{background: sc.bg, color: sc.color, border:`1px solid ${sc.border}`}}>
-                            {sc.label}
-                          </span>
-                          <span className="text-[10px] text-zinc-500">Venc: {fmtD(b.due_date)}</span>
-                          {b.paid_date && <span className="text-[10px] text-zinc-500">Pago: {fmtD(b.paid_date)}</span>}
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <p className="font-black text-lg md:text-base tabular-nums" style={{
-                            color: b.status === "paid" ? "#10b981" : b.status === "overdue" ? "#f43f5e" : "#fff"
-                          }}>{fmt(fin)}</p>
-                          {b.status === "partial" && (
-                            <p className="text-[10px] text-zinc-500 mt-0.5">Pago: {fmt(b.paid_amount)}</p>
-                          )}
-                        </div>
+                      {/* Status, Vencimento, Pago */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md"
+                          style={{background: sc.bg, color: sc.color, border:`1px solid ${sc.border}`}}>
+                          {sc.label}
+                        </span>
+                        <span className="text-[10px] text-zinc-500">Venc: {fmtD(b.due_date)}</span>
+                        {b.paid_date && <span className="text-[10px] text-zinc-500">Pago: {fmtD(b.paid_date)}</span>}
+                      </div>
+
+                      {/* Valor */}
+                      <div className="pt-1">
+                        <p className="font-black text-lg tabular-nums" style={{
+                          color: b.status === "paid" ? "#10b981" : b.status === "overdue" ? "#f43f5e" : "#fff"
+                        }}>{fmt(fin)}</p>
+                        {b.status === "partial" && (
+                          <p className="text-[10px] text-zinc-500 mt-1">Pago: {fmt(b.paid_amount)}</p>
+                        )}
                       </div>
 
                       {/* Extra info */}
