@@ -267,30 +267,27 @@ export default function DashboardPage() {
     // - contas PAGAS: usa paid_date (quando o dinheiro saiu de verdade)
     // - contas PENDENTES/VENCIDAS: usa due_date (quando o dinheiro deveria sair)
     const now = new Date();
-    const allApData = apRes.data ?? [];
-    console.log(`📥 DADOS DO BANCO: ${allApData.length} despesas`, allApData.slice(0, 3));
-    const filteredAp = allApData.filter((b: any) => {
-      const dateRef = b.status === "paid" ? (b.paid_date ?? b.due_date) : b.due_date;
-      if (!dateRef) return false;
+    const filteredAp = (apRes.data ?? []).filter((b: any) => {
+      const dateStr = b.status === "paid" ? (b.paid_date ?? b.due_date) : b.due_date;
+      if (!dateStr) return false;
 
-      const dateRefObj = new Date(dateRef + "T12:00:00");
+      const dateObj = new Date(dateStr + "T12:00:00");
 
       if (period === "day") {
-        return dateRef === fromDate;
+        return dateStr === fromDate;
       } else if (period === "week") {
-        return dateRefObj >= from && dateRefObj <= to;
+        return dateObj >= from && dateObj <= to;
       } else if (period === "month") {
-        return dateRefObj.getMonth() === from.getMonth() && dateRefObj.getFullYear() === from.getFullYear();
+        return dateObj.getMonth() === from.getMonth() && dateObj.getFullYear() === from.getFullYear();
       } else if (period === "year") {
-        return dateRefObj.getFullYear() === from.getFullYear();
+        return dateObj.getFullYear() === from.getFullYear();
       } else if (period === "custom") {
-        return dateRefObj >= from && dateRefObj <= to;
+        return dateObj >= from && dateObj <= to;
       }
       return true;
     });
     const totalAp = filteredAp.reduce((s: number, b: any) =>
       s + b.amount - (b.discount || 0) + (b.interest || 0) + (b.fine || 0), 0);
-    console.log(`💰 DESPESAS: period=${period}, total=${totalAp}, filtradas=${filteredAp.length} de ${(apRes.data ?? []).length}`);
     setApExpenses(totalAp);
 
     // Payment methods aggregation from actual sales data
