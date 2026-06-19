@@ -267,7 +267,9 @@ export default function DashboardPage() {
     // - contas PAGAS: usa paid_date (quando o dinheiro saiu de verdade)
     // - contas PENDENTES/VENCIDAS: usa due_date (quando o dinheiro deveria sair)
     const now = new Date();
-    const filteredAp = (apRes.data ?? []).filter((b: any) => {
+    const allApData = apRes.data ?? [];
+    console.log(`📥 DADOS DO BANCO: ${allApData.length} despesas`, allApData.slice(0, 3));
+    const filteredAp = allApData.filter((b: any) => {
       const dateRef = b.status === "paid" ? (b.paid_date ?? b.due_date) : b.due_date;
       if (!dateRef) return false;
 
