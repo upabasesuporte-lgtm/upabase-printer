@@ -803,7 +803,6 @@ export default function AccountsPayablePage() {
                             </div>
                           )}
                         </div>
-                      </div>
 
                       {/* Risco divisor */}
                       <div style={{ height: "1px", background: "rgba(255,255,255,0.1)" }} />
