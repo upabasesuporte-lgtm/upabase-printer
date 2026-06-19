@@ -759,15 +759,36 @@ export default function AccountsPayablePage() {
                       {/* Divisor */}
                       <div style={{ height: "1px", background: "rgba(255,255,255,0.08)", marginBottom: "8px" }} />
 
-                      {/* Status, Datas e Valor */}
-                      <div className="flex items-center gap-2 mt-2 flex-wrap">
-                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-lg"
-                          style={{background: sc.bg, color: sc.color, border:`1px solid ${sc.border}`}}>
-                          {sc.label}
-                        </span>
-                        <span className="text-[11px] text-zinc-500">Venc: {fmtD(b.due_date)}</span>
-                        {b.paid_date && <span className="text-[11px] text-zinc-600">Pago: {fmtD(b.paid_date)}</span>}
+                      {/* Status, Datas e Valor - 2 colunas */}
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* Status e Datas à esquerda */}
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap mb-2">
+                            <span className="text-[11px] font-bold px-2 py-0.5 rounded-lg"
+                              style={{background: sc.bg, color: sc.color, border:`1px solid ${sc.border}`}}>
+                              {sc.label}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 flex-wrap text-[11px]">
+                            <span className="text-zinc-500">Venc: {fmtD(b.due_date)}</span>
+                            {b.paid_date && <span className="text-zinc-600">Pago: {fmtD(b.paid_date)}</span>}
+                          </div>
+                        </div>
 
+                        {/* Valor à direita */}
+                        <div className="text-right">
+                          <p className="text-xs text-zinc-600 mb-1">Valor</p>
+                          <p className="font-black text-base tabular-nums" style={{
+                            color: b.status === "paid" ? "#10b981" : b.status === "overdue" ? "#f43f5e" : "#fff"
+                          }}>{fmt(fin)}</p>
+                          {b.status === "partial" && (
+                            <p className="text-xs text-zinc-500 mt-0.5">Pago: {fmt(b.paid_amount)}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Category badge — click to edit e outros elementos */}
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
                         {/* Category badge — click to edit */}
                         <div className="relative">
                           <button onClick={() => setEditCatId(editCatId === b.id ? null : b.id)}
