@@ -1165,13 +1165,13 @@ export default function CustomersPage() {
           {/* Tab switcher */}
           <div className="flex gap-2">
             <button onClick={() => setDetailTab("movements")}
-              style={detailTab !== "movements" ? { background: card.bg, border: card.border } : undefined}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${detailTab === "movements" ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-white"}`}>
+              style={detailTab !== "movements" ? { background: card.bg, border: card.border } : { color: "#ffffff" }}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${detailTab === "movements" ? "bg-blue-600 text-white" : "text-zinc-400 hover:text-white"}`}>
               <FileText className="w-3.5 h-3.5" /> Movimentações
             </button>
             <button onClick={() => setDetailTab("purchases")}
-              style={detailTab !== "purchases" ? { background: card.bg, border: card.border } : undefined}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${detailTab === "purchases" ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-white"}`}>
+              style={detailTab !== "purchases" ? { background: card.bg, border: card.border } : { color: "#ffffff" }}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${detailTab === "purchases" ? "bg-blue-600 text-white" : "text-zinc-400 hover:text-white"}`}>
               <ShoppingCart className="w-3.5 h-3.5" /> Compras
             </button>
           </div>
@@ -1194,7 +1194,8 @@ export default function CustomersPage() {
             <div className="flex items-center gap-1.5 px-5 py-3 border-b border-zinc-800 flex-wrap">
               {DATE_TABS.map(t => (
                 <button key={t.key} onClick={() => setDateFilter(t.key)}
-                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${dateFilter === t.key ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-white hover:bg-zinc-800"}`}>
+                  style={dateFilter === t.key ? { color: "#ffffff" } : undefined}
+                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${dateFilter === t.key ? "bg-blue-600 text-white" : "text-zinc-400 hover:text-white hover:bg-zinc-800"}`}>
                   {t.label}
                 </button>
               ))}
@@ -1260,9 +1261,9 @@ export default function CustomersPage() {
                           {items.length > 0 && (
                             <div className="mt-1.5 space-y-0.5">
                               {items.map((item, idx) => (
-                                <div key={idx} className="flex items-center justify-between text-xs bg-zinc-950/60 rounded-lg px-2.5 py-1">
-                                  <span className="text-zinc-300">{item.quantity}x {item.name}{item.notes ? ` (${item.notes})` : ""}</span>
-                                  <span className="text-zinc-500 ml-3 flex-shrink-0">{fmt(item.unit_price * item.quantity)}</span>
+                                <div key={idx} className="flex items-center justify-between text-xs bg-white rounded-lg px-2.5 py-1">
+                                  <span className="text-gray-700">{item.quantity}x {item.name}{item.notes ? ` (${item.notes})` : ""}</span>
+                                  <span className="text-gray-500 ml-3 flex-shrink-0">{fmt(item.unit_price * item.quantity)}</span>
                                 </div>
                               ))}
                             </div>
@@ -1322,7 +1323,8 @@ export default function CustomersPage() {
             <div className="flex items-center gap-1.5 px-5 py-3 border-b border-zinc-800 flex-wrap">
               {DATE_TABS.map(t => (
                 <button key={t.key} onClick={() => setDateFilter(t.key)}
-                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${dateFilter === t.key ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-white hover:bg-zinc-800"}`}>
+                  style={dateFilter === t.key ? { color: "#ffffff" } : undefined}
+                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${dateFilter === t.key ? "bg-blue-600 text-white" : "text-zinc-400 hover:text-white hover:bg-zinc-800"}`}>
                   {t.label}
                 </button>
               ))}
@@ -1418,9 +1420,9 @@ export default function CustomersPage() {
                                     {sale.sale_items.length > 0 && (
                                       <div className="mt-1.5 space-y-0.5">
                                         {sale.sale_items.map((item, idx) => (
-                                          <div key={idx} className="flex items-center justify-between text-xs bg-zinc-950/60 rounded-lg px-2.5 py-1">
-                                            <span className="text-zinc-300">{item.quantity}x {item.name}{item.notes ? ` (${item.notes})` : ""}</span>
-                                            <span className="text-zinc-500 ml-3 flex-shrink-0">{fmt(item.unit_price * item.quantity)}</span>
+                                          <div key={idx} className="flex items-center justify-between text-xs bg-white rounded-lg px-2.5 py-1">
+                                            <span className="text-gray-700">{item.quantity}x {item.name}{item.notes ? ` (${item.notes})` : ""}</span>
+                                            <span className="text-gray-500 ml-3 flex-shrink-0">{fmt(item.unit_price * item.quantity)}</span>
                                           </div>
                                         ))}
                                       </div>
