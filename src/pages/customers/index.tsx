@@ -1166,12 +1166,12 @@ export default function CustomersPage() {
           <div className="flex gap-2">
             <button onClick={() => setDetailTab("movements")}
               style={detailTab !== "movements" ? { background: card.bg, border: card.border } : { color: "#ffffff" }}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${detailTab === "movements" ? "bg-blue-600 text-white" : "text-zinc-400 hover:text-white"}`}>
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${detailTab === "movements" ? "bg-blue-600" : "text-zinc-400 hover:text-white"}`}>
               <FileText className="w-3.5 h-3.5" /> Movimentações
             </button>
             <button onClick={() => setDetailTab("purchases")}
               style={detailTab !== "purchases" ? { background: card.bg, border: card.border } : { color: "#ffffff" }}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${detailTab === "purchases" ? "bg-blue-600 text-white" : "text-zinc-400 hover:text-white"}`}>
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${detailTab === "purchases" ? "bg-blue-600" : "text-zinc-400 hover:text-white"}`}>
               <ShoppingCart className="w-3.5 h-3.5" /> Compras
             </button>
           </div>
@@ -1195,7 +1195,7 @@ export default function CustomersPage() {
               {DATE_TABS.map(t => (
                 <button key={t.key} onClick={() => setDateFilter(t.key)}
                   style={dateFilter === t.key ? { color: "#ffffff" } : undefined}
-                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${dateFilter === t.key ? "bg-blue-600 text-white" : "text-zinc-400 hover:text-white hover:bg-zinc-800"}`}>
+                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${dateFilter === t.key ? "bg-blue-600" : "text-zinc-400 hover:text-white hover:bg-zinc-800"}`}>
                   {t.label}
                 </button>
               ))}
@@ -1324,7 +1324,7 @@ export default function CustomersPage() {
               {DATE_TABS.map(t => (
                 <button key={t.key} onClick={() => setDateFilter(t.key)}
                   style={dateFilter === t.key ? { color: "#ffffff" } : undefined}
-                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${dateFilter === t.key ? "bg-blue-600 text-white" : "text-zinc-400 hover:text-white hover:bg-zinc-800"}`}>
+                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${dateFilter === t.key ? "bg-blue-600" : "text-zinc-400 hover:text-white hover:bg-zinc-800"}`}>
                   {t.label}
                 </button>
               ))}
