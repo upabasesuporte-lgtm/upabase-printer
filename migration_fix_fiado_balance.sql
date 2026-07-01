@@ -4,12 +4,19 @@
 -- Execute isso no Supabase SQL Editor (uma vez)
 -- ============================================================
 
+-- Só "debit" (venda fiado) aumenta o fiado e só "payment" (pagamento de fiado)
+-- reduz o fiado. "credit" e "saldo" são movimentos do saldo pré-pago (balance),
+-- não do fiado, e não devem entrar nessa conta.
 UPDATE customers
-SET fiado_balance = subq.total
+SET fiado_balance = GREATEST(0, subq.total)
 FROM (
   SELECT
     customer_id,
-    COALESCE(SUM(CASE WHEN type = 'debit' THEN amount ELSE -amount END), 0) AS total
+    COALESCE(SUM(CASE
+      WHEN type = 'debit' THEN amount
+      WHEN type = 'payment' THEN -amount
+      ELSE 0
+    END), 0) AS total
   FROM customer_movements
   GROUP BY customer_id
 ) subq
