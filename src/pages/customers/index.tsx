@@ -521,6 +521,46 @@ export default function CustomersPage() {
     }
   }
 
+  // ── Cancelar pagamento de fiado ─────────────────────────────────────────────
+  // Reverte por completo um pagamento lançado errado: devolve o valor à dívida
+  // do cliente, e apaga automaticamente o registro em Vendas (histórico do PDV)
+  // e o lançamento correspondente no Caixa.
+  async function cancelPayment(m: CustomerMovement) {
+    if (!selected || saving || m.type !== "payment") return;
+    if (!confirm(`Cancelar este pagamento de ${fmt(m.amount)}? O valor volta a ser dívida do cliente.`)) return;
+    setSaving(true);
+    try {
+      // 1) Devolve o valor ao fiado em aberto do cliente
+      const { data: curr } = await supabase.from("customers").select("fiado_balance").eq("id", selected.id).single();
+      const restoredFiado = (curr?.fiado_balance ?? 0) + m.amount;
+      await supabase.from("customers").update({ fiado_balance: restoredFiado }).eq("id", selected.id);
+
+      // 2) Apaga a venda criada para esse pagamento (some do Histórico/Vendas)
+      if (m.sale_id) {
+        await supabase.from("sales").delete().eq("id", m.sale_id);
+      }
+
+      // 3) Apaga o(s) lançamento(s) desse pagamento no Caixa
+      const movDate = new Date(m.created_at);
+      const fromDate = new Date(movDate.getTime() - 120000).toISOString();
+      const toDate   = new Date(movDate.getTime() + 120000).toISOString();
+      await supabase.from("cash_movements").delete()
+        .eq("description", `Pgto fiado - ${selected.name}`)
+        .gte("created_at", fromDate).lte("created_at", toDate);
+
+      // 4) Apaga o movimento do extrato do cliente
+      await supabase.from("customer_movements").delete().eq("id", m.id);
+
+      await refreshSelected(selected.id);
+      await loadMovements(selected.id);
+    } catch (e: any) {
+      console.error("cancelPayment error:", e);
+      alert("Erro ao cancelar pagamento: " + (e?.message ?? String(e)));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   // ── Edit movement ───────────────────────────────────────────────────────────
 
   async function openEditMovement(m: CustomerMovement) {
@@ -1200,6 +1240,15 @@ export default function CustomersPage() {
                               className="p-1.5 bg-zinc-800 hover:bg-violet-600 text-zinc-300 hover:text-white rounded-lg transition-all border border-zinc-700 hover:border-violet-500"
                               title="Editar movimentação">
                               <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          {m.type === "payment" && (
+                            <button
+                              onClick={() => cancelPayment(m)}
+                              disabled={saving}
+                              className="p-1.5 bg-zinc-800 hover:bg-red-600 text-zinc-300 hover:text-white rounded-lg transition-all border border-zinc-700 hover:border-red-500 disabled:opacity-50"
+                              title="Cancelar pagamento">
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           )}
                         </div>
