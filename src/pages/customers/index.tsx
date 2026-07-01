@@ -561,6 +561,44 @@ export default function CustomersPage() {
     }
   }
 
+  // ── Excluir lançamento de fiado (venda a prazo) ─────────────────────────────
+  // Apaga por completo uma venda fiado lançada errada: reduz a dívida do
+  // cliente, apaga a venda do Histórico/Vendas e os lançamentos no Caixa.
+  async function cancelDebit(m: CustomerMovement) {
+    if (!selected || saving || m.type !== "debit" || !m.sale_id) return;
+    if (!confirm(`Excluir esta venda fiado de ${fmt(m.amount)}? Isso remove a venda do histórico, do caixa e reduz a dívida do cliente.`)) return;
+    setSaving(true);
+    try {
+      const saleId = m.sale_id;
+      const orderNum = saleId.slice(-6).toUpperCase();
+
+      // 1) Reduz o fiado em aberto do cliente
+      const { data: curr } = await supabase.from("customers").select("fiado_balance").eq("id", selected.id).single();
+      const newFiado = Math.max(0, (curr?.fiado_balance ?? 0) - m.amount);
+      await supabase.from("customers").update({ fiado_balance: newFiado }).eq("id", selected.id);
+
+      // 2) Apaga o(s) lançamento(s) dessa venda no Caixa
+      await supabase.from("cash_movements").delete()
+        .eq("movement_type", "sale")
+        .like("description", `%#${orderNum}%`);
+
+      // 3) Apaga os movimentos do cliente ligados a essa venda
+      await supabase.from("customer_movements").delete().eq("sale_id", saleId);
+
+      // 4) Apaga os itens e a venda em si (some do Histórico do PDV / Vendas)
+      await supabase.from("sale_items").delete().eq("sale_id", saleId);
+      await supabase.from("sales").delete().eq("id", saleId);
+
+      await refreshSelected(selected.id);
+      await loadMovements(selected.id);
+    } catch (e: any) {
+      console.error("cancelDebit error:", e);
+      alert("Erro ao excluir lançamento: " + (e?.message ?? String(e)));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   // ── Edit movement ───────────────────────────────────────────────────────────
 
   async function openEditMovement(m: CustomerMovement) {
@@ -1248,6 +1286,15 @@ export default function CustomersPage() {
                               disabled={saving}
                               className="p-1.5 bg-zinc-800 hover:bg-red-600 text-zinc-300 hover:text-white rounded-lg transition-all border border-zinc-700 hover:border-red-500 disabled:opacity-50"
                               title="Cancelar pagamento">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          {m.type === "debit" && m.sale_id && (
+                            <button
+                              onClick={() => cancelDebit(m)}
+                              disabled={saving}
+                              className="p-1.5 bg-zinc-800 hover:bg-red-600 text-zinc-300 hover:text-white rounded-lg transition-all border border-zinc-700 hover:border-red-500 disabled:opacity-50"
+                              title="Excluir venda fiado">
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           )}
