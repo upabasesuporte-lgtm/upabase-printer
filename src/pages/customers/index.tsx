@@ -463,18 +463,26 @@ export default function CustomersPage() {
 
       // Lança no histórico de Vendas (origin "fiado_payment" para não duplicar faturamento:
       // a receita da venda original já foi contabilizada quando o fiado foi gerado).
-      const { data: sale, error: saleErr } = await supabase.from("sales").insert({
-        user_id: userId, status: "paid", total_amount: totalPaid, discount: 0,
-        customer_id: selected.id, origin: "fiado_payment",
-        seller_name: null, notes: `Pagamento de fiado - ${selected.name}`,
-        payments: payEntries,
-      }).select().single();
-      if (saleErr) throw saleErr;
+      // Isso é "best effort": se o banco rejeitar (ex: check constraint de origin ainda não
+      // atualizado), o pagamento NÃO pode falhar por causa disso — segue sem o sale_id.
+      let saleId: string | null = null;
+      try {
+        const { data: sale, error: saleErr } = await supabase.from("sales").insert({
+          user_id: userId, status: "paid", total_amount: totalPaid, discount: 0,
+          customer_id: selected.id, origin: "fiado_payment",
+          seller_name: null, notes: `Pagamento de fiado - ${selected.name}`,
+          payments: payEntries,
+        }).select().single();
+        if (saleErr) throw saleErr;
+        saleId = sale?.id ?? null;
+      } catch (saleEx: any) {
+        console.error("Não foi possível lançar o pagamento em 'sales' (histórico de vendas):", saleEx?.message ?? saleEx);
+      }
 
       const { error: movErr } = await supabase.from("customer_movements").insert({
         customer_id: selected.id, user_id: userId, type: "payment", amount: totalPaid,
         description: "Pagamento de fiado", payment_methods: payEntries,
-        sale_id: sale?.id ?? null,
+        sale_id: saleId,
       });
       if (movErr) throw movErr;
 
