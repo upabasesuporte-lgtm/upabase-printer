@@ -783,7 +783,7 @@ export default function CustomersPage() {
     win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Extrato - ${selected.name}</title>
     <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:13px;color:#111;padding:24px;max-width:780px;margin:0 auto}
     table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#f3f4f6;padding:8px 10px;font-size:10px;text-align:left;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;border-bottom:2px solid #d1d5db}
-    .grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin:16px 0}.card{background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0}.card{background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px}
     .cl{font-size:10px;text-transform:uppercase;color:#6b7280;margin-bottom:4px}.cv{font-size:18px;font-weight:900}
     @media print{button{display:none!important}}</style></head><body>
     <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #111;padding-bottom:16px;margin-bottom:20px">
@@ -800,7 +800,6 @@ export default function CustomersPage() {
     <div class="grid">
       <div class="card"><div class="cl">Débitos / Fiado</div><div class="cv" style="color:#dc2626">-${fmt(totalDebit)}</div></div>
       <div class="card"><div class="cl">Pagamentos / Créditos</div><div class="cv" style="color:#059669">+${fmt(totalPos)}</div></div>
-      <div class="card"><div class="cl">Saldo do período</div><div class="cv" style="color:${totalPos - totalDebit >= 0 ? "#7c3aed" : "#dc2626"}">${totalPos - totalDebit >= 0 ? "+" : ""}${fmt(totalPos - totalDebit)}</div></div>
     </div>
     ${movements.length === 0 ? '<p style="text-align:center;color:#9ca3af;padding:40px 0">Nenhuma movimentação no período selecionado</p>' : `
     <table><thead><tr><th>Data/Hora</th><th>Tipo</th><th>Descrição</th><th>Formas de Pag.</th><th style="text-align:right">Valor</th></tr></thead>
@@ -1139,20 +1138,14 @@ export default function CustomersPage() {
 
             {/* Summary row */}
             {!movLoading && movements.length > 0 && (
-              <div className="grid grid-cols-3 border-b border-zinc-800">
+              <div className="grid grid-cols-2 border-b border-zinc-800">
                 <div className="px-5 py-3 border-r border-zinc-800">
                   <p className="text-xs text-zinc-500">Débitos</p>
                   <p className="text-sm font-bold text-red-400">-{fmt(totalDebits)}</p>
                 </div>
-                <div className="px-5 py-3 border-r border-zinc-800">
+                <div className="px-5 py-3">
                   <p className="text-xs text-zinc-500">Créditos/Pgtos</p>
                   <p className="text-sm font-bold text-emerald-400">+{fmt(totalPositive)}</p>
-                </div>
-                <div className="px-5 py-3">
-                  <p className="text-xs text-zinc-500">Saldo período</p>
-                  <p className={`text-sm font-bold ${totalPositive - totalDebits >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                    {totalPositive - totalDebits >= 0 ? "+" : ""}{fmt(totalPositive - totalDebits)}
-                  </p>
                 </div>
               </div>
             )}

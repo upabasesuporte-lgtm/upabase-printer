@@ -168,6 +168,8 @@ export default function CashPage() {
   // Total de vendas real (da tabela sales, não cash_movements)
   const [salesTotal, setSalesTotal] = useState(0);
   const [salesRows, setSalesRows] = useState<Array<{ total_amount: number; discount: number | null; payments: any; origin: string | null }>>([]);
+  // Total pago de fiado neste turno (abate do "Fiado (A Rec.)" gerado no período)
+  const [fiadoPaidInShift, setFiadoPaidInShift] = useState(0);
 
   // ── Métricas calculadas ──
   const sales        = movements.filter(m => m.movement_type === "sale");
@@ -188,7 +190,7 @@ export default function CashPage() {
 
   // Breakdown por forma de pagamento — iFood A Receber mostra valor bruto (recibo)
   const paymentBreakdown = (Object.keys(PAYMENT_INFO) as PaymentMethod[]).map(method => {
-    const amount = salesRows
+    let amount = salesRows
       .flatMap(s => {
         const pmts = Array.isArray(s.payments) ? s.payments : [];
         return pmts.map((p: any) => ({
@@ -201,6 +203,10 @@ export default function CashPage() {
       })
       .filter(p => p.method === method)
       .reduce((sum, p) => sum + p.amount, 0);
+    // "Fiado (A Rec.)" mostra o saldo em aberto do período: fiado gerado neste
+    // turno menos o que já foi pago (também neste turno) — atualiza sozinho
+    // quando um pagamento de fiado é feito.
+    if (method === "fiado") amount = Math.max(0, amount - fiadoPaidInShift);
     return { method, amount, pct: salesTotal > 0 ? (amount / salesTotal) * 100 : 0 };
   }).filter(p => p.amount > 0);
 
@@ -256,11 +262,22 @@ export default function CashPage() {
         if (r.origin === "ifood") return s + Number(r.total_amount ?? 0) + Number(r.discount ?? 0);
         return s + Number(r.total_amount ?? 0);
       }, 0));
+
+      // Pagamentos de fiado recebidos neste turno (abatem o "Fiado (A Rec.)")
+      const { data: fiadoPaidData } = await supabase
+        .from("sales")
+        .select("total_amount")
+        .eq("user_id", user?.id)
+        .eq("status", "paid")
+        .eq("origin", "fiado_payment")
+        .gte("created_at", reg.opened_at);
+      setFiadoPaidInShift((fiadoPaidData ?? []).reduce((s: number, r: any) => s + Number(r.total_amount ?? 0), 0));
     } else {
       setRegister(null);
       setMovements([]);
       setSalesTotal(0);
       setSalesRows([]);
+      setFiadoPaidInShift(0);
     }
     setLoading(false);
   }, []);
