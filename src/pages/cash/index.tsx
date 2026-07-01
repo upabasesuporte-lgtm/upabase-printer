@@ -168,8 +168,8 @@ export default function CashPage() {
   // Total de vendas real (da tabela sales, não cash_movements)
   const [salesTotal, setSalesTotal] = useState(0);
   const [salesRows, setSalesRows] = useState<Array<{ total_amount: number; discount: number | null; payments: any; origin: string | null }>>([]);
-  // Total pago de fiado neste turno (abate do "Fiado (A Rec.)" gerado no período)
-  const [fiadoPaidInShift, setFiadoPaidInShift] = useState(0);
+  // Pagamentos de fiado feitos neste turno (abate "Fiado (A Rec.)" e soma na forma de pagamento usada)
+  const [fiadoPaymentRows, setFiadoPaymentRows] = useState<Array<{ total_amount: number; payments: any }>>([]);
 
   // ── Métricas calculadas ──
   const sales        = movements.filter(m => m.movement_type === "sale");
@@ -203,10 +203,20 @@ export default function CashPage() {
       })
       .filter(p => p.method === method)
       .reduce((sum, p) => sum + p.amount, 0);
-    // "Fiado (A Rec.)" mostra o saldo em aberto do período: fiado gerado neste
-    // turno menos o que já foi pago (também neste turno) — atualiza sozinho
-    // quando um pagamento de fiado é feito.
-    if (method === "fiado") amount = Math.max(0, amount - fiadoPaidInShift);
+    if (method === "fiado") {
+      // "Fiado (A Rec.)" mostra o saldo em aberto do período: só sobe com fiado
+      // novo lançado no turno, e só desce com pagamento de fiado feito no turno.
+      const fiadoPaidTotal = fiadoPaymentRows.reduce((s, r) => s + Number(r.total_amount ?? 0), 0);
+      amount = Math.max(0, amount - fiadoPaidTotal);
+    } else {
+      // Dinheiro real que entrou pagando fiado neste turno soma na forma usada
+      // (ex: pagou fiado no PIX → aumenta o PIX, porque entrou dinheiro no PIX)
+      const fiadoPaidByMethod = fiadoPaymentRows
+        .flatMap(r => (Array.isArray(r.payments) ? r.payments : []))
+        .filter((p: any) => p.method === method)
+        .reduce((s: number, p: any) => s + Number(p.amount ?? 0), 0);
+      amount += fiadoPaidByMethod;
+    }
     return { method, amount, pct: salesTotal > 0 ? (amount / salesTotal) * 100 : 0 };
   }).filter(p => p.amount > 0);
 
@@ -263,21 +273,22 @@ export default function CashPage() {
         return s + Number(r.total_amount ?? 0);
       }, 0));
 
-      // Pagamentos de fiado recebidos neste turno (abatem o "Fiado (A Rec.)")
+      // Pagamentos de fiado recebidos neste turno: abatem "Fiado (A Rec.)" e
+      // somam na forma de pagamento realmente usada (ex: pago no PIX → soma no PIX)
       const { data: fiadoPaidData } = await supabase
         .from("sales")
-        .select("total_amount")
+        .select("total_amount, payments")
         .eq("user_id", user?.id)
         .eq("status", "paid")
         .eq("origin", "fiado_payment")
         .gte("created_at", reg.opened_at);
-      setFiadoPaidInShift((fiadoPaidData ?? []).reduce((s: number, r: any) => s + Number(r.total_amount ?? 0), 0));
+      setFiadoPaymentRows(fiadoPaidData ?? []);
     } else {
       setRegister(null);
       setMovements([]);
       setSalesTotal(0);
       setSalesRows([]);
-      setFiadoPaidInShift(0);
+      setFiadoPaymentRows([]);
     }
     setLoading(false);
   }, []);
