@@ -182,9 +182,14 @@ export default function CashPage() {
   const countedVal   = parseFloat(countedAmount.replace(",", ".")) || 0;
   const difference   = countedAmount ? countedVal - currentBalance : null;
 
+  // Considera iFood tanto pelo canal (origin) quanto por ter pagamento "ifood_receivable"
+  // — a venda pode ter sido lançada/editada como PDV mas paga via iFood A Receber.
+  const isIfoodSale = (s: typeof salesRows[0]) =>
+    s.origin === "ifood" || (Array.isArray(s.payments) && s.payments.some((p: any) => p.method === "ifood_receivable"));
+
   // Helpers: valor bruto de uma venda (iFood = total + comissão = valor do recibo; outros = total normal)
   const saleGross = (s: typeof salesRows[0]) =>
-    s.origin === "ifood"
+    isIfoodSale(s)
       ? Number(s.total_amount ?? 0) + Number(s.discount ?? 0)
       : Number(s.total_amount ?? 0);
 
@@ -225,8 +230,13 @@ export default function CashPage() {
     const amount = salesRows
       .filter(s => {
         const origin = s.origin ?? "pdv";
+        // iFood: pelo origin OU por ter pagamento "ifood_receivable" (venda pode ter
+        // sido lançada/editada com origin "pdv" mas paga via iFood A Receber)
+        if (channel === "ifood")        return isIfoodSale(s);
         if (channel === "digital_menu") return origin === "digital_menu" || origin === "cardapio_digital";
         if (channel === "tables")       return origin === "tables" || origin === "mesa";
+        // PDV: não conta de novo o que já foi classificado como iFood acima
+        if (channel === "pdv")          return origin === "pdv" && !isIfoodSale(s);
         return origin === channel;
       })
       .reduce((sum, s) => sum + saleGross(s), 0);
