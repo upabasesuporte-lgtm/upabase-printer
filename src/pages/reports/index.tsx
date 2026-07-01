@@ -260,6 +260,7 @@ export default function ReportsPage() {
       .from("sales")
       .select("id,total_amount,discount,origin,created_at,status,seller_name,payments")
       .eq("status","paid")
+      .neq("origin","fiado_payment")
       .gte("created_at", fromISO)
       .lte("created_at", toISO)
       .order("created_at",{ascending:false});

@@ -213,10 +213,10 @@ export default function DashboardPage() {
 
     const [salesRes, prevRes, prodRes, digRes, tabRes, recentRes, apRes] = await Promise.all([
       supabase.from("sales").select("id,total_amount,discount,origin,created_at,status,seller_name,payments")
-        .eq("user_id", userId).eq("status", "paid")
+        .eq("user_id", userId).eq("status", "paid").neq("origin", "fiado_payment")
         .gte("created_at", fromISO).lte("created_at", toISO).order("created_at"),
       supabase.from("sales").select("id,total_amount")
-        .eq("user_id", userId).eq("status", "paid")
+        .eq("user_id", userId).eq("status", "paid").neq("origin", "fiado_payment")
         .gte("created_at", prevFrom).lte("created_at", prevTo),
       supabase.from("products").select("id,name,stock,stock_min")
         .eq("is_active", true).order("stock").limit(30),

@@ -105,6 +105,7 @@ const ORIGIN_INFO: Record<string, { label: string; color: string }> = {
   whatsapp:        { label: "WhatsApp",        color: "bg-green-500/15 text-green-400" },
   cardapio_digital:{ label: "Cardápio Digital",color: "bg-violet-500/15 text-violet-400" },
   ifood:           { label: "iFood",           color: "bg-red-500/15 text-red-400" },
+  fiado_payment:   { label: "Pgto. Fiado",     color: "bg-fuchsia-500/15 text-fuchsia-400" },
 };
 
 const SHORTCUTS_KEY = "pdv_shortcuts";

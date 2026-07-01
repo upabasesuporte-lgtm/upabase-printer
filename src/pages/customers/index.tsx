@@ -54,6 +54,7 @@ interface CustomerSale {
   id: string;
   created_at: string;
   total: number;
+  total_amount: number;
   discount: number;
   status: string;
   origin: string | null;
@@ -274,7 +275,7 @@ export default function CustomersPage() {
     const range = getDateRange(dateFilter, customFrom, customTo);
     const { data } = await supabase
       .from("sales")
-      .select("id, created_at, total, discount, status, origin, seller_name, sale_items(quantity, unit_price, notes, products(name))")
+      .select("id, created_at, total, total_amount, discount, status, origin, seller_name, sale_items(quantity, unit_price, notes, products(name))")
       .eq("customer_id", customerId)
       .eq("status", "paid")
       .gte("created_at", range.from)
@@ -296,14 +297,15 @@ export default function CustomersPage() {
     setRankingLoading(true);
     const { data: sales } = await supabase
       .from("sales")
-      .select("customer_id, total")
+      .select("customer_id, total, total_amount")
       .eq("status", "paid")
+      .neq("origin", "fiado_payment")
       .not("customer_id", "is", null);
     const map: Record<string, { count: number; total: number }> = {};
     for (const s of sales ?? []) {
       if (!map[s.customer_id]) map[s.customer_id] = { count: 0, total: 0 };
       map[s.customer_id].count++;
-      map[s.customer_id].total += Number(s.total) || 0;
+      map[s.customer_id].total += Number((s as any).total_amount ?? s.total) || 0;
     }
     const ranked = customers
       .map(c => ({ ...c, purchase_count: map[c.id]?.count ?? 0, total_spent: map[c.id]?.total ?? 0 }))
@@ -459,23 +461,43 @@ export default function CustomersPage() {
       const { data: curr } = await supabase.from("customers").select("fiado_balance").eq("id", selected.id).single();
       const newFiado = Math.max(0, (curr?.fiado_balance ?? 0) - totalPaid);
 
+      // Lança no histórico de Vendas (origin "fiado_payment" para não duplicar faturamento:
+      // a receita da venda original já foi contabilizada quando o fiado foi gerado).
+      const { data: sale, error: saleErr } = await supabase.from("sales").insert({
+        user_id: userId, status: "paid", total_amount: totalPaid, discount: 0,
+        customer_id: selected.id, origin: "fiado_payment",
+        seller_name: null, notes: `Pagamento de fiado - ${selected.name}`,
+        payments: payEntries,
+      }).select().single();
+      if (saleErr) throw saleErr;
+
       const { error: movErr } = await supabase.from("customer_movements").insert({
         customer_id: selected.id, user_id: userId, type: "payment", amount: totalPaid,
         description: "Pagamento de fiado", payment_methods: payEntries,
+        sale_id: sale?.id ?? null,
       });
       if (movErr) throw movErr;
 
       await supabase.from("customers").update({ fiado_balance: newFiado }).eq("id", selected.id);
 
-      if (cashRegisterId && userId) {
+      // Busca o caixa aberto agora (não usa cashRegisterId, que pode estar desatualizado
+      // se o caixa foi fechado/reaberto depois que a página Clientes carregou).
+      const { data: freshReg } = await supabase.from("cash_registers")
+        .select("id").eq("user_id", userId).eq("status", "open").maybeSingle();
+      const regId = (freshReg as any)?.id ?? cashRegisterId;
+
+      if (regId && userId) {
         for (const p of payEntries) {
-          await supabase.from("cash_movements").insert({
-            register_id: cashRegisterId, user_id: userId,
+          const { error: cashErr } = await supabase.from("cash_movements").insert({
+            register_id: regId, user_id: userId,
             movement_type: "sale", amount: p.amount,
             payment_method: p.method, channel: "pdv",
             description: `Pgto fiado - ${selected.name}`,
           });
+          if (cashErr) console.error("Erro ao lançar pagamento no caixa:", cashErr);
         }
+      } else {
+        console.warn("Pagamento de fiado registrado sem caixa aberto — não lançado em cash_movements.");
       }
 
       await refreshSelected(selected.id);
@@ -1227,7 +1249,7 @@ export default function CustomersPage() {
               <div className="text-center py-10 text-xs text-zinc-600">Nenhuma compra no período selecionado</div>
             ) : (() => {
               const getSaleTotal = (sale: CustomerSale) => {
-                const t = Number(sale.total);
+                const t = Number(sale.total_amount ?? sale.total);
                 if (t > 0) return t;
                 const itemsSum = sale.sale_items.reduce((s, i) => s + i.unit_price * i.quantity, 0);
                 return Math.max(0, itemsSum - Number(sale.discount ?? 0));
@@ -1288,7 +1310,11 @@ export default function CustomersPage() {
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 flex-wrap">
-                                      <span className="text-xs font-bold text-white font-mono">#{orderNum}</span>
+                                      {sale.origin === "fiado_payment" ? (
+                                        <span className="text-xs font-bold text-emerald-400">Pagamento de Fiado</span>
+                                      ) : (
+                                        <span className="text-xs font-bold text-white font-mono">#{orderNum}</span>
+                                      )}
                                       <span className="text-xs text-zinc-500">{time}</span>
                                       {sale.seller_name && <span className="text-xs text-zinc-600">· {sale.seller_name}</span>}
                                     </div>

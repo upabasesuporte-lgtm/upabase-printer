@@ -247,6 +247,7 @@ export default function CashPage() {
         .select("total_amount, discount, payments, origin")
         .eq("user_id", user?.id)
         .eq("status", "paid")
+        .neq("origin", "fiado_payment")
         .gte("created_at", reg.opened_at);
       const rows = salesData ?? [];
       setSalesRows(rows);
@@ -286,6 +287,7 @@ export default function CashPage() {
         .select("total_amount, discount, origin, created_at")
         .eq("user_id", userId)
         .eq("status", "paid")
+        .neq("origin", "fiado_payment")
         .gte("created_at", oldest);
       const allSales = salesData ?? [];
       const totals: Record<string, number> = {};
@@ -905,6 +907,7 @@ function HistoryTab({
         .select("id, total_amount, discount, payments, origin, created_at")
         .eq("user_id", userId ?? "")
         .eq("status", "paid")
+        .neq("origin", "fiado_payment")
         .gte("created_at", reg.opened_at)
         .lte("created_at", reg.closed_at ?? new Date().toISOString())
         .order("created_at", { ascending: false }),
