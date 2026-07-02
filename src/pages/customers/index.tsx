@@ -1018,65 +1018,84 @@ export default function CustomersPage() {
           )}
           {listView === "list" && !loading && filtered.length > 0 && (
             <div className="rounded-2xl overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
-              <div className={`hidden sm:grid grid-cols-[1fr_150px_180px_80px] gap-x-3 px-4 py-2.5 border-b text-xs font-medium ${isLight ? "border-gray-100 text-gray-400" : "border-zinc-800 text-zinc-500"}`}>
-                <span>Cliente</span>
-                <span>Telefone</span>
-                <span className="text-right">Situação Financeira</span>
-                <span />
-              </div>
-              <div className={isLight ? "p-2 flex flex-col gap-1" : "divide-y divide-zinc-800"}>
-                {filtered.map(c => {
-                  const hasDebt = (c.fiado_balance ?? 0) > 0;
-                  const hasCredit = c.balance > 0;
-                  return (
-                    <div key={c.id}
-                      className={`grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_150px_180px_80px] gap-x-3 px-4 py-3 items-center cursor-pointer transition-colors ${isLight ? "rounded-xl hover:bg-gray-50" : "hover:bg-zinc-800/40"}`}
-                      onClick={() => openDetail(c)}>
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${hasDebt ? "bg-red-500/20 border border-red-500/30 text-red-400" : "bg-violet-600/20 border border-violet-500/20 text-violet-400"}`}>
-                          {c.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className={`text-sm font-medium truncate ${isLight ? "text-gray-900" : "text-white"}`}>{c.name}</p>
-                            {hasDebt && <span className="text-xs font-bold text-red-400 bg-red-500/10 border border-red-500/20 px-1.5 py-0.5 rounded-md flex-shrink-0">DEVENDO</span>}
-                          </div>
-                          {c.phone && <p className="text-xs text-zinc-500 sm:hidden">{c.phone}</p>}
-                          {c.email && !c.phone && <p className="text-xs text-zinc-500 truncate">{c.email}</p>}
-                        </div>
-                      </div>
-                      <span className="hidden sm:block text-sm text-zinc-400 truncate">{c.phone ?? "—"}</span>
-                      <div className="hidden sm:flex flex-col items-end">
-                        {hasDebt && (
-                          <>
-                            <span className="text-sm font-bold text-red-400">Fiado: {fmt(c.fiado_balance)}</span>
-                            {hasCredit && <span className="text-xs text-emerald-400">Saldo: +{fmt(c.balance)}</span>}
-                            {c.credit_limit > 0 && <span className="text-xs text-zinc-600">Limite: {fmt(c.credit_limit)}</span>}
-                          </>
-                        )}
-                        {!hasDebt && hasCredit && (
-                          <>
-                            <span className="text-sm font-bold text-emerald-400">+{fmt(c.balance)}</span>
-                            <span className="text-xs text-zinc-500">saldo disponível</span>
-                          </>
-                        )}
-                        {!hasDebt && !hasCredit && <span className="text-sm text-zinc-600">—</span>}
-                      </div>
-                      <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
-                        {hasDebt && <span className="sm:hidden text-xs font-bold text-red-400 mr-1">{fmt(c.fiado_balance)}</span>}
-                        {!hasDebt && hasCredit && <span className="sm:hidden text-xs font-bold text-emerald-400 mr-1">+{fmt(c.balance)}</span>}
-                        <button onClick={e => openEdit(c, e)}
-                          className="p-1.5 text-zinc-500 hover:text-violet-400 hover:bg-violet-500/10 rounded-lg transition-colors">
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button onClick={e => { e.stopPropagation(); setDeleteTarget(c); setModal("delete"); }}
-                          className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="text-xs uppercase tracking-wider"
+                      style={{ background: isLight ? "#F8FAFC" : "rgba(24,24,27,0.8)", borderBottom: isLight ? "1px solid #e5e7eb" : "1px solid rgba(39,39,42,0.6)" }}>
+                      <th className="text-left px-4 py-3" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>Cliente</th>
+                      <th className="text-left px-4 py-3" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>Telefone</th>
+                      <th className="text-right px-4 py-3" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>Situação Financeira</th>
+                      <th className="text-right px-4 py-3" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((c, i) => {
+                      const hasDebt = (c.fiado_balance ?? 0) > 0;
+                      const hasCredit = c.balance > 0;
+                      return (
+                        <tr key={c.id} className="transition-colors cursor-pointer"
+                          style={{
+                            background: isLight ? (i % 2 === 0 ? "#ffffff" : "#FAFBFC") : "transparent",
+                            borderBottom: isLight ? "1px solid #F3F4F6" : "1px solid rgba(39,39,42,0.3)",
+                          }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLTableRowElement).style.background = isLight ? "#F5F3FF" : "rgba(139,92,246,0.06)"; }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLTableRowElement).style.background = isLight ? (i % 2 === 0 ? "#ffffff" : "#FAFBFC") : "transparent"; }}
+                          onClick={() => openDetail(c)}>
+                          {/* Cliente */}
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${hasDebt ? "bg-red-500/20 border border-red-500/30 text-red-400" : "bg-violet-600/20 border border-violet-500/20 text-violet-400"}`}>
+                                {c.name.charAt(0).toUpperCase()}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <p className={`font-medium truncate ${isLight ? "text-gray-900" : "text-white"}`}>{c.name}</p>
+                                  {hasDebt && <span className="text-xs font-bold text-red-400 bg-red-500/10 border border-red-500/20 px-1.5 py-0.5 rounded-md flex-shrink-0">DEVENDO</span>}
+                                </div>
+                                {c.email && <p className="text-xs text-zinc-500 truncate">{c.email}</p>}
+                              </div>
+                            </div>
+                          </td>
+                          {/* Telefone */}
+                          <td className="px-4 py-3 text-zinc-400 text-xs whitespace-nowrap">{c.phone ?? "—"}</td>
+                          {/* Situação Financeira */}
+                          <td className="px-4 py-3">
+                            <div className="flex flex-col items-end">
+                              {hasDebt && (
+                                <>
+                                  <span className="text-sm font-bold text-red-400">Fiado: {fmt(c.fiado_balance)}</span>
+                                  {hasCredit && <span className="text-xs text-emerald-400">Saldo: +{fmt(c.balance)}</span>}
+                                  {c.credit_limit > 0 && <span className="text-xs text-zinc-600">Limite: {fmt(c.credit_limit)}</span>}
+                                </>
+                              )}
+                              {!hasDebt && hasCredit && (
+                                <>
+                                  <span className="text-sm font-bold text-emerald-400">+{fmt(c.balance)}</span>
+                                  <span className="text-xs text-zinc-500">saldo disponível</span>
+                                </>
+                              )}
+                              {!hasDebt && !hasCredit && <span className="text-sm text-zinc-600">—</span>}
+                            </div>
+                          </td>
+                          {/* Ações */}
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+                              <button onClick={e => openEdit(c, e)}
+                                className="p-1.5 text-zinc-500 hover:text-violet-400 hover:bg-violet-500/10 rounded-lg transition-colors">
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button onClick={e => { e.stopPropagation(); setDeleteTarget(c); setModal("delete"); }}
+                                className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
