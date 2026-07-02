@@ -779,9 +779,10 @@ export default function DigitalMenuPage() {
               <div className="flex items-center gap-2 mb-1">
                 <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background:"#7B2FBE", boxShadow:"0 0 6px #7B2FBE" }} />
                 <span className="text-[11px] font-semibold uppercase tracking-widest"
-                  style={isLight ? { background:"linear-gradient(135deg,#7B2FBE,#00B4D8)", WebkitBackgroundClip:"text", display:"inline-block",WebkitTextFillColor:"transparent", backgroundClip:"text" } : { color:"#7B2FBE", WebkitTextFillColor:"#7B2FBE", backgroundClip:"unset", WebkitBackgroundClip:"unset", background:"none" }}>Cardápio Digital</span>
+                  style={isLight ? { color:"#2563eb" } : { color:"#7B2FBE", WebkitTextFillColor:"#7B2FBE", backgroundClip:"unset", WebkitBackgroundClip:"unset", background:"none" }}>Cardápio Digital</span>
               </div>
-              <h1 className="text-2xl font-black g-text g-text-purple">
+              <h1 className={`text-2xl font-black ${isLight ? "" : "g-text g-text-purple"}`}
+                style={isLight ? { color:"#2563eb" } : undefined}>
                 {settings.store_name || "Meu Cardápio"}
               </h1>
               <p className="text-xs text-zinc-500 mt-0.5">
@@ -857,10 +858,12 @@ export default function DigitalMenuPage() {
             <button key={t.key} onClick={() => setTab(t.key)}
               className="relative flex items-center gap-2 px-5 py-2.5 text-xs font-bold transition-all flex-1 justify-center overflow-hidden"
               style={tab === t.key
-                ? { color: isLight ? "#7B2FBE" : "#c4b5fd", background: isLight ? "rgba(123,47,190,0.07)" : "rgba(123,47,190,0.10)" }
+                ? (isLight
+                    ? { color:"#ffffff", background:"#2563eb", borderRadius:"10px 10px 0 0" }
+                    : { color:"#c4b5fd", background:"rgba(123,47,190,0.10)" })
                 : { color:"#71717a" }}>
-              {/* Gradient underline on active tab */}
-              {tab === t.key && (
+              {/* Gradient underline on active tab (só no tema escuro — no claro o fundo já é azul sólido) */}
+              {tab === t.key && !isLight && (
                 <span className="absolute bottom-0 left-0 right-0 pointer-events-none"
                   style={{ height: 2, background: "linear-gradient(90deg,#7B2FBE,#00B4D8)" }} />
               )}
@@ -899,7 +902,7 @@ export default function DigitalMenuPage() {
                 onClick={() => setOrdersDate(todayStr)}
                 className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
                 style={ordersDate === todayStr
-                  ? { background: isLight ? "linear-gradient(135deg,#7B2FBE,#00B4D8)" : "#27272a", color:"#fff", border:"1px solid transparent" }
+                  ? { background: isLight ? "#2563eb" : "#27272a", color:"#fff", border:"1px solid transparent" }
                   : { background: isLight ? "#F3F4F6" : "#18181b", color:"#71717a", border: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" }}>
                 Hoje
               </button>
@@ -921,7 +924,7 @@ export default function DigitalMenuPage() {
                     className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
                     style={statusFilter === s
                       ? isLight
-                        ? { background:"linear-gradient(135deg,#7B2FBE,#00B4D8)", color:"#fff", border:"1px solid transparent", boxShadow:"0 2px 10px rgba(123,47,190,0.35)" }
+                        ? { background:"#2563eb", color:"#fff", border:"1px solid transparent", boxShadow:"0 2px 10px rgba(37,99,235,0.35)" }
                         : (s === "all" ? { background:"#27272a", color:"#fff", border:"1px solid #3f3f46" } : { background: sc?.bg, color: sc?.color, border:`1px solid ${sc?.border}` })
                       : { background: isLight ? "#F3F4F6" : "#18181b", color:"#71717a", border: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" }}>
                     {s === "all" ? "Todos" : sc?.label}{s === "pending" && pendingCount > 0 ? ` (${pendingCount})` : ""}
