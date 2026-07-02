@@ -521,12 +521,30 @@ export default function CustomersPage() {
     }
   }
 
+  // ── Controle de turno ────────────────────────────────────────────────────────
+  // Só deixa cancelar/editar um lançamento se ele pertence ao turno de caixa
+  // ATUALMENTE aberto. Isso evita que alguém apague/edite vendas ou pagamentos
+  // de dias anteriores sem passar pelo caixa daquele dia — para mexer em algo
+  // de outro turno é preciso fechar o caixa atual e reabrir o caixa antigo
+  // (Caixa → Histórico de Caixas → Reabrir).
+  async function assertCurrentShift(createdAt: string): Promise<boolean> {
+    const { data: reg } = await supabase.from("cash_registers")
+      .select("opened_at").eq("user_id", userId).eq("status", "open")
+      .order("opened_at", { ascending: false }).limit(1).maybeSingle();
+    if (!reg || new Date(createdAt) < new Date(reg.opened_at)) {
+      alert("Este lançamento é de um turno de caixa anterior (já fechado).\n\nPara cancelar ou editar, feche o caixa atual e reabra o caixa daquele dia em Caixa → Histórico de Caixas → Reabrir.");
+      return false;
+    }
+    return true;
+  }
+
   // ── Cancelar pagamento de fiado ─────────────────────────────────────────────
   // Reverte por completo um pagamento lançado errado: devolve o valor à dívida
   // do cliente, e apaga automaticamente o registro em Vendas (histórico do PDV)
   // e o lançamento correspondente no Caixa.
   async function cancelPayment(m: CustomerMovement) {
     if (!selected || saving || m.type !== "payment") return;
+    if (!(await assertCurrentShift(m.created_at))) return;
     if (!confirm(`Cancelar este pagamento de ${fmt(m.amount)}? O valor volta a ser dívida do cliente.`)) return;
     setSaving(true);
     try {
@@ -566,6 +584,7 @@ export default function CustomersPage() {
   // cliente, apaga a venda do Histórico/Vendas e os lançamentos no Caixa.
   async function cancelDebit(m: CustomerMovement) {
     if (!selected || saving || m.type !== "debit" || !m.sale_id) return;
+    if (!(await assertCurrentShift(m.created_at))) return;
     if (!confirm(`Excluir esta venda fiado de ${fmt(m.amount)}? Isso remove a venda do histórico, do caixa e reduz a dívida do cliente.`)) return;
     setSaving(true);
     try {
@@ -602,6 +621,7 @@ export default function CustomersPage() {
   // ── Edit movement ───────────────────────────────────────────────────────────
 
   async function openEditMovement(m: CustomerMovement) {
+    if (!(await assertCurrentShift(m.created_at))) return;
     setEditingMovement(m);
     setEditDesc(m.description ?? "");
     setEditPayEntries((m.payment_methods ?? []).map(p => ({ method: p.method as PayMethod, amount: p.amount })));
