@@ -562,9 +562,16 @@ export default function CustomersPage() {
       const movDate = new Date(m.created_at);
       const fromDate = new Date(movDate.getTime() - 120000).toISOString();
       const toDate   = new Date(movDate.getTime() + 120000).toISOString();
-      await supabase.from("cash_movements").delete()
+      const { data: deletedCash, error: cashDelErr } = await supabase.from("cash_movements").delete()
         .eq("description", `Pgto fiado - ${selected.name}`)
-        .gte("created_at", fromDate).lte("created_at", toDate);
+        .gte("created_at", fromDate).lte("created_at", toDate)
+        .select("id");
+      if (cashDelErr) {
+        console.error("Erro ao apagar lançamento do caixa do pagamento:", cashDelErr);
+        alert("Atenção: o pagamento foi cancelado, mas houve um erro ao remover o lançamento do Caixa. Verifique manualmente em Caixa → Movimentações.");
+      } else if (!deletedCash || deletedCash.length === 0) {
+        console.warn("Nenhum lançamento de caixa encontrado para este pagamento — pode já ter sido removido ou o caixa era de outro turno.");
+      }
 
       // 4) Apaga o movimento do extrato do cliente
       await supabase.from("customer_movements").delete().eq("id", m.id);
@@ -597,9 +604,16 @@ export default function CustomersPage() {
       await supabase.from("customers").update({ fiado_balance: newFiado }).eq("id", selected.id);
 
       // 2) Apaga o(s) lançamento(s) dessa venda no Caixa
-      await supabase.from("cash_movements").delete()
+      const { data: deletedCash, error: cashDelErr } = await supabase.from("cash_movements").delete()
         .eq("movement_type", "sale")
-        .like("description", `%#${orderNum}%`);
+        .like("description", `%#${orderNum}%`)
+        .select("id");
+      if (cashDelErr) {
+        console.error("Erro ao apagar lançamento do caixa da venda:", cashDelErr);
+        alert("Atenção: a venda foi excluída, mas houve um erro ao remover o lançamento do Caixa. Verifique manualmente em Caixa → Movimentações.");
+      } else if (!deletedCash || deletedCash.length === 0) {
+        console.warn(`Nenhum lançamento de caixa encontrado para a venda #${orderNum} — pode já ter sido removido ou o caixa era de outro turno.`);
+      }
 
       // 3) Apaga os movimentos do cliente ligados a essa venda
       await supabase.from("customer_movements").delete().eq("sale_id", saleId);

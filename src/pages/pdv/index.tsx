@@ -1035,10 +1035,20 @@ export default function PdvPage() {
     const sale = sales.find(s => s.id === saleId) ?? showEditSale;
 
     // Remove movimentos de caixa (sem filtro user_id para garantir que funciona)
-    await supabase.from("cash_movements")
+    // Confere quantas linhas foram realmente apagadas: se nenhuma, o lançamento
+    // do caixa fica órfão (aparece em "Saldo em Dinheiro" mas some de "Formas de
+    // Pagamento", que vem da tabela sales) — avisa o operador na hora.
+    const { data: deletedCash, error: cashDelErr } = await supabase.from("cash_movements")
       .delete()
       .eq("movement_type", "sale")
-      .like("description", `%#${orderNum}%`);
+      .like("description", `%#${orderNum}%`)
+      .select("id");
+    if (cashDelErr) {
+      console.error("Erro ao apagar lançamento do caixa da venda:", cashDelErr);
+      alert("Atenção: a venda foi excluída, mas houve um erro ao remover o lançamento do Caixa. Verifique manualmente em Caixa → Movimentações (pode ficar um valor sobrando).");
+    } else if (!deletedCash || deletedCash.length === 0) {
+      console.warn(`Nenhum lançamento de caixa encontrado para a venda #${orderNum} — pode já ter sido removido ou o caixa era de outro turno.`);
+    }
 
     // Remove movimentos do cliente e ajusta fiado_balance
     if (sale?.customer_id && userId) {
