@@ -771,6 +771,21 @@ export default function DigitalMenuPage() {
       return ai - bi;
     });
   })();
+  // Agrupa a lista de produtos por categoria, na MESMA ordem do cardápio real
+  // (orderedCategories), pra essa tela ficar organizada igual o que o cliente vê.
+  const groupedProducts = (() => {
+    const byCat: Record<string, typeof filteredProducts> = {};
+    for (const p of filteredProducts) {
+      const key = p.category_id ?? "__none__";
+      (byCat[key] ??= []).push(p);
+    }
+    const groups: { id: string; name: string; items: typeof filteredProducts }[] = [];
+    for (const cat of orderedCategories) {
+      if (byCat[cat.id]?.length) groups.push({ id: cat.id, name: cat.name, items: byCat[cat.id] });
+    }
+    if (byCat.__none__?.length) groups.push({ id: "__none__", name: "Sem categoria", items: byCat.__none__ });
+    return groups;
+  })();
 
   // ── Render ────────────────────────────────────────────────────────────────────
 
@@ -1067,37 +1082,46 @@ export default function DigitalMenuPage() {
               </p>
             )}
 
-            <div className="space-y-2">
-              {filteredProducts.map(product => (
-                <div key={product.id} className="rounded-2xl p-4 flex items-center gap-4 transition-all" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
-                  {product.image_url ? (
-                    <img src={product.image_url} alt={product.name} className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
-                  ) : (
-                    <div className="w-14 h-14 rounded-xl bg-zinc-800 flex items-center justify-center flex-shrink-0">
-                      <Package className="w-6 h-6 text-zinc-600" />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                      <p className="font-semibold text-sm">{product.name}</p>
-                      {product.is_configurable && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-md font-bold flex-shrink-0" style={{ background:"rgba(139,92,246,0.15)", color:"#8b5cf6", border:"1px solid rgba(139,92,246,0.3)" }}>MONTÁVEL</span>
+            <div className="space-y-4">
+              {groupedProducts.map(group => (
+                <div key={group.id} className="space-y-2">
+                  <div className="flex items-center gap-2 px-1">
+                    <span className="text-xs font-bold uppercase tracking-widest" style={{ color: isLight ? "#7B2FBE" : "#a78bfa" }}>{group.name}</span>
+                    <span className="text-[10px] text-zinc-600">({group.items.length})</span>
+                    <div className="flex-1 h-px" style={{ background: isLight ? "#e5e7eb" : "#27272a" }} />
+                  </div>
+                  {group.items.map(product => (
+                    <div key={product.id} className="rounded-2xl p-4 flex items-center gap-4 transition-all" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+                      {product.image_url ? (
+                        <img src={product.image_url} alt={product.name} className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
+                      ) : (
+                        <div className="w-14 h-14 rounded-xl bg-zinc-800 flex items-center justify-center flex-shrink-0">
+                          <Package className="w-6 h-6 text-zinc-600" />
+                        </div>
                       )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                          <p className="font-semibold text-sm">{product.name}</p>
+                          {product.is_configurable && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-md font-bold flex-shrink-0" style={{ background:"rgba(139,92,246,0.15)", color:"#8b5cf6", border:"1px solid rgba(139,92,246,0.3)" }}>MONTÁVEL</span>
+                          )}
+                        </div>
+                        {product.description && <p className="text-xs text-zinc-600 truncate">{product.description}</p>}
+                        <p className="text-sm font-bold mt-0.5" style={{ color: isLight ? "#7B2FBE" : "#f59e0b" }}>{fmt(product.sale_price)}</p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <button onClick={() => toggleVisible(product)}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all border"
+                          style={product.visible_digital_menu ? { background:"rgba(16,185,129,0.1)", color:"#10b981", borderColor:"rgba(16,185,129,0.3)" } : { background: isLight ? "#F3F4F6" : "#18181b", color:"#71717a", borderColor: isLight ? "#e5e7eb" : "#27272a" }}>
+                          {product.visible_digital_menu ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                          {product.visible_digital_menu ? "Visível" : "Oculto"}
+                        </button>
+                        <button onClick={() => openEditor(product)} className="p-2 rounded-lg hover:bg-zinc-700 text-zinc-400 hover:text-white transition-all" style={{ background: isLight ? "#F3F4F6" : "#3f3f46" }}>
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
-                    <p className="text-xs text-zinc-600 truncate">{product.description || categories.find(c => c.id === product.category_id)?.name || "Sem categoria"}</p>
-                    <p className="text-sm font-bold mt-0.5" style={{ color: isLight ? "#7B2FBE" : "#f59e0b" }}>{fmt(product.sale_price)}</p>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <button onClick={() => toggleVisible(product)}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all border"
-                      style={product.visible_digital_menu ? { background:"rgba(16,185,129,0.1)", color:"#10b981", borderColor:"rgba(16,185,129,0.3)" } : { background: isLight ? "#F3F4F6" : "#18181b", color:"#71717a", borderColor: isLight ? "#e5e7eb" : "#27272a" }}>
-                      {product.visible_digital_menu ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                      {product.visible_digital_menu ? "Visível" : "Oculto"}
-                    </button>
-                    <button onClick={() => openEditor(product)} className="p-2 rounded-lg hover:bg-zinc-700 text-zinc-400 hover:text-white transition-all" style={{ background: isLight ? "#F3F4F6" : "#3f3f46" }}>
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                  ))}
                 </div>
               ))}
               {filteredProducts.length === 0 && <p className="text-center text-zinc-600 text-sm py-10">Nenhum produto encontrado</p>}
