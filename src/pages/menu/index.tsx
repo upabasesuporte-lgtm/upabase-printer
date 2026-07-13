@@ -580,14 +580,14 @@ export default function PublicMenuPage() {
               {hasPromo && (
                 <span className="text-xs text-zinc-600 line-through mr-1.5">{fmt(product.sale_price)}</span>
               )}
-              <span className={`font-bold text-sm ${hasPromo ? "text-emerald-400" : "text-teal-400"}`}>
+              <span className={`font-bold text-sm ${hasPromo ? "text-emerald-400" : "text-blue-500"}`}>
                 {fmt(price)}
               </span>
             </div>
             {product.is_configurable ? (
               <button onClick={() => isOpen && openConfigure(product)} disabled={!isOpen}
                 className="px-4 py-2 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-all flex items-center gap-1.5"
-                style={{ background:"linear-gradient(135deg,#14b8a6,#0d9488)", boxShadow:"0 4px 14px rgba(13,148,136,0.45)" }}>
+                style={{ background:"#2563eb", boxShadow:"0 4px 14px rgba(37,99,235,0.35)" }}>
                 <ShoppingCart className="w-3.5 h-3.5" /> Montar
               </button>
             ) : fixedQty === 0 ? (
@@ -1335,7 +1335,7 @@ export default function PublicMenuPage() {
               <button
                 onClick={() => setActiveCat("all")}
                 className="px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap"
-                style={activeCat === "all" ? { background:"#14b8a6", color:"#fff", boxShadow:"0 3px 12px rgba(13,148,136,0.4)" } : { background:"#f3f4f6", color:"#6b7280", border:"1px solid #e5e7eb" }}
+                style={activeCat === "all" ? { background:"#2563eb", color:"#fff", boxShadow:"0 3px 12px rgba(37,99,235,0.4)" } : { background:"#f3f4f6", color:"#6b7280", border:"1px solid #e5e7eb" }}
               >
                 Todos
               </button>
@@ -1344,7 +1344,7 @@ export default function PublicMenuPage() {
                   key={cat.id}
                   onClick={() => setActiveCat(cat.id)}
                   className="px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap"
-                  style={activeCat === cat.id ? { background:"#14b8a6", color:"#fff", boxShadow:"0 3px 12px rgba(13,148,136,0.4)" } : { background:"#f3f4f6", color:"#6b7280", border:"1px solid #e5e7eb" }}
+                  style={activeCat === cat.id ? { background:"#2563eb", color:"#fff", boxShadow:"0 3px 12px rgba(37,99,235,0.4)" } : { background:"#f3f4f6", color:"#6b7280", border:"1px solid #e5e7eb" }}
                 >
                   {cat.name}
                 </button>
