@@ -750,7 +750,14 @@ export default function DigitalMenuPage() {
   const today            = new Date().toDateString();
   const todayRevenue     = orders.filter(o => new Date(o.created_at).toDateString() === today && o.status !== "cancelled").reduce((s, o) => s + o.total_amount, 0);
   const filteredOrders   = orders.filter(o => statusFilter === "all" || o.status === statusFilter);
-  const filteredProducts = products.filter(p => (catFilter === "all" || p.category_id === catFilter) && (!productSearch || p.name.toLowerCase().includes(productSearch.toLowerCase())));
+  // Por padrão só mostra produtos VISÍVEIS no cardápio (evita poluir a tela com
+  // tudo que existe em Produtos). Ao buscar, mostra também os ocultos, pra dar
+  // pra achar e reativar algum produto sem precisar mostrar a lista toda.
+  const filteredProducts = products.filter(p =>
+    (catFilter === "all" || p.category_id === catFilter) &&
+    (!productSearch || p.name.toLowerCase().includes(productSearch.toLowerCase())) &&
+    (productSearch !== "" || p.visible_digital_menu)
+  );
   const orderedCategories = (() => {
     const order = settings.category_order ?? [];
     if (order.length === 0) return categories;
@@ -1051,6 +1058,11 @@ export default function DigitalMenuPage() {
                 <Plus className="w-4 h-4" /> Novo Produto
               </button>
             </div>
+            {!productSearch && (
+              <p className="text-[11px] text-zinc-600 -mt-1">
+                Mostrando só produtos visíveis no cardápio. Pra achar e ativar um produto oculto, busque o nome dele aqui.
+              </p>
+            )}
 
             <div className="space-y-2">
               {filteredProducts.map(product => (
