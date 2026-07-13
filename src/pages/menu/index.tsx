@@ -163,6 +163,21 @@ export default function PublicMenuPage() {
   const navigate = useNavigate();
   const { isLight } = useTheme();
 
+  // Essa página é pública (o cliente da loja) e tem visual sempre escuro por
+  // design. O tema claro/escuro do painel admin é salvo no navegador (mesmo
+  // domínio) e, sem isso, "vazava" pra cá — deixando texto branco virando
+  // preto (ilegível) sempre que quem abria o link tinha o tema claro salvo
+  // de usar o painel admin. Trava o tema escuro só enquanto essa página
+  // pública está aberta, e devolve o valor original ao sair.
+  useEffect(() => {
+    const previous = document.documentElement.getAttribute("data-theme");
+    document.documentElement.setAttribute("data-theme", "dark");
+    return () => {
+      if (previous) document.documentElement.setAttribute("data-theme", previous);
+      else document.documentElement.removeAttribute("data-theme");
+    };
+  }, []);
+
   const [settings, setSettings]     = useState<StoreSettings>(DEFAULT_SETTINGS);
   const [storeFound, setStoreFound] = useState<boolean | null>(null);
   const [products, setProducts]     = useState<Product[]>([]);
@@ -586,15 +601,15 @@ export default function PublicMenuPage() {
             </div>
             {product.is_configurable ? (
               <button onClick={() => isOpen && openConfigure(product)} disabled={!isOpen}
-                className="px-4 py-2 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-all flex items-center gap-1.5"
-                style={{ background:"#2563eb", boxShadow:"0 4px 14px rgba(37,99,235,0.35)" }}>
+                className="px-4 py-2 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold transition-all flex items-center gap-1.5"
+                style={{ background:"#2563eb", color:"#fff", boxShadow:"0 4px 14px rgba(37,99,235,0.35)" }}>
                 <ShoppingCart className="w-3.5 h-3.5" /> Montar
               </button>
             ) : fixedQty === 0 ? (
               <button onClick={() => isOpen && addFixed(product)} disabled={!isOpen}
                 className="w-10 h-10 rounded-full disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-all"
-                style={{ background:"linear-gradient(135deg,#14b8a6,#0d9488)", boxShadow:"0 4px 12px rgba(13,148,136,0.45)" }}>
-                <Plus className="w-4 h-4 text-white" />
+                style={{ background:"#2563eb", boxShadow:"0 4px 12px rgba(37,99,235,0.35)", color:"#fff" }}>
+                <Plus className="w-4 h-4" />
               </button>
             ) : (
               <div className="flex items-center gap-1.5">
@@ -605,8 +620,8 @@ export default function PublicMenuPage() {
                 <span className="w-5 text-center font-bold text-sm">{fixedQty}</span>
                 <button onClick={() => addFixed(product)}
                   className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
-                  style={{ background:"linear-gradient(135deg,#14b8a6,#0d9488)", boxShadow:"0 3px 10px rgba(13,148,136,0.4)" }}>
-                  <Plus className="w-3.5 h-3.5 text-white" />
+                  style={{ background:"#2563eb", boxShadow:"0 3px 10px rgba(37,99,235,0.3)", color:"#fff" }}>
+                  <Plus className="w-3.5 h-3.5" />
                 </button>
               </div>
             )}
@@ -792,9 +807,9 @@ export default function PublicMenuPage() {
                 onClick={sendMessage}
                 disabled={!chatInput.trim() || sendingMsg}
                 className="w-9 h-9 rounded-xl disabled:opacity-40 flex items-center justify-center transition-all flex-shrink-0"
-                style={{ background:"linear-gradient(135deg,#14b8a6,#0d9488)", boxShadow:"0 3px 10px rgba(13,148,136,0.4)" }}
+                style={{ background:"#2563eb", boxShadow:"0 3px 10px rgba(37,99,235,0.3)", color:"#fff" }}
               >
-                <Send className="w-4 h-4 text-white" />
+                <Send className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -831,7 +846,7 @@ export default function PublicMenuPage() {
                 onClick={() => setOrderType("takeaway")}
                 className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border transition-all text-sm font-medium ${
                   orderType === "takeaway"
-                    ? "bg-teal-500/15 border-teal-500 text-teal-400"
+                    ? "bg-blue-500/15 border-blue-500 text-blue-500"
                     : "border-zinc-700 text-zinc-400 hover:border-zinc-600"
                 }`}
               >
@@ -841,7 +856,7 @@ export default function PublicMenuPage() {
                 onClick={() => setOrderType("delivery")}
                 className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border transition-all text-sm font-medium ${
                   orderType === "delivery"
-                    ? "bg-teal-500/15 border-teal-500 text-teal-400"
+                    ? "bg-blue-500/15 border-blue-500 text-blue-500"
                     : "border-zinc-700 text-zinc-400 hover:border-zinc-600"
                 }`}
               >
@@ -902,7 +917,7 @@ export default function PublicMenuPage() {
                     onClick={() => setPayMethod(pm as PayMethod)}
                     className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all ${
                       payMethod === pm
-                        ? "bg-teal-500/15 border-teal-500 text-teal-400"
+                        ? "bg-blue-500/15 border-blue-500 text-blue-500"
                         : "border-zinc-700 text-zinc-400 hover:border-zinc-600"
                     }`}
                   >
@@ -975,8 +990,8 @@ export default function PublicMenuPage() {
           <button
             onClick={submitOrder}
             disabled={submitting || cart.length === 0}
-            className="w-full py-3.5 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
-            style={{ background:"linear-gradient(135deg,#14b8a6,#0d9488)", boxShadow:"0 4px 18px rgba(13,148,136,0.45)" }}
+            className="w-full py-3.5 disabled:opacity-50 disabled:cursor-not-allowed font-bold rounded-xl transition-all flex items-center justify-center gap-2"
+            style={{ background:"#2563eb", boxShadow:"0 4px 18px rgba(37,99,235,0.35)", color:"#fff" }}
           >
             <CheckCircle2 className="w-5 h-5" /> Confirmar Pedido · {fmt(total)}
           </button>
@@ -1003,8 +1018,8 @@ export default function PublicMenuPage() {
             <ShoppingCart className="w-14 h-14 text-zinc-700 mb-4" />
             <p className="text-zinc-500">Seu carrinho está vazio</p>
             <button onClick={() => setStep("menu")}
-              className="mt-4 px-5 py-2.5 text-white rounded-xl text-sm font-semibold transition-all"
-              style={{ background:"linear-gradient(135deg,#14b8a6,#0d9488)", boxShadow:"0 4px 14px rgba(13,148,136,0.4)" }}>
+              className="mt-4 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all"
+              style={{ background:"#2563eb", boxShadow:"0 4px 14px rgba(37,99,235,0.3)", color:"#fff" }}>
               Ver Cardápio
             </button>
           </div>
@@ -1046,7 +1061,7 @@ export default function PublicMenuPage() {
                       <button
                         onClick={() => changeQty(idx, 1)}
                         className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
-                        style={{ background:"linear-gradient(135deg,#14b8a6,#0d9488)", boxShadow:"0 3px 10px rgba(13,148,136,0.4)" }}
+                        style={{ background:"#2563eb", boxShadow:"0 3px 10px rgba(37,99,235,0.3)", color:"#fff" }}
                       >
                         <Plus className="w-3.5 h-3.5" />
                       </button>
@@ -1067,8 +1082,8 @@ export default function PublicMenuPage() {
               <button
                 onClick={() => setStep("checkout")}
                 disabled={subtotal < settings.min_order_value}
-                className="w-full py-3.5 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
-                style={{ background:"linear-gradient(135deg,#14b8a6,#0d9488)", boxShadow:"0 4px 18px rgba(13,148,136,0.45)" }}
+                className="w-full py-3.5 disabled:opacity-40 disabled:cursor-not-allowed font-bold rounded-xl transition-all flex items-center justify-center gap-2"
+                style={{ background:"#2563eb", boxShadow:"0 4px 18px rgba(37,99,235,0.35)", color:"#fff" }}
               >
                 Continuar <ChevronRight className="w-5 h-5" />
               </button>
@@ -1194,8 +1209,8 @@ export default function PublicMenuPage() {
             </div>
             <button
               onClick={addConfiguredToCart}
-              className="flex-1 py-3 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2"
-              style={{ background:"linear-gradient(135deg,#14b8a6,#0d9488)", boxShadow:"0 4px 16px rgba(13,148,136,0.45)" }}
+              className="flex-1 py-3 font-bold rounded-xl transition-all flex items-center justify-center gap-2"
+              style={{ background:"#2563eb", boxShadow:"0 4px 16px rgba(37,99,235,0.35)", color:"#fff" }}
             >
               <ShoppingCart className="w-4 h-4" /> Adicionar · {fmt(unitTotal)}
             </button>
@@ -1375,7 +1390,7 @@ export default function PublicMenuPage() {
             {visibleCats.filter(cat => filteredProducts.some(p => p.category_id === cat.id)).map(cat => (
               <div key={cat.id} className="mb-6">
                 <div className="flex items-center gap-3 py-2.5">
-                  <span className="text-sm font-bold text-teal-400 whitespace-nowrap">{cat.name}</span>
+                  <span className="text-sm font-bold text-blue-500 whitespace-nowrap">{cat.name}</span>
                   <div className="flex-1 h-px bg-zinc-800" />
                 </div>
                 <div className="space-y-3">
@@ -1409,13 +1424,13 @@ export default function PublicMenuPage() {
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-sm px-4 z-40">
           <button
             onClick={() => setStep("cart")}
-            className="w-full py-4 text-white font-bold rounded-2xl flex items-center justify-between px-5 transition-all"
-            style={{ background:"linear-gradient(135deg,#14b8a6,#0d9488)", boxShadow:"0 8px 28px rgba(13,148,136,0.55)" }}
+            className="w-full py-4 font-bold rounded-2xl flex items-center justify-between px-5 transition-all"
+            style={{ background:"#2563eb", boxShadow:"0 8px 28px rgba(37,99,235,0.45)", color:"#fff" }}
           >
             <div className="flex items-center gap-2.5">
               <div className="relative">
                 <ShoppingCart className="w-5 h-5" />
-                <span className="absolute -top-2 -right-2 w-4 h-4 bg-white text-teal-700 rounded-full text-[10px] font-black flex items-center justify-center">
+                <span className="absolute -top-2 -right-2 w-4 h-4 bg-white text-blue-700 rounded-full text-[10px] font-black flex items-center justify-center">
                   {totalItems}
                 </span>
               </div>

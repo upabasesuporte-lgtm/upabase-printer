@@ -52,6 +52,17 @@ export default function MenuTrackingPage() {
   const { uid, orderId } = useParams<{ uid: string; orderId: string }>();
   const navigate = useNavigate();
 
+  // Página pública (cliente acompanhando o pedido) — sempre tema escuro,
+  // independente do tema salvo no navegador pelo painel admin (mesmo domínio).
+  useEffect(() => {
+    const previous = document.documentElement.getAttribute("data-theme");
+    document.documentElement.setAttribute("data-theme", "dark");
+    return () => {
+      if (previous) document.documentElement.setAttribute("data-theme", previous);
+      else document.documentElement.removeAttribute("data-theme");
+    };
+  }, []);
+
   const [order,    setOrder]    = useState<TrackedOrder | null>(null);
   const [settings, setSettings] = useState<StoreSettings>({ store_name: "", estimated_time_min: 30, estimated_time_max: 50 });
   const [msgs,     setMsgs]     = useState<ChatMessage[]>([]);
