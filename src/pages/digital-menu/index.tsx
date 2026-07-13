@@ -24,7 +24,6 @@ interface StoreSettings {
   whatsapp: string; address: string;
   hidden_categories_digital_menu?: string[];
   category_order?: string[];
-  slug?: string;
 }
 
 interface DigitalOrder {
@@ -99,30 +98,11 @@ const DEFAULT_SETTINGS: StoreSettings = {
   whatsapp: "", address: "",
   hidden_categories_digital_menu: [],
   category_order: [],
-  slug: "",
 };
 
 const fmt    = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const fmtT   = (d: string) => new Date(d).toLocaleTimeString("pt-BR",  { hour: "2-digit", minute: "2-digit" });
 const fmtDT  = (d: string) => new Date(d).toLocaleDateString("pt-BR",  { day: "2-digit", month: "2-digit" }) + " " + fmtT(d);
-
-// Deixa o link só com letras minúsculas, números e hífen (sem acento/espaço/símbolo)
-function sanitizeSlug(v: string): string {
-  const accentMap: Record<string, string> = {
-    "á":"a","à":"a","â":"a","ã":"a","ä":"a",
-    "é":"e","è":"e","ê":"e","ë":"e",
-    "í":"i","ì":"i","î":"i","ï":"i",
-    "ó":"o","ò":"o","ô":"o","õ":"o","ö":"o",
-    "ú":"u","ù":"u","û":"u","ü":"u",
-    "ç":"c","ñ":"n",
-  };
-  const folded = v.toLowerCase().split("").map(ch => accentMap[ch] ?? ch).join("");
-  return folded
-    .replace(/[^a-z0-9-]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 40);
-}
 
 function isStoreOpenNow(s: StoreSettings): boolean {
   if (!s.auto_hours) return s.is_open;
@@ -348,15 +328,11 @@ export default function DigitalMenuPage() {
   const [settingsSaving,  setSettingsSaving]   = useState(false);
   const [settingsSaved,   setSettingsSaved]    = useState(false);
   const [copied,          setCopied]           = useState(false);
-  // Link personalizado (slug) do cardápio
-  const [slugInput,  setSlugInput]  = useState("");
-  const [slugSaving, setSlugSaving] = useState(false);
-  const [slugMsg,    setSlugMsg]    = useState<{ type: "error" | "success"; text: string } | null>(null);
   const [logoUploading,      setLogoUploading]     = useState(false);
   const [bannerUploading,    setBannerUploading]   = useState(false);
   const [productImgUploading,setProductImgUploading] = useState(false);
 
-  const menuUrl  = userId ? (settings.slug ? `${window.location.origin}/loja/${settings.slug}` : `${window.location.origin}/menu/${userId}`) : "";
+  const menuUrl  = userId ? `${window.location.origin}/menu/${userId}` : "";
   const inputCls = "w-full px-3 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500/60 transition-all";
 
   // ── Sync ordersRef so Realtime callbacks never have stale closures
@@ -435,9 +411,6 @@ export default function DigitalMenuPage() {
     setLoading(true);
     Promise.all([loadOrders(userId), loadProducts(), loadSettings(userId)]).finally(() => setLoading(false));
   }, [userId, loadOrders, loadProducts, loadSettings]);
-
-  // Mantém o campo de edição do link em sincronia com o que já está salvo
-  useEffect(() => { setSlugInput(settings.slug ?? ""); }, [settings.slug]);
 
   // ── Realtime: orders
   useEffect(() => {
@@ -708,37 +681,6 @@ export default function DigitalMenuPage() {
     );
     if (error) console.error("Erro ao salvar configurações:", error);
     setSettingsSaving(false); setSettingsSaved(true); setTimeout(() => setSettingsSaved(false), 2500);
-  }
-
-  async function saveSlug() {
-    const clean = sanitizeSlug(slugInput);
-    setSlugMsg(null);
-    if (!clean || clean.length < 3) {
-      setSlugMsg({ type: "error", text: "Use pelo menos 3 letras/números (sem espaço ou símbolo)." });
-      return;
-    }
-    setSlugSaving(true);
-    // Confere se outra loja já não está usando esse mesmo link
-    const { data: existing, error: checkErr } = await supabase
-      .from("menu_store_settings")
-      .select("user_id")
-      .filter("settings->>slug", "eq", clean);
-    if (checkErr) {
-      setSlugSaving(false);
-      setSlugMsg({ type: "error", text: "Erro ao verificar disponibilidade. Tente novamente." });
-      return;
-    }
-    const takenByOther = (existing ?? []).some((r: any) => r.user_id !== userId);
-    if (takenByOther) {
-      setSlugSaving(false);
-      setSlugMsg({ type: "error", text: "Esse link já está em uso por outra loja. Escolha outro." });
-      return;
-    }
-    await saveSettings({ slug: clean });
-    setSlugInput(clean);
-    setSlugSaving(false);
-    setSlugMsg({ type: "success", text: "Link salvo!" });
-    setTimeout(() => setSlugMsg(null), 3000);
   }
 
   async function toggleStoreOpen() {
@@ -1280,32 +1222,6 @@ export default function DigitalMenuPage() {
                   </p>
                 </div>
               )}
-
-              {/* Link personalizado (slug) — mais curto e com o nome da loja */}
-              <div className="pt-3" style={{ borderTop: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" }}>
-                <p className="text-[11px] text-zinc-500 mb-1.5">Link personalizado (mais fácil de compartilhar e menos parecido com spam)</p>
-                <div className="flex gap-2">
-                  <div className="flex-1 flex items-center gap-1 px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl min-w-0">
-                    <span className="text-xs text-zinc-600 flex-shrink-0 font-mono whitespace-nowrap">{window.location.origin}/loja/</span>
-                    <input
-                      value={slugInput}
-                      onChange={e => { setSlugInput(sanitizeSlug(e.target.value)); setSlugMsg(null); }}
-                      onKeyDown={e => e.key === "Enter" && saveSlug()}
-                      placeholder="nomedaloja"
-                      className="flex-1 min-w-0 bg-transparent text-xs font-mono focus:outline-none"
-                      style={{ color: isLight ? "#111" : "#fff" }}
-                    />
-                  </div>
-                  <button onClick={saveSlug} disabled={slugSaving || !slugInput || slugInput === (settings.slug ?? "")}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all flex-shrink-0 disabled:opacity-40"
-                    style={{ background:"#2563eb", color:"#fff" }}>
-                    {slugSaving ? "Salvando..." : "Salvar link"}
-                  </button>
-                </div>
-                {slugMsg && (
-                  <p className={`text-[11px] mt-1.5 ${slugMsg.type === "error" ? "text-red-400" : "text-emerald-400"}`}>{slugMsg.text}</p>
-                )}
-              </div>
             </div>
 
             {/* Status */}
