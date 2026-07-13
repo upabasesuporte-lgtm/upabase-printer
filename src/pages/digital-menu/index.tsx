@@ -315,6 +315,9 @@ export default function DigitalMenuPage() {
   const [showModal,      setShowModal]     = useState(false);
   const [productSaving,  setProductSaving] = useState(false);
   const [dragCatId,      setDragCatId]     = useState<string | null>(null);
+  // Busca no seletor de "vincular produto" (métricas/estoque) dentro das opções
+  const [linkPickerOpenId, setLinkPickerOpenId] = useState<string | null>(null);
+  const [linkSearch,       setLinkSearch]       = useState("");
 
   // Appearance
   const [settings,      setSettings]      = useState<StoreSettings>(DEFAULT_SETTINGS);
@@ -1523,26 +1526,46 @@ export default function DigitalMenuPage() {
                               </div>
                               <button onClick={() => removeOption(group.id, opt.id)} className="text-zinc-700 hover:text-red-400 transition-all flex-shrink-0"><X className="w-3.5 h-3.5" /></button>
                             </div>
-                            {/* Vínculo com produto para métricas */}
+                            {/* Vínculo com produto para métricas — combobox com busca */}
                             <div className="flex items-center gap-1.5 pl-7">
                               <Package className="w-3 h-3 text-zinc-600 flex-shrink-0" />
-                              <select
-                                value={opt.linked_product_id ?? ""}
-                                onChange={e => {
-                                  const pid = e.target.value || null;
-                                  updateOption(group.id, opt.id, "linked_product_id", pid);
-                                  if (pid && !opt.name.trim()) {
-                                    const found = products.find(x => x.id === pid);
-                                    if (found) updateOption(group.id, opt.id, "name", found.name);
-                                  }
-                                }}
-                                className="flex-1 px-2 py-1 bg-zinc-900 border border-zinc-700 rounded-lg text-[11px] text-zinc-500 focus:outline-none focus:border-violet-500/50"
-                              >
-                                <option value="">Sem vínculo — sem métricas</option>
-                                {products.filter(p => p.id !== editProduct?.id).map(p => (
-                                  <option key={p.id} value={p.id}>{p.name}</option>
-                                ))}
-                              </select>
+                              <div className="flex-1 relative">
+                                <input
+                                  value={linkPickerOpenId === opt.id ? linkSearch : (products.find(p => p.id === opt.linked_product_id)?.name ?? "")}
+                                  onFocus={() => { setLinkPickerOpenId(opt.id); setLinkSearch(""); }}
+                                  onChange={e => setLinkSearch(e.target.value)}
+                                  onBlur={() => setLinkPickerOpenId(prev => prev === opt.id ? null : prev)}
+                                  placeholder="Sem vínculo — sem métricas · buscar produto..."
+                                  className="w-full px-2 py-1 bg-zinc-900 border border-zinc-700 rounded-lg text-[11px] text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-violet-500/50"
+                                />
+                                {linkPickerOpenId === opt.id && (
+                                  <div className="absolute z-20 top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl">
+                                    <button
+                                      onMouseDown={e => { e.preventDefault(); updateOption(group.id, opt.id, "linked_product_id", null); setLinkPickerOpenId(null); }}
+                                      className="w-full text-left px-2.5 py-1.5 text-[11px] text-zinc-500 hover:bg-zinc-800 transition-colors">
+                                      Sem vínculo — sem métricas
+                                    </button>
+                                    {products
+                                      .filter(p => p.id !== editProduct?.id && p.name.toLowerCase().includes(linkSearch.toLowerCase()))
+                                      .slice(0, 50)
+                                      .map(p => (
+                                        <button key={p.id}
+                                          onMouseDown={e => {
+                                            e.preventDefault();
+                                            updateOption(group.id, opt.id, "linked_product_id", p.id);
+                                            if (!opt.name.trim()) updateOption(group.id, opt.id, "name", p.name);
+                                            setLinkPickerOpenId(null);
+                                          }}
+                                          className={`w-full text-left px-2.5 py-1.5 text-[11px] hover:bg-zinc-800 transition-colors ${opt.linked_product_id === p.id ? "text-violet-400 font-semibold" : "text-zinc-300"}`}>
+                                          {p.name}
+                                        </button>
+                                      ))}
+                                    {products.filter(p => p.id !== editProduct?.id && p.name.toLowerCase().includes(linkSearch.toLowerCase())).length === 0 && (
+                                      <p className="px-2.5 py-1.5 text-[11px] text-zinc-600">Nenhum produto encontrado</p>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
                               {opt.linked_product_id && (
                                 <span className="text-[10px] font-bold text-violet-400 whitespace-nowrap flex-shrink-0">✓ métricas</span>
                               )}
