@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
 import {
@@ -185,6 +185,11 @@ export default function CustomersPage() {
 
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  // Trava síncrona contra duplo-clique/duplo-submit em payDebt(): o estado
+  // "saving" do React só atualiza no próximo render, então dois cliques bem
+  // rápidos podem passar pela checagem antes do botão desabilitar. Um ref
+  // atualiza na hora, então bloqueia o segundo clique de verdade.
+  const payDebtInFlight = useRef(false);
 
   // Detail tabs & purchase history
   const [detailTab, setDetailTab] = useState<"movements" | "purchases">("movements");
@@ -454,6 +459,10 @@ export default function CustomersPage() {
 
   async function payDebt() {
     if (!selected || payEntries.length === 0 || saving || selected.fiado_balance <= 0) return;
+    // Trava síncrona: bloqueia um segundo clique/chamada antes mesmo do
+    // React re-renderizar com saving=true.
+    if (payDebtInFlight.current) return;
+    payDebtInFlight.current = true;
     setSaving(true);
     try {
       const totalPaid = payEntries.reduce((s, e) => s + e.amount, 0);
@@ -495,12 +504,25 @@ export default function CustomersPage() {
       const regId = (freshReg as any)?.id ?? cashRegisterId;
 
       if (regId && userId) {
+        const cashDesc = `Pgto fiado - ${selected.name}`;
+        // Rede/duplo-submit podem tentar lançar isso duas vezes: se já existe um
+        // lançamento idêntico (mesma descrição/valor/forma) nos últimos 20s neste
+        // caixa, não duplica.
+        const dedupeSince = new Date(Date.now() - 20000).toISOString();
         for (const p of payEntries) {
+          const { data: dup } = await supabase.from("cash_movements")
+            .select("id").eq("register_id", regId).eq("description", cashDesc)
+            .eq("payment_method", p.method).eq("amount", p.amount)
+            .gte("created_at", dedupeSince).limit(1);
+          if (dup && dup.length > 0) {
+            console.warn("Lançamento de caixa idêntico já existe nos últimos 20s — ignorando duplicata.", cashDesc, p);
+            continue;
+          }
           const { error: cashErr } = await supabase.from("cash_movements").insert({
             register_id: regId, user_id: userId,
             movement_type: "sale", amount: p.amount,
             payment_method: p.method, channel: "pdv",
-            description: `Pgto fiado - ${selected.name}`,
+            description: cashDesc,
           });
           if (cashErr) console.error("Erro ao lançar pagamento no caixa:", cashErr);
         }
@@ -518,6 +540,7 @@ export default function CustomersPage() {
       alert("Erro ao registrar pagamento: " + (e?.message ?? String(e)));
     } finally {
       setSaving(false);
+      payDebtInFlight.current = false;
     }
   }
 
