@@ -147,9 +147,20 @@ function CategoryModal({ categories, onClose, onRefresh }: {
 
   async function save() {
     if (!name.trim()) return;
+    const trimmed = name.trim();
+    // Evita criar duas categorias com o mesmo nome no mesmo nível (raiz ou
+    // dentro da mesma categoria-pai) — isso causava categorias duplicadas
+    // aparecendo repetidas nas telas de Produtos e Cardápio Digital.
+    const dup = categories.find(c =>
+      c.name.trim().toLowerCase() === trimmed.toLowerCase() && (c.parent_id ?? "") === (parent || "")
+    );
+    if (dup) {
+      setError(`Já existe uma categoria "${dup.name}" ${parent ? "dentro dessa categoria-pai" : "principal"}. Escolha outro nome.`);
+      return;
+    }
     setLoading(true);
     setError(null);
-    const { error: err } = await supabase.from("categories").insert({ name: name.trim(), parent_id: parent || null, color });
+    const { error: err } = await supabase.from("categories").insert({ name: trimmed, parent_id: parent || null, color });
     if (err) { setError("Erro ao criar categoria. Tente novamente."); setLoading(false); return; }
     setName(""); setParent(""); setColor("#6d28d9");
     setSaved(true);

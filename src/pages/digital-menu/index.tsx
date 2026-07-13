@@ -773,6 +773,8 @@ export default function DigitalMenuPage() {
   })();
   // Agrupa a lista de produtos por categoria, na MESMA ordem do cardápio real
   // (orderedCategories), pra essa tela ficar organizada igual o que o cliente vê.
+  // Se existirem duas categorias cadastradas com o mesmo nome (nomes duplicados
+  // no banco), agrupa as duas sob um único cabeçalho em vez de mostrar repetido.
   const groupedProducts = (() => {
     const byCat: Record<string, typeof filteredProducts> = {};
     for (const p of filteredProducts) {
@@ -780,8 +782,17 @@ export default function DigitalMenuPage() {
       (byCat[key] ??= []).push(p);
     }
     const groups: { id: string; name: string; items: typeof filteredProducts }[] = [];
+    const groupIdxByName: Record<string, number> = {};
     for (const cat of orderedCategories) {
-      if (byCat[cat.id]?.length) groups.push({ id: cat.id, name: cat.name, items: byCat[cat.id] });
+      const items = byCat[cat.id];
+      if (!items?.length) continue;
+      const nameKey = cat.name.trim().toUpperCase();
+      if (groupIdxByName[nameKey] !== undefined) {
+        groups[groupIdxByName[nameKey]].items.push(...items);
+      } else {
+        groupIdxByName[nameKey] = groups.length;
+        groups.push({ id: cat.id, name: cat.name, items: [...items] });
+      }
     }
     if (byCat.__none__?.length) groups.push({ id: "__none__", name: "Sem categoria", items: byCat.__none__ });
     return groups;
