@@ -1679,10 +1679,10 @@ export default function DigitalMenuPage() {
 
             <div className="p-5 border-t border-zinc-800 flex gap-3 flex-shrink-0">
               <button onClick={() => { setShowModal(false); setEditProduct(null); setEditGroups([]); }}
-                className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-all">Cancelar</button>
+                className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${isLight ? "bg-gray-100 hover:bg-gray-200 text-gray-600" : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"}`}>Cancelar</button>
               <button onClick={saveProduct} disabled={productSaving || !editProduct.name}
                 className="flex-1 py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-40"
-                style={isLight ? { background:"linear-gradient(135deg,#7B2FBE,#00B4D8)", color:"#fff", boxShadow:"0 0 12px rgba(123,47,190,0.3)" } : { background:"linear-gradient(135deg,#d97706,#f59e0b)", color:"#fff", boxShadow:"0 0 12px rgba(245,158,11,0.3)" }}>
+                style={isLight ? { background:"#2563eb", color:"#fff" } : { background:"linear-gradient(135deg,#d97706,#f59e0b)", color:"#fff", boxShadow:"0 0 12px rgba(245,158,11,0.3)" }}>
                 {productSaving ? "Salvando..." : "Salvar Produto"}
               </button>
             </div>
