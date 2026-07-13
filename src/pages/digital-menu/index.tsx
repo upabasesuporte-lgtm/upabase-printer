@@ -712,15 +712,23 @@ export default function DigitalMenuPage() {
   }
 
   async function deleteCategory(cat: Category) {
-    // Confere se ainda tem produto usando essa categoria antes de excluir, pra
-    // não correr risco de "sumir" a categoria de produtos que ainda a usam.
+    // Exclusão livre: não bloqueia mais por ter produto vinculado. Só avisa
+    // quantos produtos existem, pra você decidir.
     const { count } = await supabase.from("products")
       .select("id", { count: "exact", head: true }).eq("category_id", cat.id);
+    const msg = count && count > 0
+      ? `Excluir a categoria "${cat.name}"? ${count} produto${count > 1 ? "s" : ""} vinculado${count > 1 ? "s" : ""} ${count > 1 ? "ficarão" : "ficará"} como "Sem categoria" (dá pra recategorizar depois, a qualquer momento).`
+      : `Excluir a categoria "${cat.name}"?`;
+    if (!confirm(msg)) return;
+
+    // Solta os produtos dessa categoria ANTES de apagar. Isso evita produto
+    // nenhum ficar apontando pra uma categoria que não existe mais (o que
+    // causaria erro/comportamento estranho em Produtos, PDV, Cardápio, etc).
     if (count && count > 0) {
-      alert(`"${cat.name}" ainda tem ${count} produto${count > 1 ? "s" : ""} vinculado${count > 1 ? "s" : ""}. Mude a categoria desses produtos antes de excluir.`);
-      return;
+      const { error: clearErr } = await supabase.from("products").update({ category_id: null }).eq("category_id", cat.id);
+      if (clearErr) { alert("Erro ao soltar produtos da categoria: " + clearErr.message); return; }
     }
-    if (!confirm(`Excluir a categoria "${cat.name}"?`)) return;
+
     const { error } = await supabase.from("categories").delete().eq("id", cat.id);
     if (error) { alert("Erro ao excluir categoria: " + error.message); return; }
     // Remove referências dela do ordenamento/ocultação salvos
