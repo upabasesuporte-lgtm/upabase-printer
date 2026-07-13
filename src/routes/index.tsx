@@ -35,6 +35,7 @@ import DigitalMenuPage from "../pages/digital-menu";
 import AccountsPayablePage from "../pages/accounts-payable";
 import PublicMenuPage from "../pages/menu";
 import MenuTrackingPage from "../pages/menu-tracking";
+import MenuSlugRedirectPage from "../pages/menu-slug";
 import AdminPage from "../pages/admin";
 import PricingPage from "../pages/pricing";
 import AdminAvaliacoesPage from "../pages/admin/avaliacoes";
@@ -114,6 +115,12 @@ export const router = createBrowserRouter([
   {
     path: "/menu/:uid/pedido/:orderId",
     element: <MenuTrackingPage />,
+    errorElement: <RouteErrorPage />,
+  },
+
+  {
+    path: "/loja/:slug",
+    element: <MenuSlugRedirectPage />,
     errorElement: <RouteErrorPage />,
   },
 

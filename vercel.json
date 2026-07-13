@@ -1,5 +1,19 @@
 {
   "rewrites": [
+    {
+      "source": "/menu/:uid",
+      "has": [
+        { "type": "header", "key": "user-agent", "value": ".*(facebookexternalhit|WhatsApp|Twitterbot|TelegramBot|LinkedInBot|Slackbot|Discordbot|SkypeUriPreview|Google-InspectionTool).*" }
+      ],
+      "destination": "/api/menu-preview?uid=:uid"
+    },
+    {
+      "source": "/loja/:slug",
+      "has": [
+        { "type": "header", "key": "user-agent", "value": ".*(facebookexternalhit|WhatsApp|Twitterbot|TelegramBot|LinkedInBot|Slackbot|Discordbot|SkypeUriPreview|Google-InspectionTool).*" }
+      ],
+      "destination": "/api/menu-preview?slug=:slug"
+    },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
