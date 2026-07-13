@@ -318,6 +318,10 @@ export default function DigitalMenuPage() {
   // Busca no seletor de "vincular produto" (métricas/estoque) dentro das opções
   const [linkPickerOpenId, setLinkPickerOpenId] = useState<string | null>(null);
   const [linkSearch,       setLinkSearch]       = useState("");
+  // Criar/excluir categoria direto no bloco "Categorias no cardápio"
+  const [newCatName,  setNewCatName]  = useState("");
+  const [catSaving,   setCatSaving]   = useState(false);
+  const [catError,    setCatError]    = useState<string | null>(null);
 
   // Appearance
   const [settings,      setSettings]      = useState<StoreSettings>(DEFAULT_SETTINGS);
@@ -691,6 +695,41 @@ export default function DigitalMenuPage() {
     await saveSettings({ hidden_categories_digital_menu: newHidden });
   }
 
+  async function createCategory() {
+    const trimmed = newCatName.trim();
+    if (!trimmed || catSaving) return;
+    setCatError(null);
+    // Não deixa criar duas categorias-raiz com o mesmo nome (mesma trava usada
+    // em Produtos → Gerenciar Categorias), pra não voltar a duplicar.
+    const dup = categories.find(c => c.name.trim().toLowerCase() === trimmed.toLowerCase());
+    if (dup) { setCatError(`Já existe uma categoria "${dup.name}".`); return; }
+    setCatSaving(true);
+    const { error } = await supabase.from("categories").insert({ name: trimmed, parent_id: null });
+    setCatSaving(false);
+    if (error) { setCatError("Erro ao criar categoria. Tente novamente."); return; }
+    setNewCatName("");
+    await loadProducts();
+  }
+
+  async function deleteCategory(cat: Category) {
+    // Confere se ainda tem produto usando essa categoria antes de excluir, pra
+    // não correr risco de "sumir" a categoria de produtos que ainda a usam.
+    const { count } = await supabase.from("products")
+      .select("id", { count: "exact", head: true }).eq("category_id", cat.id);
+    if (count && count > 0) {
+      alert(`"${cat.name}" ainda tem ${count} produto${count > 1 ? "s" : ""} vinculado${count > 1 ? "s" : ""}. Mude a categoria desses produtos antes de excluir.`);
+      return;
+    }
+    if (!confirm(`Excluir a categoria "${cat.name}"?`)) return;
+    const { error } = await supabase.from("categories").delete().eq("id", cat.id);
+    if (error) { alert("Erro ao excluir categoria: " + error.message); return; }
+    // Remove referências dela do ordenamento/ocultação salvos
+    const newOrder = (settings.category_order ?? []).filter(id => id !== cat.id);
+    const newHidden = (settings.hidden_categories_digital_menu ?? []).filter(id => id !== cat.id);
+    await saveSettings({ category_order: newOrder, hidden_categories_digital_menu: newHidden });
+    await loadProducts();
+  }
+
   async function uploadImage(file: File, type: "logo" | "banner"): Promise<string | null> {
     if (!userId) return null;
 
@@ -1017,12 +1056,12 @@ export default function DigitalMenuPage() {
           <div className="flex-1 overflow-y-auto space-y-3 pr-1">
 
             {/* Visibilidade das categorias no cardápio digital */}
-            {categories.length > 0 && (
-              <div className="rounded-xl p-3 flex-shrink-0" style={{ background: isLight ? "#ffffff" : "rgba(24,24,27,0.6)", border: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" }}>
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">Categorias no cardápio</p>
-                  <p className="text-[10px] text-zinc-600 flex items-center gap-1"><GripVertical className="w-3 h-3" /> arraste para reordenar</p>
-                </div>
+            <div className="rounded-xl p-3 flex-shrink-0" style={{ background: isLight ? "#ffffff" : "rgba(24,24,27,0.6)", border: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" }}>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">Categorias no cardápio</p>
+                <p className="text-[10px] text-zinc-600 flex items-center gap-1"><GripVertical className="w-3 h-3" /> arraste para reordenar</p>
+              </div>
+              {categories.length > 0 && (
                 <div className="flex flex-col gap-1">
                   {orderedCategories.map(cat => {
                     const isVisible = !(settings.hidden_categories_digital_menu ?? []).includes(cat.id);
@@ -1058,22 +1097,28 @@ export default function DigitalMenuPage() {
                           {isVisible ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
                           {cat.name}
                         </button>
+                        <button onClick={() => deleteCategory(cat)} title="Excluir categoria"
+                          className="p-1.5 rounded-lg text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-all flex-shrink-0">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     );
                   })}
                 </div>
-                <p className="text-[10px] text-zinc-600 mt-2">🟢 Visível · ⬜ Oculta · Arraste pela alça para reordenar</p>
-              </div>
-            )}
-
-            <div className="flex gap-1.5 overflow-x-auto pb-1 flex-shrink-0">
-              {[{ id: "all", name: "Todas" }, ...categories].map(c => (
-                <button key={c.id} onClick={() => setCatFilter(c.id)}
-                  className="px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all"
-                  style={catFilter === c.id ? { background:"rgba(123,47,190,0.12)", color:"#7B2FBE", border:"1px solid rgba(123,47,190,0.3)" } : { background: isLight ? "#F3F4F6" : "#18181b", color:"#71717a", border: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" }}>
-                  {c.name}
+              )}
+              <p className="text-[10px] text-zinc-600 mt-2 mb-2">🟢 Visível · ⬜ Oculta · Arraste pela alça para reordenar</p>
+              {/* Criar categoria nova direto aqui */}
+              <div className="flex items-center gap-1.5 pt-2" style={{ borderTop: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" }}>
+                <input value={newCatName} onChange={e => { setNewCatName(e.target.value); setCatError(null); }}
+                  onKeyDown={e => e.key === "Enter" && createCategory()}
+                  placeholder="Nova categoria..." className={inputCls + " flex-1 text-xs py-1.5"} />
+                <button onClick={createCategory} disabled={!newCatName.trim() || catSaving}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all disabled:opacity-40 flex-shrink-0"
+                  style={{ background:"rgba(16,185,129,0.12)", color:"#10b981", border:"1px solid rgba(16,185,129,0.3)" }}>
+                  <Plus className="w-3.5 h-3.5" /> Criar
                 </button>
-              ))}
+              </div>
+              {catError && <p className="text-[10px] text-red-400 mt-1.5">{catError}</p>}
             </div>
 
             <div className="flex gap-2">
