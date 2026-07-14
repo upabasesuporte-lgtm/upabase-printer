@@ -793,8 +793,8 @@ export default function TablesPage() {
           {/* Header */}
           <div className="relative overflow-hidden rounded-2xl p-5"
             style={{ background: card.bg, border: card.border, boxShadow: card.shadow,
-              backgroundImage:"radial-gradient(rgba(244,63,94,0.07) 1px,transparent 1px)", backgroundSize:"24px 24px" }}>
-            <div className="absolute inset-0 bg-gradient-to-r from-rose-900/10 to-transparent pointer-events-none" />
+              backgroundImage:"radial-gradient(rgba(37,99,235,0.07) 1px,transparent 1px)", backgroundSize:"24px 24px" }}>
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-900/10 to-transparent pointer-events-none" />
             <div className="relative flex items-center justify-between flex-wrap gap-3">
               <div>
                 <div className="flex items-center gap-2 mb-1">
@@ -817,12 +817,13 @@ export default function TablesPage() {
                   <RefreshCw className="w-4 h-4" />
                 </button>
                 <button onClick={() => setModal("manage")}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 rounded-xl text-sm font-medium transition-all">
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all"
+                  style={{background:"#2563eb",color:"#fff"}}>
                   <Settings className="w-4 h-4" /> Gerenciar
                 </button>
                 <button onClick={() => openManage()}
                   className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold transition-all"
-                  style={{background:"linear-gradient(135deg,#be123c,#f43f5e)",color:"#fff",boxShadow:"0 0 16px rgba(244,63,94,0.35)"}}>
+                  style={{background:"#2563eb",color:"#fff",boxShadow:"0 0 16px rgba(37,99,235,0.35)"}}>
                   <Plus className="w-4 h-4" /> Nova Mesa
                 </button>
               </div>
@@ -1327,7 +1328,8 @@ export default function TablesPage() {
               <h2 className="text-base font-semibold">Gerenciar Mesas</h2>
               <div className="flex items-center gap-2">
                 <button onClick={() => { setModal("none"); openManage(); }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-xs font-semibold transition-colors">
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-white rounded-xl text-xs font-semibold transition-colors"
+                  style={{background:"#2563eb"}}>
                   <Plus className="w-3.5 h-3.5" /> Nova Mesa
                 </button>
                 <button onClick={() => setModal("none")} className="p-1.5 text-zinc-400 hover:text-white rounded-lg"><X className="w-4 h-4" /></button>
@@ -1380,7 +1382,8 @@ export default function TablesPage() {
               <div className="flex gap-1 mx-6 mt-4 bg-zinc-950 rounded-xl p-1">
                 {(["single", "bulk"] as const).map(key => (
                   <button key={key} onClick={() => { setTableFormTab(key); setSaveError(null); }}
-                    className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${tableFormTab === key ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-white"}`}>
+                    className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${tableFormTab === key ? "text-white" : "text-zinc-400 hover:text-white"}`}
+                    style={tableFormTab === key ? {background:"#2563eb"} : undefined}>
                     {key === "single" ? "Mesa Individual" : "Criar em Massa"}
                   </button>
                 ))}
@@ -1421,7 +1424,8 @@ export default function TablesPage() {
                     <div className="flex gap-2 mb-2">
                       {[5, 10, 15, 20].map(n => (
                         <button key={n} onClick={() => setBulkCount(String(n))}
-                          className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all border ${bulkCount === String(n) ? "bg-violet-600 border-violet-500 text-white" : "border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-white"}`}>
+                          className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all border ${bulkCount === String(n) ? "text-white" : "border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-white"}`}
+                          style={bulkCount === String(n) ? {background:"#2563eb", borderColor:"#2563eb"} : undefined}>
                           {n}
                         </button>
                       ))}
@@ -1465,13 +1469,15 @@ export default function TablesPage() {
               <button onClick={() => setModal("none")} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
               {tableFormTab === "single" || editingTable ? (
                 <button onClick={saveTable} disabled={!fName.trim() || saving}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-colors">
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-colors"
+                  style={{background:"#2563eb"}}>
                   {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   {editingTable ? "Salvar" : "Criar Mesa"}
                 </button>
               ) : (
                 <button onClick={bulkCreate} disabled={!(parseInt(bulkCount) > 0) || saving}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-colors">
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-colors"
+                  style={{background:"#2563eb"}}>
                   {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                   Criar {bulkCount || "?"} Mesas
                 </button>
