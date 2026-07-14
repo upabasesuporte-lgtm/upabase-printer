@@ -43,7 +43,7 @@ const menuItems = [
   { label: "Dashboard",       icon: LayoutDashboard, path: "/",                color: "#3b82f6" },
   { label: "Caixa",           icon: Wallet,          path: "/cash",            color: "#3b82f6" },
   { label: "Vendas",          icon: ShoppingCart,    path: "/pdv",             color: "#3b82f6" },
-  { label: "Cardápio Digital",icon: Store,           path: "/digital-menu",    color: "#3b82f6" },
+  { label: "Catálogo Digital",icon: Store,           path: "/digital-menu",    color: "#3b82f6" },
   { label: "Mesas",           icon: UtensilsCrossed, path: "/tables",          color: "#f43f5e" },
   { label: "Produtos",        icon: Package,         path: "/products",        color: "#10b981" },
   { label: "Estoque",         icon: Boxes,           path: "/stock",           color: "#3b82f6" },
