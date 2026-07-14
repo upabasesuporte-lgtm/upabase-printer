@@ -15,8 +15,10 @@
 [data-theme="light"] .bg-zinc-700    { background-color: #d1d5db !important; }
 [data-theme="light"] .bg-zinc-600    { background-color: #9CA3AF !important; }
 
+[data-theme="light"] .bg-zinc-950\/95  { background-color: rgba(248,249,250,0.95) !important; }
 [data-theme="light"] .bg-zinc-950\/90  { background-color: rgba(248,249,250,0.9) !important; }
 [data-theme="light"] .bg-zinc-950\/80  { background-color: rgba(248,249,250,0.8) !important; }
+[data-theme="light"] .bg-zinc-900\/95  { background-color: rgba(255,255,255,0.97) !important; }
 [data-theme="light"] .bg-zinc-900\/80  { background-color: rgba(255,255,255,0.95) !important; }
 [data-theme="light"] .bg-zinc-900\/60  { background-color: rgba(255,255,255,0.9)  !important; }
 [data-theme="light"] .bg-zinc-900\/50  { background-color: rgba(255,255,255,0.8)  !important; }
