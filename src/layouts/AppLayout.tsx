@@ -44,13 +44,13 @@ const menuItems = [
   { label: "Caixa",           icon: Wallet,          path: "/cash",            color: "#3b82f6" },
   { label: "Vendas",          icon: ShoppingCart,    path: "/pdv",             color: "#3b82f6" },
   { label: "Catálogo Digital",icon: Store,           path: "/digital-menu",    color: "#3b82f6" },
-  { label: "Mesas",           icon: UtensilsCrossed, path: "/tables",          color: "#f43f5e" },
-  { label: "Produtos",        icon: Package,         path: "/products",        color: "#10b981" },
+  { label: "Mesas",           icon: UtensilsCrossed, path: "/tables",          color: "#3b82f6" },
+  { label: "Produtos",        icon: Package,         path: "/products",        color: "#3b82f6" },
   { label: "Estoque",         icon: Boxes,           path: "/stock",           color: "#3b82f6" },
-  { label: "Clientes",        icon: Users,           path: "/customers",       color: "#d946ef" },
-  { label: "Contas a Pagar",  icon: Wallet,          path: "/accounts-payable",color: "#f97316" },
-  { label: "Relatórios",      icon: BarChart3,       path: "/reports",         color: "#06b6d4" },
-  { label: "Configurações",   icon: Settings,        path: "/settings",        color: "#71717a" },
+  { label: "Clientes",        icon: Users,           path: "/customers",       color: "#3b82f6" },
+  { label: "Contas a Pagar",  icon: Wallet,          path: "/accounts-payable",color: "#3b82f6" },
+  { label: "Relatórios",      icon: BarChart3,       path: "/reports",         color: "#3b82f6" },
+  { label: "Configurações",   icon: Settings,        path: "/settings",        color: "#3b82f6" },
 ];
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });

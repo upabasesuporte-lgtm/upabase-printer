@@ -71,7 +71,7 @@ const inputCls = "w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounde
 const selectCls = inputCls + " cursor-pointer";
 
 const STATUS_CFG: Record<string, { label: string; hex: string; glow: string; badge: string; dot: string }> = {
-  free:     { label: "Livre",     hex: "#10b981", glow: "rgba(16,185,129,0.18)",   badge: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20", dot: "bg-emerald-500" },
+  free:     { label: "Livre",     hex: "#2563eb", glow: "rgba(37,99,235,0.18)",    badge: "text-blue-400 bg-blue-500/10 border-blue-500/20",           dot: "bg-blue-500"    },
   occupied: { label: "Ocupada",   hex: "#f59e0b", glow: "rgba(245,158,11,0.18)",   badge: "text-amber-400 bg-amber-500/10 border-amber-500/20",       dot: "bg-amber-500"   },
   reserved: { label: "Reservada", hex: "#3b82f6", glow: "rgba(59,130,246,0.18)",   badge: "text-blue-400 bg-blue-500/10 border-blue-500/20",           dot: "bg-blue-500"    },
   cleaning: { label: "Limpeza",   hex: "#71717a", glow: "rgba(113,113,122,0.12)", badge: "text-zinc-400 bg-zinc-500/10 border-zinc-500/20",           dot: "bg-zinc-500"    },
@@ -798,14 +798,15 @@ export default function TablesPage() {
             <div className="relative flex items-center justify-between flex-wrap gap-3">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <div className="w-1.5 h-1.5 rounded-full" style={{background:"#f43f5e",boxShadow:"0 0 6px #f43f5e"}} />
-                  <span className="text-[11px] font-semibold uppercase tracking-widest" style={{color:"#f43f5e"}}>Salão</span>
+                  <div className="w-1.5 h-1.5 rounded-full" style={{background: isLight ? "#2563eb" : "#f43f5e", boxShadow: isLight ? "0 0 6px #2563eb" : "0 0 6px #f43f5e"}} />
+                  <span className="text-[11px] font-semibold uppercase tracking-widest" style={{color: isLight ? "#2563eb" : "#f43f5e"}}>Salão</span>
                 </div>
-                <h1 className="text-2xl font-black g-text g-text-red">
+                <h1 className={`text-2xl font-black ${isLight ? "" : "g-text g-text-red"}`}
+                  style={isLight ? { color:"#2563eb" } : undefined}>
                   Mesas
                 </h1>
                 <p className="text-xs text-zinc-500 mt-0.5">
-                  <span style={{color:"#10b981"}}>{stats.free} livre{stats.free !== 1 ? "s" : ""}</span>
+                  <span style={{color:"#2563eb"}}>{stats.free} livre{stats.free !== 1 ? "s" : ""}</span>
                   {stats.occupied > 0 && <span style={{color:"#f59e0b"}} className="ml-2">· {stats.occupied} ocupada{stats.occupied !== 1 ? "s" : ""}</span>}
                   {stats.reserved > 0 && <span style={{color:"#3b82f6"}} className="ml-2">· {stats.reserved} reservada{stats.reserved !== 1 ? "s" : ""}</span>}
                 </p>
@@ -850,7 +851,7 @@ export default function TablesPage() {
           <div className="grid grid-cols-4 gap-4">
             {[
               { label: "Total de Mesas", value: tables.length,    color: "#8b5cf6", glow: "rgba(139,92,246,0.15)" },
-              { label: "Livres",         value: stats.free,        color: "#10b981", glow: "rgba(16,185,129,0.15)" },
+              { label: "Livres",         value: stats.free,        color: "#2563eb", glow: "rgba(37,99,235,0.15)" },
               { label: "Ocupadas",       value: stats.occupied,    color: "#f59e0b", glow: "rgba(245,158,11,0.15)" },
               { label: "Reservadas",     value: stats.reserved,    color: "#3b82f6", glow: "rgba(59,130,246,0.13)" },
             ].map(s => (
