@@ -163,6 +163,21 @@ export default function PublicMenuPage() {
   const navigate = useNavigate();
   const { isLight } = useTheme();
 
+  // Cardápio público: fundo sempre CLARO, em todas as telas (cardápio, carrinho,
+  // checkout, configurar produto, rastreio). O componente foi construído com
+  // classes escuras (bg-zinc-950 etc.), mas existe um CSS global de tema claro
+  // que já sabe converter essas classes pra versão clara — só precisa do
+  // atributo data-theme="light" no <html>, que travamos aqui, independente do
+  // tema que o painel administrativo estiver usando.
+  useEffect(() => {
+    const previous = document.documentElement.getAttribute("data-theme");
+    document.documentElement.setAttribute("data-theme", "light");
+    return () => {
+      if (previous) document.documentElement.setAttribute("data-theme", previous);
+      else document.documentElement.removeAttribute("data-theme");
+    };
+  }, []);
+
   const [settings, setSettings]     = useState<StoreSettings>(DEFAULT_SETTINGS);
   const [storeFound, setStoreFound] = useState<boolean | null>(null);
   const [products, setProducts]     = useState<Product[]>([]);
