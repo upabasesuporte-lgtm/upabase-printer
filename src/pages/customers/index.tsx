@@ -946,15 +946,15 @@ export default function CustomersPage() {
         <div className="space-y-5">
           <div className="relative overflow-hidden rounded-2xl p-5"
             style={{ background: card.bg, border: card.border, boxShadow: card.shadow,
-              backgroundImage:"radial-gradient(rgba(217,70,239,0.07) 1px,transparent 1px)", backgroundSize:"24px 24px" }}>
-            <div className="absolute inset-0 bg-gradient-to-r from-fuchsia-900/10 to-transparent pointer-events-none" />
+              backgroundImage: isLight ? "radial-gradient(rgba(123,47,190,0.12) 1px,transparent 1px)" : "radial-gradient(rgba(217,70,239,0.07) 1px,transparent 1px)", backgroundSize:"24px 24px" }}>
+            <div className="absolute inset-0 pointer-events-none" style={isLight ? { background: "linear-gradient(135deg, rgba(123,47,190,0.04) 0%, rgba(0,180,216,0.03) 100%)" } : undefined}>{!isLight && <div className="absolute inset-0 bg-gradient-to-r from-fuchsia-900/10 to-transparent" />}</div>
             <div className="relative flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <div className="w-1.5 h-1.5 rounded-full" style={{background:"#d946ef",boxShadow:"0 0 6px #d946ef"}} />
-                <span className="text-[11px] font-semibold uppercase tracking-widest" style={{color:"#d946ef"}}>CRM</span>
+                <div className="w-1.5 h-1.5 rounded-full" style={{background: isLight ? "#3B82F6" : "#d946ef", boxShadow: isLight ? "0 0 6px #3B82F6" : "0 0 6px #d946ef"}} />
+                <span className="text-[11px] font-semibold uppercase tracking-widest" style={{color: isLight ? "#3B82F6" : "#d946ef"}}>CRM</span>
               </div>
-              <h1 className="text-2xl font-black g-text g-text-pink">
+              <h1 className={`text-2xl font-black ${isLight ? "" : "g-text g-text-pink"}`} style={isLight ? { color:"#3B82F6" } : undefined}>
                 Clientes
               </h1>
               <p className="text-xs text-zinc-500 mt-0.5">{customers.length} clientes cadastrados</p>
@@ -962,19 +962,19 @@ export default function CustomersPage() {
             <div className="flex items-center gap-2">
               <div className="flex rounded-xl p-1 gap-1" style={{ background: card.bg, border: card.border }}>
                 <button onClick={() => setListView("list")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${listView === "list" ? (isLight ? "bg-pink-600" : "bg-violet-600 text-white") : (isLight ? "text-gray-500 hover:text-gray-900" : "text-zinc-400 hover:text-white")}`}
-                  style={listView === "list" && isLight ? { color: "#ffffff" } : undefined}>
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${listView === "list" ? (isLight ? "" : "bg-violet-600 text-white") : (isLight ? "text-gray-500 hover:text-gray-900" : "text-zinc-400 hover:text-white")}`}
+                  style={listView === "list" && isLight ? { background:"#7c3aed", color: "#ffffff" } : undefined}>
                   Lista
                 </button>
                 <button onClick={() => { setListView("ranking"); loadRanking(); }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${listView === "ranking" ? (isLight ? "bg-pink-600" : "bg-violet-600 text-white") : (isLight ? "text-gray-500 hover:text-gray-900" : "text-zinc-400 hover:text-white")}`}
-                  style={listView === "ranking" && isLight ? { color: "#ffffff" } : undefined}>
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${listView === "ranking" ? (isLight ? "" : "bg-violet-600 text-white") : (isLight ? "text-gray-500 hover:text-gray-900" : "text-zinc-400 hover:text-white")}`}
+                  style={listView === "ranking" && isLight ? { background:"#7c3aed", color: "#ffffff" } : undefined}>
                   Ranking
                 </button>
               </div>
               <button onClick={openCreate}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all"
-                style={{background:"linear-gradient(135deg,#a21caf,#d946ef)",color:"#fff",boxShadow:"0 0 16px rgba(217,70,239,0.35)"}}>
+                style={isLight ? {background:"#2563eb",color:"#fff"} : {background:"linear-gradient(135deg,#a21caf,#d946ef)",color:"#fff",boxShadow:"0 0 16px rgba(217,70,239,0.35)"}}>
                 <Plus className="w-4 h-4" /> Novo Cliente
               </button>
             </div>

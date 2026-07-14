@@ -464,16 +464,16 @@ export default function ReportsPage() {
       {/* ── Header ── */}
       <div className="relative overflow-hidden rounded-2xl p-6"
         style={{ background: card.bg, border: card.border, boxShadow: card.shadow,
-          backgroundImage:"radial-gradient(rgba(139,92,246,0.08) 1px,transparent 1px)",
+          backgroundImage: isLight ? "radial-gradient(rgba(123,47,190,0.12) 1px,transparent 1px)" : "radial-gradient(rgba(139,92,246,0.08) 1px,transparent 1px)",
           backgroundSize:"24px 24px" }}>
-        <div className="absolute inset-0 bg-gradient-to-r from-violet-900/10 to-cyan-900/5 pointer-events-none" />
+        <div className="absolute inset-0 pointer-events-none" style={isLight ? { background: "linear-gradient(135deg, rgba(123,47,190,0.04) 0%, rgba(0,180,216,0.03) 100%)" } : undefined}>{!isLight && <div className="absolute inset-0 bg-gradient-to-r from-violet-900/10 to-cyan-900/5" />}</div>
         <div className="relative flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <div className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" />
-              <span className="text-[11px] font-semibold text-violet-400 uppercase tracking-widest">Analytics</span>
+              <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: isLight ? "#3B82F6" : "#8b5cf6" }} />
+              <span className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: isLight ? "#3B82F6" : "#a78bfa" }}>Analytics</span>
             </div>
-            <h1 className="text-2xl font-black g-text g-text-purple">
+            <h1 className={`text-2xl font-black ${isLight ? "" : "g-text g-text-purple"}`} style={isLight ? { color:"#3B82F6" } : undefined}>
               Central de Relatórios
             </h1>
             <p className="text-xs text-zinc-500 mt-1">

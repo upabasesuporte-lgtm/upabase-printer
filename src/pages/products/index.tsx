@@ -911,27 +911,28 @@ export default function ProductsPage() {
       {/* Header */}
       <div className="relative overflow-hidden rounded-2xl p-5"
         style={{ background: card.bg, border: card.border, boxShadow: card.shadow,
-          backgroundImage:"radial-gradient(rgba(16,185,129,0.07) 1px,transparent 1px)", backgroundSize:"24px 24px" }}>
-        <div className="absolute inset-0 bg-gradient-to-r from-emerald-900/10 to-transparent pointer-events-none" />
+          backgroundImage: isLight ? "radial-gradient(rgba(123,47,190,0.12) 1px,transparent 1px)" : "radial-gradient(rgba(16,185,129,0.07) 1px,transparent 1px)", backgroundSize:"24px 24px" }}>
+        <div className="absolute inset-0 pointer-events-none" style={isLight ? { background: "linear-gradient(135deg, rgba(123,47,190,0.04) 0%, rgba(0,180,216,0.03) 100%)" } : undefined}>{!isLight && <div className="absolute inset-0 bg-gradient-to-r from-emerald-900/10 to-transparent" />}</div>
         <div className="relative flex items-center justify-between flex-wrap gap-3">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <div className="w-1.5 h-1.5 rounded-full" style={{background:"#10b981",boxShadow:"0 0 6px #10b981"}} />
-              <span className="text-[11px] font-semibold uppercase tracking-widest" style={{color:"#10b981"}}>Catálogo</span>
+              <div className="w-1.5 h-1.5 rounded-full" style={{background: isLight ? "#3B82F6" : "#10b981", boxShadow: isLight ? "0 0 6px #3B82F6" : "0 0 6px #10b981"}} />
+              <span className="text-[11px] font-semibold uppercase tracking-widest" style={{color: isLight ? "#3B82F6" : "#10b981"}}>Catálogo</span>
             </div>
-            <h1 className="text-2xl font-black g-text g-text-green">
+            <h1 className={`text-2xl font-black ${isLight ? "" : "g-text g-text-green"}`} style={isLight ? { color:"#3B82F6" } : undefined}>
               Produtos
             </h1>
             <p className="text-xs text-zinc-500 mt-0.5">{total} produto{total !== 1 ? "s" : ""} cadastrado{total !== 1 ? "s" : ""}</p>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => setShowCatModal(true)}
-              className="flex items-center gap-2 px-3 py-2 border border-zinc-700 hover:border-zinc-600 bg-zinc-900 rounded-xl text-sm font-medium transition-all hover:bg-zinc-800">
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all ${isLight ? "text-white" : "border border-zinc-700 hover:border-zinc-600 bg-zinc-900 hover:bg-zinc-800"}`}
+              style={isLight ? { background:"#7c3aed" } : undefined}>
               <FolderOpen className="w-4 h-4" /> Categorias
             </button>
             <button onClick={openCreate}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all"
-              style={{background:"linear-gradient(135deg,#059669,#10b981)",color:"#fff",boxShadow:"0 0 16px rgba(16,185,129,0.35)"}}>
+              style={isLight ? {background:"#2563eb",color:"#fff"} : {background:"linear-gradient(135deg,#059669,#10b981)",color:"#fff",boxShadow:"0 0 16px rgba(16,185,129,0.35)"}}>
               <Plus className="w-4 h-4" /> Novo Produto
             </button>
           </div>
