@@ -513,18 +513,6 @@ export default function PdvPage() {
       return;
     }
 
-    // Validate fiado credit limit
-    if (selectedCustomer && payments.some(p => p.method === "fiado")) {
-      const fiadoAmt = payments.find(p => p.method === "fiado")?.amount ?? 0;
-      const limit = selectedCustomer.credit_limit ?? 0;
-      const currentFiado = selectedCustomer.fiado_balance ?? 0;
-      if (limit > 0 && currentFiado + fiadoAmt > limit) {
-        const available = Math.max(0, limit - currentFiado);
-        setCheckoutError(`Limite de fiado excedido! Fiado atual: ${fmt(currentFiado)} · Limite: ${fmt(limit)} · Disponível: ${fmt(available)}`);
-        return;
-      }
-    }
-
     setCheckoutLoading(true);
     setCheckoutError(null);
 
@@ -2206,25 +2194,6 @@ export default function PdvPage() {
                 <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" /> {checkoutError}
               </div>
             )}
-
-            {/* Fiado limit warning */}
-            {selectedCustomer && (selectedCustomer.credit_limit ?? 0) > 0 && payments.some(p => p.method === "fiado") && (() => {
-              const fiadoAmt = payments.find(p => p.method === "fiado")?.amount ?? 0;
-              const currentFiado = selectedCustomer.fiado_balance ?? 0;
-              const limit = selectedCustomer.credit_limit;
-              if (currentFiado + fiadoAmt > limit) {
-                return (
-                  <div className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 flex gap-2">
-                    <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-xs font-bold text-red-400">Limite de fiado excedido!</p>
-                      <p className="text-xs text-red-400/80 mt-0.5">Em aberto: {fmt(currentFiado)} · Limite: {fmt(limit)} · Disponível: {fmt(Math.max(0, limit - currentFiado))}</p>
-                    </div>
-                  </div>
-                );
-              }
-              return null;
-            })()}
 
             <div>
               <p className="text-xs text-zinc-500 mb-2 font-medium uppercase tracking-wide">Formas de pagamento</p>

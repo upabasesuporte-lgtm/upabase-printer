@@ -4,7 +4,7 @@ import { useTheme } from "../../contexts/ThemeContext";
 import {
   Search, Plus, Trash2, Edit2, X, User, Phone, MapPin, Mail,
   Printer, ChevronLeft, Banknote, CreditCard, Smartphone,
-  TrendingUp, RefreshCw, Save, DollarSign, ShoppingCart,
+  TrendingUp, RefreshCw, Save, DollarSign,
   AlertTriangle, CheckCircle2, FileText, Minus,
 } from "lucide-react";
 
@@ -50,17 +50,6 @@ interface ProductOption {
   stock: number;
 }
 
-interface CustomerSale {
-  id: string;
-  created_at: string;
-  total: number;
-  total_amount: number;
-  discount: number;
-  status: string;
-  origin: string | null;
-  seller_name: string | null;
-  sale_items: SaleItemInfo[];
-}
 
 type PayMethod = "cash" | "credit" | "debit" | "pix" | "fiado";
 type DateFilter = "today" | "week" | "month" | "year" | "custom";
@@ -191,10 +180,7 @@ export default function CustomersPage() {
   // atualiza na hora, então bloqueia o segundo clique de verdade.
   const payDebtInFlight = useRef(false);
 
-  // Detail tabs & purchase history
-  const [detailTab, setDetailTab] = useState<"movements" | "purchases">("movements");
-  const [customerSales, setCustomerSales] = useState<CustomerSale[]>([]);
-  const [salesLoading, setSalesLoading] = useState(false);
+  // Detail: histórico de movimentações
   const [saleItemsMap, setSaleItemsMap] = useState<Record<string, SaleItemInfo[]>>({});
 
   // Ranking
@@ -225,7 +211,6 @@ export default function CustomersPage() {
   useEffect(() => {
     if (selected) {
       loadMovements(selected.id);
-      loadCustomerSales(selected.id);
     }
   }, [selected?.id, dateFilter, customFrom, customTo]);
 
@@ -273,29 +258,6 @@ export default function CustomersPage() {
       setSaleItemsMap({});
     }
     setMovLoading(false);
-  }
-
-  async function loadCustomerSales(customerId: string) {
-    setSalesLoading(true);
-    const range = getDateRange(dateFilter, customFrom, customTo);
-    const { data } = await supabase
-      .from("sales")
-      .select("id, created_at, total, total_amount, discount, status, origin, seller_name, sale_items(quantity, unit_price, notes, products(name))")
-      .eq("customer_id", customerId)
-      .eq("status", "paid")
-      .gte("created_at", range.from)
-      .lte("created_at", range.to)
-      .order("created_at", { ascending: false });
-    setCustomerSales(((data ?? []) as any[]).map(s => ({
-      ...s,
-      sale_items: (s.sale_items ?? []).map((i: any) => ({
-        name: i.products?.name ?? "Produto",
-        quantity: i.quantity,
-        unit_price: i.unit_price,
-        notes: i.notes,
-      })),
-    })));
-    setSalesLoading(false);
   }
 
   async function loadRanking() {
@@ -1238,22 +1200,7 @@ export default function CustomersPage() {
             </div>
           </div>
 
-          {/* Tab switcher */}
-          <div className="flex gap-2">
-            <button onClick={() => setDetailTab("movements")}
-              style={detailTab !== "movements" ? { background: card.bg, border: card.border } : { color: "#ffffff" }}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${detailTab === "movements" ? "bg-blue-600" : "text-zinc-400 hover:text-white"}`}>
-              <FileText className="w-3.5 h-3.5" /> Movimentações
-            </button>
-            <button onClick={() => setDetailTab("purchases")}
-              style={detailTab !== "purchases" ? { background: card.bg, border: card.border } : { color: "#ffffff" }}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${detailTab === "purchases" ? "bg-blue-600" : "text-zinc-400 hover:text-white"}`}>
-              <ShoppingCart className="w-3.5 h-3.5" /> Compras
-            </button>
-          </div>
-
           {/* Movement history */}
-          {detailTab === "movements" && (
           <div className="rounded-2xl overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800 flex-wrap gap-3">
               <div className="flex items-center gap-2">
@@ -1293,14 +1240,10 @@ export default function CustomersPage() {
 
             {/* Summary row */}
             {!movLoading && movements.length > 0 && (
-              <div className="grid grid-cols-2 border-b border-zinc-800">
-                <div className="px-5 py-3 border-r border-zinc-800">
+              <div className="grid grid-cols-1 border-b border-zinc-800">
+                <div className="px-5 py-3">
                   <p className="text-xs text-zinc-500">Débitos</p>
                   <p className="text-sm font-bold text-red-400">-{fmt(totalDebits)}</p>
-                </div>
-                <div className="px-5 py-3">
-                  <p className="text-xs text-zinc-500">Créditos/Pgtos</p>
-                  <p className="text-sm font-bold text-emerald-400">+{fmt(totalPositive)}</p>
                 </div>
               </div>
             )}
@@ -1383,146 +1326,7 @@ export default function CustomersPage() {
               </div>
             )}
           </div>
-          )}
 
-          {/* Purchases tab */}
-          {detailTab === "purchases" && (
-          <div className="rounded-2xl overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800 flex-wrap gap-3">
-              <div className="flex items-center gap-2">
-                <ShoppingCart className="w-4 h-4 text-violet-400" />
-                <h2 className="text-sm font-semibold">Histórico de Compras</h2>
-              </div>
-            </div>
-
-            {/* Date filter tabs */}
-            <div className="flex items-center gap-1.5 px-5 py-3 border-b border-zinc-800 flex-wrap">
-              {DATE_TABS.map(t => (
-                <button key={t.key} onClick={() => setDateFilter(t.key)}
-                  style={dateFilter === t.key ? { color: "#ffffff" } : undefined}
-                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${dateFilter === t.key ? "bg-blue-600" : "text-zinc-400 hover:text-white hover:bg-zinc-800"}`}>
-                  {t.label}
-                </button>
-              ))}
-            </div>
-            {dateFilter === "custom" && (
-              <div className="flex items-center gap-3 px-5 py-3 border-b border-zinc-800">
-                <div className="flex items-center gap-2 text-xs text-zinc-400">
-                  <span>De</span>
-                  <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)}
-                    className="px-2 py-1 bg-zinc-950 border border-zinc-700 rounded-lg text-xs text-white focus:outline-none focus:border-violet-500" />
-                  <span>até</span>
-                  <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)}
-                    className="px-2 py-1 bg-zinc-950 border border-zinc-700 rounded-lg text-xs text-white focus:outline-none focus:border-violet-500" />
-                </div>
-              </div>
-            )}
-
-            {salesLoading ? (
-              <div className="flex justify-center py-10"><RefreshCw className="w-4 h-4 animate-spin text-violet-400" /></div>
-            ) : customerSales.length === 0 ? (
-              <div className="text-center py-10 text-xs text-zinc-600">Nenhuma compra no período selecionado</div>
-            ) : (() => {
-              const getSaleTotal = (sale: CustomerSale) => {
-                const t = Number(sale.total_amount ?? sale.total);
-                if (t > 0) return t;
-                const itemsSum = sale.sale_items.reduce((s, i) => s + i.unit_price * i.quantity, 0);
-                return Math.max(0, itemsSum - Number(sale.discount ?? 0));
-              };
-              const periodTotal = customerSales.reduce((s, sale) => s + getSaleTotal(sale), 0);
-              const ticketMedio = periodTotal / customerSales.length;
-
-              // Group by day (YYYY-MM-DD, descending)
-              const byDay: Record<string, CustomerSale[]> = {};
-              for (const sale of customerSales) {
-                const key = sale.created_at.slice(0, 10);
-                if (!byDay[key]) byDay[key] = [];
-                byDay[key].push(sale);
-              }
-              const sortedDays = Object.keys(byDay).sort((a, b) => b.localeCompare(a));
-
-              return (
-                <>
-                  {/* Period summary */}
-                  <div className="grid grid-cols-3 border-b border-zinc-800">
-                    <div className="px-5 py-3 border-r border-zinc-800">
-                      <p className="text-xs text-zinc-500">Compras</p>
-                      <p className="text-sm font-bold text-white">{customerSales.length}</p>
-                    </div>
-                    <div className="px-5 py-3 border-r border-zinc-800">
-                      <p className="text-xs text-zinc-500">Total gasto</p>
-                      <p className="text-sm font-bold text-violet-400">{fmt(periodTotal)}</p>
-                    </div>
-                    <div className="px-5 py-3">
-                      <p className="text-xs text-zinc-500">Ticket médio</p>
-                      <p className="text-sm font-bold text-zinc-300">{fmt(ticketMedio)}</p>
-                    </div>
-                  </div>
-
-                  {/* Sales grouped by day */}
-                  {sortedDays.map(day => {
-                    const daySales = byDay[day];
-                    const dayTotal = daySales.reduce((s, sale) => s + getSaleTotal(sale), 0);
-                    const dayLabel = new Date(day + "T12:00:00").toLocaleDateString("pt-BR", {
-                      weekday: "long", day: "2-digit", month: "long", year: "numeric",
-                    });
-                    return (
-                      <div key={day}>
-                        {/* Day header */}
-                        <div className="flex items-center justify-between px-5 py-2 bg-zinc-950 border-b border-zinc-800 sticky top-0">
-                          <span className="text-xs font-semibold text-zinc-300 capitalize">{dayLabel}</span>
-                          <span className="text-xs font-bold text-violet-400">{fmt(dayTotal)}</span>
-                        </div>
-
-                        {/* Sales of that day */}
-                        <div className="divide-y divide-zinc-800/40">
-                          {daySales.map(sale => {
-                            const saleTotal = getSaleTotal(sale);
-                            const orderNum = sale.id.slice(-6).toUpperCase();
-                            const time = new Date(sale.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-                            return (
-                              <div key={sale.id} className="px-5 py-3">
-                                <div className="flex items-start justify-between gap-3">
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      {sale.origin === "fiado_payment" ? (
-                                        <span className="text-xs font-bold text-emerald-400">Pagamento de Fiado</span>
-                                      ) : (
-                                        <span className="text-xs font-bold text-white font-mono">#{orderNum}</span>
-                                      )}
-                                      <span className="text-xs text-zinc-500">{time}</span>
-                                      {sale.seller_name && <span className="text-xs text-zinc-600">· {sale.seller_name}</span>}
-                                    </div>
-                                    {sale.sale_items.length > 0 && (
-                                      <div className="mt-1.5 space-y-0.5">
-                                        {sale.sale_items.map((item, idx) => (
-                                          <div key={idx} className="flex items-center justify-between text-xs bg-white rounded-lg px-2.5 py-1">
-                                            <span className="text-gray-700">{item.quantity}x {item.name}{item.notes ? ` (${item.notes})` : ""}</span>
-                                            <span className="text-gray-500 ml-3 flex-shrink-0">{fmt(item.unit_price * item.quantity)}</span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className="text-right flex-shrink-0">
-                                    <p className="text-sm font-bold text-violet-400">{fmt(saleTotal)}</p>
-                                    {Number(sale.discount ?? 0) > 0 && (
-                                      <p className="text-xs text-red-400">desc. -{fmt(Number(sale.discount))}</p>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </>
-              );
-            })()}
-          </div>
-          )}
         </div>
       )}
 
@@ -1564,27 +1368,14 @@ export default function CustomersPage() {
                 <label className="block text-xs font-medium text-zinc-400 mb-1.5">Endereço</label>
                 <input value={fAddress} onChange={e => setFAddress(e.target.value)} placeholder="Rua, número, bairro, cidade" className={inputCls} />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              {!editing && (
                 <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Limite de Crédito (fiado)</label>
-                  <input value={fLimit} onChange={e => setFLimit(e.target.value)} placeholder="0,00" type="number" min="0" step="0.01" className={inputCls} />
+                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Aporte inicial (saldo)</label>
+                  <input value={fBalance} onChange={e => setFBalance(e.target.value)}
+                    placeholder="0,00 (saldo pré-pago)"
+                    type="number" step="0.01" className={inputCls} />
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">
-                    {editing ? "Situação financeira" : "Aporte inicial (saldo)"}
-                  </label>
-                  {editing ? (
-                    <div className={`${inputCls} flex flex-col gap-0.5 h-auto py-2`}>
-                      <span className={editing.balance > 0 ? "text-emerald-400" : "text-zinc-500"}>Saldo: {editing.balance > 0 ? "+" : ""}{fmt(editing.balance)}</span>
-                      {(editing.fiado_balance ?? 0) > 0 && <span className="text-red-400 text-xs">Fiado: {fmt(editing.fiado_balance)}</span>}
-                    </div>
-                  ) : (
-                    <input value={fBalance} onChange={e => setFBalance(e.target.value)}
-                      placeholder="0,00 (saldo pré-pago)"
-                      type="number" step="0.01" className={inputCls} />
-                  )}
-                </div>
-              </div>
+              )}
               <div>
                 <label className="block text-xs font-medium text-zinc-400 mb-1.5">Observações</label>
                 <input value={fNotes} onChange={e => setFNotes(e.target.value)} placeholder="Opcional" className={inputCls} />
