@@ -163,21 +163,6 @@ export default function PublicMenuPage() {
   const navigate = useNavigate();
   const { isLight } = useTheme();
 
-  // Essa página é pública (o cliente da loja) e tem visual sempre escuro por
-  // design. O tema claro/escuro do painel admin é salvo no navegador (mesmo
-  // domínio) e, sem isso, "vazava" pra cá — deixando texto branco virando
-  // preto (ilegível) sempre que quem abria o link tinha o tema claro salvo
-  // de usar o painel admin. Trava o tema escuro só enquanto essa página
-  // pública está aberta, e devolve o valor original ao sair.
-  useEffect(() => {
-    const previous = document.documentElement.getAttribute("data-theme");
-    document.documentElement.setAttribute("data-theme", "dark");
-    return () => {
-      if (previous) document.documentElement.setAttribute("data-theme", previous);
-      else document.documentElement.removeAttribute("data-theme");
-    };
-  }, []);
-
   const [settings, setSettings]     = useState<StoreSettings>(DEFAULT_SETTINGS);
   const [storeFound, setStoreFound] = useState<boolean | null>(null);
   const [products, setProducts]     = useState<Product[]>([]);
