@@ -463,6 +463,11 @@ export default function PublicMenuPage() {
     }
     if (cart.length === 0) { setFormError("O carrinho está vazio."); return; }
 
+    // Abre a aba do WhatsApp já aqui (ainda dentro do clique do usuário) e só
+    // navega ela depois — abrir depois de um "await" é bloqueado por popup
+    // blocker em vários navegadores (principalmente celular).
+    const waWindowRef = settings.whatsapp ? window.open("", "_blank") : null;
+
     setSubmitting(true);
 
     const num = generateOrderNumber();
@@ -501,6 +506,7 @@ export default function PublicMenuPage() {
     if (error || !orderRow) {
       setSubmitting(false);
       setFormError("Erro ao enviar pedido. Tente novamente.");
+      try { waWindowRef?.close(); } catch {}
       return;
     }
 
@@ -513,6 +519,23 @@ export default function PublicMenuPage() {
       localStorage.setItem(lsKey, JSON.stringify(updated));
       setSavedOrders(updated);
     } catch {}
+
+    // Direciona a aba do WhatsApp (já aberta antes, pra não ser bloqueada)
+    // pra uma mensagem confirmando o pedido — dá segurança pro cliente de
+    // que o pedido foi mesmo recebido. Não muda mais nada do fluxo existente.
+    if (settings.whatsapp && waWindowRef) {
+      const itemsText = items.map(i => `• ${i.quantity}x ${i.product_name}`).join("\n");
+      const waMessage =
+        `Olá! Acabei de fazer o pedido *#${orderRow.order_number}* pelo cardápio digital.\n\n` +
+        `${itemsText}\n\n` +
+        `Total: ${fmt(total)}\n` +
+        (orderType === "delivery" ? `Entrega: ${address.trim()}\n` : `Retirada no local\n`) +
+        `\nAguardo a confirmação, obrigado!`;
+      const phone = `55${settings.whatsapp.replace(/\D/g, "")}`;
+      try { waWindowRef.location.href = `https://wa.me/${phone}?text=${encodeURIComponent(waMessage)}`; } catch {}
+    } else {
+      try { waWindowRef?.close(); } catch {}
+    }
 
     // Navigate before any state change — component unmounts cleanly, no DOM reconciliation
     navigate(`/menu/${uid}/pedido/${orderRow.id}`);
