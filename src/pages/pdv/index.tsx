@@ -1281,6 +1281,7 @@ export default function PdvPage() {
                           className={`w-16 text-[10px] px-1.5 py-0.5 bg-zinc-950 border rounded font-semibold focus:outline-none transition-colors ${item.customPrice !== undefined && item.customPrice !== item.product.sale_price ? "border-amber-500/60 text-amber-400" : "border-zinc-800 text-zinc-400"}`}
                         />
                         <input placeholder="Obs..." value={item.notes} onChange={e => updateItemNotes(item.cartId, e.target.value)}
+                          style={{ color: isLight ? "#111827" : undefined }}
                           className="flex-1 text-[10px] px-1.5 py-0.5 bg-zinc-950 border border-zinc-800 rounded text-zinc-400 placeholder-zinc-600 focus:outline-none" />
                       </div>
                     </div>
