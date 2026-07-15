@@ -255,72 +255,87 @@ export default function ReportsPage() {
     setLoadErrors([]);
     const errs: string[] = [];
 
-    // 1. Vendas finalizadas — colunas que sabemos que existem (sem "seller")
-    const { data: salesRaw, error: salesErr } = await supabase
-      .from("sales")
-      .select("id,total_amount,discount,origin,created_at,status,seller_name,payments")
-      .eq("status","paid")
-      .neq("origin","fiado_payment")
-      .gte("created_at", fromISO)
-      .lte("created_at", toISO)
-      .order("created_at",{ascending:false});
+    try {
+      // 1. Vendas finalizadas — colunas que sabemos que existem (sem "seller")
+      const { data: salesRaw, error: salesErr } = await supabase
+        .from("sales")
+        .select("id,total_amount,discount,origin,created_at,status,seller_name,payments")
+        .eq("status","paid")
+        .neq("origin","fiado_payment")
+        .gte("created_at", fromISO)
+        .lte("created_at", toISO)
+        .order("created_at",{ascending:false});
 
-    if (salesErr) errs.push(`Vendas: ${salesErr.message}`);
-    const salesData: Sale[] = (salesRaw ?? []).map((r: any) => ({
-      ...r,
-      total_amount: Number(r.total_amount ?? 0),
-      discount:     Number(r.discount ?? 0),
-    }));
-    setSales(salesData);
+      if (salesErr) errs.push(`Vendas: ${salesErr.message}`);
+      const salesData: Sale[] = (salesRaw ?? []).map((r: any) => ({
+        ...r,
+        total_amount: Number(r.total_amount ?? 0),
+        discount:     Number(r.discount ?? 0),
+      }));
+      setSales(salesData);
 
-    // 2. Itens de venda — busca pelos IDs das vendas encontradas (sem join complexo)
-    const saleIds = salesData.map(s => s.id);
-    if (saleIds.length > 0) {
-      const { data: itemsRaw, error: itemsErr } = await supabase
-        .from("sale_items")
-        .select("sale_id,product_id,quantity,unit_price,products(name,category_id)")
-        .in("sale_id", saleIds);
-      if (itemsErr) errs.push(`Itens: ${itemsErr.message}`);
-      setSaleItems((itemsRaw ?? []) as unknown as SaleItem[]);
-    } else {
-      setSaleItems([]);
+      // 2. Itens de venda — busca pelos IDs das vendas encontradas, em lotes
+      //    (uma lista IN muito grande pode estourar/falhar a requisição).
+      const saleIds = salesData.map(s => s.id);
+      if (saleIds.length > 0) {
+        const CHUNK = 100;
+        const allItems: any[] = [];
+        for (let i = 0; i < saleIds.length; i += CHUNK) {
+          const ids = saleIds.slice(i, i + CHUNK);
+          const { data: itemsRaw, error: itemsErr } = await supabase
+            .from("sale_items")
+            .select("sale_id,product_id,quantity,unit_price,products(name,category_id)")
+            .in("sale_id", ids);
+          if (itemsErr) { errs.push(`Itens: ${itemsErr.message}`); break; }
+          if (itemsRaw) allItems.push(...itemsRaw);
+        }
+        setSaleItems(allItems as unknown as SaleItem[]);
+      } else {
+        setSaleItems([]);
+      }
+
+      // 3. Restante em paralelo
+      const [cm, cu, st, pr] = await Promise.all([
+        supabase.from("cash_movements")
+          .select("id,movement_type,amount,payment_method,description,created_at")
+          .gte("created_at", fromISO)
+          .lte("created_at", toISO)
+          .order("created_at",{ascending:false}),
+
+        supabase.from("customer_movements")
+          .select("id,type,amount,created_at,customers(name)")
+          .gte("created_at", fromISO)
+          .lte("created_at", toISO)
+          .order("created_at",{ascending:false}),
+
+        supabase.from("stock_items")
+          .select("id,name,current_qty,min_qty,unit")
+          .order("current_qty"),
+
+        supabase.from("products")
+          .select("id,name,stock,stock_min,sale_price,unlimited_stock")
+          .eq("is_active",true)
+          .order("stock"),
+      ]);
+
+      if (cm.error) errs.push(`Caixa: ${cm.error.message}`);
+      if (cu.error) errs.push(`Clientes: ${cu.error.message}`);
+      if (st.error) errs.push(`Estoque: ${st.error.message}`);
+      if (pr.error) errs.push(`Produtos: ${pr.error.message}`);
+
+      setCashMovs((cm.data ?? []) as CashMovement[]);
+      setCustMovs((cu.data ?? []) as unknown as CustomerMovement[]);
+      setStockItems((st.data ?? []) as StockItem[]);
+      setProducts((pr.data ?? []) as Product[]);
+    } catch (e: any) {
+      // Sem try/catch, um erro em qualquer await deixava a tela travada em
+      // "Carregando..." pra sempre. Agora o erro aparece e o loading encerra.
+      errs.push(`Falha ao carregar: ${e?.message ?? String(e)}`);
+      console.error("reports load error:", e);
+    } finally {
+      setLoadErrors(errs);
+      setLoading(false);
     }
-
-    // 3. Restante em paralelo
-    const [cm, cu, st, pr] = await Promise.all([
-      supabase.from("cash_movements")
-        .select("id,movement_type,amount,payment_method,description,created_at")
-        .gte("created_at", fromISO)
-        .lte("created_at", toISO)
-        .order("created_at",{ascending:false}),
-
-      supabase.from("customer_movements")
-        .select("id,type,amount,created_at,customers(name)")
-        .gte("created_at", fromISO)
-        .lte("created_at", toISO)
-        .order("created_at",{ascending:false}),
-
-      supabase.from("stock_items")
-        .select("id,name,current_qty,min_qty,unit")
-        .order("current_qty"),
-
-      supabase.from("products")
-        .select("id,name,stock,stock_min,sale_price,unlimited_stock")
-        .eq("is_active",true)
-        .order("stock"),
-    ]);
-
-    if (cm.error) errs.push(`Caixa: ${cm.error.message}`);
-    if (cu.error) errs.push(`Clientes: ${cu.error.message}`);
-    if (st.error) errs.push(`Estoque: ${st.error.message}`);
-    if (pr.error) errs.push(`Produtos: ${pr.error.message}`);
-
-    setCashMovs((cm.data ?? []) as CashMovement[]);
-    setCustMovs((cu.data ?? []) as unknown as CustomerMovement[]);
-    setStockItems((st.data ?? []) as StockItem[]);
-    setProducts((pr.data ?? []) as Product[]);
-    setLoadErrors(errs);
-    setLoading(false);
   }, [fromISO, toISO]);
 
   useEffect(() => { load(); }, [load]);
