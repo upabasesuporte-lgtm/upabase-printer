@@ -33,6 +33,7 @@ interface Product {
   unlimited_stock: boolean | null;
   image_url: string | null;
   category_id: string | null;
+  item_type: string | null;
   is_active: boolean;
 }
 
@@ -49,7 +50,7 @@ interface OrderItem {
   quantity: number;
   unit_price: number;
   notes: string | null;
-  products?: { name: string } | null;
+  products?: { name: string; item_type?: string | null } | null;
 }
 
 interface Customer {
@@ -224,10 +225,10 @@ export default function TablesPage() {
     const { data } = await supabase
       .from("sale_items").select("*")
       .eq("sale_id", saleId).order("id");
-    const enriched = (data ?? []).map(i => ({
-      ...i,
-      products: { name: products.find(p => p.id === i.product_id)?.name ?? "Produto" },
-    }));
+    const enriched = (data ?? []).map(i => {
+      const p = products.find(p => p.id === i.product_id);
+      return { ...i, products: { name: p?.name ?? "Produto", item_type: p?.item_type ?? "principal" } };
+    });
     setOrderItems(enriched as OrderItem[]);
     setOrderLoading(false);
   }
@@ -555,19 +556,34 @@ export default function TablesPage() {
     const mainItems = orderItems.filter(i => !isDrink(i.products?.name ?? ""));
     const drinkItems = orderItems.filter(i => isDrink(i.products?.name ?? ""));
 
-    const mainItemsHtml = mainItems.length > 0 ? mainItems.map(i => {
+    const mainItemsHtml = mainItems.length > 0 ? mainItems.map((i, idx) => {
       const name = i.products?.name ?? "Produto";
+      const isAdicional = i.products?.item_type === "adicional";
+      const endsGroup = idx === mainItems.length - 1 || mainItems[idx + 1]?.products?.item_type !== "adicional";
+      const border = endsGroup ? "border-bottom:1px dashed #ccc" : "";
       const unitLine = i.quantity > 1
-        ? `<div style="font-size:10px;font-weight:400;color:#333;margin-top:1px">${i.quantity} un x ${fmt(i.unit_price)}</div>` : "";
+        ? `<div style="font-size:${isAdicional ? "9px" : "10px"};font-weight:400;color:#333;margin-top:1px">${i.quantity} un x ${fmt(i.unit_price)}</div>` : "";
       const obsLine = i.notes
         ? `<div style="font-size:11px;font-weight:700;color:#000;margin-top:2px">Obs: ${i.notes}</div>` : "";
-      return `<div style="padding:5px 0;border-bottom:1px dashed #ccc">
+      if (isAdicional) {
+        return `<div style="padding:2px 0 3px 16px;${border}">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div style="flex:1;padding-right:8px">
+              <div style="font-size:10px;font-weight:500;color:#333">+ ${i.quantity}x ${name}</div>
+              ${unitLine}
+            </div>
+            <div style="font-size:10px;font-weight:500;color:#333;white-space:nowrap">${fmt(i.unit_price * i.quantity)}</div>
+          </div>
+          ${obsLine}
+        </div>`;
+      }
+      return `<div style="padding:6px 0 4px;${border}">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div style="flex:1;padding-right:8px">
-            <div style="font-size:12px;font-weight:700;color:#000">${i.quantity}x ${name}</div>
+            <div style="font-size:14px;font-weight:800;color:#000">${i.quantity}x ${name}</div>
             ${unitLine}
           </div>
-          <div style="font-size:12px;font-weight:700;color:#000;white-space:nowrap">${fmt(i.unit_price * i.quantity)}</div>
+          <div style="font-size:13px;font-weight:800;color:#000;white-space:nowrap">${fmt(i.unit_price * i.quantity)}</div>
         </div>
         ${obsLine}
       </div>`;

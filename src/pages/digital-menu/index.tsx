@@ -52,6 +52,7 @@ interface Product {
   id: string; name: string; description: string | null;
   sale_price: number; image_url: string | null; category_id: string | null;
   is_active: boolean; visible_digital_menu: boolean; is_configurable: boolean;
+  item_type: string | null;
 }
 
 interface Category { id: string; name: string; }
@@ -164,7 +165,7 @@ function stopMsgLoop(ref: React.MutableRefObject<ReturnType<typeof setInterval> 
   if (ref.current) { clearInterval(ref.current); ref.current = null; }
 }
 
-function printLabel(order: DigitalOrder) {
+function printLabel(order: DigitalOrder, products: Product[] = []) {
   const store = getStoreSettings();
   const items = Array.isArray(order.items) ? order.items : [];
   const dt = new Date(order.created_at).toLocaleString("pt-BR", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" });
@@ -196,21 +197,36 @@ function printLabel(order: DigitalOrder) {
   });
 
   // Renderizar itens principais com acompanhamentos organizados
-  const mainItemsHtml = mainItems.length > 0 ? mainItems.map(it => {
+  const mainItemsHtml = mainItems.length > 0 ? mainItems.map((it, idx) => {
+    const isAdicional = products.find(p => p.id === it.product_id)?.item_type === "adicional";
+    const endsGroup = idx === mainItems.length - 1 || products.find(p => p.id === mainItems[idx + 1]?.product_id)?.item_type !== "adicional";
+    const border = endsGroup ? "border-bottom:1px dashed #ccc" : "";
     const unitLine = it.quantity > 1
-      ? `<div style="font-size:10px;font-weight:400;color:#333;margin-top:1px">${it.quantity} un x ${fmt(it.unit_price)}</div>` : "";
+      ? `<div style="font-size:${isAdicional ? "9px" : "10px"};font-weight:400;color:#333;margin-top:1px">${it.quantity} un x ${fmt(it.unit_price)}</div>` : "";
     const optLines = (it.options ?? []).map(o =>
       `<div style="font-size:10px;font-weight:400;color:#555;margin-top:2px;padding-left:12px">→ ${o.option_name}${o.additional_price > 0 ? ` (+${fmt(o.additional_price)})` : ""}</div>`
     ).join("");
     const obsLine = it.notes
       ? `<div style="font-size:11px;font-weight:700;color:#000;margin-top:2px">Obs: ${it.notes}</div>` : "";
-    return `<div style="padding:5px 0;border-bottom:1px dashed #ccc">
+    if (isAdicional) {
+      return `<div style="padding:2px 0 3px 16px;${border}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div style="flex:1;padding-right:8px">
+            <div style="font-size:10px;font-weight:500;color:#333">+ ${it.quantity}x ${it.product_name}</div>
+            ${unitLine}
+          </div>
+          <div style="font-size:10px;font-weight:500;color:#333;white-space:nowrap">${fmt(it.total_price ?? it.unit_price * it.quantity)}</div>
+        </div>
+        ${optLines}${obsLine}
+      </div>`;
+    }
+    return `<div style="padding:6px 0 4px;${border}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start">
         <div style="flex:1;padding-right:8px">
-          <div style="font-size:12px;font-weight:700;color:#000">${it.quantity}x ${it.product_name}</div>
+          <div style="font-size:14px;font-weight:800;color:#000">${it.quantity}x ${it.product_name}</div>
           ${unitLine}
         </div>
-        <div style="font-size:12px;font-weight:700;color:#000;white-space:nowrap">${fmt(it.total_price ?? it.unit_price * it.quantity)}</div>
+        <div style="font-size:13px;font-weight:800;color:#000;white-space:nowrap">${fmt(it.total_price ?? it.unit_price * it.quantity)}</div>
       </div>
       ${optLines}${obsLine}
     </div>`;
@@ -414,7 +430,7 @@ export default function DigitalMenuPage() {
 
   const loadProducts = useCallback(async () => {
     const [p, c] = await Promise.all([
-      supabase.from("products").select("id,name,description,sale_price,image_url,category_id,is_active,visible_digital_menu,is_configurable").eq("is_active", true).order("name"),
+      supabase.from("products").select("id,name,description,sale_price,image_url,category_id,is_active,visible_digital_menu,is_configurable,item_type").eq("is_active", true).order("name"),
       supabase.from("categories").select("id,name").order("name"),
     ]);
     setProducts((p.data ?? []) as Product[]);
@@ -579,7 +595,7 @@ export default function DigitalMenuPage() {
           return;
         }
 
-        setTimeout(() => printLabel({ ...order, status: "accepted" }), 150);
+        setTimeout(() => printLabel({ ...order, status: "accepted" }, products), 150);
       }
     } finally {
       acceptingRef.current = false;
@@ -1538,7 +1554,7 @@ export default function DigitalMenuPage() {
                 </button>
               )}
               <div className="flex gap-2">
-                <button onClick={() => printLabel(selectedOrder)}
+                <button onClick={() => printLabel(selectedOrder, products)}
                   className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-all">
                   <Printer className="w-3.5 h-3.5" /> {selectedOrder.status === "dispatched" || selectedOrder.status === "cancelled" ? "Reimprimir" : "Imprimir Etiqueta"}
                 </button>

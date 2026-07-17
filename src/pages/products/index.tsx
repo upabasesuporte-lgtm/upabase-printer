@@ -51,6 +51,7 @@ interface Product {
   visible_tables: boolean;
   visible_digital_menu: boolean;
   printer_destination: string;
+  item_type: string;
   status: string;
   is_active: boolean;
   created_at: string;
@@ -74,6 +75,10 @@ const STATUS_OPTIONS = [
 ];
 const VAR_TYPES = ["tamanho", "cor", "sabor", "adicional", "outro"];
 const PAGE_SIZE = 20;
+const ITEM_TYPES = [
+  { value: "principal", label: "Principal", hint: "Sai em destaque na impressão" },
+  { value: "adicional", label: "Adicional", hint: "Sai menor e recuado, junto do item principal anterior" },
+];
 
 const DEFAULT_FORM: ProductForm = {
   name: "", description: null, sku: null, barcode: null, image_url: null,
@@ -82,7 +87,7 @@ const DEFAULT_FORM: ProductForm = {
   unit: "unidade", stock: 0,
   stock_type: "controlled", stock_min: 0, stock_max: null,
   visible_pdv: true, visible_tables: true, visible_digital_menu: true,
-  printer_destination: "balcao", status: "active", is_active: true,
+  printer_destination: "balcao", item_type: "principal", status: "active", is_active: true,
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -309,7 +314,7 @@ function ProductModal({ product, categories, onClose, onSave }: {
   const isEdit = !!product;
   const [tab, setTab] = useState<TabName>("Geral");
   const [form, setForm] = useState<ProductForm>(product
-    ? { name: product.name, description: product.description, sku: product.sku, barcode: product.barcode, image_url: product.image_url, category_id: product.category_id, subcategory_id: product.subcategory_id, sale_price: product.sale_price, cost_price: product.cost_price ?? 0, promo_price: product.promo_price, promo_price_until: product.promo_price_until, unit: product.unit ?? "unidade", stock: product.stock ?? 0, stock_type: product.stock_type ?? "controlled", stock_min: product.stock_min ?? 0, stock_max: product.stock_max, visible_pdv: product.visible_pdv ?? true, visible_tables: product.visible_tables ?? true, visible_digital_menu: product.visible_digital_menu ?? true, printer_destination: product.printer_destination ?? "balcao", status: product.status ?? "active", is_active: product.is_active ?? true }
+    ? { name: product.name, description: product.description, sku: product.sku, barcode: product.barcode, image_url: product.image_url, category_id: product.category_id, subcategory_id: product.subcategory_id, sale_price: product.sale_price, cost_price: product.cost_price ?? 0, promo_price: product.promo_price, promo_price_until: product.promo_price_until, unit: product.unit ?? "unidade", stock: product.stock ?? 0, stock_type: product.stock_type ?? "controlled", stock_min: product.stock_min ?? 0, stock_max: product.stock_max, visible_pdv: product.visible_pdv ?? true, visible_tables: product.visible_tables ?? true, visible_digital_menu: product.visible_digital_menu ?? true, printer_destination: product.printer_destination ?? "balcao", item_type: product.item_type ?? "principal", status: product.status ?? "active", is_active: product.is_active ?? true }
     : { ...DEFAULT_FORM });
   const [variations, setVariations] = useState<Variation[]>([]);
   const [newVar, setNewVar] = useState<Variation>({ type: "tamanho", name: "", additional_price: 0, stock: 0, is_active: true });
@@ -359,6 +364,7 @@ function ProductModal({ product, categories, onClose, onSave }: {
         visible_tables: product.visible_tables ?? true,
         visible_digital_menu: product.visible_digital_menu ?? true,
         printer_destination: product.printer_destination ?? "balcao",
+        item_type: product.item_type ?? "principal",
         status: product.status ?? "active",
         is_active: product.is_active ?? true,
       });
@@ -402,6 +408,7 @@ function ProductModal({ product, categories, onClose, onSave }: {
         visible_tables: form.visible_tables,
         visible_digital_menu: form.visible_digital_menu,
         printer_destination: form.printer_destination,
+        item_type: form.item_type,
         status: form.status,
         is_active: form.status === "active",
       };
@@ -734,10 +741,15 @@ function ProductModal({ product, categories, onClose, onSave }: {
                 ))}
               </div>
 
-              <div className="border-t border-zinc-800 pt-4">
+              <div className="border-t border-zinc-800 pt-4 space-y-4">
                 <Field label="Impressora de destino" hint="Para onde vai a comanda quando este produto for pedido">
                   <select value={form.printer_destination} onChange={e => set("printer_destination", e.target.value)} className={selectCls}>
                     {PRINTERS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                  </select>
+                </Field>
+                <Field label="Tipo do item" hint={ITEM_TYPES.find(t => t.value === form.item_type)?.hint}>
+                  <select value={form.item_type} onChange={e => set("item_type", e.target.value)} className={selectCls}>
+                    {ITEM_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
                 </Field>
               </div>
