@@ -2,6 +2,7 @@
 import { flushSync } from "react-dom";
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useEscapeKey } from "../../hooks/useEscapeKey";
 import { getStoreSettings, refreshStoreCache } from "../settings";
 import { unlockAudio, playOrderAlarm } from "../../lib/audio";
 import {
@@ -337,6 +338,7 @@ export default function DigitalMenuPage() {
   const [dragCatId,      setDragCatId]     = useState<string | null>(null);
   // Busca no seletor de "vincular produto" (métricas/estoque) dentro das opções
   const [linkPickerOpenId, setLinkPickerOpenId] = useState<string | null>(null);
+  useEscapeKey(() => { setShowModal(false); setEditProduct(null); setEditGroups([]); }, showModal);
   const [linkSearch,       setLinkSearch]       = useState("");
   // Criar/excluir categoria direto no bloco "Categorias no cardápio"
   const [newCatName,  setNewCatName]  = useState("");

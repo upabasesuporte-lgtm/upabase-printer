@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useEscapeKey } from "../../hooks/useEscapeKey";
 import {
   Plus, Search, X, Edit2, Copy, Trash2, ChevronDown, ChevronUp,
   Package, Tag, Boxes, Monitor, UtensilsCrossed,
@@ -144,6 +145,7 @@ function CategoryModal({ categories, onClose, onRefresh }: {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const roots = categories.filter(c => !c.parent_id);
+  useEscapeKey(onClose);
 
   async function save() {
     if (!name.trim()) return;
@@ -315,6 +317,7 @@ function ProductModal({ product, categories, onClose, onSave }: {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  useEscapeKey(onClose);
 
   async function handleImageUpload(file: File) {
     if (!file) return;

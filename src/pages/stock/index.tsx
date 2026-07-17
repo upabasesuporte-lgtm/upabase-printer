@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useEscapeKey } from "../../hooks/useEscapeKey";
 import {
   Boxes, Plus, Search, X, Edit2, Trash2, RefreshCw, AlertTriangle,
   TrendingUp, ShoppingCart, Truck, BarChart3, ArrowDownToLine,
@@ -138,6 +139,10 @@ export default function StockPage() {
   const [editingItem, setEditingItem] = useState<StockItem | null>(null);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string; table: string } | null>(null);
+  useEscapeKey(() => {
+    if (modal === "deleteItem") { setDeleteTarget(null); setModal("none"); return; }
+    setModal("none");
+  }, modal !== "none");
 
   // Recipe
   const [selectedProduct, setSelectedProduct] = useState<SimpleProduct | null>(null);

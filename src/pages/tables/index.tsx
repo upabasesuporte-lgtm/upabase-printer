@@ -2,6 +2,7 @@
 import { createPortal, flushSync } from "react-dom";
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useEscapeKey } from "../../hooks/useEscapeKey";
 import {
   UtensilsCrossed, Plus, Search, X, ChevronLeft, RefreshCw,
   Clock, Users, CheckCircle2, Settings, Edit2, Trash2,
@@ -209,6 +210,14 @@ export default function TablesPage() {
   }, []);
 
   useEffect(() => { loadAll(); }, [loadAll]);
+
+  // Esc fecha o modal/checkout aberto no momento
+  useEscapeKey(() => {
+    if (showCheckout) { setShowCheckout(false); return; }
+    if (modal === "openConfirm") { setSelectedTable(null); setModal("none"); return; }
+    if (modal === "itemNote") { setNoteTarget(null); setNoteText(""); setModal("none"); return; }
+    if (modal !== "none") setModal("none");
+  }, showCheckout || modal !== "none");
 
   async function loadOrderItems(saleId: string) {
     setOrderLoading(true);

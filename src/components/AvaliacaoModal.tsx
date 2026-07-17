@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { supabase } from "../lib/supabase";
+import { useEscapeKey } from "../hooks/useEscapeKey";
 import { Star, X, Upload, RefreshCw, CheckCircle2, Camera } from "lucide-react";
 
 interface Props {
@@ -35,6 +36,8 @@ export function AvaliacaoModal({ open, userId, avatarUrl, onClose }: Props) {
       setFotoFile(null);      // garante que não sobra arquivo de uma abertura anterior
     }
   }, [open, avatarUrl]);
+
+  useEscapeKey(() => handleClose(), open);
 
   if (!open) return null;
 

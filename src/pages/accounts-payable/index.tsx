@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useEscapeKey } from "../../hooks/useEscapeKey";
 import {
   Wallet, Mic, MicOff, Plus, X, Search, Send, Sparkles,
   CheckCircle2, AlertCircle, XCircle, Trash2, Edit2,
@@ -232,6 +233,8 @@ export default function AccountsPayablePage() {
   const [payAmount, setPayAmount] = useState("");
   const [payMethod, setPayMethod] = useState("pix");
   const [payDate,   setPayDate]   = useState(todayStr());
+  useEscapeKey(() => setPayModal(null), !!payModal);
+  useEscapeKey(() => setShowFull(false), showFull);
   const [paySaving, setPaySaving] = useState(false);
 
   // Inline category dropdown

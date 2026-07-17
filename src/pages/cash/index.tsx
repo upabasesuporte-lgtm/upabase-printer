@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useEscapeKey } from "../../hooks/useEscapeKey";
 import {
   Wallet, ArrowDownCircle, ArrowUpCircle, Lock, Unlock,
   CreditCard, Banknote, Smartphone, Ticket, BarChart2,
@@ -82,6 +83,7 @@ const MOV_LABELS: Record<MovementType, { label: string; sign: string; color: str
 function Modal({ title, onClose, children, wide }: {
   title: string; onClose: () => void; children: React.ReactNode; wide?: boolean;
 }) {
+  useEscapeKey(onClose);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
       <div className={`w-full ${wide ? "max-w-lg" : "max-w-md"} bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto`}>
@@ -914,6 +916,7 @@ function HistoryTab({
   const [detailLoading, setDetailLoading] = useState<string | null>(null);
   const [reopening, setReopening] = useState<string | null>(null);
   const [reopenError, setReopenError] = useState<string | null>(null);
+  useEscapeKey(() => setReopenError(null), !!reopenError);
 
   async function reopenRegister(reg: CashRegister) {
     if (openRegister) {

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { getStoreSettings, getSellers, refreshStoreCache } from "../settings";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useEscapeKey } from "../../hooks/useEscapeKey";
 import {
   Search, ShoppingCart, Plus, Minus, Trash2, X, User, UserPlus,
   Clock, CheckCircle2, AlertCircle, Printer, CreditCard, Banknote,
@@ -132,6 +133,7 @@ const saveShortcutGroups = (groups: ShortcutGroup[]) => localStorage.setItem(SHO
 function Modal({ title, onClose, children, wide }: {
   title: string; onClose: () => void; children: React.ReactNode; wide?: boolean;
 }) {
+  useEscapeKey(onClose);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
       <div className={`w-full ${wide ? "max-w-2xl" : "max-w-lg"} bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl max-h-[90vh] flex flex-col`}>
@@ -1772,7 +1774,7 @@ export default function PdvPage() {
                               type="text" inputMode="decimal"
                               value={editingItemPriceVal}
                               onChange={e => setEditingItemPriceVal(e.target.value)}
-                              onKeyDown={e => { if (e.key === "Enter") confirmEditItemPrice(item); if (e.key === "Escape") { setEditingItemPriceId(null); setEditingItemPriceVal(""); } }}
+                              onKeyDown={e => { if (e.key === "Enter") confirmEditItemPrice(item); if (e.key === "Escape") { e.stopPropagation(); setEditingItemPriceId(null); setEditingItemPriceVal(""); } }}
                               onBlur={() => confirmEditItemPrice(item)}
                               className="w-20 text-xs px-1.5 py-0.5 bg-zinc-800 border border-violet-500 rounded text-white focus:outline-none"
                             />

@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useEscapeKey } from "../../hooks/useEscapeKey";
 import {
   Search, Plus, Trash2, Edit2, X, User, Phone, MapPin, Mail,
   Printer, ChevronLeft, Banknote, CreditCard, Smartphone,
@@ -187,6 +188,13 @@ export default function CustomersPage() {
   const [listView, setListView] = useState<"list" | "ranking">("list");
   const [rankingData, setRankingData] = useState<(Customer & { purchase_count: number; total_spent: number })[]>([]);
   const [rankingLoading, setRankingLoading] = useState(false);
+
+  // Esc fecha o modal aberto no momento
+  useEscapeKey(() => {
+    if (modal === "delete") { setDeleteTarget(null); setModal("none"); return; }
+    if (modal === "editMovement") { setModal("none"); setEditingMovement(null); return; }
+    setModal("none");
+  }, modal !== "none");
 
   // ── Init ────────────────────────────────────────────────────────────────────
 
@@ -1705,7 +1713,7 @@ export default function CustomersPage() {
                                   type="number" min="0" step="0.01"
                                   value={editItemPriceVal}
                                   onChange={e => setEditItemPriceVal(e.target.value)}
-                                  onKeyDown={e => { if (e.key === "Enter") editConfirmItemPrice(item); if (e.key === "Escape") { setEditItemPriceId(null); setEditItemPriceVal(""); } }}
+                                  onKeyDown={e => { if (e.key === "Enter") editConfirmItemPrice(item); if (e.key === "Escape") { e.stopPropagation(); setEditItemPriceId(null); setEditItemPriceVal(""); } }}
                                   className="w-24 px-2 py-1 bg-zinc-900 border border-violet-500 rounded-lg text-xs text-white focus:outline-none" />
                                 <button onClick={() => editConfirmItemPrice(item)}
                                   className="px-2 py-1 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-xs font-semibold">OK</button>
