@@ -748,7 +748,7 @@ export default function PdvPage() {
       const unitLine = i.quantity > 1
         ? `<div style="font-size:10px;font-weight:400;color:#333;margin-top:1px">${i.quantity} un x ${fmt(i.unit_price)}</div>` : "";
       const obsLine = i.notes
-        ? `<div style="font-size:9px;font-weight:400;color:#666;margin-top:1px;font-style:italic">Obs: ${i.notes}</div>` : "";
+        ? `<div style="font-size:11px;font-weight:700;color:#000;margin-top:2px">Obs: ${i.notes}</div>` : "";
       return `<div style="padding:5px 0;border-bottom:1px dashed #ccc">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div style="flex:1;padding-right:8px">
@@ -770,7 +770,7 @@ export default function PdvPage() {
         const unitLine = i.quantity > 1
           ? `<div style="font-size:10px;font-weight:400;color:#333;margin-top:1px">${i.quantity} un x ${fmt(i.unit_price)}</div>` : "";
         const obsLine = i.notes
-          ? `<div style="font-size:9px;font-weight:400;color:#666;margin-top:1px;font-style:italic">Obs: ${i.notes}</div>` : "";
+          ? `<div style="font-size:11px;font-weight:700;color:#000;margin-top:2px">Obs: ${i.notes}</div>` : "";
         return `<div style="padding:5px 0;border-bottom:1px dashed #ccc">
           <div style="display:flex;justify-content:space-between;align-items:flex-start">
             <div style="flex:1;padding-right:8px">

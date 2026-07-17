@@ -203,7 +203,7 @@ function printLabel(order: DigitalOrder) {
       `<div style="font-size:10px;font-weight:400;color:#555;margin-top:2px;padding-left:12px">→ ${o.option_name}${o.additional_price > 0 ? ` (+${fmt(o.additional_price)})` : ""}</div>`
     ).join("");
     const obsLine = it.notes
-      ? `<div style="font-size:9px;font-weight:400;color:#666;margin-top:2px;font-style:italic">Obs: ${it.notes}</div>` : "";
+      ? `<div style="font-size:11px;font-weight:700;color:#000;margin-top:2px">Obs: ${it.notes}</div>` : "";
     return `<div style="padding:5px 0;border-bottom:1px dashed #ccc">
       <div style="display:flex;justify-content:space-between;align-items:flex-start">
         <div style="flex:1;padding-right:8px">
@@ -225,7 +225,7 @@ function printLabel(order: DigitalOrder) {
       const unitLine = it.quantity > 1
         ? `<div style="font-size:10px;font-weight:400;color:#333;margin-top:1px">${it.quantity} un x ${fmt(it.unit_price)}</div>` : "";
       const obsLine = it.notes
-        ? `<div style="font-size:9px;font-weight:400;color:#666;margin-top:1px;font-style:italic">Obs: ${it.notes}</div>` : "";
+        ? `<div style="font-size:11px;font-weight:700;color:#000;margin-top:2px">Obs: ${it.notes}</div>` : "";
       return `<div style="padding:5px 0;border-bottom:1px dashed #ccc">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div style="flex:1;padding-right:8px">
