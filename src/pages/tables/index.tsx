@@ -541,10 +541,15 @@ export default function TablesPage() {
     const chg = Math.max(0, paid - finalTotal);
 
     const SEP = () => `<div style="border-top:1px dashed #000;margin:8px 0"></div>`;
-    const ROW = (a: string, b: string, big = false) =>
-      `<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:${big?"16px":"13px"};font-weight:${big?"800":"600"};color:#000"><span>${a}</span><span>${b}</span></div>`;
+    const ROW = (a: string, b: string) =>
+      `<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:12px;font-weight:400;color:#000"><span>${a}</span><span>${b}</span></div>`;
     const LABEL = (t: string) =>
-      `<div style="font-size:11px;font-weight:700;color:#000;text-transform:uppercase;letter-spacing:0.5px;margin:6px 0 3px">--- ${t} ---</div>`;
+      `<div style="font-size:11px;font-weight:700;color:#000;text-transform:uppercase;letter-spacing:0.5px;margin:6px 0 3px">${t}</div>`;
+    const TOTAL_BOX = (v: string) =>
+      `<div style="border:1px solid #000;border-radius:4px;padding:8px 0;margin:6px 0;text-align:center">
+        <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#000">TOTAL</div>
+        <div style="font-size:20px;font-weight:800;color:#000;margin-top:2px">${v}</div>
+      </div>`;
 
     const isDrink = (name: string) => /bebida|coca|água|suco|refrigerante|vinho|cerveja|chopp|açaí|milkshake|café|leite/i.test(name);
     const mainItems = orderItems.filter(i => !isDrink(i.products?.name ?? ""));
@@ -553,16 +558,16 @@ export default function TablesPage() {
     const mainItemsHtml = mainItems.length > 0 ? mainItems.map(i => {
       const name = i.products?.name ?? "Produto";
       const unitLine = i.quantity > 1
-        ? `<div style="font-size:11px;font-weight:500;color:#333;margin-top:1px">${i.quantity} un x ${fmt(i.unit_price)}</div>` : "";
+        ? `<div style="font-size:10px;font-weight:400;color:#333;margin-top:1px">${i.quantity} un x ${fmt(i.unit_price)}</div>` : "";
       const obsLine = i.notes
         ? `<div style="font-size:9px;font-weight:400;color:#666;margin-top:1px;font-style:italic">Obs: ${i.notes}</div>` : "";
-      return `<div style="padding:6px 0;border-bottom:1px dashed #ccc">
+      return `<div style="padding:5px 0;border-bottom:1px dashed #ccc">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div style="flex:1;padding-right:8px">
-            <div style="font-size:13px;font-weight:600;color:#000">${i.quantity}x ${name}</div>
+            <div style="font-size:12px;font-weight:700;color:#000">${i.quantity}x ${name}</div>
             ${unitLine}
           </div>
-          <div style="font-size:11px;font-weight:600;color:#000;white-space:nowrap">${fmt(i.unit_price * i.quantity)}</div>
+          <div style="font-size:12px;font-weight:700;color:#000;white-space:nowrap">${fmt(i.unit_price * i.quantity)}</div>
         </div>
         ${obsLine}
       </div>`;
@@ -570,61 +575,61 @@ export default function TablesPage() {
 
     const drinksHtml = drinkItems.length > 0 ? `
       ${mainItems.length > 0 ? `<div style="margin:10px 0;padding:8px 0;border-top:2px solid #000;border-bottom:2px solid #000;text-align:center">
-        <div style="font-size:11px;font-weight:600;color:#000;text-transform:uppercase;letter-spacing:0.5px">🍹 BEBIDAS 🍹</div>
+        <div style="font-size:11px;font-weight:700;color:#000;text-transform:uppercase;letter-spacing:0.5px">🍹 BEBIDAS 🍹</div>
       </div>` : ""}
       ${drinkItems.map(i => {
         const name = i.products?.name ?? "Produto";
         const unitLine = i.quantity > 1
-          ? `<div style="font-size:10px;font-weight:500;color:#333;margin-top:1px">${i.quantity} un x ${fmt(i.unit_price)}</div>` : "";
+          ? `<div style="font-size:10px;font-weight:400;color:#333;margin-top:1px">${i.quantity} un x ${fmt(i.unit_price)}</div>` : "";
         const obsLine = i.notes
           ? `<div style="font-size:9px;font-weight:400;color:#666;margin-top:1px;font-style:italic">Obs: ${i.notes}</div>` : "";
         return `<div style="padding:5px 0;border-bottom:1px dashed #ccc">
           <div style="display:flex;justify-content:space-between;align-items:flex-start">
             <div style="flex:1;padding-right:8px">
-              <div style="font-size:12px;font-weight:600;color:#000">${i.quantity}x ${name}</div>
+              <div style="font-size:12px;font-weight:700;color:#000">${i.quantity}x ${name}</div>
               ${unitLine}
             </div>
-            <div style="font-size:11px;font-weight:600;color:#000;white-space:nowrap">${fmt(i.unit_price * i.quantity)}</div>
+            <div style="font-size:12px;font-weight:700;color:#000;white-space:nowrap">${fmt(i.unit_price * i.quantity)}</div>
           </div>
           ${obsLine}
         </div>`;
       }).join("")}
     ` : "";
 
-    const itemsHtml = mainItemsHtml + drinksHtml || `<div style="font-size:12px;font-weight:600;color:#000;padding:6px 0">Sem itens</div>`;
+    const itemsHtml = mainItemsHtml + drinksHtml || `<div style="font-size:12px;font-weight:400;color:#000;padding:6px 0">Sem itens</div>`;
 
     const paymentsHtml = checkoutPayments.map(p =>
       ROW(PAY_INFO[p.method]?.label ?? p.method, fmt(p.amount))
     ).join("");
 
     const pixLine = checkoutPayments.some(p => p.method === "pix") && store.pix
-      ? `<div style="font-size:12px;font-weight:600;color:#000">Chave PIX: ${store.pix}</div>` : "";
+      ? `<div style="font-size:11px;font-weight:400;color:#000">Chave PIX: ${store.pix}</div>` : "";
 
     win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
     <title>Comanda #${orderNum}</title>
     <style>
       *{box-sizing:border-box;margin:0;padding:0}
-      body{font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#000;background:#fff;padding:16px 14px;max-width:320px;margin:0 auto}
+      body{font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:400;color:#000;background:#fff;padding:16px 14px;max-width:320px;margin:0 auto}
       @media print{body{padding:4px 2px;max-width:none}@page{margin:2mm}}
     </style></head><body>
 
     <div style="text-align:center;padding-bottom:8px">
-      <div style="font-size:20px;font-weight:900;color:#000">${store.name}</div>
-      ${store.show_cnpj && store.cnpj ? `<div style="font-size:12px;font-weight:600;color:#000">CNPJ: ${store.cnpj}</div>` : ""}
-      ${store.address ? `<div style="font-size:12px;font-weight:600;color:#000">${store.address}</div>` : ""}
-      ${store.phone ? `<div style="font-size:12px;font-weight:600;color:#000">Tel: ${store.phone}</div>` : ""}
+      <div style="font-size:16px;font-weight:700;color:#000">${store.name}</div>
+      ${store.show_cnpj && store.cnpj ? `<div style="font-size:10px;font-weight:400;color:#000">CNPJ: ${store.cnpj}</div>` : ""}
+      ${store.address ? `<div style="font-size:10px;font-weight:400;color:#000">${store.address}</div>` : ""}
+      ${store.phone ? `<div style="font-size:10px;font-weight:400;color:#000">Tel: ${store.phone}</div>` : ""}
     </div>
 
-    <div style="border-top:2px solid #000;border-bottom:1px dashed #000;padding:6px 0;margin:4px 0;text-align:center">
-      <div style="font-size:28px;font-weight:900;color:#000;letter-spacing:2px">#${orderNum}</div>
-      <div style="font-size:13px;font-weight:600;color:#000">${dt}</div>
-      <div style="font-size:13px;font-weight:700;color:#000">Mesa: ${selectedTable?.name ?? "—"}</div>
+    <div style="border-top:1px solid #000;border-bottom:1px dashed #000;padding:5px 0;margin:4px 0;text-align:center">
+      <div style="font-size:15px;font-weight:700;color:#000;letter-spacing:1px">#${orderNum}</div>
+      <div style="font-size:11px;font-weight:400;color:#000">${dt}</div>
+      <div style="font-size:12px;font-weight:700;color:#000">Mesa: ${selectedTable?.name ?? "—"}</div>
     </div>
 
     ${(checkoutCustomer?.name || checkoutSeller) ? `
     <div style="padding:6px 0">
-      ${checkoutCustomer?.name ? `<div style="font-size:13px;font-weight:600;color:#000">Cliente: ${checkoutCustomer.name}</div>` : ""}
-      ${checkoutSeller ? `<div style="font-size:13px;font-weight:600;color:#000">Vendedor: ${checkoutSeller}</div>` : ""}
+      ${checkoutCustomer?.name ? `<div style="font-size:12px;color:#000"><span style="font-weight:700">Cliente:</span> ${checkoutCustomer.name}</div>` : ""}
+      ${checkoutSeller ? `<div style="font-size:12px;color:#000"><span style="font-weight:700">Vendedor:</span> ${checkoutSeller}</div>` : ""}
     </div>
     ` : ""}
 
@@ -635,7 +640,7 @@ export default function TablesPage() {
     ${SEP()}
     ${subtotal !== finalTotal ? ROW("Subtotal", fmt(subtotal)) : ""}
     ${discountVal > 0 ? ROW("Desconto", "- " + fmt(discountVal)) : ""}
-    ${ROW("TOTAL", fmt(finalTotal), true)}
+    ${TOTAL_BOX(fmt(finalTotal))}
 
     ${SEP()}
     ${LABEL("Pagamento")}
@@ -643,10 +648,10 @@ export default function TablesPage() {
     ${pixLine}
     ${chg > 0.01 ? ROW("Troco", fmt(chg)) : ""}
 
-    ${checkoutNotes ? `${SEP()}${LABEL("Observacoes")}<div style="font-size:13px;font-weight:600;color:#000">${checkoutNotes}</div>` : ""}
+    ${checkoutNotes ? `${SEP()}${LABEL("Observacoes")}<div style="font-size:12px;font-weight:400;color:#000">${checkoutNotes}</div>` : ""}
 
     ${SEP()}
-    <div style="text-align:center;font-size:13px;font-weight:600;color:#000;padding-top:4px">
+    <div style="text-align:center;font-size:11px;font-weight:400;color:#000;padding-top:4px">
       ${store.footer_message || "Obrigado pela preferencia!"}
     </div>
     </body></html>`);
