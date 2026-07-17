@@ -97,6 +97,11 @@ const PAYMENT_INFO: Record<PayMethod, { label: string; icon: React.ReactNode; co
   ifood_receivable: { label: "iFood (A Receber)",icon: <ShoppingCart className="w-4 h-4" />,color: "border-red-500 bg-red-500/10 text-red-300" },
 };
 
+// Atalho de teclado por método (letra inicial; Débito usa "E" pois "D" já é do Dinheiro)
+const PAYMENT_SHORTCUT: Record<PayMethod, string> = {
+  cash: "D", credit: "C", debit: "E", pix: "P", fiado: "F", house_credit: "S", ifood_receivable: "I",
+};
+
 const ORIGIN_INFO: Record<string, { label: string; color: string }> = {
   pdv:             { label: "PDV",             color: "bg-zinc-700/60 text-zinc-300" },
   pdv_balcao:      { label: "Balcão",          color: "bg-sky-500/15 text-sky-400" },
@@ -351,12 +356,28 @@ export default function PdvPage() {
       }
 
       if (typing) return;
+
+      // Atalhos de forma de pagamento no checkout (letra inicial seleciona, Enter confirma)
+      if (showCheckout && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const method = (Object.keys(PAYMENT_SHORTCUT) as PayMethod[])
+          .find(m => PAYMENT_SHORTCUT[m] === e.key.toUpperCase());
+        if (method) {
+          const needsCustomer = method === "fiado" || method === "house_credit";
+          const blocked = needsCustomer && !selectedCustomer;
+          if (!blocked && !payments.some(p => p.method === method)) {
+            e.preventDefault();
+            addPayment(method);
+          }
+          return;
+        }
+      }
+
       if (e.key === "F1") { e.preventDefault(); if (cart.length > 0 && cashRegisterId) { setPayments([]); setCheckoutError(null); setShowCheckout(true); } }
       if (e.key === "F2") { e.preventDefault(); savePending(); }
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [cart, showEditSale, editSalePayments, showCheckout, payments, checkoutLoading]);
+  }, [cart, showEditSale, editSalePayments, showCheckout, payments, checkoutLoading, selectedCustomer]);
 
   // ── Carrinho ──
   function isUnlimited(p: Product) {
@@ -2041,6 +2062,7 @@ export default function PdvPage() {
                       title={blockedNoCustomer ? "Selecione um cliente primeiro" : undefined}
                       className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${alreadyAdded ? PAYMENT_INFO[method].color : "border-zinc-700 text-zinc-400 hover:border-zinc-600 hover:text-white"}`}>
                       {PAYMENT_INFO[method].icon} {PAYMENT_INFO[method].label}
+                      <span className="ml-auto text-[10px] opacity-60 border border-current rounded px-1">{PAYMENT_SHORTCUT[method]}</span>
                     </button>
                   );
                 })}
