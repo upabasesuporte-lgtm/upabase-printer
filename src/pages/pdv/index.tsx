@@ -176,8 +176,6 @@ export default function PdvPage() {
   const [search, setSearch] = useState("");
   const [shortcutGroups, setShortcutGroups] = useState<ShortcutGroup[]>(getShortcutGroups());
   const [custSearch, setCustSearch] = useState("");
-  const [checkoutCustSearch, setCheckoutCustSearch] = useState("");
-  const [showCheckoutCustSearch, setShowCheckoutCustSearch] = useState(false);
 
   // Modais
   const [showCheckout, setShowCheckout] = useState(false);
@@ -473,6 +471,7 @@ export default function PdvPage() {
     if (cart.length === 0) return;
     if (!cashRegisterId) return;
     setPayments([]);
+    setSaleChannel("pdv");
     setCheckoutError(null);
     // Atualiza dados do cliente selecionado para pegar credit_limit e fiado_balance mais recentes
     if (selectedCustomer) {
@@ -493,6 +492,7 @@ export default function PdvPage() {
   function addPayment(method: PayMethod) {
     if (payments.some(p => p.method === method)) return;
     setPayments(prev => [...prev, { method, amount: remaining > 0 ? parseFloat(remaining.toFixed(2)) : 0 }]);
+    if (method === "ifood_receivable") setSaleChannel("ifood");
   }
 
   function updatePaymentAmount(method: PayMethod, value: string) {
@@ -500,7 +500,10 @@ export default function PdvPage() {
     setPayments(prev => prev.map(p => p.method === method ? { ...p, amount } : p));
   }
 
-  function removePayment(method: PayMethod) { setPayments(prev => prev.filter(p => p.method !== method)); }
+  function removePayment(method: PayMethod) {
+    setPayments(prev => prev.filter(p => p.method !== method));
+    if (method === "ifood_receivable") { setSaleChannel("pdv"); setDiscount(""); }
+  }
 
   async function confirmSale() {
     if (!userId) return;
@@ -2003,23 +2006,6 @@ export default function PdvPage() {
         <Modal title="Finalizar Venda" onClose={() => setShowCheckout(false)} wide>
           <div className="space-y-4">
 
-            {/* Canal de origem */}
-            <div className="flex items-center gap-3">
-              <p className="text-xs text-zinc-500 font-medium uppercase tracking-wide flex-1">Canal</p>
-              <div className="flex bg-zinc-800 rounded-lg p-0.5 gap-0.5">
-                <button onClick={() => setSaleChannel("pdv")}
-                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${saleChannel === "pdv" ? "" : "text-zinc-400 hover:text-white"}`}
-                  style={saleChannel === "pdv" ? { background: "#7B2FBE", color: "#fff" } : {}}>
-                  PDV
-                </button>
-                <button onClick={() => setSaleChannel("ifood")}
-                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-colors ${saleChannel === "ifood" ? "bg-red-600" : "text-zinc-400 hover:text-white"}`}
-                  style={saleChannel === "ifood" ? { color: "#fff" } : {}}>
-                  🛵 iFood
-                </button>
-              </div>
-            </div>
-
             <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-1.5">
               {cart.map(i => (
                 <div key={i.product.id} className="flex justify-between text-sm">
@@ -2033,161 +2019,6 @@ export default function PdvPage() {
               <div className="flex justify-between font-bold border-t border-zinc-800 pt-1.5">
                 <span className="text-white">Total</span><span className="text-violet-400 text-lg">{fmt(total)}</span>
               </div>
-            </div>
-
-            {/* Desconto */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs text-zinc-500 font-medium uppercase tracking-wide">Desconto</p>
-                <div className="flex bg-zinc-800 rounded-lg p-0.5 gap-0.5">
-                  <button onClick={() => setDiscountType("value")}
-                    className={`px-2.5 py-0.5 rounded-md text-xs font-semibold transition-all ${discountType === "value" ? "" : "text-zinc-400 hover:text-white"}`}
-                    style={discountType === "value" ? { background: "#7B2FBE", color: "#fff" } : {}}>
-                    R$
-                  </button>
-                  <button onClick={() => {
-                    setDiscountType("percent");
-                    const pct = discountVal > 0 && subtotal > 0 ? String(Math.round((discountVal / subtotal) * 100)) : "";
-                    setDiscountPctRaw(pct);
-                  }}
-                    className={`px-2.5 py-0.5 rounded-md text-xs font-semibold transition-all ${discountType === "percent" ? "" : "text-zinc-400 hover:text-white"}`}
-                    style={discountType === "percent" ? { background: "#7B2FBE", color: "#fff" } : {}}>
-                    %
-                  </button>
-                </div>
-              </div>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-sm">
-                  {discountType === "value" ? "R$" : "%"}
-                </span>
-                <input
-                  type="number" min="0"
-                  max={discountType === "percent" ? 100 : undefined}
-                  step={discountType === "percent" ? 1 : 0.01}
-                  value={
-                    discountType === "value"
-                      ? (discount || "")
-                      : discountPctRaw
-                  }
-                  onChange={e => {
-                    if (discountType === "value") {
-                      setDiscount(e.target.value);
-                    } else {
-                      setDiscountPctRaw(e.target.value);
-                      const v = parseFloat(e.target.value) || 0;
-                      const computed = subtotal * Math.min(v, 100) / 100;
-                      setDiscount(computed > 0 ? computed.toFixed(2) : "");
-                    }
-                  }}
-                  placeholder={discountType === "percent" ? "Ex: 10" : "0,00"}
-                  className="w-full pl-9 pr-3 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500"
-                />
-              </div>
-              {discountType === "percent" && (
-                <div className="flex gap-1.5 mt-1.5">
-                  {[5, 10, 15, 20].map(pct => (
-                    <button key={pct}
-                      onClick={() => { setDiscountPctRaw(String(pct)); setDiscount(String((subtotal * pct / 100).toFixed(2))); }}
-                      className="flex-1 py-1 text-xs border border-zinc-700 hover:border-violet-500/50 hover:text-violet-400 rounded-lg transition-colors text-zinc-400">
-                      {pct}%
-                    </button>
-                  ))}
-                </div>
-              )}
-              {discountVal > 0 && (
-                <div className="flex items-center justify-between mt-1.5">
-                  <span className="text-xs text-zinc-500">Desconto aplicado</span>
-                  <span className="text-xs font-bold text-red-400">
-                    -{fmt(discountVal)}{subtotal > 0 ? ` (${((discountVal / subtotal) * 100).toFixed(1)}%)` : ""}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Seletor de cliente inline no checkout */}
-            <div className="relative">
-              <p className="text-xs text-zinc-500 mb-1.5 font-medium uppercase tracking-wide">Cliente</p>
-
-              {/* Botão de seleção / cliente atual */}
-              {!showCheckoutCustSearch && (
-                <button
-                  onClick={() => { setCheckoutCustSearch(""); setShowCheckoutCustSearch(true); }}
-                  className="w-full flex items-center gap-2 bg-zinc-950 border border-zinc-800 hover:border-zinc-700 rounded-xl px-3 py-2.5 transition-colors text-left">
-                  <User className="w-4 h-4 text-zinc-500 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    {selectedCustomer ? (
-                      <>
-                        <p className="text-xs font-medium text-white truncate">{selectedCustomer.name}</p>
-                        <div className="flex items-center gap-3 flex-wrap">
-                          {selectedCustomer.balance > 0 && <span className="text-xs text-emerald-400">Saldo: +{fmt(selectedCustomer.balance)}</span>}
-                          {(selectedCustomer.fiado_balance ?? 0) > 0 && <span className="text-xs text-red-400">Fiado: {fmt(selectedCustomer.fiado_balance)}</span>}
-                        </div>
-                      </>
-                    ) : (
-                      <p className="text-xs text-zinc-500">Selecionar cliente <span className="text-amber-400">(obrigatório para Fiado)</span></p>
-                    )}
-                  </div>
-                  <ChevronRight className="w-3.5 h-3.5 text-zinc-600 flex-shrink-0" />
-                </button>
-              )}
-              {selectedCustomer && !showCheckoutCustSearch && (
-                <button onClick={() => setSelectedCustomer(null)} className="mt-1 text-[10px] text-zinc-600 hover:text-red-400 transition-colors">
-                  Remover cliente
-                </button>
-              )}
-
-              {/* Busca inline de cliente — sobrepõe o checkout sem fechar */}
-              {showCheckoutCustSearch && (
-                <div className="bg-zinc-900 border border-violet-500/40 rounded-xl overflow-hidden shadow-xl">
-                  <div className="flex items-center gap-2 px-3 py-2 border-b border-zinc-800">
-                    <Search className="w-4 h-4 text-zinc-500 flex-shrink-0" />
-                    <input
-                      autoFocus
-                      placeholder="Buscar cliente por nome ou telefone..."
-                      value={checkoutCustSearch}
-                      onChange={e => setCheckoutCustSearch(e.target.value)}
-                      className="flex-1 bg-transparent text-sm text-white placeholder-zinc-500 focus:outline-none"
-                    />
-                    <button onClick={() => setShowCheckoutCustSearch(false)} className="text-zinc-500 hover:text-white transition-colors">
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <div className="max-h-52 overflow-y-auto">
-                    {customers
-                      .filter(c => checkoutCustSearch === "" || c.name.toLowerCase().includes(checkoutCustSearch.toLowerCase()) || (c.phone && c.phone.includes(checkoutCustSearch)))
-                      .slice(0, 10)
-                      .map(c => (
-                        <button key={c.id}
-                          onClick={async () => {
-                            const { data: fresh } = await supabase.from("customers").select("id,name,phone,address,balance,fiado_balance,credit_limit").eq("id", c.id).single();
-                            const customer = (fresh as Customer) ?? c;
-                            setSelectedCustomer(customer);
-                            setCustomers(prev => prev.map(x => x.id === customer.id ? customer : x));
-                            if (customer.address) setDeliveryAddress(customer.address);
-                            // Se há saldo restante e fiado ainda não foi adicionado, adiciona automaticamente
-                            if (remaining > 0 && !payments.some(p => p.method === "fiado")) {
-                              setPayments(prev => [...prev, { method: "fiado", amount: parseFloat(remaining.toFixed(2)) }]);
-                            }
-                            setShowCheckoutCustSearch(false);
-                            setCheckoutCustSearch("");
-                          }}
-                          className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-zinc-800 transition-colors text-left border-b border-zinc-800/50 last:border-0">
-                          <div>
-                            <p className="text-sm font-medium text-white">{c.name}</p>
-                            {c.phone && <p className="text-xs text-zinc-500">{c.phone}</p>}
-                          </div>
-                          <div className="text-right flex-shrink-0">
-                            {(c.fiado_balance ?? 0) > 0 && <p className="text-xs text-red-400">Fiado: {fmt(c.fiado_balance)}</p>}
-                            {c.balance > 0 && <p className="text-xs text-emerald-400">Saldo: {fmt(c.balance)}</p>}
-                          </div>
-                        </button>
-                      ))}
-                    {customers.filter(c => checkoutCustSearch === "" || c.name.toLowerCase().includes(checkoutCustSearch.toLowerCase()) || (c.phone && c.phone.includes(checkoutCustSearch))).length === 0 && (
-                      <p className="text-xs text-zinc-500 text-center py-4">Nenhum cliente encontrado</p>
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
 
             {checkoutError && (
@@ -2221,6 +2052,77 @@ export default function PdvPage() {
                 </p>
               )}
             </div>
+
+            {/* Comissão iFood — só aparece quando iFood (A Receber) é selecionado */}
+            {payments.some(p => p.method === "ifood_receivable") && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs text-zinc-500 font-medium uppercase tracking-wide">Comissão iFood</p>
+                  <div className="flex bg-zinc-800 rounded-lg p-0.5 gap-0.5">
+                    <button onClick={() => setDiscountType("value")}
+                      className={`px-2.5 py-0.5 rounded-md text-xs font-semibold transition-all ${discountType === "value" ? "" : "text-zinc-400 hover:text-white"}`}
+                      style={discountType === "value" ? { background: "#7B2FBE", color: "#fff" } : {}}>
+                      R$
+                    </button>
+                    <button onClick={() => {
+                      setDiscountType("percent");
+                      const pct = discountVal > 0 && subtotal > 0 ? String(Math.round((discountVal / subtotal) * 100)) : "";
+                      setDiscountPctRaw(pct);
+                    }}
+                      className={`px-2.5 py-0.5 rounded-md text-xs font-semibold transition-all ${discountType === "percent" ? "" : "text-zinc-400 hover:text-white"}`}
+                      style={discountType === "percent" ? { background: "#7B2FBE", color: "#fff" } : {}}>
+                      %
+                    </button>
+                  </div>
+                </div>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-sm">
+                    {discountType === "value" ? "R$" : "%"}
+                  </span>
+                  <input
+                    type="number" min="0"
+                    max={discountType === "percent" ? 100 : undefined}
+                    step={discountType === "percent" ? 1 : 0.01}
+                    value={
+                      discountType === "value"
+                        ? (discount || "")
+                        : discountPctRaw
+                    }
+                    onChange={e => {
+                      if (discountType === "value") {
+                        setDiscount(e.target.value);
+                      } else {
+                        setDiscountPctRaw(e.target.value);
+                        const v = parseFloat(e.target.value) || 0;
+                        const computed = subtotal * Math.min(v, 100) / 100;
+                        setDiscount(computed > 0 ? computed.toFixed(2) : "");
+                      }
+                    }}
+                    placeholder={discountType === "percent" ? "Ex: 10" : "0,00"}
+                    className="w-full pl-9 pr-3 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500"
+                  />
+                </div>
+                {discountType === "percent" && (
+                  <div className="flex gap-1.5 mt-1.5">
+                    {[5, 10, 15, 20].map(pct => (
+                      <button key={pct}
+                        onClick={() => { setDiscountPctRaw(String(pct)); setDiscount(String((subtotal * pct / 100).toFixed(2))); }}
+                        className="flex-1 py-1 text-xs border border-zinc-700 hover:border-violet-500/50 hover:text-violet-400 rounded-lg transition-colors text-zinc-400">
+                        {pct}%
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {discountVal > 0 && (
+                  <div className="flex items-center justify-between mt-1.5">
+                    <span className="text-xs text-zinc-500">Comissão aplicada</span>
+                    <span className="text-xs font-bold text-red-400">
+                      -{fmt(discountVal)}{subtotal > 0 ? ` (${((discountVal / subtotal) * 100).toFixed(1)}%)` : ""}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
 
             {payments.length > 0 && (
               <div className="space-y-2">
