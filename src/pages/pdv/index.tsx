@@ -757,10 +757,10 @@ export default function PdvPage() {
         return `<div style="padding:2px 0 3px 16px;${border}">
           <div style="display:flex;justify-content:space-between;align-items:flex-start">
             <div style="flex:1;padding-right:8px">
-              <div style="font-size:10px;font-weight:500;color:#333">+ ${i.quantity}x ${name}</div>
+              <div style="font-size:11px;font-weight:400;color:#000">+ ${i.quantity}x ${name}</div>
               ${unitLine}
             </div>
-            <div style="font-size:10px;font-weight:500;color:#333;white-space:nowrap">${fmt(i.unit_price * i.quantity)}</div>
+            <div style="font-size:11px;font-weight:400;color:#000;white-space:nowrap">${fmt(i.unit_price * i.quantity)}</div>
           </div>
           ${obsLine}
         </div>`;
@@ -768,10 +768,10 @@ export default function PdvPage() {
       return `<div style="padding:6px 0 4px;${border}">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div style="flex:1;padding-right:8px">
-            <div style="font-size:14px;font-weight:800;color:#000">${i.quantity}x ${name}</div>
+            <div style="font-size:13px;font-weight:700;color:#000">${i.quantity}x ${name}</div>
             ${unitLine}
           </div>
-          <div style="font-size:13px;font-weight:800;color:#000;white-space:nowrap">${fmt(i.unit_price * i.quantity)}</div>
+          <div style="font-size:12px;font-weight:700;color:#000;white-space:nowrap">${fmt(i.unit_price * i.quantity)}</div>
         </div>
         ${obsLine}
       </div>`;
