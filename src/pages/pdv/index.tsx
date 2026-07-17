@@ -1440,7 +1440,7 @@ export default function PdvPage() {
           {loadingHistory ? (
             <div className="flex justify-center py-12"><RefreshCw className="w-5 h-5 animate-spin text-violet-400" /></div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {sales.filter(s => historySearch === "" || s.customers?.name?.toLowerCase().includes(historySearch.toLowerCase()) || s.id.includes(historySearch) || (s as any).delivery_address?.toLowerCase().includes(historySearch.toLowerCase())).map(sale => {
                 const isExpanded = expandedSaleId === sale.id;
                 const saleItems = sale.sale_items ?? [];
@@ -1454,76 +1454,117 @@ export default function PdvPage() {
                   ? (isIfood ? itemsTotal : Math.max(0, itemsTotal - discountAmt))
                   : (rawTotal > 0 ? (isIfood ? rawTotal + discountAmt : rawTotal) : 0);
                 const orderNum = sale.id.slice(-6).toUpperCase();
+                const statusCfg = sale.status === "paid"
+                  ? { label: "Concluída", bg: "rgba(16,185,129,0.15)", fg: isLight ? "#047857" : "#34d399" }
+                  : sale.status === "open"
+                  ? { label: "Pendente", bg: "rgba(245,158,11,0.15)", fg: isLight ? "#b45309" : "#fbbf24" }
+                  : { label: "Cancelada", bg: "rgba(239,68,68,0.15)", fg: isLight ? "#b91c1c" : "#f87171" };
+                const originClasses = sale.origin && ORIGIN_INFO[sale.origin] ? ORIGIN_INFO[sale.origin].color : "bg-zinc-700/60 text-zinc-300";
+                const itemChips = saleItems.slice(0, 4);
+                const extraItemCount = Math.max(0, saleItems.length - itemChips.length);
                 return (
-                  <div key={sale.id} className="rounded-xl transition-colors overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
-                    <div className="p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setExpandedSaleId(isExpanded ? null : sale.id)}>
-                          {/* Linha 1: status + número (destaque) + hora */}
-                          <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                            <span style={isLight ? { background:"#10b981", color:"#fff" } : { background:"bg-emerald-500/15", color:"text-emerald-400" }} className="text-xs font-medium px-2 py-0.5 rounded-full">
-                              {sale.status === "paid" ? "Concluída" : sale.status === "open" ? "Pendente" : "Cancelada"}
-                            </span>
-                            {sale.origin && ORIGIN_INFO[sale.origin] && (
-                              <span style={isLight ? { background:"#2563eb", color:"#fff" } : {}} className={`text-xs font-medium px-2 py-0.5 rounded-full ${!isLight ? ORIGIN_INFO[sale.origin].color : ""}`}>
-                                {ORIGIN_INFO[sale.origin].label}
+                  <div key={sale.id} className="rounded-2xl transition-shadow hover:shadow-lg overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+                    <div className="p-5">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-3.5 flex-1 min-w-0 cursor-pointer" onClick={() => setExpandedSaleId(isExpanded ? null : sale.id)}>
+                          {/* Avatar do pedido */}
+                          <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                            style={{ background: isLight ? "rgba(123,47,190,0.1)" : "rgba(123,47,190,0.15)" }}>
+                            <Receipt className="w-5 h-5" style={{ color: isLight ? "#7B2FBE" : "#c4b5fd" }} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            {/* Linha 1: número + status + canal */}
+                            <div className="flex items-center gap-2 flex-wrap mb-1">
+                              <span className="text-base font-bold font-mono">#{orderNum}</span>
+                              <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: statusCfg.bg, color: statusCfg.fg }}>
+                                {statusCfg.label}
                               </span>
+                              {sale.origin && ORIGIN_INFO[sale.origin] && (
+                                <span style={isLight ? { background:"#2563eb", color:"#fff" } : {}} className={`text-xs font-medium px-2 py-0.5 rounded-full ${!isLight ? originClasses : ""}`}>
+                                  {ORIGIN_INFO[sale.origin].label}
+                                </span>
+                              )}
+                            </div>
+                            {/* Linha 2: cliente + endereço */}
+                            <p className="text-sm font-medium truncate">{sale.customers?.name ?? "Sem cliente"}</p>
+                            {(sale as any).delivery_address && (
+                              <p className="text-xs text-zinc-500 truncate mt-0.5">{(sale as any).delivery_address}</p>
                             )}
-                            <span className="text-sm font-bold font-mono px-2.5 py-0.5 rounded-lg" style={{background: isLight ? "rgba(239,68,68,0.15)" : "#7B2FBE", color: isLight ? "#000" : "#fff"}}>#{orderNum}</span>
-                            <span className="text-xs text-zinc-500">{new Date(sale.created_at).toLocaleString("pt-BR")}</span>
-                            {sale.seller_name && <span className="text-xs text-zinc-500">· {sale.seller_name}</span>}
-                          </div>
-                          {/* Linha 2: cliente + endereço (secundário) */}
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-xs text-zinc-400">{sale.customers?.name ?? "Sem cliente"}</p>
-                            {(sale as any).delivery_address && <p className="text-xs text-zinc-500">· {(sale as any).delivery_address}</p>}
-                          </div>
-                          {/* Linha 3: pagamentos + itens */}
-                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                            <p className="text-xs text-zinc-500">{(sale.payments ?? []).map((p: PaymentEntry) => PAYMENT_INFO[p.method]?.label).join(" + ") || "—"}</p>
-                            {saleItems.length > 0 && (
-                              <p className="text-xs text-zinc-600">· {saleItems.length} {saleItems.length === 1 ? "item" : "itens"}: {saleItems.map(i => i.products?.name ?? "Produto").join(", ").slice(0, 50)}{saleItems.map(i => i.products?.name ?? "").join(", ").length > 50 ? "…" : ""}</p>
-                            )}
+                            {/* Linha 3: hora + vendedor */}
+                            <p className="text-xs text-zinc-500 mt-1">
+                              {new Date(sale.created_at).toLocaleString("pt-BR")}
+                              {sale.seller_name && <span> · {sale.seller_name}</span>}
+                            </p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1.5 flex-shrink-0">
-                          <span className="text-base font-bold mr-1" style={{color: isLight ? "#10b981" : "#fbbf24"}}>{fmt(displayTotal)}</span>
-                          <button onClick={() => openEditSale(sale)}
-                            className="p-1.5 hover:bg-opacity-20 border rounded-lg transition-colors"
-                            style={isLight ? { background:"rgba(37,99,235,0.1)", border:"1px solid rgba(37,99,235,0.3)", color:"#2563eb" } : { background:"rgba(123,47,190,0.1)", border:"1px solid rgba(123,47,190,0.3)", color:"#b49bff" }}
-                            title="Editar">
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => printSale(sale, saleItems)}
-                            className="p-1.5 hover:bg-opacity-20 border rounded-lg transition-colors"
-                            style={isLight ? { background:"rgba(16,185,129,0.1)", border:"1px solid rgba(16,185,129,0.3)", color:"#10b981" } : { background:"rgba(16,185,129,0.1)", border:"1px solid rgba(16,185,129,0.3)", color:"#6ee7b7" }}
-                            title="Reimprimir">
-                            <Printer className="w-4 h-4" />
-                          </button>
-                          <button onClick={() => deleteSale(sale.id)}
-                            className="p-1.5 hover:bg-opacity-20 border rounded-lg transition-colors"
-                            style={isLight ? { background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.3)", color:"#ef4444" } : { background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.3)", color:"#fca5a5" }}
-                            title="Excluir venda">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                        {/* Total + ações */}
+                        <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                          <span className="text-lg font-bold" style={{color: isLight ? "#10b981" : "#fbbf24"}}>{fmt(displayTotal)}</span>
+                          <div className="flex items-center gap-1.5">
+                            <button onClick={() => openEditSale(sale)}
+                              className="p-1.5 hover:bg-opacity-20 border rounded-lg transition-colors"
+                              style={isLight ? { background:"rgba(37,99,235,0.1)", border:"1px solid rgba(37,99,235,0.3)", color:"#2563eb" } : { background:"rgba(123,47,190,0.1)", border:"1px solid rgba(123,47,190,0.3)", color:"#b49bff" }}
+                              title="Editar">
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => printSale(sale, saleItems)}
+                              className="p-1.5 hover:bg-opacity-20 border rounded-lg transition-colors"
+                              style={isLight ? { background:"rgba(16,185,129,0.1)", border:"1px solid rgba(16,185,129,0.3)", color:"#10b981" } : { background:"rgba(16,185,129,0.1)", border:"1px solid rgba(16,185,129,0.3)", color:"#6ee7b7" }}
+                              title="Reimprimir">
+                              <Printer className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => deleteSale(sale.id)}
+                              className="p-1.5 hover:bg-opacity-20 border rounded-lg transition-colors"
+                              style={isLight ? { background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.3)", color:"#ef4444" } : { background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.3)", color:"#fca5a5" }}
+                              title="Excluir venda">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       </div>
+
+                      {/* Chips de itens + forma de pagamento */}
+                      <div className="flex items-center flex-wrap gap-1.5 mt-3.5 pl-[3.4rem]">
+                        {itemChips.map(item => (
+                          <span key={item.id} className="text-xs px-2 py-1 rounded-lg" style={{ background: isLight ? "#f4f4f5" : "rgba(255,255,255,0.06)", color: isLight ? "#3f3f46" : "#d4d4d8" }}>
+                            {item.quantity}x {item.products?.name ?? "Produto"}
+                          </span>
+                        ))}
+                        {extraItemCount > 0 && (
+                          <span className="text-xs px-2 py-1 rounded-lg text-zinc-500" style={{ background: isLight ? "#f4f4f5" : "rgba(255,255,255,0.06)" }}>
+                            +{extraItemCount}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-2 pl-[3.4rem] text-xs text-zinc-500">
+                        <CreditCard className="w-3.5 h-3.5 flex-shrink-0" />
+                        {(sale.payments ?? []).map((p: PaymentEntry) => PAYMENT_INFO[p.method]?.label).join(" + ") || "—"}
+                      </div>
+
+                      {/* Botão expandir */}
+                      {saleItems.length > 0 && (
+                        <button onClick={() => setExpandedSaleId(isExpanded ? null : sale.id)}
+                          className="flex items-center gap-1 text-xs text-zinc-500 hover:text-violet-400 transition-colors mt-3 pl-[3.4rem]">
+                          <ChevronRight className={`w-3.5 h-3.5 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+                          {isExpanded ? "Ocultar detalhes" : "Ver detalhes do pedido"}
+                        </button>
+                      )}
                     </div>
                     {isExpanded && saleItems.length > 0 && (
-                      <div className="border-t border-zinc-800 px-4 py-3 space-y-1.5">
+                      <div className="border-t px-5 py-4 space-y-2" style={{ borderColor: isLight ? "#e5e7eb" : "#27272a", background: isLight ? "#fafafa" : "rgba(255,255,255,0.02)" }}>
                         {saleItems.map(item => (
-                          <div key={item.id} className="flex items-center justify-between text-xs">
-                            <span className="text-zinc-300">{item.quantity}x {item.products?.name ?? "Produto"}</span>
-                            <span className="text-zinc-400">{fmt(item.unit_price * item.quantity)}</span>
+                          <div key={item.id} className="flex items-center justify-between text-sm">
+                            <span className={isLight ? "text-zinc-700" : "text-zinc-300"}>{item.quantity}x {item.products?.name ?? "Produto"}</span>
+                            <span className="text-zinc-500">{fmt(item.unit_price * item.quantity)}</span>
                           </div>
                         ))}
                         {(sale.discount ?? 0) > 0 && (
-                          <div className="flex justify-between text-xs text-red-400 border-t border-zinc-800 pt-1">
+                          <div className="flex justify-between text-sm text-red-400 border-t pt-2" style={{ borderColor: isLight ? "#e5e7eb" : "#27272a" }}>
                             <span>{isIfood ? "Comissão iFood" : "Desconto"}</span>
                             <span>-{fmt(sale.discount)}</span>
                           </div>
                         )}
-                        <div className="flex justify-between text-xs font-bold border-t border-zinc-800 pt-1">
+                        <div className="flex justify-between text-sm font-bold border-t pt-2" style={{ borderColor: isLight ? "#e5e7eb" : "#27272a" }}>
                           <span>{isIfood ? "Total bruto (recibo)" : "Total"}</span>
                           <span style={{color: isLight ? "#10b981" : "#fbbf24"}}>{fmt(displayTotal)}</span>
                         </div>
