@@ -1041,7 +1041,12 @@ export default function ProductsPage() {
                     </td>
                     {/* Nome */}
                     <td className="px-4 py-3">
-                      <p className="font-medium text-white">{p.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-white">{p.name}</p>
+                        {p.item_type === "adicional" && (
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border border-amber-500/30 text-amber-400 bg-amber-500/10 uppercase tracking-wide">Adicional</span>
+                        )}
+                      </div>
                       <div className="flex items-center gap-2 text-xs text-zinc-500 mt-0.5">
                         {p.sku && <span>SKU: {p.sku}</span>}
                         {p.barcode && <span>EAN: {p.barcode}</span>}

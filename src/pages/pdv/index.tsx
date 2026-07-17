@@ -692,7 +692,7 @@ export default function PdvPage() {
       unit_price: i.customPrice ?? i.product.sale_price,
       total_price: (i.customPrice ?? i.product.sale_price) * i.quantity,
       notes: i.notes || null,
-      products: { name: i.product.name },
+      products: { name: i.product.name, item_type: i.product.item_type },
     }));
     printSale(
       { ...sale, total, payments, customers: customerSnapshot ? { name: customerSnapshot.name } : null, seller_name: sellerSnapshot || null, notes: notesSnapshot || null, delivery_address: addressSnapshot || null },
