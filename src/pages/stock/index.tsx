@@ -6,7 +6,7 @@ import {
   Boxes, Plus, Search, X, Edit2, Trash2, RefreshCw, AlertTriangle,
   TrendingUp, ShoppingCart, Truck, BarChart3, ArrowDownToLine,
   ArrowUpFromLine, RotateCcw, Flame, ClipboardList, DollarSign,
-  Building2, Phone, Mail, Check, ChevronDown, BookOpen,
+  Check, BookOpen,
   Package, Save, Warehouse,
 } from "lucide-react";
 
@@ -34,19 +34,6 @@ interface StockMovement {
   id: string; stock_item_id: string | null; product_id?: string | null; type: string; quantity: number;
   cost_price: number | null; reference_type: string | null; notes: string | null;
   created_at: string; stock_items?: { name: string; unit: string } | null;
-  products?: { name: string; unit: string } | null;
-}
-
-interface PurchaseOrder {
-  id: string; supplier_id: string | null; status: string; notes: string | null;
-  created_at: string; received_at: string | null;
-  suppliers?: { name: string } | null;
-  purchase_order_items?: POItem[];
-}
-
-interface POItem {
-  id?: string; stock_item_id: string | null; product_id?: string | null; quantity: number; unit_cost: number;
-  stock_items?: { name: string; unit: string } | null;
   products?: { name: string; unit: string } | null;
 }
 
@@ -97,8 +84,8 @@ const MOV_INFO: Record<string, { label: string; color: string; sign: string; bg:
   return:     { label: "Devolução", color: "text-teal-400",    sign: "+", bg: "bg-teal-500/10"    },
 };
 
-type Tab = "overview" | "items" | "recipes" | "movements" | "purchases" | "suppliers";
-type Modal = "none" | "item" | "movement" | "purchase" | "supplier" | "deleteItem";
+type Tab = "overview" | "items" | "recipes" | "movements";
+type Modal = "none" | "item" | "movement" | "deleteItem";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -122,7 +109,6 @@ export default function StockPage() {
   const [limitedProducts, setLimitedProducts] = useState<LimitedProduct[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [movements, setMovements] = useState<StockMovement[]>([]);
-  const [purchases, setPurchases] = useState<PurchaseOrder[]>([]);
   const [products, setProducts] = useState<SimpleProduct[]>([]);
 
   const [loading, setLoading] = useState(true);
@@ -139,7 +125,6 @@ export default function StockPage() {
   // Modal
   const [modal, setModal] = useState<Modal>("none");
   const [editingItem, setEditingItem] = useState<StockItem | null>(null);
-  const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string; table: string } | null>(null);
   useEscapeKey(() => {
     if (modal === "deleteItem") { setDeleteTarget(null); setModal("none"); return; }
@@ -164,29 +149,12 @@ export default function StockPage() {
   const [iCategory, setICategory] = useState("");
   const [iNotes, setINotes] = useState("");
 
-  // Supplier form
-  const [sName, setSName] = useState("");
-  const [sCnpj, setSCnpj] = useState("");
-  const [sPhone, setSPhone] = useState("");
-  const [sEmail, setSEmail] = useState("");
-  const [sContact, setSContact] = useState("");
-  const [sAddress, setSAddress] = useState("");
-  const [sNotes, setSNotes] = useState("");
-
   // Movement form
   const [movItemId, setMovItemId] = useState("");
   const [movType, setMovType] = useState("entry");
   const [movQty, setMovQty] = useState("");
   const [movCost, setMovCost] = useState("");
   const [movNotes, setMovNotes] = useState("");
-
-  // Purchase form
-  const [poSupplierId, setPOSupplierId] = useState("");
-  const [poNotes, setPONotes] = useState("");
-  const [poDueDate, setPODueDate] = useState(() => new Date().toISOString().split("T")[0]);
-  const [poItems, setPOItems] = useState<{ ref_type: "ingredient" | "product"; item_id: string; quantity: string; unit_cost: string }[]>([]);
-  const [purchaseError, setPurchaseError] = useState<string | null>(null);
-  const [expandedPO, setExpandedPO] = useState<string | null>(null);
 
   // ── Init ──────────────────────────────────────────────────────────────────
 
@@ -202,7 +170,6 @@ export default function StockPage() {
 
   useEffect(() => {
     if (tab === "movements") loadMovements();
-    if (tab === "purchases") loadPurchases();
   }, [tab]);
 
   // ── Loaders ───────────────────────────────────────────────────────────────
@@ -224,14 +191,6 @@ export default function StockPage() {
       .from("stock_movements").select("*, stock_items(name, unit), products(name, unit)")
       .order("created_at", { ascending: false }).limit(300);
     setMovements((data ?? []) as StockMovement[]);
-  }
-
-  async function loadPurchases() {
-    const { data } = await supabase
-      .from("purchase_orders")
-      .select("*, suppliers(name), purchase_order_items(*, stock_items(name, unit), products(name, unit))")
-      .order("created_at", { ascending: false });
-    setPurchases((data ?? []) as PurchaseOrder[]);
   }
 
   async function loadProducts() {
@@ -305,39 +264,6 @@ export default function StockPage() {
     setModal("none");
   }
 
-  // ── Suppliers CRUD ────────────────────────────────────────────────────────
-
-  function openSupplierModal(s?: Supplier) {
-    if (s) {
-      setEditingSupplier(s);
-      setSName(s.name); setSCnpj(s.cnpj ?? ""); setSPhone(s.phone ?? "");
-      setSEmail(s.email ?? ""); setSContact(s.contact_name ?? "");
-      setSAddress(s.address ?? ""); setSNotes(s.notes ?? "");
-    } else {
-      setEditingSupplier(null);
-      setSName(""); setSCnpj(""); setSPhone(""); setSEmail(""); setSContact(""); setSAddress(""); setSNotes("");
-    }
-    setModal("supplier");
-  }
-
-  async function saveSupplier() {
-    if (!sName.trim() || saving) return;
-    setSaving(true);
-    const payload = {
-      name: sName.trim(), cnpj: sCnpj || null, phone: sPhone || null,
-      email: sEmail || null, contact_name: sContact || null,
-      address: sAddress || null, notes: sNotes || null,
-    };
-    if (editingSupplier) {
-      await supabase.from("suppliers").update(payload).eq("id", editingSupplier.id);
-    } else {
-      await supabase.from("suppliers").insert(payload);
-    }
-    await loadSuppliers();
-    setSaving(false);
-    setModal("none");
-  }
-
   // ── Movement ──────────────────────────────────────────────────────────────
 
   function openMovModal() {
@@ -384,48 +310,6 @@ export default function StockPage() {
     }
 
     if (tab === "movements") await loadMovements();
-    setSaving(false);
-    setModal("none");
-  }
-
-  // ── Purchases ─────────────────────────────────────────────────────────────
-
-  function openPurchaseModal() {
-    setPOSupplierId(""); setPONotes(""); setPurchaseError(null);
-    setPODueDate(new Date().toISOString().split("T")[0]);
-    setPOItems([{ ref_type: "ingredient", item_id: "", quantity: "", unit_cost: "" }]);
-    setModal("purchase");
-  }
-
-  async function savePurchase() {
-    const validItems = poItems.filter(i => i.item_id && i.quantity);
-    if (validItems.length === 0 || saving) return;
-    setSaving(true);
-    setPurchaseError(null);
-    // Etapa 3: compra + itens + estoque + conta a pagar rodam numa unica
-    // transacao no banco (register_purchase) - se qualquer passo falhar,
-    // tudo e desfeito automaticamente, nao fica compra sem financeiro nem
-    // financeiro sem compra. A propria RPC valida os dados (quantidade,
-    // custo, fornecedor, itens) antes de gravar qualquer coisa.
-    const { error } = await supabase.rpc("register_purchase", {
-      p_supplier_id: poSupplierId || null,
-      p_notes: poNotes || null,
-      p_due_date: poDueDate,
-      p_items: validItems.map(i => ({
-        ref_type: i.ref_type,
-        item_id: i.item_id,
-        quantity: parseFloat(i.quantity),
-        unit_cost: parseFloat(i.unit_cost) || 0,
-      })),
-    });
-    if (error) {
-      setPurchaseError(error.message);
-      setSaving(false);
-      return;
-    }
-    await loadStockItems();
-    await loadLimitedProducts();
-    await loadPurchases();
     setSaving(false);
     setModal("none");
   }
@@ -497,15 +381,12 @@ export default function StockPage() {
   const lowStockItems = allUnified.filter(i => getUnifiedStatus(i) !== "ok");
   const totalValue = allUnified.reduce((s, i) => s + i.current_qty * i.cost_price, 0);
   const filteredMovements = movFilter === "all" ? movements : movements.filter(m => m.type === movFilter);
-  const filteredSuppliers = suppliers.filter(s => s.name.toLowerCase().includes(search.toLowerCase()));
 
   const TABS = [
     { key: "overview",   label: "Visão Geral",  icon: <BarChart3 className="w-3.5 h-3.5" /> },
     { key: "items",      label: "Itens",         icon: <Boxes className="w-3.5 h-3.5" /> },
     { key: "recipes",    label: "Ficha Técnica", icon: <BookOpen className="w-3.5 h-3.5" /> },
     { key: "movements",  label: "Movimentações", icon: <ClipboardList className="w-3.5 h-3.5" /> },
-    { key: "purchases",  label: "Compras",       icon: <Truck className="w-3.5 h-3.5" /> },
-    { key: "suppliers",  label: "Fornecedores",  icon: <Building2 className="w-3.5 h-3.5" /> },
   ] as const;
 
   if (loading) {
@@ -557,20 +438,6 @@ export default function StockPage() {
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${isLight ? "bg-blue-600 hover:bg-blue-700" : "bg-violet-600 hover:bg-violet-500 text-white"}`}
                 style={isLight ? { color: "#ffffff" } : undefined}>
                 <Plus className="w-4 h-4" /> Nova Movimentação
-              </button>
-            )}
-            {tab === "purchases" && (
-              <button onClick={openPurchaseModal}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${isLight ? "bg-blue-600 hover:bg-blue-700" : "bg-violet-600 hover:bg-violet-500 text-white"}`}
-                style={isLight ? { color: "#ffffff" } : undefined}>
-                <Plus className="w-4 h-4" /> Registrar Compra
-              </button>
-            )}
-            {tab === "suppliers" && (
-              <button onClick={() => openSupplierModal()}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${isLight ? "bg-blue-600 hover:bg-blue-700" : "bg-violet-600 hover:bg-violet-500 text-white"}`}
-                style={isLight ? { color: "#ffffff" } : undefined}>
-                <Plus className="w-4 h-4" /> Novo Fornecedor
               </button>
             )}
           </div>
@@ -1050,137 +917,6 @@ export default function StockPage() {
           </div>
         )}
 
-        {/* ═══ PURCHASES ══════════════════════════════════════════════════════ */}
-        {tab === "purchases" && (
-          <div className="space-y-4">
-            {purchases.length === 0 ? (
-              <div className="text-center py-20 border border-dashed border-zinc-800 rounded-2xl">
-                <Truck className="w-12 h-12 text-zinc-700 mx-auto mb-4" />
-                <p className="text-zinc-400 font-semibold">Nenhuma compra registrada</p>
-                <button onClick={openPurchaseModal} className="mt-5 text-violet-400 text-sm hover:underline">
-                  Registrar primeira compra
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {purchases.map(po => {
-                  const total = (po.purchase_order_items ?? []).reduce((s, i) => s + i.quantity * i.unit_cost, 0);
-                  const isExpanded = expandedPO === po.id;
-                  const itemCount = (po.purchase_order_items ?? []).length;
-                  return (
-                    <div key={po.id} className="rounded-2xl overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
-                      <button onClick={() => setExpandedPO(isExpanded ? null : po.id)}
-                        className="w-full flex items-center gap-4 px-5 py-4 text-left hover:bg-zinc-800/30 transition-colors">
-                        <div className="w-10 h-10 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                          <Truck className="w-4 h-4 text-blue-400" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold text-white">
-                              {po.suppliers?.name ?? "Fornecedor não informado"}
-                            </span>
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                              Recebida
-                            </span>
-                          </div>
-                          <p className="text-xs text-zinc-500 mt-0.5">
-                            {new Date(po.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}
-                            {" · "}{itemCount} ite{itemCount !== 1 ? "ns" : "m"}
-                            {po.notes && ` · ${po.notes}`}
-                          </p>
-                        </div>
-                        <div className="text-right flex-shrink-0 mr-2">
-                          <p className="text-base font-bold text-white">{fmt(total)}</p>
-                        </div>
-                        <ChevronDown className={`w-4 h-4 text-zinc-500 transition-transform flex-shrink-0 ${isExpanded ? "rotate-180" : ""}`} />
-                      </button>
-                      {isExpanded && (
-                        <div className="border-t border-zinc-800">
-                          <div className="hidden sm:grid grid-cols-[1fr_100px_100px_100px] gap-x-4 px-5 py-2 bg-zinc-950/40 text-xs text-zinc-500 font-medium">
-                            <span>Item</span><span>Quantidade</span><span>Custo Unit.</span><span className="text-right">Total</span>
-                          </div>
-                          <div className="divide-y divide-zinc-800/50">
-                            {(po.purchase_order_items ?? []).map((item, idx) => {
-                              const itemName = item.stock_items?.name ?? item.products?.name ?? "—";
-                              const itemUnit = item.stock_items?.unit ?? item.products?.unit ?? "";
-                              const isProduct = !!item.product_id;
-                              return (
-                                <div key={idx} className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_100px_100px_100px] gap-x-4 px-5 py-2.5 items-center">
-                                  <span className="text-sm text-zinc-200 flex items-center gap-1.5">
-                                    {itemName}
-                                    {isProduct && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">Revenda</span>}
-                                  </span>
-                                  <span className="hidden sm:block text-sm text-zinc-400">{fmtQty(item.quantity, itemUnit)}</span>
-                                  <span className="hidden sm:block text-sm text-zinc-400">{fmt(item.unit_cost)}</span>
-                                  <span className="text-sm font-bold text-white sm:text-right">{fmt(item.quantity * item.unit_cost)}</span>
-                                </div>
-                              );
-                            })}
-                            <div className="flex items-center justify-between px-5 py-3 bg-zinc-950/40">
-                              <span className="text-xs text-zinc-500">Total da compra</span>
-                              <span className="text-base font-black text-white">{fmt(total)}</span>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ═══ SUPPLIERS ══════════════════════════════════════════════════════ */}
-        {tab === "suppliers" && (
-          <div className="space-y-4">
-            <div className="relative">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-              <input value={search} onChange={e => setSearch(e.target.value)}
-                placeholder="Buscar fornecedor..."
-                style={{ background: card.bg, border: card.border, color: isLight ? "#111" : "#fff" }}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm placeholder-zinc-600 focus:outline-none focus:border-violet-500 transition-all" />
-            </div>
-
-            {filteredSuppliers.length === 0 ? (
-              <div className="text-center py-20 border border-dashed border-zinc-800 rounded-2xl">
-                <Building2 className="w-12 h-12 text-zinc-700 mx-auto mb-4" />
-                <p className="text-zinc-400 font-semibold">Nenhum fornecedor cadastrado</p>
-                <button onClick={() => openSupplierModal()}
-                  className="mt-5 text-violet-400 text-sm hover:underline">Cadastrar primeiro fornecedor</button>
-              </div>
-            ) : (
-              <div className="rounded-2xl overflow-hidden divide-y divide-zinc-800" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
-                {filteredSuppliers.map(s => (
-                  <div key={s.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-zinc-800/30 transition-colors">
-                    <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center flex-shrink-0">
-                      <Building2 className="w-4 h-4 text-blue-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-white">{s.name}</p>
-                      <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-                        {s.contact_name && <span className="text-xs text-zinc-500">{s.contact_name}</span>}
-                        {s.phone && <span className="flex items-center gap-1 text-xs text-zinc-500"><Phone className="w-3 h-3" />{s.phone}</span>}
-                        {s.email && <span className="flex items-center gap-1 text-xs text-zinc-500"><Mail className="w-3 h-3" />{s.email}</span>}
-                        {s.cnpj && <span className="text-xs text-zinc-600">CNPJ: {s.cnpj}</span>}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <button onClick={() => openSupplierModal(s)}
-                        className="p-1.5 text-zinc-500 hover:text-violet-400 hover:bg-violet-500/10 rounded-lg transition-colors">
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button onClick={() => { setDeleteTarget({ id: s.id, name: s.name, table: "suppliers" }); setModal("deleteItem"); }}
-                        className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════════════
@@ -1348,163 +1084,6 @@ export default function StockPage() {
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
                 {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                 Registrar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Purchase Modal */}
-      {modal === "purchase" && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 flex-shrink-0">
-              <div>
-                <h2 className="text-base font-semibold">Registrar Compra</h2>
-                <p className="text-xs text-zinc-500 mt-0.5">Entrada de mercadoria — estoque atualizado imediatamente</p>
-              </div>
-              <button onClick={() => setModal("none")} className="p-1.5 text-zinc-400 hover:text-white rounded-lg"><X className="w-4 h-4" /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Fornecedor</label>
-                  <select value={poSupplierId} onChange={e => setPOSupplierId(e.target.value)} className={selectCls}>
-                    <option value="">Selecionar...</option>
-                    {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Referência / NF</label>
-                  <input value={poNotes} onChange={e => setPONotes(e.target.value)} placeholder="Número da nota, pedido..." className={inputCls} />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Vencimento (Contas a Pagar)</label>
-                  <input type="date" value={poDueDate} onChange={e => setPODueDate(e.target.value)} className={inputCls} />
-                </div>
-              </div>
-
-              {purchaseError && (
-                <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs p-3 rounded-xl">
-                  {purchaseError}
-                </div>
-              )}
-
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <label className="text-xs font-medium text-zinc-400">Itens da compra *</label>
-                  <button onClick={() => setPOItems(prev => [...prev, { ref_type: "ingredient", item_id: "", quantity: "", unit_cost: "" }])}
-                    className="flex items-center gap-1 text-xs text-violet-400 hover:text-violet-300 transition-colors">
-                    <Plus className="w-3 h-3" /> Adicionar linha
-                  </button>
-                </div>
-                <div className="space-y-2">
-                  {poItems.map((item, idx) => (
-                    <div key={idx} className="space-y-1.5 pb-2 border-b border-zinc-800 last:border-0">
-                      <div className="flex bg-zinc-800 rounded-lg p-0.5 gap-0.5 w-fit">
-                        <button type="button" onClick={() => setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, ref_type: "ingredient", item_id: "" } : p))}
-                          className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${item.ref_type === "ingredient" ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-white"}`}>
-                          Insumo
-                        </button>
-                        <button type="button" onClick={() => setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, ref_type: "product", item_id: "" } : p))}
-                          className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${item.ref_type === "product" ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-white"}`}>
-                          Produto de revenda
-                        </button>
-                      </div>
-                      <div className="flex gap-2 items-center">
-                        <select value={item.item_id}
-                          onChange={e => setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, item_id: e.target.value } : p))}
-                          className={selectCls + " flex-1"}>
-                          <option value="">Selecionar item...</option>
-                          {(item.ref_type === "ingredient" ? stockItems : limitedProducts).map(si => <option key={si.id} value={si.id}>{si.name}</option>)}
-                        </select>
-                        <input value={item.quantity} placeholder="Qtd"
-                          onChange={e => setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, quantity: e.target.value } : p))}
-                          type="number" min="0" step="0.001" className={inputCls + " w-20"} />
-                        <input value={item.unit_cost} placeholder="R$/un"
-                          onChange={e => setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, unit_cost: e.target.value } : p))}
-                          type="number" min="0" step="0.01" className={inputCls + " w-24"} />
-                        {poItems.length > 1 && (
-                          <button onClick={() => setPOItems(prev => prev.filter((_, i) => i !== idx))}
-                            className="p-1.5 text-zinc-600 hover:text-red-400 rounded-lg flex-shrink-0 transition-colors">
-                            <X className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 flex items-center justify-between">
-                <span className="text-xs text-zinc-400">Total da compra</span>
-                <span className="text-base font-bold text-white">
-                  {fmt(poItems.reduce((s, i) => s + (parseFloat(i.quantity) || 0) * (parseFloat(i.unit_cost) || 0), 0))}
-                </span>
-              </div>
-            </div>
-            <div className="flex gap-3 px-6 py-4 border-t border-zinc-800 flex-shrink-0">
-              <button onClick={() => setModal("none")} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
-              <button onClick={savePurchase}
-                disabled={poItems.every(i => !i.item_id || !i.quantity) || saving}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
-                {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Truck className="w-4 h-4" />}
-                Confirmar Recebimento
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Supplier Modal */}
-      {modal === "supplier" && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 flex-shrink-0">
-              <h2 className="text-base font-semibold">{editingSupplier ? "Editar Fornecedor" : "Novo Fornecedor"}</h2>
-              <button onClick={() => setModal("none")} className="p-1.5 text-zinc-400 hover:text-white rounded-lg"><X className="w-4 h-4" /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1.5">Nome / Razão Social *</label>
-                <input value={sName} onChange={e => setSName(e.target.value)}
-                  placeholder="Nome do fornecedor" className={inputCls} autoFocus />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">CNPJ / CPF</label>
-                  <input value={sCnpj} onChange={e => setSCnpj(e.target.value)} placeholder="00.000.000/0001-00" className={inputCls} />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Contato / Vendedor</label>
-                  <input value={sContact} onChange={e => setSContact(e.target.value)} placeholder="Nome do representante" className={inputCls} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Telefone / WhatsApp</label>
-                  <input value={sPhone} onChange={e => setSPhone(e.target.value)} placeholder="(99) 99999-9999" className={inputCls} />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">E-mail</label>
-                  <input value={sEmail} onChange={e => setSEmail(e.target.value)} placeholder="email@fornecedor.com" className={inputCls} />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1.5">Endereço</label>
-                <input value={sAddress} onChange={e => setSAddress(e.target.value)} placeholder="Rua, número, cidade, UF" className={inputCls} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1.5">Observações</label>
-                <input value={sNotes} onChange={e => setSNotes(e.target.value)} placeholder="Prazo de entrega, condições de pagamento..." className={inputCls} />
-              </div>
-            </div>
-            <div className="flex gap-3 px-6 py-4 border-t border-zinc-800 flex-shrink-0">
-              <button onClick={() => setModal("none")} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
-              <button onClick={saveSupplier} disabled={!sName.trim() || saving}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
-                {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                {editingSupplier ? "Salvar" : "Cadastrar"}
               </button>
             </div>
           </div>

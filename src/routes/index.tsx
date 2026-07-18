@@ -26,6 +26,8 @@ import DashboardPage from "../pages/dashboard";
 import PdvPage from "../pages/pdv";
 import ProductsPage from "../pages/products";
 import StockPage from "../pages/stock";
+import PurchasesPage from "../pages/purchases";
+import SuppliersPage from "../pages/suppliers";
 import CustomersPage from "../pages/customers";
 import CashPage from "../pages/cash";
 import TablesPage from "../pages/tables";
@@ -61,6 +63,14 @@ export const router = createBrowserRouter([
       {
         path: "stock",
         element: <StockPage />,
+      },
+      {
+        path: "purchases",
+        element: <PurchasesPage />,
+      },
+      {
+        path: "suppliers",
+        element: <SuppliersPage />,
       },
       {
         path: "customers",

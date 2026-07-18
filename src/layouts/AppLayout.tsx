@@ -34,6 +34,8 @@ import {
   HelpCircle,
   Menu,
   X,
+  Truck,
+  Building2,
 } from "lucide-react";
 import { AvaliacaoModal } from "../components/AvaliacaoModal";
 
@@ -47,6 +49,8 @@ const menuItems = [
   { label: "Mesas",           icon: UtensilsCrossed, path: "/tables",          color: "#3b82f6" },
   { label: "Produtos",        icon: Package,         path: "/products",        color: "#3b82f6" },
   { label: "Estoque",         icon: Boxes,           path: "/stock",           color: "#3b82f6" },
+  { label: "Compras",         icon: Truck,           path: "/purchases",       color: "#3b82f6" },
+  { label: "Fornecedores",    icon: Building2,       path: "/suppliers",       color: "#3b82f6" },
   { label: "Clientes",        icon: Users,           path: "/customers",       color: "#3b82f6" },
   { label: "Contas a Pagar",  icon: Wallet,          path: "/accounts-payable",color: "#3b82f6" },
   { label: "Relatórios",      icon: BarChart3,       path: "/reports",         color: "#3b82f6" },
