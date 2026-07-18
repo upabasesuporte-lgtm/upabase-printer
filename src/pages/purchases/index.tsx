@@ -33,7 +33,6 @@ const fmtQty = (v: number, unit: string) =>
 const inputCls = "w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/10 transition-all";
 const selectCls = inputCls + " cursor-pointer";
 const UNITS = ["unidade","kg","g","litro","ml","metro","cm","caixa","dúzia","pacote","porção"];
-const NEW_ITEM_VALUE = "__new__";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -66,12 +65,14 @@ export default function PurchasesPage() {
   const [poSupplierId, setPOSupplierId] = useState("");
   const [poNotes, setPONotes] = useState("");
   const [poDueDate, setPODueDate] = useState(() => new Date().toISOString().split("T")[0]);
-  const [poItems, setPOItems] = useState<{ ref_type: "ingredient" | "product"; item_id: string; quantity: string; unit_cost: string }[]>([]);
+  const [poItems, setPOItems] = useState<{ ref_type: "ingredient" | "product"; item_id: string; itemName: string; quantity: string; unit_cost: string }[]>([]);
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [openSearchIdx, setOpenSearchIdx] = useState<number | null>(null);
 
   // Cadastro rápido de insumo/produto direto pela Compra
   const [quickCreateIdx, setQuickCreateIdx] = useState<number | null>(null);
+  const [quickCreateType, setQuickCreateType] = useState<"ingredient" | "product">("ingredient");
   const [qcName, setQcName] = useState("");
   const [qcUnit, setQcUnit] = useState("unidade");
   const [qcCategory, setQcCategory] = useState("");
@@ -121,14 +122,16 @@ export default function PurchasesPage() {
   function openPurchaseModal() {
     setPOSupplierId(""); setPONotes(""); setPurchaseError(null);
     setPODueDate(new Date().toISOString().split("T")[0]);
-    setPOItems([{ ref_type: "ingredient", item_id: "", quantity: "", unit_cost: "" }]);
+    setPOItems([{ ref_type: "ingredient", item_id: "", itemName: "", quantity: "", unit_cost: "" }]);
     setModal("purchase");
   }
 
-  function openQuickCreate(idx: number) {
+  function openQuickCreate(idx: number, type: "ingredient" | "product", initialName: string) {
     setQuickCreateIdx(idx);
-    setQcName(""); setQcUnit("unidade");
+    setQuickCreateType(type);
+    setQcName(initialName); setQcUnit("unidade");
     setQcCategory(""); setQcMinQty(""); setQcError(null);
+    setOpenSearchIdx(null);
   }
 
   // Cadastro rapido de insumo (formulario reduzido - stock_items nao tem
@@ -147,7 +150,7 @@ export default function PurchasesPage() {
     }).select("id, name").single();
     if (error || !data) { setQcError(error?.message ?? "Erro ao criar insumo."); setQcSaving(false); return; }
     setStockItems(prev => [...prev, data as SimpleItem].sort((a, b) => a.name.localeCompare(b.name)));
-    setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, item_id: data.id } : p));
+    setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, ref_type: "ingredient", item_id: data.id, itemName: data.name } : p));
     setQcSaving(false);
     setQuickCreateIdx(null);
   }
@@ -158,7 +161,9 @@ export default function PurchasesPage() {
     await loadLimitedProducts();
     if (quickCreateIdx !== null && id) {
       const idx = quickCreateIdx;
-      setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, item_id: id } : p));
+      const created = await supabase.from("products").select("id, name").eq("id", id).single();
+      const name = created.data?.name ?? "";
+      setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, ref_type: "product", item_id: id, itemName: name } : p));
     }
   }
 
@@ -375,50 +380,82 @@ export default function PurchasesPage() {
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <label className="text-xs font-medium text-zinc-400">Itens da compra *</label>
-                  <button onClick={() => setPOItems(prev => [...prev, { ref_type: "ingredient", item_id: "", quantity: "", unit_cost: "" }])}
+                  <button onClick={() => setPOItems(prev => [...prev, { ref_type: "ingredient", item_id: "", itemName: "", quantity: "", unit_cost: "" }])}
                     className="flex items-center gap-1 text-xs text-violet-400 hover:text-violet-300 transition-colors">
                     <Plus className="w-3 h-3" /> Adicionar linha
                   </button>
                 </div>
                 <div className="space-y-2">
-                  {poItems.map((item, idx) => (
-                    <div key={idx} className="space-y-1.5 pb-2 border-b border-zinc-800 last:border-0">
-                      <div className="flex bg-zinc-800 rounded-lg p-0.5 gap-0.5 w-fit">
-                        <button type="button" onClick={() => setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, ref_type: "ingredient", item_id: "" } : p))}
-                          className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${item.ref_type === "ingredient" ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-white"}`}>
-                          Insumo
-                        </button>
-                        <button type="button" onClick={() => setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, ref_type: "product", item_id: "" } : p))}
-                          className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${item.ref_type === "product" ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-white"}`}>
-                          Produto de revenda
-                        </button>
+                  {poItems.map((item, idx) => {
+                    const q = item.itemName.trim().toLowerCase();
+                    const matches = [
+                      ...stockItems.filter(s => q === "" || s.name.toLowerCase().includes(q)).map(s => ({ ...s, ref_type: "ingredient" as const })),
+                      ...limitedProducts.filter(p => q === "" || p.name.toLowerCase().includes(q)).map(p => ({ ...p, ref_type: "product" as const })),
+                    ].slice(0, 8);
+                    return (
+                      <div key={idx} className="pb-2 border-b border-zinc-800 last:border-0">
+                        <div className="flex gap-2 items-center">
+                          <div className="relative flex-1">
+                            <input value={item.itemName}
+                              onChange={e => {
+                                const v = e.target.value;
+                                setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, itemName: v, item_id: "" } : p));
+                                setOpenSearchIdx(idx);
+                              }}
+                              onFocus={() => setOpenSearchIdx(idx)}
+                              onBlur={() => setTimeout(() => setOpenSearchIdx(prev => prev === idx ? null : prev), 150)}
+                              placeholder="Buscar insumo ou produto..."
+                              className={inputCls} />
+                            {openSearchIdx === idx && (
+                              <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl max-h-56 overflow-y-auto">
+                                {matches.map(m => (
+                                  <button key={`${m.ref_type}-${m.id}`} type="button"
+                                    onMouseDown={e => {
+                                      e.preventDefault();
+                                      setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, ref_type: m.ref_type, item_id: m.id, itemName: m.name } : p));
+                                      setOpenSearchIdx(null);
+                                    }}
+                                    className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left hover:bg-zinc-800 transition-colors text-sm">
+                                    <span className="text-white truncate">{m.name}</span>
+                                    <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${m.ref_type === "ingredient" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" : "bg-blue-500/10 text-blue-400 border border-blue-500/20"}`}>
+                                      {m.ref_type === "ingredient" ? "Insumo" : "Produto"}
+                                    </span>
+                                  </button>
+                                ))}
+                                {matches.length === 0 && (
+                                  <p className="px-3 py-2 text-xs text-zinc-500">Nenhum item encontrado</p>
+                                )}
+                                <div className="border-t border-zinc-800">
+                                  <button type="button"
+                                    onMouseDown={e => { e.preventDefault(); openQuickCreate(idx, "ingredient", item.itemName.trim()); }}
+                                    className="w-full flex items-center gap-1.5 px-3 py-2 text-left text-xs text-violet-400 hover:bg-zinc-800 transition-colors">
+                                    <Plus className="w-3 h-3 flex-shrink-0" /> Cadastrar {item.itemName ? `"${item.itemName}"` : "novo item"} como Insumo
+                                  </button>
+                                  <button type="button"
+                                    onMouseDown={e => { e.preventDefault(); openQuickCreate(idx, "product", item.itemName.trim()); }}
+                                    className="w-full flex items-center gap-1.5 px-3 py-2 text-left text-xs text-violet-400 hover:bg-zinc-800 transition-colors">
+                                    <Plus className="w-3 h-3 flex-shrink-0" /> Cadastrar {item.itemName ? `"${item.itemName}"` : "novo item"} como Produto de revenda
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          <input value={item.quantity} placeholder="Qtd"
+                            onChange={e => setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, quantity: e.target.value } : p))}
+                            type="number" min="0" step="0.001" className={inputCls + " w-20"} />
+                          <input value={item.unit_cost} placeholder="R$/un"
+                            onChange={e => setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, unit_cost: e.target.value } : p))}
+                            type="number" min="0" step="0.01" className={inputCls + " w-24"} />
+                          {poItems.length > 1 && (
+                            <button onClick={() => setPOItems(prev => prev.filter((_, i) => i !== idx))}
+                              className="p-1.5 text-zinc-600 hover:text-red-400 rounded-lg flex-shrink-0 transition-colors">
+                              <X className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex gap-2 items-center">
-                        <select value={item.item_id}
-                          onChange={e => {
-                            if (e.target.value === NEW_ITEM_VALUE) { openQuickCreate(idx); return; }
-                            setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, item_id: e.target.value } : p));
-                          }}
-                          className={selectCls + " flex-1"}>
-                          <option value="">Selecionar item...</option>
-                          {(item.ref_type === "ingredient" ? stockItems : limitedProducts).map(si => <option key={si.id} value={si.id}>{si.name}</option>)}
-                          <option value={NEW_ITEM_VALUE}>+ Cadastrar novo {item.ref_type === "ingredient" ? "insumo" : "produto"}</option>
-                        </select>
-                        <input value={item.quantity} placeholder="Qtd"
-                          onChange={e => setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, quantity: e.target.value } : p))}
-                          type="number" min="0" step="0.001" className={inputCls + " w-20"} />
-                        <input value={item.unit_cost} placeholder="R$/un"
-                          onChange={e => setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, unit_cost: e.target.value } : p))}
-                          type="number" min="0" step="0.01" className={inputCls + " w-24"} />
-                        {poItems.length > 1 && (
-                          <button onClick={() => setPOItems(prev => prev.filter((_, i) => i !== idx))}
-                            className="p-1.5 text-zinc-600 hover:text-red-400 rounded-lg flex-shrink-0 transition-colors">
-                            <X className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
@@ -443,7 +480,7 @@ export default function PurchasesPage() {
       )}
 
       {/* Cadastro rápido de insumo, direto da Compra */}
-      {quickCreateIdx !== null && poItems[quickCreateIdx]?.ref_type === "ingredient" && (
+      {quickCreateIdx !== null && quickCreateType === "ingredient" && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-sm">
             <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
@@ -491,7 +528,7 @@ export default function PurchasesPage() {
       )}
 
       {/* Cadastro de produto de revenda: mesmo formulario completo de Produtos */}
-      {quickCreateIdx !== null && poItems[quickCreateIdx]?.ref_type === "product" && (
+      {quickCreateIdx !== null && quickCreateType === "product" && (
         <ProductModal
           product={null}
           categories={categories}
