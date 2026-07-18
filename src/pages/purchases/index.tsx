@@ -3,7 +3,7 @@ import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import {
-  Plus, X, RefreshCw, Truck, ChevronDown, Ban,
+  Plus, X, RefreshCw, Truck, ChevronDown, Ban, Search,
 } from "lucide-react";
 import { ProductModal, type Category } from "../products";
 
@@ -69,6 +69,7 @@ export default function PurchasesPage() {
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [openSearchIdx, setOpenSearchIdx] = useState<number | null>(null);
+  const [itemSearchText, setItemSearchText] = useState("");
 
   // Cadastro rápido de insumo/produto direto pela Compra
   const [quickCreateIdx, setQuickCreateIdx] = useState<number | null>(null);
@@ -387,72 +388,81 @@ export default function PurchasesPage() {
                 </div>
                 <div className="space-y-2">
                   {poItems.map((item, idx) => {
-                    const q = item.itemName.trim().toLowerCase();
+                    const isSearching = openSearchIdx === idx;
+                    const q = itemSearchText.trim().toLowerCase();
                     const matches = [
                       ...stockItems.filter(s => q === "" || s.name.toLowerCase().includes(q)).map(s => ({ ...s, ref_type: "ingredient" as const })),
                       ...limitedProducts.filter(p => q === "" || p.name.toLowerCase().includes(q)).map(p => ({ ...p, ref_type: "product" as const })),
                     ].slice(0, 8);
                     return (
-                      <div key={idx} className="pb-2 border-b border-zinc-800 last:border-0">
-                        <div className="flex gap-2 items-center">
-                          <div className="relative flex-1">
-                            <input value={item.itemName}
-                              onChange={e => {
-                                const v = e.target.value;
-                                setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, itemName: v, item_id: "" } : p));
-                                setOpenSearchIdx(idx);
-                              }}
-                              onFocus={() => setOpenSearchIdx(idx)}
-                              onBlur={() => setTimeout(() => setOpenSearchIdx(prev => prev === idx ? null : prev), 150)}
-                              placeholder="Buscar insumo ou produto..."
-                              className={inputCls} />
-                            {openSearchIdx === idx && (
-                              <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl max-h-56 overflow-y-auto">
-                                {matches.map(m => (
-                                  <button key={`${m.ref_type}-${m.id}`} type="button"
-                                    onMouseDown={e => {
-                                      e.preventDefault();
-                                      setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, ref_type: m.ref_type, item_id: m.id, itemName: m.name } : p));
-                                      setOpenSearchIdx(null);
-                                    }}
-                                    className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left hover:bg-zinc-800 transition-colors text-sm">
-                                    <span className="text-white truncate">{m.name}</span>
-                                    <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${m.ref_type === "ingredient" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" : "bg-blue-500/10 text-blue-400 border border-blue-500/20"}`}>
-                                      {m.ref_type === "ingredient" ? "Insumo" : "Produto"}
-                                    </span>
-                                  </button>
-                                ))}
-                                {matches.length === 0 && (
-                                  <p className="px-3 py-2 text-xs text-zinc-500">Nenhum item encontrado</p>
-                                )}
-                                <div className="border-t border-zinc-800">
-                                  <button type="button"
-                                    onMouseDown={e => { e.preventDefault(); openQuickCreate(idx, "ingredient", item.itemName.trim()); }}
-                                    className="w-full flex items-center gap-1.5 px-3 py-2 text-left text-xs text-violet-400 hover:bg-zinc-800 transition-colors">
-                                    <Plus className="w-3 h-3 flex-shrink-0" /> Cadastrar {item.itemName ? `"${item.itemName}"` : "novo item"} como Insumo
-                                  </button>
-                                  <button type="button"
-                                    onMouseDown={e => { e.preventDefault(); openQuickCreate(idx, "product", item.itemName.trim()); }}
-                                    className="w-full flex items-center gap-1.5 px-3 py-2 text-left text-xs text-violet-400 hover:bg-zinc-800 transition-colors">
-                                    <Plus className="w-3 h-3 flex-shrink-0" /> Cadastrar {item.itemName ? `"${item.itemName}"` : "novo item"} como Produto de revenda
-                                  </button>
-                                </div>
-                              </div>
+                      <div key={idx} className="pb-2 border-b border-zinc-800 last:border-0 space-y-1.5">
+                        {!isSearching ? (
+                          <div className="flex gap-2 items-center">
+                            <button type="button" onClick={() => { setItemSearchText(""); setOpenSearchIdx(idx); }}
+                              className="flex-1 flex items-center justify-between gap-2 px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 hover:border-zinc-700 rounded-xl text-sm text-left transition-colors">
+                              <span className={item.item_id ? "text-white truncate" : "text-zinc-500"}>
+                                {item.itemName || "Selecionar item..."}
+                              </span>
+                              {item.item_id && (
+                                <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${item.ref_type === "ingredient" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" : "bg-blue-500/10 text-blue-400 border border-blue-500/20"}`}>
+                                  {item.ref_type === "ingredient" ? "Insumo" : "Produto"}
+                                </span>
+                              )}
+                            </button>
+                            <input value={item.quantity} placeholder="Qtd"
+                              onChange={e => setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, quantity: e.target.value } : p))}
+                              type="number" min="0" step="0.001" className={inputCls + " w-20"} />
+                            <input value={item.unit_cost} placeholder="R$/un"
+                              onChange={e => setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, unit_cost: e.target.value } : p))}
+                              type="number" min="0" step="0.01" className={inputCls + " w-24"} />
+                            {poItems.length > 1 && (
+                              <button onClick={() => setPOItems(prev => prev.filter((_, i) => i !== idx))}
+                                className="p-1.5 text-zinc-600 hover:text-red-400 rounded-lg flex-shrink-0 transition-colors">
+                                <X className="w-4 h-4" />
+                              </button>
                             )}
                           </div>
-                          <input value={item.quantity} placeholder="Qtd"
-                            onChange={e => setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, quantity: e.target.value } : p))}
-                            type="number" min="0" step="0.001" className={inputCls + " w-20"} />
-                          <input value={item.unit_cost} placeholder="R$/un"
-                            onChange={e => setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, unit_cost: e.target.value } : p))}
-                            type="number" min="0" step="0.01" className={inputCls + " w-24"} />
-                          {poItems.length > 1 && (
-                            <button onClick={() => setPOItems(prev => prev.filter((_, i) => i !== idx))}
-                              className="p-1.5 text-zinc-600 hover:text-red-400 rounded-lg flex-shrink-0 transition-colors">
-                              <X className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
+                        ) : (
+                          <div className="bg-zinc-900 border border-violet-500/40 rounded-xl overflow-hidden">
+                            <div className="flex items-center gap-2 px-3 py-2 border-b border-zinc-800">
+                              <Search className="w-4 h-4 text-zinc-500 flex-shrink-0" />
+                              <input autoFocus value={itemSearchText} onChange={e => setItemSearchText(e.target.value)}
+                                placeholder="Buscar insumo ou produto..."
+                                className="flex-1 bg-transparent text-sm text-white placeholder-zinc-500 focus:outline-none" />
+                              <button onClick={() => setOpenSearchIdx(null)} className="text-zinc-500 hover:text-white transition-colors flex-shrink-0">
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                            <div className="max-h-48 overflow-y-auto">
+                              {matches.map(m => (
+                                <button key={`${m.ref_type}-${m.id}`} type="button"
+                                  onClick={() => {
+                                    setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, ref_type: m.ref_type, item_id: m.id, itemName: m.name } : p));
+                                    setOpenSearchIdx(null);
+                                  }}
+                                  className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-zinc-800 transition-colors text-sm border-b border-zinc-800/50 last:border-0">
+                                  <span className="text-white truncate">{m.name}</span>
+                                  <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${m.ref_type === "ingredient" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" : "bg-blue-500/10 text-blue-400 border border-blue-500/20"}`}>
+                                    {m.ref_type === "ingredient" ? "Insumo" : "Produto"}
+                                  </span>
+                                </button>
+                              ))}
+                              {matches.length === 0 && (
+                                <p className="px-3 py-3 text-xs text-zinc-500 text-center">Nenhum item encontrado</p>
+                              )}
+                            </div>
+                            <div className="border-t border-zinc-800">
+                              <button type="button" onClick={() => openQuickCreate(idx, "ingredient", itemSearchText.trim())}
+                                className="w-full flex items-center gap-1.5 px-3 py-2.5 text-left text-xs text-violet-400 hover:bg-zinc-800 transition-colors">
+                                <Plus className="w-3 h-3 flex-shrink-0" /> Cadastrar {itemSearchText ? `"${itemSearchText}"` : "novo item"} como Insumo
+                              </button>
+                              <button type="button" onClick={() => openQuickCreate(idx, "product", itemSearchText.trim())}
+                                className="w-full flex items-center gap-1.5 px-3 py-2.5 text-left text-xs text-violet-400 hover:bg-zinc-800 transition-colors">
+                                <Plus className="w-3 h-3 flex-shrink-0" /> Cadastrar {itemSearchText ? `"${itemSearchText}"` : "novo item"} como Produto de revenda
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
