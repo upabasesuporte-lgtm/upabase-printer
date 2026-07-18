@@ -18,6 +18,8 @@ interface Bill {
   id: string;
   description: string;
   supplier: string | null;
+  supplier_id?: string | null;
+  purchase_order_id?: string | null;
   category: string;
   cost_center: string | null;
   document_number: string | null;
@@ -490,6 +492,10 @@ export default function AccountsPayablePage() {
   }
 
   async function deleteBill(b: Bill) {
+    if (b.purchase_order_id) {
+      alert("Esta conta veio de uma compra registrada em Compras. Para excluí-la, exclua a compra de origem por lá.");
+      return;
+    }
     if (!confirm(`Excluir "${b.description}"?`)) return;
     await supabase.from("accounts_payable").delete().eq("id", b.id);
     setBills(prev => prev.filter(x => x.id !== b.id));

@@ -3,7 +3,7 @@ import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import {
-  Plus, X, RefreshCw, Truck, ChevronDown,
+  Plus, X, RefreshCw, Truck, ChevronDown, Ban,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -64,6 +64,7 @@ export default function PurchasesPage() {
   const [poDueDate, setPODueDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [poItems, setPOItems] = useState<{ ref_type: "ingredient" | "product"; item_id: string; quantity: string; unit_cost: string }[]>([]);
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -110,12 +111,12 @@ export default function PurchasesPage() {
     if (validItems.length === 0 || saving) return;
     setSaving(true);
     setPurchaseError(null);
-    // Etapa 3: compra + itens + estoque + conta a pagar rodam numa unica
-    // transacao no banco (register_purchase) - se qualquer passo falhar,
-    // tudo e desfeito automaticamente, nao fica compra sem financeiro nem
+    // Compra + itens + estoque + conta a pagar rodam numa unica transacao
+    // no banco (register_purchase) - se qualquer passo falhar, tudo e
+    // desfeito automaticamente, nao fica compra sem financeiro nem
     // financeiro sem compra. A propria RPC valida os dados (quantidade,
     // custo, fornecedor, itens) antes de gravar qualquer coisa.
-    const rpcParams = {
+    const { error } = await supabase.rpc("register_purchase", {
       p_supplier_id: poSupplierId || null,
       p_notes: poNotes || null,
       p_due_date: poDueDate,
@@ -125,22 +126,29 @@ export default function PurchasesPage() {
         quantity: parseFloat(i.quantity),
         unit_cost: parseFloat(i.unit_cost) || 0,
       })),
-    };
-    // DIAG-ETAPA3: log temporario pra investigar a conta a pagar nao criada.
-    // Remover depois que a causa for confirmada.
-    console.log("[DIAG-ETAPA3] chamando register_purchase com:", rpcParams);
-    const { data, error } = await supabase.rpc("register_purchase", rpcParams);
-    console.log("[DIAG-ETAPA3] resposta da RPC:", { data, error });
+    });
     if (error) {
-      console.error("[DIAG-ETAPA3] erro retornado pela RPC:", error);
       setPurchaseError(error.message);
       setSaving(false);
       return;
     }
-    console.log("[DIAG-ETAPA3] RPC concluida sem erro, purchase_order_id retornado:", data);
     await loadPurchases();
     setSaving(false);
     setModal("none");
+  }
+
+  async function cancelPurchase(po: PurchaseOrder) {
+    if (po.status === "cancelled" || cancellingId) return;
+    if (!confirm("Cancelar esta compra? O estoque somado por ela será revertido e a conta a pagar vinculada será cancelada.")) return;
+    setCancellingId(po.id);
+    const { error } = await supabase.rpc("cancel_purchase", { p_purchase_order_id: po.id });
+    if (error) {
+      alert(error.message);
+      setCancellingId(null);
+      return;
+    }
+    await Promise.all([loadPurchases(), loadStockItems(), loadLimitedProducts()]);
+    setCancellingId(null);
   }
 
   if (loading) {
@@ -206,9 +214,15 @@ export default function PurchasesPage() {
                         <span className="text-sm font-semibold text-white">
                           {po.suppliers?.name ?? "Fornecedor não informado"}
                         </span>
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                          Recebida
-                        </span>
+                        {po.status === "cancelled" ? (
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">
+                            Cancelada
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            Recebida
+                          </span>
+                        )}
                       </div>
                       <p className="text-xs text-zinc-500 mt-0.5">
                         {new Date(po.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}
@@ -247,6 +261,15 @@ export default function PurchasesPage() {
                           <span className="text-xs text-zinc-500">Total da compra</span>
                           <span className="text-base font-black text-white">{fmt(total)}</span>
                         </div>
+                        {po.status !== "cancelled" && (
+                          <div className="px-5 py-3">
+                            <button onClick={() => cancelPurchase(po)} disabled={cancellingId === po.id}
+                              className="flex items-center gap-1.5 text-xs font-medium text-red-400 hover:text-red-300 disabled:opacity-50 transition-colors">
+                              {cancellingId === po.id ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Ban className="w-3.5 h-3.5" />}
+                              Cancelar compra
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
