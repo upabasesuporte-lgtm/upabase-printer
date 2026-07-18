@@ -31,9 +31,10 @@ interface RecipeIngredient {
 }
 
 interface StockMovement {
-  id: string; stock_item_id: string | null; type: string; quantity: number;
+  id: string; stock_item_id: string | null; product_id?: string | null; type: string; quantity: number;
   cost_price: number | null; reference_type: string | null; notes: string | null;
   created_at: string; stock_items?: { name: string; unit: string } | null;
+  products?: { name: string; unit: string } | null;
 }
 
 interface PurchaseOrder {
@@ -44,8 +45,9 @@ interface PurchaseOrder {
 }
 
 interface POItem {
-  id?: string; stock_item_id: string; quantity: number; unit_cost: number;
+  id?: string; stock_item_id: string | null; product_id?: string | null; quantity: number; unit_cost: number;
   stock_items?: { name: string; unit: string } | null;
+  products?: { name: string; unit: string } | null;
 }
 
 interface SimpleProduct { id: string; name: string; unit: string; }
@@ -181,7 +183,7 @@ export default function StockPage() {
   // Purchase form
   const [poSupplierId, setPOSupplierId] = useState("");
   const [poNotes, setPONotes] = useState("");
-  const [poItems, setPOItems] = useState<{ stock_item_id: string; quantity: string; unit_cost: string }[]>([]);
+  const [poItems, setPOItems] = useState<{ ref_type: "ingredient" | "product"; item_id: string; quantity: string; unit_cost: string }[]>([]);
   const [expandedPO, setExpandedPO] = useState<string | null>(null);
 
   // ── Init ──────────────────────────────────────────────────────────────────
@@ -217,7 +219,7 @@ export default function StockPage() {
 
   async function loadMovements() {
     const { data } = await supabase
-      .from("stock_movements").select("*, stock_items(name, unit)")
+      .from("stock_movements").select("*, stock_items(name, unit), products(name, unit)")
       .order("created_at", { ascending: false }).limit(300);
     setMovements((data ?? []) as StockMovement[]);
   }
@@ -225,7 +227,7 @@ export default function StockPage() {
   async function loadPurchases() {
     const { data } = await supabase
       .from("purchase_orders")
-      .select("*, suppliers(name), purchase_order_items(*, stock_items(name, unit))")
+      .select("*, suppliers(name), purchase_order_items(*, stock_items(name, unit), products(name, unit))")
       .order("created_at", { ascending: false });
     setPurchases((data ?? []) as PurchaseOrder[]);
   }
@@ -369,7 +371,7 @@ export default function StockPage() {
         if (newQty > 0 && !prod.is_active) updates.is_active = true;
         await supabase.from("products").update(updates).eq("id", movItemId);
         await supabase.from("stock_movements").insert({
-          stock_item_id: null, user_id: userId,
+          stock_item_id: null, product_id: movItemId, user_id: userId,
           type: movType, quantity: qty,
           cost_price: parseFloat(movCost) || null,
           reference_type: "product", reference_id: movItemId,
@@ -388,12 +390,12 @@ export default function StockPage() {
 
   function openPurchaseModal() {
     setPOSupplierId(""); setPONotes("");
-    setPOItems([{ stock_item_id: "", quantity: "", unit_cost: "" }]);
+    setPOItems([{ ref_type: "ingredient", item_id: "", quantity: "", unit_cost: "" }]);
     setModal("purchase");
   }
 
   async function savePurchase() {
-    const validItems = poItems.filter(i => i.stock_item_id && i.quantity);
+    const validItems = poItems.filter(i => i.item_id && i.quantity);
     if (validItems.length === 0 || saving) return;
     setSaving(true);
     const { data: po } = await supabase.from("purchase_orders").insert({
@@ -404,25 +406,42 @@ export default function StockPage() {
       for (const item of validItems) {
         const qty = parseFloat(item.quantity);
         const cost = parseFloat(item.unit_cost) || 0;
+        const isIngredient = item.ref_type === "ingredient";
         await supabase.from("purchase_order_items").insert({
-          purchase_order_id: po.id, stock_item_id: item.stock_item_id,
+          purchase_order_id: po.id,
+          stock_item_id: isIngredient ? item.item_id : null,
+          product_id: isIngredient ? null : item.item_id,
           quantity: qty, unit_cost: cost,
         });
         await supabase.from("stock_movements").insert({
-          stock_item_id: item.stock_item_id, user_id: userId,
+          stock_item_id: isIngredient ? item.item_id : null,
+          product_id: isIngredient ? null : item.item_id,
+          user_id: userId,
           type: "entry", quantity: qty, cost_price: cost,
           reference_type: "purchase", reference_id: po.id, notes: "Entrada via compra",
         });
-        const si = stockItems.find(i => i.id === item.stock_item_id);
-        if (si) {
-          await supabase.from("stock_items").update({
-            current_qty: si.current_qty + qty,
-            ...(cost > 0 ? { cost_price: cost } : {}),
-          }).eq("id", item.stock_item_id);
+        if (isIngredient) {
+          const si = stockItems.find(i => i.id === item.item_id);
+          if (si) {
+            await supabase.from("stock_items").update({
+              current_qty: si.current_qty + qty,
+              ...(cost > 0 ? { cost_price: cost } : {}),
+            }).eq("id", item.item_id);
+          }
+        } else {
+          const prod = limitedProducts.find(p => p.id === item.item_id);
+          if (prod) {
+            await supabase.from("products").update({
+              stock: prod.stock + qty,
+              ...(cost > 0 ? { cost_price: cost } : {}),
+              ...(prod.stock + qty > 0 && !prod.is_active ? { is_active: true } : {}),
+            }).eq("id", item.item_id);
+          }
         }
       }
     }
     await loadStockItems();
+    await loadLimitedProducts();
     await loadPurchases();
     setSaving(false);
     setModal("none");
@@ -1024,7 +1043,7 @@ export default function StockPage() {
                           {new Date(m.created_at).toLocaleString("pt-BR")}
                         </span>
                         <div>
-                          <span className="text-sm font-semibold text-white">{m.stock_items?.name ?? "—"}</span>
+                          <span className="text-sm font-semibold text-white">{m.stock_items?.name ?? m.products?.name ?? "—"}</span>
                           <span className="sm:hidden text-xs text-zinc-500 ml-2">
                             {new Date(m.created_at).toLocaleDateString("pt-BR")}
                           </span>
@@ -1033,7 +1052,7 @@ export default function StockPage() {
                           {info.label}
                         </span>
                         <span className={`text-sm font-bold ${info.color}`}>
-                          {info.sign}{fmtQty(m.quantity, m.stock_items?.unit ?? "")}
+                          {info.sign}{fmtQty(m.quantity, m.stock_items?.unit ?? m.products?.unit ?? "")}
                         </span>
                         <span className="hidden sm:block text-xs text-zinc-500">
                           {m.cost_price != null ? fmt(m.cost_price) : "—"}
@@ -1098,14 +1117,22 @@ export default function StockPage() {
                             <span>Item</span><span>Quantidade</span><span>Custo Unit.</span><span className="text-right">Total</span>
                           </div>
                           <div className="divide-y divide-zinc-800/50">
-                            {(po.purchase_order_items ?? []).map((item, idx) => (
-                              <div key={idx} className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_100px_100px_100px] gap-x-4 px-5 py-2.5 items-center">
-                                <span className="text-sm text-zinc-200">{item.stock_items?.name ?? "—"}</span>
-                                <span className="hidden sm:block text-sm text-zinc-400">{fmtQty(item.quantity, item.stock_items?.unit ?? "")}</span>
-                                <span className="hidden sm:block text-sm text-zinc-400">{fmt(item.unit_cost)}</span>
-                                <span className="text-sm font-bold text-white sm:text-right">{fmt(item.quantity * item.unit_cost)}</span>
-                              </div>
-                            ))}
+                            {(po.purchase_order_items ?? []).map((item, idx) => {
+                              const itemName = item.stock_items?.name ?? item.products?.name ?? "—";
+                              const itemUnit = item.stock_items?.unit ?? item.products?.unit ?? "";
+                              const isProduct = !!item.product_id;
+                              return (
+                                <div key={idx} className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_100px_100px_100px] gap-x-4 px-5 py-2.5 items-center">
+                                  <span className="text-sm text-zinc-200 flex items-center gap-1.5">
+                                    {itemName}
+                                    {isProduct && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">Revenda</span>}
+                                  </span>
+                                  <span className="hidden sm:block text-sm text-zinc-400">{fmtQty(item.quantity, itemUnit)}</span>
+                                  <span className="hidden sm:block text-sm text-zinc-400">{fmt(item.unit_cost)}</span>
+                                  <span className="text-sm font-bold text-white sm:text-right">{fmt(item.quantity * item.unit_cost)}</span>
+                                </div>
+                              );
+                            })}
                             <div className="flex items-center justify-between px-5 py-3 bg-zinc-950/40">
                               <span className="text-xs text-zinc-500">Total da compra</span>
                               <span className="text-base font-black text-white">{fmt(total)}</span>
@@ -1373,32 +1400,44 @@ export default function StockPage() {
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <label className="text-xs font-medium text-zinc-400">Itens da compra *</label>
-                  <button onClick={() => setPOItems(prev => [...prev, { stock_item_id: "", quantity: "", unit_cost: "" }])}
+                  <button onClick={() => setPOItems(prev => [...prev, { ref_type: "ingredient", item_id: "", quantity: "", unit_cost: "" }])}
                     className="flex items-center gap-1 text-xs text-violet-400 hover:text-violet-300 transition-colors">
                     <Plus className="w-3 h-3" /> Adicionar linha
                   </button>
                 </div>
                 <div className="space-y-2">
                   {poItems.map((item, idx) => (
-                    <div key={idx} className="flex gap-2 items-center">
-                      <select value={item.stock_item_id}
-                        onChange={e => setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, stock_item_id: e.target.value } : p))}
-                        className={selectCls + " flex-1"}>
-                        <option value="">Selecionar item...</option>
-                        {stockItems.map(si => <option key={si.id} value={si.id}>{si.name}</option>)}
-                      </select>
-                      <input value={item.quantity} placeholder="Qtd"
-                        onChange={e => setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, quantity: e.target.value } : p))}
-                        type="number" min="0" step="0.001" className={inputCls + " w-20"} />
-                      <input value={item.unit_cost} placeholder="R$/un"
-                        onChange={e => setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, unit_cost: e.target.value } : p))}
-                        type="number" min="0" step="0.01" className={inputCls + " w-24"} />
-                      {poItems.length > 1 && (
-                        <button onClick={() => setPOItems(prev => prev.filter((_, i) => i !== idx))}
-                          className="p-1.5 text-zinc-600 hover:text-red-400 rounded-lg flex-shrink-0 transition-colors">
-                          <X className="w-4 h-4" />
+                    <div key={idx} className="space-y-1.5 pb-2 border-b border-zinc-800 last:border-0">
+                      <div className="flex bg-zinc-800 rounded-lg p-0.5 gap-0.5 w-fit">
+                        <button type="button" onClick={() => setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, ref_type: "ingredient", item_id: "" } : p))}
+                          className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${item.ref_type === "ingredient" ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-white"}`}>
+                          Insumo
                         </button>
-                      )}
+                        <button type="button" onClick={() => setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, ref_type: "product", item_id: "" } : p))}
+                          className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${item.ref_type === "product" ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-white"}`}>
+                          Produto de revenda
+                        </button>
+                      </div>
+                      <div className="flex gap-2 items-center">
+                        <select value={item.item_id}
+                          onChange={e => setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, item_id: e.target.value } : p))}
+                          className={selectCls + " flex-1"}>
+                          <option value="">Selecionar item...</option>
+                          {(item.ref_type === "ingredient" ? stockItems : limitedProducts).map(si => <option key={si.id} value={si.id}>{si.name}</option>)}
+                        </select>
+                        <input value={item.quantity} placeholder="Qtd"
+                          onChange={e => setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, quantity: e.target.value } : p))}
+                          type="number" min="0" step="0.001" className={inputCls + " w-20"} />
+                        <input value={item.unit_cost} placeholder="R$/un"
+                          onChange={e => setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, unit_cost: e.target.value } : p))}
+                          type="number" min="0" step="0.01" className={inputCls + " w-24"} />
+                        {poItems.length > 1 && (
+                          <button onClick={() => setPOItems(prev => prev.filter((_, i) => i !== idx))}
+                            className="p-1.5 text-zinc-600 hover:text-red-400 rounded-lg flex-shrink-0 transition-colors">
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1414,7 +1453,7 @@ export default function StockPage() {
             <div className="flex gap-3 px-6 py-4 border-t border-zinc-800 flex-shrink-0">
               <button onClick={() => setModal("none")} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
               <button onClick={savePurchase}
-                disabled={poItems.every(i => !i.stock_item_id || !i.quantity) || saving}
+                disabled={poItems.every(i => !i.item_id || !i.quantity) || saving}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
                 {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Truck className="w-4 h-4" />}
                 Confirmar Recebimento
