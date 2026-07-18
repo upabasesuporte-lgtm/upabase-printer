@@ -403,6 +403,12 @@ export default function StockPage() {
       status: "received", received_at: new Date().toISOString(), user_id: userId,
     }).select("id").single();
     if (po) {
+      // Soma por item antes de aplicar no estoque — se o mesmo insumo/produto
+      // aparecer em mais de uma linha da compra, a 2ª linha não pode sobrescrever
+      // o incremento da 1ª (ambas partiriam do mesmo saldo carregado em memória).
+      const ingredientDeltas = new Map<string, { qty: number; cost: number }>();
+      const productDeltas = new Map<string, { qty: number; cost: number }>();
+
       for (const item of validItems) {
         const qty = parseFloat(item.quantity);
         const cost = parseFloat(item.unit_cost) || 0;
@@ -420,23 +426,28 @@ export default function StockPage() {
           type: "entry", quantity: qty, cost_price: cost,
           reference_type: "purchase", reference_id: po.id, notes: "Entrada via compra",
         });
-        if (isIngredient) {
-          const si = stockItems.find(i => i.id === item.item_id);
-          if (si) {
-            await supabase.from("stock_items").update({
-              current_qty: si.current_qty + qty,
-              ...(cost > 0 ? { cost_price: cost } : {}),
-            }).eq("id", item.item_id);
-          }
-        } else {
-          const prod = limitedProducts.find(p => p.id === item.item_id);
-          if (prod) {
-            await supabase.from("products").update({
-              stock: prod.stock + qty,
-              ...(cost > 0 ? { cost_price: cost } : {}),
-              ...(prod.stock + qty > 0 && !prod.is_active ? { is_active: true } : {}),
-            }).eq("id", item.item_id);
-          }
+        const deltas = isIngredient ? ingredientDeltas : productDeltas;
+        const prev = deltas.get(item.item_id) ?? { qty: 0, cost: 0 };
+        deltas.set(item.item_id, { qty: prev.qty + qty, cost: cost > 0 ? cost : prev.cost });
+      }
+
+      for (const [itemId, delta] of ingredientDeltas) {
+        const si = stockItems.find(i => i.id === itemId);
+        if (si) {
+          await supabase.from("stock_items").update({
+            current_qty: si.current_qty + delta.qty,
+            ...(delta.cost > 0 ? { cost_price: delta.cost } : {}),
+          }).eq("id", itemId);
+        }
+      }
+      for (const [itemId, delta] of productDeltas) {
+        const prod = limitedProducts.find(p => p.id === itemId);
+        if (prod) {
+          await supabase.from("products").update({
+            stock: prod.stock + delta.qty,
+            ...(delta.cost > 0 ? { cost_price: delta.cost } : {}),
+            ...(prod.stock + delta.qty > 0 && !prod.is_active ? { is_active: true } : {}),
+          }).eq("id", itemId);
         }
       }
     }
