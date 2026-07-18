@@ -5,11 +5,11 @@ import { useEscapeKey } from "../../hooks/useEscapeKey";
 import {
   Plus, X, RefreshCw, Truck, ChevronDown, Ban,
 } from "lucide-react";
+import { ProductModal, type Category } from "../products";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface SimpleItem { id: string; name: string; }
-interface Category { id: string; name: string; parent_id: string | null; }
 
 interface POItem {
   id?: string; stock_item_id: string | null; product_id?: string | null; quantity: number; unit_cost: number;
@@ -74,9 +74,7 @@ export default function PurchasesPage() {
   const [quickCreateIdx, setQuickCreateIdx] = useState<number | null>(null);
   const [qcName, setQcName] = useState("");
   const [qcUnit, setQcUnit] = useState("unidade");
-  const [qcSalePrice, setQcSalePrice] = useState("");
   const [qcCategory, setQcCategory] = useState("");
-  const [qcCategoryId, setQcCategoryId] = useState("");
   const [qcMinQty, setQcMinQty] = useState("");
   const [qcSaving, setQcSaving] = useState(false);
   const [qcError, setQcError] = useState<string | null>(null);
@@ -90,7 +88,7 @@ export default function PurchasesPage() {
   }, []);
 
   async function loadCategories() {
-    const { data } = await supabase.from("categories").select("id, name, parent_id").order("name");
+    const { data } = await supabase.from("categories").select("id, name, parent_id, color, description").order("name");
     setCategories((data ?? []) as Category[]);
   }
 
@@ -129,44 +127,39 @@ export default function PurchasesPage() {
 
   function openQuickCreate(idx: number) {
     setQuickCreateIdx(idx);
-    setQcName(""); setQcUnit("unidade"); setQcSalePrice("");
-    setQcCategory(""); setQcCategoryId(""); setQcMinQty(""); setQcError(null);
+    setQcName(""); setQcUnit("unidade");
+    setQcCategory(""); setQcMinQty(""); setQcError(null);
   }
 
-  async function saveQuickCreate() {
+  // Cadastro rapido de insumo (formulario reduzido - stock_items nao tem
+  // um modal completo proprio ainda, entao mantemos essa versao enxuta).
+  async function saveQuickCreateIngredient() {
     if (quickCreateIdx === null || qcSaving) return;
     const idx = quickCreateIdx;
-    const refType = poItems[idx]?.ref_type;
     if (!qcName.trim()) { setQcError("Informe o nome."); return; }
-    if (refType === "product" && !qcSalePrice) { setQcError("Informe o preço de venda."); return; }
     setQcSaving(true);
     setQcError(null);
-    if (refType === "ingredient") {
-      const { data, error } = await supabase.from("stock_items").insert({
-        name: qcName.trim(), unit: qcUnit,
-        current_qty: 0, min_qty: parseFloat(qcMinQty) || 0, cost_price: 0,
-        category: qcCategory.trim() || null,
-        supplier_id: poSupplierId || null,
-      }).select("id, name").single();
-      if (error || !data) { setQcError(error?.message ?? "Erro ao criar insumo."); setQcSaving(false); return; }
-      setStockItems(prev => [...prev, data as SimpleItem].sort((a, b) => a.name.localeCompare(b.name)));
-      setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, item_id: data.id } : p));
-    } else {
-      const { data, error } = await supabase.from("products").insert({
-        name: qcName.trim(), unit: qcUnit,
-        sale_price: parseFloat(qcSalePrice) || 0, cost_price: 0,
-        stock: 0, stock_min: parseFloat(qcMinQty) || 0, stock_type: "controlled", unlimited_stock: false,
-        category_id: qcCategoryId || null,
-        is_active: true, status: "active",
-        visible_pdv: true, visible_tables: true, visible_digital_menu: true,
-        printer_destination: "balcao", item_type: "principal",
-      }).select("id, name").single();
-      if (error || !data) { setQcError(error?.message ?? "Erro ao criar produto."); setQcSaving(false); return; }
-      setLimitedProducts(prev => [...prev, data as SimpleItem].sort((a, b) => a.name.localeCompare(b.name)));
-      setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, item_id: data.id } : p));
-    }
+    const { data, error } = await supabase.from("stock_items").insert({
+      name: qcName.trim(), unit: qcUnit,
+      current_qty: 0, min_qty: parseFloat(qcMinQty) || 0, cost_price: 0,
+      category: qcCategory.trim() || null,
+      supplier_id: poSupplierId || null,
+    }).select("id, name").single();
+    if (error || !data) { setQcError(error?.message ?? "Erro ao criar insumo."); setQcSaving(false); return; }
+    setStockItems(prev => [...prev, data as SimpleItem].sort((a, b) => a.name.localeCompare(b.name)));
+    setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, item_id: data.id } : p));
     setQcSaving(false);
     setQuickCreateIdx(null);
+  }
+
+  // Cadastro de produto de revenda: reaproveita o mesmo ProductModal
+  // completo da tela de Produtos (mesmos campos, mesma logica de salvar).
+  async function handleNewProductSaved(id?: string) {
+    await loadLimitedProducts();
+    if (quickCreateIdx !== null && id) {
+      const idx = quickCreateIdx;
+      setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, item_id: id } : p));
+    }
   }
 
   async function savePurchase() {
@@ -449,14 +442,12 @@ export default function PurchasesPage() {
         </div>
       )}
 
-      {/* Cadastro rápido de insumo/produto, direto da Compra */}
-      {quickCreateIdx !== null && (
+      {/* Cadastro rápido de insumo, direto da Compra */}
+      {quickCreateIdx !== null && poItems[quickCreateIdx]?.ref_type === "ingredient" && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-sm">
             <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
-              <h2 className="text-base font-semibold">
-                Cadastrar novo {poItems[quickCreateIdx]?.ref_type === "ingredient" ? "insumo" : "produto"}
-              </h2>
+              <h2 className="text-base font-semibold">Cadastrar novo insumo</h2>
               <button onClick={() => setQuickCreateIdx(null)} className="p-1.5 text-zinc-400 hover:text-white rounded-lg"><X className="w-4 h-4" /></button>
             </div>
             <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
@@ -477,40 +468,19 @@ export default function PurchasesPage() {
                     type="number" min="0" step="0.001" placeholder="0" className={inputCls} />
                 </div>
               </div>
-
-              {poItems[quickCreateIdx]?.ref_type === "ingredient" ? (
-                <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Categoria</label>
-                  <input value={qcCategory} onChange={e => setQcCategory(e.target.value)}
-                    placeholder="Ex: Proteínas, Bebidas, Embalagens..." className={inputCls} />
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-zinc-400 mb-1.5">Categoria</label>
-                    <select value={qcCategoryId} onChange={e => setQcCategoryId(e.target.value)} className={selectCls}>
-                      <option value="">Sem categoria</option>
-                      {categories.filter(c => !c.parent_id).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-zinc-400 mb-1.5">Preço de venda *</label>
-                    <input value={qcSalePrice} onChange={e => setQcSalePrice(e.target.value)}
-                      type="number" min="0" step="0.01" placeholder="0,00" className={inputCls} />
-                  </div>
-                </div>
-              )}
-
-              {poItems[quickCreateIdx]?.ref_type === "ingredient" && (
-                <p className="text-xs text-zinc-500">O custo e a quantidade em estoque serão preenchidos por esta compra.</p>
-              )}
+              <div>
+                <label className="block text-xs font-medium text-zinc-400 mb-1.5">Categoria</label>
+                <input value={qcCategory} onChange={e => setQcCategory(e.target.value)}
+                  placeholder="Ex: Proteínas, Bebidas, Embalagens..." className={inputCls} />
+              </div>
+              <p className="text-xs text-zinc-500">O custo e a quantidade em estoque serão preenchidos por esta compra.</p>
               {qcError && (
                 <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs p-3 rounded-xl">{qcError}</div>
               )}
             </div>
             <div className="flex gap-3 px-6 py-4 border-t border-zinc-800">
               <button onClick={() => setQuickCreateIdx(null)} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
-              <button onClick={saveQuickCreate} disabled={qcSaving}
+              <button onClick={saveQuickCreateIngredient} disabled={qcSaving}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
                 {qcSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                 Cadastrar e usar
@@ -518,6 +488,16 @@ export default function PurchasesPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Cadastro de produto de revenda: mesmo formulario completo de Produtos */}
+      {quickCreateIdx !== null && poItems[quickCreateIdx]?.ref_type === "product" && (
+        <ProductModal
+          product={null}
+          categories={categories}
+          onClose={() => setQuickCreateIdx(null)}
+          onSave={handleNewProductSaved}
+        />
       )}
     </>
   );

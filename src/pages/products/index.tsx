@@ -12,7 +12,7 @@ import {
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
-interface Category {
+export interface Category {
   id: string;
   name: string;
   parent_id: string | null;
@@ -29,7 +29,7 @@ interface Variation {
   is_active: boolean;
 }
 
-interface Product {
+export interface Product {
   id: string;
   name: string;
   description: string | null;
@@ -308,8 +308,8 @@ function CategoryModal({ categories, onClose, onRefresh }: {
 const TABS = ["Geral", "Preços", "Estoque", "Variações", "Canais"] as const;
 type TabName = typeof TABS[number];
 
-function ProductModal({ product, categories, onClose, onSave }: {
-  product: Product | null; categories: Category[]; onClose: () => void; onSave: () => void;
+export function ProductModal({ product, categories, onClose, onSave }: {
+  product: Product | null; categories: Category[]; onClose: () => void; onSave: (id?: string) => void;
 }) {
   const isEdit = !!product;
   const [tab, setTab] = useState<TabName>("Geral");
@@ -442,7 +442,7 @@ function ProductModal({ product, categories, onClose, onSave }: {
       }
 
       setSaving(false);
-      onSave();
+      onSave(savedId);
       onClose();
     } catch (e: any) {
       setError(`Erro ao salvar: ${e?.message || String(e)}`);
