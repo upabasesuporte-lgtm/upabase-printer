@@ -9,6 +9,7 @@ import {
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface SimpleItem { id: string; name: string; }
+interface Category { id: string; name: string; parent_id: string | null; }
 
 interface POItem {
   id?: string; stock_item_id: string | null; product_id?: string | null; quantity: number; unit_cost: number;
@@ -53,6 +54,7 @@ export default function PurchasesPage() {
   const [stockItems, setStockItems] = useState<SimpleItem[]>([]);
   const [limitedProducts, setLimitedProducts] = useState<SimpleItem[]>([]);
   const [suppliers, setSuppliers] = useState<SimpleItem[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [expandedPO, setExpandedPO] = useState<string | null>(null);
@@ -73,16 +75,24 @@ export default function PurchasesPage() {
   const [qcName, setQcName] = useState("");
   const [qcUnit, setQcUnit] = useState("unidade");
   const [qcSalePrice, setQcSalePrice] = useState("");
+  const [qcCategory, setQcCategory] = useState("");
+  const [qcCategoryId, setQcCategoryId] = useState("");
+  const [qcMinQty, setQcMinQty] = useState("");
   const [qcSaving, setQcSaving] = useState(false);
   const [qcError, setQcError] = useState<string | null>(null);
   useEscapeKey(() => setQuickCreateIdx(null), quickCreateIdx !== null);
 
   useEffect(() => {
     (async () => {
-      await Promise.all([loadPurchases(), loadStockItems(), loadLimitedProducts(), loadSuppliers()]);
+      await Promise.all([loadPurchases(), loadStockItems(), loadLimitedProducts(), loadSuppliers(), loadCategories()]);
       setLoading(false);
     })();
   }, []);
+
+  async function loadCategories() {
+    const { data } = await supabase.from("categories").select("id, name, parent_id").order("name");
+    setCategories((data ?? []) as Category[]);
+  }
 
   async function loadPurchases() {
     const { data } = await supabase
@@ -119,30 +129,34 @@ export default function PurchasesPage() {
 
   function openQuickCreate(idx: number) {
     setQuickCreateIdx(idx);
-    setQcName(""); setQcUnit("unidade"); setQcSalePrice(""); setQcError(null);
+    setQcName(""); setQcUnit("unidade"); setQcSalePrice("");
+    setQcCategory(""); setQcCategoryId(""); setQcMinQty(""); setQcError(null);
   }
 
   async function saveQuickCreate() {
-    if (quickCreateIdx === null || !qcName.trim() || qcSaving) return;
+    if (quickCreateIdx === null || qcSaving) return;
     const idx = quickCreateIdx;
     const refType = poItems[idx]?.ref_type;
+    if (!qcName.trim()) { setQcError("Informe o nome."); return; }
+    if (refType === "product" && !qcSalePrice) { setQcError("Informe o preço de venda."); return; }
     setQcSaving(true);
     setQcError(null);
     if (refType === "ingredient") {
       const { data, error } = await supabase.from("stock_items").insert({
         name: qcName.trim(), unit: qcUnit,
-        current_qty: 0, min_qty: 0, cost_price: 0,
+        current_qty: 0, min_qty: parseFloat(qcMinQty) || 0, cost_price: 0,
+        category: qcCategory.trim() || null,
         supplier_id: poSupplierId || null,
       }).select("id, name").single();
       if (error || !data) { setQcError(error?.message ?? "Erro ao criar insumo."); setQcSaving(false); return; }
       setStockItems(prev => [...prev, data as SimpleItem].sort((a, b) => a.name.localeCompare(b.name)));
       setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, item_id: data.id } : p));
     } else {
-      if (!qcSalePrice) { setQcError("Informe o preço de venda."); setQcSaving(false); return; }
       const { data, error } = await supabase.from("products").insert({
         name: qcName.trim(), unit: qcUnit,
         sale_price: parseFloat(qcSalePrice) || 0, cost_price: 0,
-        stock: 0, stock_type: "controlled", unlimited_stock: false,
+        stock: 0, stock_min: parseFloat(qcMinQty) || 0, stock_type: "controlled", unlimited_stock: false,
+        category_id: qcCategoryId || null,
         is_active: true, status: "active",
         visible_pdv: true, visible_tables: true, visible_digital_menu: true,
         printer_destination: "balcao", item_type: "principal",
@@ -445,7 +459,7 @@ export default function PurchasesPage() {
               </h2>
               <button onClick={() => setQuickCreateIdx(null)} className="p-1.5 text-zinc-400 hover:text-white rounded-lg"><X className="w-4 h-4" /></button>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
               <div>
                 <label className="block text-xs font-medium text-zinc-400 mb-1.5">Nome *</label>
                 <input value={qcName} onChange={e => setQcName(e.target.value)} placeholder="Nome do item" className={inputCls} autoFocus />
@@ -457,14 +471,36 @@ export default function PurchasesPage() {
                     {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                   </select>
                 </div>
-                {poItems[quickCreateIdx]?.ref_type === "product" && (
+                <div>
+                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Estoque mínimo</label>
+                  <input value={qcMinQty} onChange={e => setQcMinQty(e.target.value)}
+                    type="number" min="0" step="0.001" placeholder="0" className={inputCls} />
+                </div>
+              </div>
+
+              {poItems[quickCreateIdx]?.ref_type === "ingredient" ? (
+                <div>
+                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Categoria</label>
+                  <input value={qcCategory} onChange={e => setQcCategory(e.target.value)}
+                    placeholder="Ex: Proteínas, Bebidas, Embalagens..." className={inputCls} />
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-zinc-400 mb-1.5">Categoria</label>
+                    <select value={qcCategoryId} onChange={e => setQcCategoryId(e.target.value)} className={selectCls}>
+                      <option value="">Sem categoria</option>
+                      {categories.filter(c => !c.parent_id).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
                   <div>
                     <label className="block text-xs font-medium text-zinc-400 mb-1.5">Preço de venda *</label>
                     <input value={qcSalePrice} onChange={e => setQcSalePrice(e.target.value)}
                       type="number" min="0" step="0.01" placeholder="0,00" className={inputCls} />
                   </div>
-                )}
-              </div>
+                </div>
+              )}
+
               {poItems[quickCreateIdx]?.ref_type === "ingredient" && (
                 <p className="text-xs text-zinc-500">O custo e a quantidade em estoque serão preenchidos por esta compra.</p>
               )}
@@ -474,8 +510,7 @@ export default function PurchasesPage() {
             </div>
             <div className="flex gap-3 px-6 py-4 border-t border-zinc-800">
               <button onClick={() => setQuickCreateIdx(null)} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
-              <button onClick={saveQuickCreate}
-                disabled={!qcName.trim() || qcSaving || (poItems[quickCreateIdx]?.ref_type === "product" && !qcSalePrice)}
+              <button onClick={saveQuickCreate} disabled={qcSaving}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
                 {qcSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                 Cadastrar e usar
