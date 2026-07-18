@@ -1,21 +1,36 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import {
-  Plus, X, RefreshCw, Truck, ChevronDown, Ban, Search,
+  Plus, X, RefreshCw, Truck, ChevronDown, Ban, Search, FileUp, Check, AlertCircle,
 } from "lucide-react";
 import { ProductModal, type Category } from "../products";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface SimpleItem { id: string; name: string; }
+interface SimpleItem { id: string; name: string; barcode?: string | null; }
 
 interface POItem {
   id?: string; stock_item_id: string | null; product_id?: string | null; quantity: number; unit_cost: number;
   stock_items?: { name: string; unit: string } | null;
   products?: { name: string; unit: string } | null;
 }
+
+interface XmlParsedItem {
+  cProd: string; xProd: string; cEAN: string | null; uCom: string; qCom: number; vUnCom: number;
+  matchType: "existing" | "new";
+  matchedId: string | null;
+  refType: "ingredient" | "product";
+  newSalePrice: string;
+}
+
+const XML_UNIT_MAP: Record<string, string> = {
+  UN: "unidade", UND: "unidade", PC: "unidade", PCT: "pacote", CX: "caixa",
+  KG: "kg", G: "g", GR: "g", L: "litro", LT: "litro", ML: "ml", DZ: "dúzia",
+  M: "metro", CM: "cm",
+};
+const normalizeXmlUnit = (u: string) => XML_UNIT_MAP[u.trim().toUpperCase()] ?? "unidade";
 
 interface PurchaseOrder {
   id: string; supplier_id: string | null; status: string; notes: string | null;
@@ -82,6 +97,17 @@ export default function PurchasesPage() {
   const [qcError, setQcError] = useState<string | null>(null);
   useEscapeKey(() => setQuickCreateIdx(null), quickCreateIdx !== null);
 
+  // Importação de XML de NFe
+  const xmlInputRef = useRef<HTMLInputElement>(null);
+  const [xmlItems, setXmlItems] = useState<XmlParsedItem[] | null>(null);
+  const [xmlSupplierId, setXmlSupplierId] = useState<string | null>(null);
+  const [xmlSupplierName, setXmlSupplierName] = useState("");
+  const [xmlInvoiceRef, setXmlInvoiceRef] = useState("");
+  const [xmlParsing, setXmlParsing] = useState(false);
+  const [xmlImporting, setXmlImporting] = useState(false);
+  const [xmlError, setXmlError] = useState<string | null>(null);
+  useEscapeKey(() => setXmlItems(null), xmlItems !== null);
+
   useEffect(() => {
     (async () => {
       await Promise.all([loadPurchases(), loadStockItems(), loadLimitedProducts(), loadSuppliers(), loadCategories()]);
@@ -109,7 +135,7 @@ export default function PurchasesPage() {
 
   async function loadLimitedProducts() {
     const { data } = await supabase
-      .from("products").select("id, name")
+      .from("products").select("id, name, barcode")
       .or("unlimited_stock.eq.false,unlimited_stock.is.null")
       .eq("is_active", true).order("name");
     setLimitedProducts((data ?? []) as SimpleItem[]);
@@ -118,6 +144,135 @@ export default function PurchasesPage() {
   async function loadSuppliers() {
     const { data } = await supabase.from("suppliers").select("id, name").order("name");
     setSuppliers((data ?? []) as SimpleItem[]);
+  }
+
+  // ── Importação de XML de NFe ─────────────────────────────────────────────
+  // So preenche a mesma tela/fluxo ja existente (poItems + Purchase Modal) -
+  // nao cria nenhum caminho novo de gravacao, reaproveita o register_purchase.
+
+  async function handleXmlFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setXmlParsing(true);
+    setXmlError(null);
+    try {
+      const text = await file.text();
+      const doc = new DOMParser().parseFromString(text, "application/xml");
+      if (doc.querySelector("parsererror")) throw new Error("Arquivo XML inválido ou corrompido.");
+
+      const infNFe = doc.querySelector("infNFe");
+      if (!infNFe) throw new Error("Não encontrei os dados da nota nesse arquivo (isso é um XML de NFe?).");
+
+      const getTag = (parent: Element, selector: string) => parent.querySelector(selector)?.textContent?.trim() ?? "";
+      const nNF = getTag(infNFe, "ide > nNF");
+      const serie = getTag(infNFe, "ide > serie");
+      const emitCnpj = getTag(infNFe, "emit > CNPJ");
+      const emitNome = getTag(infNFe, "emit > xNome");
+
+      // Fornecedor: acha pelo CNPJ ou cadastra automaticamente
+      let supplierId: string | null = null;
+      if (emitCnpj) {
+        const { data: existing } = await supabase.from("suppliers").select("id, name").eq("cnpj", emitCnpj).maybeSingle();
+        if (existing) {
+          supplierId = existing.id;
+        } else {
+          const { data: created, error } = await supabase.from("suppliers")
+            .insert({ name: emitNome || emitCnpj, cnpj: emitCnpj }).select("id, name").single();
+          if (error) throw new Error("Erro ao cadastrar fornecedor: " + error.message);
+          if (created) { supplierId = created.id; await loadSuppliers(); }
+        }
+      }
+
+      const detNodes = Array.from(infNFe.querySelectorAll("det"));
+      if (detNodes.length === 0) throw new Error("Essa nota não tem itens.");
+
+      const parsed: XmlParsedItem[] = detNodes.map(det => {
+        const prod = det.querySelector("prod") ?? det;
+        const xProd = getTag(prod, "xProd") || "Produto sem nome";
+        const cEANRaw = getTag(prod, "cEAN");
+        const cEAN = cEANRaw && cEANRaw.toUpperCase() !== "SEM GTIN" ? cEANRaw : null;
+        const uCom = normalizeXmlUnit(getTag(prod, "uCom") || "UN");
+        const qCom = parseFloat(getTag(prod, "qCom")) || 0;
+        const vUnCom = parseFloat(getTag(prod, "vUnCom")) || 0;
+
+        let matchType: "existing" | "new" = "new";
+        let matchedId: string | null = null;
+        let refType: "ingredient" | "product" = "product";
+        if (cEAN) {
+          const byBarcode = limitedProducts.find(p => p.barcode === cEAN);
+          if (byBarcode) { matchType = "existing"; matchedId = byBarcode.id; refType = "product"; }
+        }
+        if (!matchedId) {
+          const nameLower = xProd.trim().toLowerCase();
+          const prodMatch = limitedProducts.find(p => p.name.trim().toLowerCase() === nameLower);
+          const ingMatch = stockItems.find(s => s.name.trim().toLowerCase() === nameLower);
+          if (prodMatch) { matchType = "existing"; matchedId = prodMatch.id; refType = "product"; }
+          else if (ingMatch) { matchType = "existing"; matchedId = ingMatch.id; refType = "ingredient"; }
+        }
+
+        return { cProd: getTag(prod, "cProd"), xProd, cEAN, uCom, qCom, vUnCom, matchType, matchedId, refType, newSalePrice: "" };
+      });
+
+      setXmlSupplierId(supplierId);
+      setXmlSupplierName(emitNome);
+      setXmlInvoiceRef([nNF, serie ? `série ${serie}` : ""].filter(Boolean).join(" - "));
+      setXmlItems(parsed);
+    } catch (err: any) {
+      setXmlError(err?.message ?? "Erro ao ler o arquivo XML.");
+    } finally {
+      setXmlParsing(false);
+      if (xmlInputRef.current) xmlInputRef.current.value = "";
+    }
+  }
+
+  function updateXmlItem(idx: number, updates: Partial<XmlParsedItem>) {
+    setXmlItems(prev => prev ? prev.map((it, i) => i === idx ? { ...it, ...updates } : it) : prev);
+  }
+
+  async function confirmXmlImport() {
+    if (!xmlItems || xmlImporting) return;
+    setXmlImporting(true);
+    setXmlError(null);
+    try {
+      const finalItems: { ref_type: "ingredient" | "product"; item_id: string; itemName: string; quantity: string; unit_cost: string }[] = [];
+      for (const it of xmlItems) {
+        if (it.matchType === "existing" && it.matchedId) {
+          const name = it.refType === "ingredient"
+            ? stockItems.find(s => s.id === it.matchedId)?.name ?? it.xProd
+            : limitedProducts.find(p => p.id === it.matchedId)?.name ?? it.xProd;
+          finalItems.push({ ref_type: it.refType, item_id: it.matchedId, itemName: name, quantity: String(it.qCom), unit_cost: String(it.vUnCom) });
+        } else if (it.refType === "ingredient") {
+          const { data, error } = await supabase.from("stock_items").insert({
+            name: it.xProd, unit: it.uCom, current_qty: 0, min_qty: 0, cost_price: 0,
+            supplier_id: xmlSupplierId,
+          }).select("id, name").single();
+          if (error || !data) throw new Error(error?.message ?? `Erro ao criar insumo "${it.xProd}".`);
+          finalItems.push({ ref_type: "ingredient", item_id: data.id, itemName: data.name, quantity: String(it.qCom), unit_cost: String(it.vUnCom) });
+        } else {
+          const { data, error } = await supabase.from("products").insert({
+            name: it.xProd, unit: it.uCom, sale_price: parseFloat(it.newSalePrice) || 0, cost_price: 0,
+            stock: 0, stock_type: "controlled", unlimited_stock: false,
+            barcode: it.cEAN, is_active: true, status: "active",
+            visible_pdv: true, visible_tables: true, visible_digital_menu: true,
+            printer_destination: "balcao", item_type: "principal",
+          }).select("id, name").single();
+          if (error || !data) throw new Error(error?.message ?? `Erro ao criar produto "${it.xProd}".`);
+          finalItems.push({ ref_type: "product", item_id: data.id, itemName: data.name, quantity: String(it.qCom), unit_cost: String(it.vUnCom) });
+        }
+      }
+      await Promise.all([loadStockItems(), loadLimitedProducts()]);
+      setPOSupplierId(xmlSupplierId ?? "");
+      setPONotes(xmlInvoiceRef);
+      setPODueDate(new Date().toISOString().split("T")[0]);
+      setPurchaseError(null);
+      setPOItems(finalItems);
+      setXmlItems(null);
+      setModal("purchase");
+    } catch (err: any) {
+      setXmlError(err?.message ?? "Erro ao importar itens da nota.");
+    } finally {
+      setXmlImporting(false);
+    }
   }
 
   function openPurchaseModal() {
@@ -242,13 +397,27 @@ export default function PurchasesPage() {
                 {purchases.length} compra{purchases.length !== 1 ? "s" : ""} registrada{purchases.length !== 1 ? "s" : ""}
               </p>
             </div>
-            <button onClick={openPurchaseModal}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${isLight ? "bg-blue-600 hover:bg-blue-700" : "bg-violet-600 hover:bg-violet-500 text-white"}`}
-              style={isLight ? { color: "#ffffff" } : undefined}>
-              <Plus className="w-4 h-4" /> Registrar Compra
-            </button>
+            <div className="flex items-center gap-2">
+              <input ref={xmlInputRef} type="file" accept=".xml,text/xml" className="hidden" onChange={handleXmlFile} />
+              <button onClick={() => xmlInputRef.current?.click()} disabled={xmlParsing}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold border border-zinc-700 text-zinc-300 hover:border-zinc-600 hover:text-white transition-colors disabled:opacity-50">
+                {xmlParsing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
+                Importar XML da NFe
+              </button>
+              <button onClick={openPurchaseModal}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${isLight ? "bg-blue-600 hover:bg-blue-700" : "bg-violet-600 hover:bg-violet-500 text-white"}`}
+                style={isLight ? { color: "#ffffff" } : undefined}>
+                <Plus className="w-4 h-4" /> Registrar Compra
+              </button>
+            </div>
           </div>
         </div>
+
+        {xmlError && !xmlItems && (
+          <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm p-3 rounded-xl flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" /> {xmlError}
+          </div>
+        )}
 
         {purchases.length === 0 ? (
           <div className="text-center py-20 border border-dashed border-zinc-800 rounded-2xl">
@@ -392,7 +561,7 @@ export default function PurchasesPage() {
                     const q = itemSearchText.trim().toLowerCase();
                     const matches = [
                       ...stockItems.filter(s => q === "" || s.name.toLowerCase().includes(q)).map(s => ({ ...s, ref_type: "ingredient" as const })),
-                      ...limitedProducts.filter(p => q === "" || p.name.toLowerCase().includes(q)).map(p => ({ ...p, ref_type: "product" as const })),
+                      ...limitedProducts.filter(p => q === "" || p.name.toLowerCase().includes(q) || (!!p.barcode && p.barcode === itemSearchText.trim())).map(p => ({ ...p, ref_type: "product" as const })),
                     ].slice(0, 8);
                     return (
                       <div key={idx} className="pb-2 border-b border-zinc-800 last:border-0 space-y-1.5">
@@ -545,6 +714,77 @@ export default function PurchasesPage() {
           onClose={() => setQuickCreateIdx(null)}
           onSave={handleNewProductSaved}
         />
+      )}
+
+      {/* Conferência dos itens lidos do XML da NFe, antes de virar compra */}
+      {xmlItems && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 flex-shrink-0">
+              <div>
+                <h2 className="text-base font-semibold">Conferir itens da nota</h2>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  {xmlSupplierName || "Fornecedor não identificado"}{xmlInvoiceRef && ` · ${xmlInvoiceRef}`} · {xmlItems.length} ite{xmlItems.length !== 1 ? "ns" : "m"}
+                </p>
+              </div>
+              <button onClick={() => setXmlItems(null)} className="p-1.5 text-zinc-400 hover:text-white rounded-lg"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 space-y-3">
+              {xmlError && (
+                <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs p-3 rounded-xl">{xmlError}</div>
+              )}
+              {xmlItems.map((it, idx) => (
+                <div key={idx} className="bg-zinc-950 border border-zinc-800 rounded-xl p-3.5 space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <input value={it.xProd} onChange={e => updateXmlItem(idx, { xProd: e.target.value })}
+                      className={inputCls + " flex-1"} />
+                    <input value={it.qCom} onChange={e => updateXmlItem(idx, { qCom: parseFloat(e.target.value) || 0 })}
+                      type="number" min="0" step="0.001" className={inputCls + " w-20"} title="Quantidade" />
+                    <input value={it.vUnCom} onChange={e => updateXmlItem(idx, { vUnCom: parseFloat(e.target.value) || 0 })}
+                      type="number" min="0" step="0.01" className={inputCls + " w-24"} title="Custo unitário" />
+                  </div>
+                  {it.matchType === "existing" ? (
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <span className="flex items-center gap-1.5 text-emerald-400">
+                        <Check className="w-3.5 h-3.5 flex-shrink-0" />
+                        Vai atualizar {it.refType === "ingredient" ? "insumo" : "produto"} já cadastrado
+                      </span>
+                      <button type="button" onClick={() => updateXmlItem(idx, { matchType: "new", matchedId: null })}
+                        className="text-zinc-500 hover:text-violet-400 transition-colors">Não é esse, criar novo</button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs text-amber-400 flex-shrink-0">Será cadastrado como novo:</span>
+                      <div className="flex bg-zinc-800 rounded-lg p-0.5 gap-0.5">
+                        <button type="button" onClick={() => updateXmlItem(idx, { refType: "ingredient" })}
+                          className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition-all ${it.refType === "ingredient" ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-white"}`}>
+                          Insumo
+                        </button>
+                        <button type="button" onClick={() => updateXmlItem(idx, { refType: "product" })}
+                          className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition-all ${it.refType === "product" ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-white"}`}>
+                          Produto
+                        </button>
+                      </div>
+                      {it.refType === "product" && (
+                        <input value={it.newSalePrice} onChange={e => updateXmlItem(idx, { newSalePrice: e.target.value })}
+                          type="number" min="0" step="0.01" placeholder="Preço de venda"
+                          className={inputCls + " w-32 text-xs py-1.5"} />
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-3 px-6 py-4 border-t border-zinc-800 flex-shrink-0">
+              <button onClick={() => setXmlItems(null)} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
+              <button onClick={confirmXmlImport} disabled={xmlImporting}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
+                {xmlImporting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
+                Usar {xmlItems.length} ite{xmlItems.length !== 1 ? "ns" : "m"} na compra
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
