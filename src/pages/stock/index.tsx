@@ -183,7 +183,9 @@ export default function StockPage() {
   // Purchase form
   const [poSupplierId, setPOSupplierId] = useState("");
   const [poNotes, setPONotes] = useState("");
+  const [poDueDate, setPODueDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [poItems, setPOItems] = useState<{ ref_type: "ingredient" | "product"; item_id: string; quantity: string; unit_cost: string }[]>([]);
+  const [purchaseError, setPurchaseError] = useState<string | null>(null);
   const [expandedPO, setExpandedPO] = useState<string | null>(null);
 
   // ── Init ──────────────────────────────────────────────────────────────────
@@ -389,7 +391,8 @@ export default function StockPage() {
   // ── Purchases ─────────────────────────────────────────────────────────────
 
   function openPurchaseModal() {
-    setPOSupplierId(""); setPONotes("");
+    setPOSupplierId(""); setPONotes(""); setPurchaseError(null);
+    setPODueDate(new Date().toISOString().split("T")[0]);
     setPOItems([{ ref_type: "ingredient", item_id: "", quantity: "", unit_cost: "" }]);
     setModal("purchase");
   }
@@ -398,58 +401,26 @@ export default function StockPage() {
     const validItems = poItems.filter(i => i.item_id && i.quantity);
     if (validItems.length === 0 || saving) return;
     setSaving(true);
-    const { data: po } = await supabase.from("purchase_orders").insert({
-      supplier_id: poSupplierId || null, notes: poNotes || null,
-      status: "received", received_at: new Date().toISOString(), user_id: userId,
-    }).select("id").single();
-    if (po) {
-      // Soma por item antes de aplicar no estoque — se o mesmo insumo/produto
-      // aparecer em mais de uma linha da compra, a 2ª linha não pode sobrescrever
-      // o incremento da 1ª (ambas partiriam do mesmo saldo carregado em memória).
-      const ingredientDeltas = new Map<string, { qty: number; cost: number }>();
-      const productDeltas = new Map<string, { qty: number; cost: number }>();
-
-      for (const item of validItems) {
-        const qty = parseFloat(item.quantity);
-        const cost = parseFloat(item.unit_cost) || 0;
-        const isIngredient = item.ref_type === "ingredient";
-        await supabase.from("purchase_order_items").insert({
-          purchase_order_id: po.id,
-          stock_item_id: isIngredient ? item.item_id : null,
-          product_id: isIngredient ? null : item.item_id,
-          quantity: qty, unit_cost: cost,
-        });
-        await supabase.from("stock_movements").insert({
-          stock_item_id: isIngredient ? item.item_id : null,
-          product_id: isIngredient ? null : item.item_id,
-          user_id: userId,
-          type: "entry", quantity: qty, cost_price: cost,
-          reference_type: "purchase", reference_id: po.id, notes: "Entrada via compra",
-        });
-        const deltas = isIngredient ? ingredientDeltas : productDeltas;
-        const prev = deltas.get(item.item_id) ?? { qty: 0, cost: 0 };
-        deltas.set(item.item_id, { qty: prev.qty + qty, cost: cost > 0 ? cost : prev.cost });
-      }
-
-      for (const [itemId, delta] of ingredientDeltas) {
-        const si = stockItems.find(i => i.id === itemId);
-        if (si) {
-          await supabase.from("stock_items").update({
-            current_qty: si.current_qty + delta.qty,
-            ...(delta.cost > 0 ? { cost_price: delta.cost } : {}),
-          }).eq("id", itemId);
-        }
-      }
-      for (const [itemId, delta] of productDeltas) {
-        const prod = limitedProducts.find(p => p.id === itemId);
-        if (prod) {
-          await supabase.from("products").update({
-            stock: prod.stock + delta.qty,
-            ...(delta.cost > 0 ? { cost_price: delta.cost } : {}),
-            ...(prod.stock + delta.qty > 0 && !prod.is_active ? { is_active: true } : {}),
-          }).eq("id", itemId);
-        }
-      }
+    setPurchaseError(null);
+    // Etapa 3: compra + itens + estoque + conta a pagar rodam numa unica
+    // transacao no banco (create_purchase_with_ap) - se qualquer passo falhar,
+    // tudo e desfeito automaticamente, nao fica compra sem financeiro nem
+    // financeiro sem compra.
+    const { error } = await supabase.rpc("create_purchase_with_ap", {
+      p_supplier_id: poSupplierId || null,
+      p_notes: poNotes || null,
+      p_due_date: poDueDate,
+      p_items: validItems.map(i => ({
+        ref_type: i.ref_type,
+        item_id: i.item_id,
+        quantity: parseFloat(i.quantity),
+        unit_cost: parseFloat(i.unit_cost) || 0,
+      })),
+    });
+    if (error) {
+      setPurchaseError(error.message);
+      setSaving(false);
+      return;
     }
     await loadStockItems();
     await loadLimitedProducts();
@@ -1406,7 +1377,17 @@ export default function StockPage() {
                   <label className="block text-xs font-medium text-zinc-400 mb-1.5">Referência / NF</label>
                   <input value={poNotes} onChange={e => setPONotes(e.target.value)} placeholder="Número da nota, pedido..." className={inputCls} />
                 </div>
+                <div>
+                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Vencimento (Contas a Pagar)</label>
+                  <input type="date" value={poDueDate} onChange={e => setPODueDate(e.target.value)} className={inputCls} />
+                </div>
               </div>
+
+              {purchaseError && (
+                <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs p-3 rounded-xl">
+                  {purchaseError}
+                </div>
+              )}
 
               <div>
                 <div className="flex items-center justify-between mb-3">
