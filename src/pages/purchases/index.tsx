@@ -31,6 +31,8 @@ const fmtQty = (v: number, unit: string) =>
 
 const inputCls = "w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/10 transition-all";
 const selectCls = inputCls + " cursor-pointer";
+const UNITS = ["unidade","kg","g","litro","ml","metro","cm","caixa","dúzia","pacote","porção"];
+const NEW_ITEM_VALUE = "__new__";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -65,6 +67,15 @@ export default function PurchasesPage() {
   const [poItems, setPOItems] = useState<{ ref_type: "ingredient" | "product"; item_id: string; quantity: string; unit_cost: string }[]>([]);
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+
+  // Cadastro rápido de insumo/produto direto pela Compra
+  const [quickCreateIdx, setQuickCreateIdx] = useState<number | null>(null);
+  const [qcName, setQcName] = useState("");
+  const [qcUnit, setQcUnit] = useState("unidade");
+  const [qcSalePrice, setQcSalePrice] = useState("");
+  const [qcSaving, setQcSaving] = useState(false);
+  const [qcError, setQcError] = useState<string | null>(null);
+  useEscapeKey(() => setQuickCreateIdx(null), quickCreateIdx !== null);
 
   useEffect(() => {
     (async () => {
@@ -104,6 +115,44 @@ export default function PurchasesPage() {
     setPODueDate(new Date().toISOString().split("T")[0]);
     setPOItems([{ ref_type: "ingredient", item_id: "", quantity: "", unit_cost: "" }]);
     setModal("purchase");
+  }
+
+  function openQuickCreate(idx: number) {
+    setQuickCreateIdx(idx);
+    setQcName(""); setQcUnit("unidade"); setQcSalePrice(""); setQcError(null);
+  }
+
+  async function saveQuickCreate() {
+    if (quickCreateIdx === null || !qcName.trim() || qcSaving) return;
+    const idx = quickCreateIdx;
+    const refType = poItems[idx]?.ref_type;
+    setQcSaving(true);
+    setQcError(null);
+    if (refType === "ingredient") {
+      const { data, error } = await supabase.from("stock_items").insert({
+        name: qcName.trim(), unit: qcUnit,
+        current_qty: 0, min_qty: 0, cost_price: 0,
+        supplier_id: poSupplierId || null,
+      }).select("id, name").single();
+      if (error || !data) { setQcError(error?.message ?? "Erro ao criar insumo."); setQcSaving(false); return; }
+      setStockItems(prev => [...prev, data as SimpleItem].sort((a, b) => a.name.localeCompare(b.name)));
+      setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, item_id: data.id } : p));
+    } else {
+      if (!qcSalePrice) { setQcError("Informe o preço de venda."); setQcSaving(false); return; }
+      const { data, error } = await supabase.from("products").insert({
+        name: qcName.trim(), unit: qcUnit,
+        sale_price: parseFloat(qcSalePrice) || 0, cost_price: 0,
+        stock: 0, stock_type: "controlled", unlimited_stock: false,
+        is_active: true, status: "active",
+        visible_pdv: true, visible_tables: true, visible_digital_menu: true,
+        printer_destination: "balcao", item_type: "principal",
+      }).select("id, name").single();
+      if (error || !data) { setQcError(error?.message ?? "Erro ao criar produto."); setQcSaving(false); return; }
+      setLimitedProducts(prev => [...prev, data as SimpleItem].sort((a, b) => a.name.localeCompare(b.name)));
+      setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, item_id: data.id } : p));
+    }
+    setQcSaving(false);
+    setQuickCreateIdx(null);
   }
 
   async function savePurchase() {
@@ -339,10 +388,14 @@ export default function PurchasesPage() {
                       </div>
                       <div className="flex gap-2 items-center">
                         <select value={item.item_id}
-                          onChange={e => setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, item_id: e.target.value } : p))}
+                          onChange={e => {
+                            if (e.target.value === NEW_ITEM_VALUE) { openQuickCreate(idx); return; }
+                            setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, item_id: e.target.value } : p));
+                          }}
                           className={selectCls + " flex-1"}>
                           <option value="">Selecionar item...</option>
                           {(item.ref_type === "ingredient" ? stockItems : limitedProducts).map(si => <option key={si.id} value={si.id}>{si.name}</option>)}
+                          <option value={NEW_ITEM_VALUE}>+ Cadastrar novo {item.ref_type === "ingredient" ? "insumo" : "produto"}</option>
                         </select>
                         <input value={item.quantity} placeholder="Qtd"
                           onChange={e => setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, quantity: e.target.value } : p))}
@@ -376,6 +429,56 @@ export default function PurchasesPage() {
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
                 {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Truck className="w-4 h-4" />}
                 Confirmar Recebimento
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cadastro rápido de insumo/produto, direto da Compra */}
+      {quickCreateIdx !== null && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-sm">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
+              <h2 className="text-base font-semibold">
+                Cadastrar novo {poItems[quickCreateIdx]?.ref_type === "ingredient" ? "insumo" : "produto"}
+              </h2>
+              <button onClick={() => setQuickCreateIdx(null)} className="p-1.5 text-zinc-400 hover:text-white rounded-lg"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-zinc-400 mb-1.5">Nome *</label>
+                <input value={qcName} onChange={e => setQcName(e.target.value)} placeholder="Nome do item" className={inputCls} autoFocus />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Unidade</label>
+                  <select value={qcUnit} onChange={e => setQcUnit(e.target.value)} className={selectCls}>
+                    {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </div>
+                {poItems[quickCreateIdx]?.ref_type === "product" && (
+                  <div>
+                    <label className="block text-xs font-medium text-zinc-400 mb-1.5">Preço de venda *</label>
+                    <input value={qcSalePrice} onChange={e => setQcSalePrice(e.target.value)}
+                      type="number" min="0" step="0.01" placeholder="0,00" className={inputCls} />
+                  </div>
+                )}
+              </div>
+              {poItems[quickCreateIdx]?.ref_type === "ingredient" && (
+                <p className="text-xs text-zinc-500">O custo e a quantidade em estoque serão preenchidos por esta compra.</p>
+              )}
+              {qcError && (
+                <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs p-3 rounded-xl">{qcError}</div>
+              )}
+            </div>
+            <div className="flex gap-3 px-6 py-4 border-t border-zinc-800">
+              <button onClick={() => setQuickCreateIdx(null)} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
+              <button onClick={saveQuickCreate}
+                disabled={!qcName.trim() || qcSaving || (poItems[quickCreateIdx]?.ref_type === "product" && !qcSalePrice)}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
+                {qcSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                Cadastrar e usar
               </button>
             </div>
           </div>
