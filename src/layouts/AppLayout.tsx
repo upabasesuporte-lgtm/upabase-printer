@@ -2,7 +2,8 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { Outlet, NavLink, useNavigate, useLocation, Navigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useTheme } from "../contexts/ThemeContext";
-import { UserPlanRecord, isPlanValid, isRouteAllowed, PLAN_ROUTES, PlanType } from "../lib/plans";
+import type { UserPlanRecord, PlanType } from "../lib/plans";
+import { isPlanValid, isRouteAllowed, PLAN_ROUTES } from "../lib/plans";
 import { PlanBlock } from "../components/PlanBlock";
 import { unlockAudio, playAlertBeep } from "../lib/audio";
 

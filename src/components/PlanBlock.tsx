@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Lock, LogOut, ArrowRight, AlertTriangle } from "lucide-react";
-import { UserPlanRecord, isPlanValid } from "../lib/plans";
+import type { UserPlanRecord } from "../lib/plans";
+import { isPlanValid } from "../lib/plans";
 
 interface Props {
   plan: UserPlanRecord | null;
