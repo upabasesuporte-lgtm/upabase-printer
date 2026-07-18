@@ -403,10 +403,11 @@ export default function StockPage() {
     setSaving(true);
     setPurchaseError(null);
     // Etapa 3: compra + itens + estoque + conta a pagar rodam numa unica
-    // transacao no banco (create_purchase_with_ap) - se qualquer passo falhar,
+    // transacao no banco (register_purchase) - se qualquer passo falhar,
     // tudo e desfeito automaticamente, nao fica compra sem financeiro nem
-    // financeiro sem compra.
-    const { error } = await supabase.rpc("create_purchase_with_ap", {
+    // financeiro sem compra. A propria RPC valida os dados (quantidade,
+    // custo, fornecedor, itens) antes de gravar qualquer coisa.
+    const { error } = await supabase.rpc("register_purchase", {
       p_supplier_id: poSupplierId || null,
       p_notes: poNotes || null,
       p_due_date: poDueDate,
