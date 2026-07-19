@@ -136,13 +136,9 @@ export default function PurchasesPage() {
   async function loadLimitedProducts() {
     const { data } = await supabase
       .from("products").select("id, name, barcode, unlimited_stock, stock_type")
+      .or("unlimited_stock.eq.false,unlimited_stock.is.null")
       .eq("is_active", true).order("name");
-    // mesmo motivo do fix em Estoque: produto novo só grava stock_type,
-    // então checar só o campo antigo (unlimited_stock) deixava ele de fora da busca
-    const limited = (data ?? []).filter((p: any) =>
-      p.stock_type !== "unlimited" && p.unlimited_stock !== true
-    );
-    setLimitedProducts(limited as SimpleItem[]);
+    setLimitedProducts((data ?? []) as SimpleItem[]);
   }
 
   async function loadSuppliers() {

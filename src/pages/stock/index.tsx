@@ -206,14 +206,9 @@ export default function StockPage() {
     const { data } = await supabase
       .from("products")
       .select("id, name, unit, stock, stock_min, stock_max, cost_price, is_active, unlimited_stock, stock_type")
+      .or("unlimited_stock.eq.false,unlimited_stock.is.null")
       .order("name");
-    // "Estoque ilimitado" pode vir tanto do campo novo (stock_type) quanto do antigo
-    // (unlimited_stock) - produtos criados pela tela de Produtos só gravam o novo,
-    // então checar só o antigo (como a busca antiga fazia) deixava produto novo de fora.
-    const limited = (data ?? []).filter((p: any) =>
-      p.stock_type !== "unlimited" && p.unlimited_stock !== true
-    );
-    setLimitedProducts(limited as LimitedProduct[]);
+    setLimitedProducts((data ?? []) as LimitedProduct[]);
   }
 
   async function loadRecipes(productId: string) {

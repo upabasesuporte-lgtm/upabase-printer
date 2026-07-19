@@ -465,7 +465,7 @@ export default function ReportsPage() {
 
   // ── Derived: stock ─────────────────────────────────────────────────────────
 
-  const limitedProds = products.filter(p=>p.stock_type!=="unlimited"&&p.unlimited_stock!==true);
+  const limitedProds = products.filter(p=>!p.unlimited_stock);
   const lowStockItems   = stockItems.filter(i=>i.current_qty<=i.min_qty&&i.min_qty>0);
   const outOfStockItems = stockItems.filter(i=>i.current_qty<=0);
   const lowStockProds   = limitedProds.filter(p=>p.stock<=(p.stock_min??0)&&p.stock_min>0);
