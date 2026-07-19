@@ -116,6 +116,7 @@ export default function StockPage() {
 
   // Filters
   const [search, setSearch] = useState("");
+  const [globalSearch, setGlobalSearch] = useState("");
   const [alertSearch, setAlertSearch] = useState("");
   const [valueSearch, setValueSearch] = useState("");
   const [stockFilter, setStockFilter] = useState<"all" | "low" | "out">("all");
@@ -380,6 +381,9 @@ export default function StockPage() {
     return matchSearch && matchStock && matchType;
   });
 
+  const globalResults = globalSearch === "" ? [] : allUnified.filter(i =>
+    i.name.toLowerCase().includes(globalSearch.toLowerCase())
+  );
   const lowStockItems = allUnified.filter(i => getUnifiedStatus(i) !== "ok");
   const filteredAlerts = lowStockItems.filter(i =>
     alertSearch === "" || i.name.toLowerCase().includes(alertSearch.toLowerCase())
@@ -472,6 +476,61 @@ export default function StockPage() {
         {/* ═══ OVERVIEW ═══════════════════════════════════════════════════════ */}
         {tab === "overview" && (
           <div className="space-y-5">
+            {/* Busca geral — encontra qualquer item cadastrado, seja qual for o status do estoque */}
+            <div className="relative">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+              <input value={globalSearch} onChange={e => setGlobalSearch(e.target.value)}
+                placeholder="Buscar qualquer produto ou insumo do estoque por nome..."
+                style={{ background: card.bg, border: card.border, color: isLight ? "#111" : "#fff" }}
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm placeholder-zinc-600 focus:outline-none focus:border-violet-500 transition-all" />
+            </div>
+
+            {globalSearch !== "" ? (
+              <div className="rounded-2xl overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+                <div className="flex items-center gap-2 px-5 py-4 border-b border-zinc-800">
+                  <Search className="w-4 h-4 text-violet-400" />
+                  <h2 className="text-sm font-semibold">Resultados da busca</h2>
+                  <span className="ml-auto text-xs" style={{ color: isLight ? "#9CA3AF" : "#71717a" }}>{globalResults.length} ite{globalResults.length !== 1 ? "ns" : "m"}</span>
+                </div>
+                {globalResults.length === 0 ? (
+                  <p className="text-center text-xs text-zinc-600 py-8">Nenhum produto ou insumo encontrado para "{globalSearch}".</p>
+                ) : (
+                  <div className="divide-y divide-zinc-800/50">
+                    {globalResults.map(item => {
+                      const status = getUnifiedStatus(item);
+                      const cfg = STATUS_CFG[status];
+                      return (
+                        <div key={item.id} className="flex items-center gap-4 px-5 py-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-semibold text-white">{item.name}</span>
+                              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${item.entry_type === "product" ? "text-blue-400 bg-blue-500/10 border-blue-500/20" : "text-violet-400 bg-violet-500/10 border-violet-500/20"}`}>
+                                {item.entry_type === "product" ? "Produto" : "Insumo"}
+                              </span>
+                              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${cfg.badge}`}>{cfg.label}</span>
+                            </div>
+                            <p className="text-xs text-zinc-500 mt-0.5">
+                              {fmtQty(item.current_qty, item.unit)} / mín {fmtQty(item.min_qty, item.unit)} · custo {fmt(item.cost_price)}
+                            </p>
+                          </div>
+                          <button onClick={() => {
+                            setTab("items");
+                            setSearch(item.name);
+                            setItemTypeFilter("all");
+                            setStockFilter("all");
+                          }}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex-shrink-0 ${isLight ? "bg-blue-600 hover:bg-blue-700 border border-blue-600" : "bg-violet-600/20 hover:bg-violet-600 text-violet-400 hover:text-white border border-violet-500/30"}`}
+                            style={isLight ? { color: "#ffffff" } : undefined}>
+                            Ver em Itens
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : (
+            <>
             {/* Summary cards */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               {[
@@ -645,6 +704,8 @@ export default function StockPage() {
                   Ir para Itens
                 </button>
               </div>
+            )}
+            </>
             )}
           </div>
         )}
