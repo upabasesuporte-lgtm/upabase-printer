@@ -116,6 +116,8 @@ export default function StockPage() {
 
   // Filters
   const [search, setSearch] = useState("");
+  const [alertSearch, setAlertSearch] = useState("");
+  const [valueSearch, setValueSearch] = useState("");
   const [stockFilter, setStockFilter] = useState<"all" | "low" | "out">("all");
   const [itemTypeFilter, setItemTypeFilter] = useState<"all" | "product" | "ingredient">("all");
   const [movFilter, setMovFilter] = useState<"all" | "entry" | "exit" | "adjustment" | "loss" | "sale">("all");
@@ -379,7 +381,14 @@ export default function StockPage() {
   });
 
   const lowStockItems = allUnified.filter(i => getUnifiedStatus(i) !== "ok");
+  const filteredAlerts = lowStockItems.filter(i =>
+    alertSearch === "" || i.name.toLowerCase().includes(alertSearch.toLowerCase())
+  );
   const totalValue = allUnified.reduce((s, i) => s + i.current_qty * i.cost_price, 0);
+  const filteredByValue = [...allUnified]
+    .filter(i => valueSearch === "" || i.name.toLowerCase().includes(valueSearch.toLowerCase()))
+    .sort((a, b) => (b.current_qty * b.cost_price) - (a.current_qty * a.cost_price))
+    .slice(0, valueSearch === "" ? 8 : 20);
   const filteredMovements = movFilter === "all" ? movements : movements.filter(m => m.type === movFilter);
 
   const TABS = [
@@ -527,13 +536,25 @@ export default function StockPage() {
             {/* Alerts */}
             {lowStockItems.length > 0 && (
               <div className="rounded-2xl overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
-                <div className={`flex items-center gap-2 px-5 py-4 border-b ${isLight ? "border-gray-100" : "border-zinc-800"}`}>
+                <div className={`flex items-center gap-2 px-5 py-4 border-b flex-wrap ${isLight ? "border-gray-100" : "border-zinc-800"}`}>
                   <AlertTriangle className="w-4 h-4 text-amber-400" />
                   <h2 className="text-sm font-semibold" style={{ color: isLight ? "#111827" : undefined }}>Alertas de Estoque</h2>
-                  <span className="ml-auto text-xs" style={{ color: isLight ? "#9CA3AF" : "#71717a" }}>{lowStockItems.length} ite{lowStockItems.length !== 1 ? "ns" : "m"}</span>
+                  <span className="text-xs" style={{ color: isLight ? "#9CA3AF" : "#71717a" }}>
+                    {alertSearch ? `${filteredAlerts.length} de ${lowStockItems.length}` : lowStockItems.length} ite{(alertSearch ? filteredAlerts.length : lowStockItems.length) !== 1 ? "ns" : "m"}
+                  </span>
+                  <div className="relative ml-auto w-full sm:w-56">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500" />
+                    <input value={alertSearch} onChange={e => setAlertSearch(e.target.value)}
+                      placeholder="Buscar por nome..."
+                      style={{ background: card.bg, border: card.border, color: isLight ? "#111" : "#fff" }}
+                      className="w-full pl-8 pr-3 py-1.5 rounded-lg text-xs placeholder-zinc-600 focus:outline-none focus:border-violet-500 transition-all" />
+                  </div>
                 </div>
+                {filteredAlerts.length === 0 ? (
+                  <p className="text-center text-xs text-zinc-600 py-8">Nenhum item encontrado para "{alertSearch}".</p>
+                ) : (
                 <div className={isLight ? "p-2 flex flex-col gap-1" : "divide-y divide-zinc-800/50"}>
-                  {lowStockItems.map(item => {
+                  {filteredAlerts.map(item => {
                     const status = getUnifiedStatus(item);
                     const stCfg = STATUS_CFG[status];
                     const pct = item.min_qty > 0 ? Math.min(100, (item.current_qty / item.min_qty) * 100) : 0;
@@ -574,21 +595,29 @@ export default function StockPage() {
                     );
                   })}
                 </div>
+                )}
               </div>
             )}
 
             {/* Top items by value */}
             {stockItems.length > 0 && (
               <div className="rounded-2xl overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
-                <div className="flex items-center gap-2 px-5 py-4 border-b border-zinc-800">
+                <div className="flex items-center gap-2 px-5 py-4 border-b border-zinc-800 flex-wrap">
                   <BarChart3 className="w-4 h-4 text-violet-400" />
                   <h2 className="text-sm font-semibold">Distribuição por Valor</h2>
+                  <div className="relative ml-auto w-full sm:w-56">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500" />
+                    <input value={valueSearch} onChange={e => setValueSearch(e.target.value)}
+                      placeholder="Buscar por nome..."
+                      style={{ background: card.bg, border: card.border, color: isLight ? "#111" : "#fff" }}
+                      className="w-full pl-8 pr-3 py-1.5 rounded-lg text-xs placeholder-zinc-600 focus:outline-none focus:border-violet-500 transition-all" />
+                  </div>
                 </div>
+                {filteredByValue.length === 0 ? (
+                  <p className="text-center text-xs text-zinc-600 py-8">Nenhum item encontrado para "{valueSearch}".</p>
+                ) : (
                 <div className="divide-y divide-zinc-800/30 px-5">
-                  {[...allUnified]
-                    .sort((a, b) => (b.current_qty * b.cost_price) - (a.current_qty * a.cost_price))
-                    .slice(0, 8)
-                    .map(item => {
+                  {filteredByValue.map(item => {
                       const value = item.current_qty * item.cost_price;
                       const pct = totalValue > 0 ? (value / totalValue) * 100 : 0;
                       return (
@@ -602,6 +631,7 @@ export default function StockPage() {
                       );
                     })}
                 </div>
+                )}
               </div>
             )}
 
