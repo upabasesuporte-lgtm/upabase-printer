@@ -66,6 +66,7 @@ interface Product {
   stock_min: number;
   sale_price: number;
   unlimited_stock: boolean | null;
+  stock_type: string | null;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -313,7 +314,7 @@ export default function ReportsPage() {
           .order("current_qty"),
 
         supabase.from("products")
-          .select("id,name,stock,stock_min,sale_price,unlimited_stock")
+          .select("id,name,stock,stock_min,sale_price,unlimited_stock,stock_type")
           .eq("is_active",true)
           .order("stock"),
       ]);
@@ -464,7 +465,7 @@ export default function ReportsPage() {
 
   // ── Derived: stock ─────────────────────────────────────────────────────────
 
-  const limitedProds = products.filter(p=>!p.unlimited_stock);
+  const limitedProds = products.filter(p=>p.stock_type!=="unlimited"&&p.unlimited_stock!==true);
   const lowStockItems   = stockItems.filter(i=>i.current_qty<=i.min_qty&&i.min_qty>0);
   const outOfStockItems = stockItems.filter(i=>i.current_qty<=0);
   const lowStockProds   = limitedProds.filter(p=>p.stock<=(p.stock_min??0)&&p.stock_min>0);
