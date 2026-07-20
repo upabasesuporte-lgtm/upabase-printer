@@ -308,14 +308,14 @@ function CategoryModal({ categories, onClose, onRefresh }: {
 const TABS = ["Geral", "Preços", "Estoque", "Variações", "Canais"] as const;
 type TabName = typeof TABS[number];
 
-export function ProductModal({ product, categories, onClose, onSave }: {
-  product: Product | null; categories: Category[]; onClose: () => void; onSave: (id?: string) => void;
+export function ProductModal({ product, categories, onClose, onSave, initialName }: {
+  product: Product | null; categories: Category[]; onClose: () => void; onSave: (id?: string) => void; initialName?: string;
 }) {
   const isEdit = !!product;
   const [tab, setTab] = useState<TabName>("Geral");
   const [form, setForm] = useState<ProductForm>(product
     ? { name: product.name, description: product.description, sku: product.sku, barcode: product.barcode, image_url: product.image_url, category_id: product.category_id, subcategory_id: product.subcategory_id, sale_price: product.sale_price, cost_price: product.cost_price ?? 0, promo_price: product.promo_price, promo_price_until: product.promo_price_until, unit: product.unit ?? "unidade", stock: product.stock ?? 0, stock_type: product.stock_type ?? "controlled", stock_min: product.stock_min ?? 0, stock_max: product.stock_max, visible_pdv: product.visible_pdv ?? true, visible_tables: product.visible_tables ?? true, visible_digital_menu: product.visible_digital_menu ?? true, printer_destination: product.printer_destination ?? "balcao", item_type: product.item_type ?? "principal", status: product.status ?? "active", is_active: product.is_active ?? true }
-    : { ...DEFAULT_FORM });
+    : { ...DEFAULT_FORM, name: initialName ?? "" });
   const [variations, setVariations] = useState<Variation[]>([]);
   const [newVar, setNewVar] = useState<Variation>({ type: "tamanho", name: "", additional_price: 0, stock: 0, is_active: true });
   const [saving, setSaving] = useState(false);

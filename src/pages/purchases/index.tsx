@@ -713,6 +713,7 @@ export default function PurchasesPage() {
           categories={categories}
           onClose={() => setQuickCreateIdx(null)}
           onSave={handleNewProductSaved}
+          initialName={qcName}
         />
       )}
 
