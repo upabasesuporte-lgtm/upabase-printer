@@ -888,7 +888,7 @@ export default function ProductsPage() {
 
           if (updateError) throw updateError;
 
-          setActionError("Produto desativado (possui vendas vinculadas - não pode ser totalmente removido)");
+          setActionError("Produto desativado e removido do Estoque (tem compras, vendas ou movimentações vinculadas - não pode ser totalmente excluído, pra não corromper o histórico)");
           setTimeout(() => setActionError(null), 4000);
           await loadProducts();
           return;
