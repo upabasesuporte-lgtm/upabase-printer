@@ -205,6 +205,7 @@ export default function StockPage() {
       .from("products")
       .select("id, name, unit, stock, stock_min, stock_max, cost_price, is_active, unlimited_stock, stock_type")
       .or("unlimited_stock.eq.false,unlimited_stock.is.null")
+      .eq("is_active", true)
       .order("name");
     setLimitedProducts((data ?? []) as LimitedProduct[]);
   }
