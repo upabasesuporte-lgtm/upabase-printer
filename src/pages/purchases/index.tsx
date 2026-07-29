@@ -620,14 +620,14 @@ export default function PurchasesPage() {
                                 <p className="px-3 py-3 text-xs text-zinc-500 text-center">Nenhum item encontrado</p>
                               )}
                             </div>
-                            <div className="border-t border-zinc-800">
+                            <div className="border-t border-zinc-800 p-2 space-y-1.5">
                               <button type="button" onClick={() => openQuickCreate(idx, "product", itemSearchText.trim())}
-                                className="w-full flex items-center gap-1.5 px-3 py-2.5 text-left text-xs font-semibold text-violet-400 hover:bg-zinc-800 transition-colors">
-                                <Plus className="w-3 h-3 flex-shrink-0" /> Cadastrar {itemSearchText ? `"${itemSearchText}"` : "novo item"} como Produto de revenda
+                                className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold transition-colors">
+                                <Plus className="w-3.5 h-3.5 flex-shrink-0" /> Cadastrar {itemSearchText ? `"${itemSearchText}"` : "produto novo"}
                               </button>
                               <button type="button" onClick={() => openQuickCreate(idx, "ingredient", itemSearchText.trim())}
-                                className="w-full flex items-center gap-1.5 px-3 py-2.5 text-left text-xs text-zinc-500 hover:bg-zinc-800 hover:text-violet-400 transition-colors">
-                                <Plus className="w-3 h-3 flex-shrink-0" /> Cadastrar {itemSearchText ? `"${itemSearchText}"` : "novo item"} como Insumo (ingrediente de receita)
+                                className="w-full text-center text-[11px] text-zinc-600 hover:text-zinc-400 transition-colors py-0.5">
+                                Não é produto de venda, é insumo/ingrediente de receita? Cadastre aqui
                               </button>
                             </div>
                           </div>
