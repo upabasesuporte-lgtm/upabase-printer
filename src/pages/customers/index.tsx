@@ -885,11 +885,12 @@ export default function CustomersPage() {
       </tr>${itemsRow}`;
     }).join("");
     win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Extrato - ${selected.name}</title>
-    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:13px;color:#111;padding:24px;max-width:780px;margin:0 auto}
+    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:13px;color:#111;padding:64px 24px 24px;max-width:780px;margin:0 auto}
     table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#f3f4f6;padding:8px 10px;font-size:10px;text-align:left;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;border-bottom:2px solid #d1d5db}
     .grid{display:grid;grid-template-columns:1fr;gap:12px;margin:16px 0}.card{background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px}
     .cl{font-size:10px;text-transform:uppercase;color:#6b7280;margin-bottom:4px}.cv{font-size:18px;font-weight:900}
     @media print{button{display:none!important}}</style></head><body>
+    <button onclick="window.print()" style="position:fixed;top:16px;right:16px;z-index:1000;background:#7c3aed;color:#fff;border:none;padding:10px 28px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.2)">Imprimir</button>
     <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #111;padding-bottom:16px;margin-bottom:20px">
       <div><div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#6b7280;margin-bottom:4px">Extrato do Cliente</div>
         <div style="font-size:22px;font-weight:900">${selected.name}</div>
@@ -907,9 +908,7 @@ export default function CustomersPage() {
     ${movements.length === 0 ? '<p style="text-align:center;color:#9ca3af;padding:40px 0">Nenhuma movimentação no período selecionado</p>' : `
     <table><thead><tr><th>Data/Hora</th><th>Tipo</th><th>Descrição</th><th>Formas de Pag.</th><th style="text-align:right">Valor</th></tr></thead>
     <tbody>${rows}</tbody></table>`}
-    <div style="margin-top:24px;text-align:center">
-      <button onclick="window.print()" style="background:#7c3aed;color:#fff;border:none;padding:10px 28px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer">Imprimir</button>
-    </div></body></html>`);
+    </body></html>`);
     win.document.close();
   }
 
