@@ -848,7 +848,6 @@ export default function CustomersPage() {
     const isSaldoMovPrint = (m: CustomerMovement) =>
       m.type === "saldo" || (m.type === "debit" && (m.description ?? "").toLowerCase().startsWith("saldo usado"));
     const totalDebit = movements.filter(m => m.type === "debit" && !isSaldoMovPrint(m)).reduce((s, m) => s + m.amount, 0);
-    const totalPos = movements.filter(m => m.type === "credit" || m.type === "payment").reduce((s, m) => s + m.amount, 0);
     const filterLabel: Record<DateFilter, string> = {
       today: "Hoje", week: "Últimos 7 dias", month: "Este mês", year: "Este ano",
       custom: `${customFrom || "?"} a ${customTo || "?"}`,
@@ -888,7 +887,7 @@ export default function CustomersPage() {
     win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Extrato - ${selected.name}</title>
     <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:13px;color:#111;padding:24px;max-width:780px;margin:0 auto}
     table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#f3f4f6;padding:8px 10px;font-size:10px;text-align:left;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;border-bottom:2px solid #d1d5db}
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0}.card{background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px}
+    .grid{display:grid;grid-template-columns:1fr;gap:12px;margin:16px 0}.card{background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px}
     .cl{font-size:10px;text-transform:uppercase;color:#6b7280;margin-bottom:4px}.cv{font-size:18px;font-weight:900}
     @media print{button{display:none!important}}</style></head><body>
     <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #111;padding-bottom:16px;margin-bottom:20px">
@@ -899,12 +898,11 @@ export default function CustomersPage() {
       </div>
       <div style="text-align:right"><div style="font-size:11px;color:#6b7280">Período: ${filterLabel[dateFilter]}</div>
         <div style="font-size:11px;color:#6b7280">Emitido: ${new Date().toLocaleString("pt-BR")}</div>
-        <div style="font-size:14px;font-weight:700;margin-top:8px">Saldo: <span style="color:${selected.balance > 0 ? "#059669" : "#6b7280"}">${fmt(selected.balance)}</span>${(selected.fiado_balance ?? 0) > 0 ? ` · Fiado: <span style="color:#dc2626">${fmt(selected.fiado_balance)}</span>` : ""}</div>
+        <div style="font-size:14px;font-weight:700;margin-top:8px">Saldo: <span style="color:${selected.balance > 0 ? "#059669" : "#6b7280"}">${fmt(selected.balance)}</span>${totalDebit > 0 ? ` · Fiado: <span style="color:#dc2626">${fmt(totalDebit)}</span>` : ""}</div>
       </div>
     </div>
     <div class="grid">
       <div class="card"><div class="cl">Débitos / Fiado</div><div class="cv" style="color:#dc2626">-${fmt(totalDebit)}</div></div>
-      <div class="card"><div class="cl">Pagamentos / Créditos</div><div class="cv" style="color:#059669">+${fmt(totalPos)}</div></div>
     </div>
     ${movements.length === 0 ? '<p style="text-align:center;color:#9ca3af;padding:40px 0">Nenhuma movimentação no período selecionado</p>' : `
     <table><thead><tr><th>Data/Hora</th><th>Tipo</th><th>Descrição</th><th>Formas de Pag.</th><th style="text-align:right">Valor</th></tr></thead>
