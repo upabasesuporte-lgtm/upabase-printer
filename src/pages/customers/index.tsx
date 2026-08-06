@@ -368,7 +368,17 @@ export default function CustomersPage() {
   async function confirmDelete() {
     if (!deleteTarget || saving) return;
     setSaving(true);
-    await supabase.from("customers").delete().eq("id", deleteTarget.id);
+    const { error, count } = await supabase.from("customers").delete({ count: "exact" }).eq("id", deleteTarget.id);
+    if (error) {
+      alert("Erro ao excluir cliente: " + error.message);
+      setSaving(false);
+      return;
+    }
+    if (!count) {
+      alert("Não foi possível excluir este cliente. Ele pode ter vendas ou movimentações vinculadas, ou você pode não ter permissão para excluir.");
+      setSaving(false);
+      return;
+    }
     if (selected?.id === deleteTarget.id) closeDetail();
     await loadCustomers();
     setDeleteTarget(null);
