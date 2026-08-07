@@ -1067,7 +1067,11 @@ export default function PdvPage() {
   async function deleteSale(saleId: string) {
     if (!confirm("Excluir esta venda definitivamente?")) return;
     const orderNum = saleId.slice(-6).toUpperCase();
-    const sale = sales.find(s => s.id === saleId) ?? showEditSale;
+    let sale = sales.find(s => s.id === saleId) ?? showEditSale;
+    if (!sale) {
+      const { data } = await supabase.from("sales").select("*").eq("id", saleId).single();
+      sale = data as Sale | null;
+    }
 
     // Remove movimentos de caixa (sem filtro user_id para garantir que funciona)
     // Confere quantas linhas foram realmente apagadas: se nenhuma, o lançamento
@@ -1086,7 +1090,7 @@ export default function PdvPage() {
     }
 
     // Remove movimentos do cliente e ajusta fiado_balance
-    if (sale?.customer_id && userId) {
+    if (sale?.customer_id) {
       const fiadoAmt = (sale.payments ?? [])
         .filter(p => p.method === "fiado")
         .reduce((s, p) => s + p.amount, 0);
@@ -1096,8 +1100,10 @@ export default function PdvPage() {
         const newBalance = Math.max(0, (currCust?.fiado_balance ?? 0) - fiadoAmt);
         await supabase.from("customers").update({ fiado_balance: newBalance }).eq("id", sale.customer_id);
       }
-      await supabase.from("customer_movements").delete().eq("sale_id", saleId);
     }
+    // Sempre remove os lançamentos do histórico do cliente vinculados a essa venda,
+    // mesmo quando a venda não estava carregada localmente (ex.: histórico de outro dia).
+    await supabase.from("customer_movements").delete().eq("sale_id", saleId);
 
     await supabase.from("sales").delete().eq("id", saleId);
     setSales(prev => prev.filter(s => s.id !== saleId));
