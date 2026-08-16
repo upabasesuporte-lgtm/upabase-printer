@@ -355,7 +355,6 @@ export default function TablesPage() {
       if (insertErr) { alert("Erro ao adicionar item: " + insertErr.message); return; }
       if (data) setOrderItems(prev => [...prev, { ...data, products: { name: product.name } } as OrderItem]);
     }
-    setComandaTab("order");
   }
 
   async function changeQty(item: OrderItem, delta: number) {
@@ -1007,34 +1006,38 @@ export default function TablesPage() {
       <div className={view === "table" ? "flex flex-col h-[calc(100vh-80px)] max-h-[900px]" : "hidden"}>
         {selectedTable && <>
           {/* Header */}
-          <div className="flex items-center gap-3 mb-4 flex-shrink-0">
-            <button onClick={goBack}
-              className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-xl transition-colors">
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold">{selectedTable.name}</h1>
-                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${(STATUS_CFG[selectedTable.status] ?? fallbackCfg).badge}`}>
-                  {(STATUS_CFG[selectedTable.status] ?? fallbackCfg).label}
-                </span>
-              </div>
-              <div className="flex items-center gap-3 mt-0.5 text-xs text-zinc-500">
-                <span className="flex items-center gap-1"><Users className="w-3 h-3" />{selectedTable.capacity} lugares</span>
-                {openedAt && <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{timeAgo(openedAt)}</span>}
-                <span>{selectedTable.area}</span>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4 flex-shrink-0">
+            <div className="flex items-center gap-3 sm:flex-1 min-w-0">
+              <button onClick={goBack}
+                className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-xl transition-colors flex-shrink-0">
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl font-bold">{selectedTable.name}</h1>
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${(STATUS_CFG[selectedTable.status] ?? fallbackCfg).badge}`}>
+                    {(STATUS_CFG[selectedTable.status] ?? fallbackCfg).label}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 mt-0.5 text-xs text-zinc-500">
+                  <span className="flex items-center gap-1"><Users className="w-3 h-3" />{selectedTable.capacity} lugares</span>
+                  {openedAt && <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{timeAgo(openedAt)}</span>}
+                  <span>{selectedTable.area}</span>
+                </div>
               </div>
             </div>
-            <button onClick={() => setModal("cancelOrder")}
-              className="flex items-center gap-2 px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-xl text-sm font-bold transition-colors">
-              <X className="w-4 h-4" /> Cancelar Mesa
-            </button>
-            {orderItems.length > 0 && (
-              <button onClick={() => { setSellers(getSellers()); setShowCheckout(true); setCheckoutPayments([]); setCheckoutInput(""); setCheckoutDiscount("0"); setCheckoutCustomer(null); setCheckoutSeller(""); setCheckoutNotes(""); setCheckoutError(null); }}
-                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold transition-colors shadow-lg shadow-emerald-900/30">
-                <CheckCircle2 className="w-4 h-4" /> Fechar Conta · {fmt(orderTotal)}
+            <div className="flex items-center gap-2">
+              <button onClick={() => setModal("cancelOrder")}
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-xl text-sm font-bold transition-colors">
+                <X className="w-4 h-4" /> Cancelar Mesa
               </button>
-            )}
+              {orderItems.length > 0 && (
+                <button onClick={() => { setSellers(getSellers()); setShowCheckout(true); setCheckoutPayments([]); setCheckoutInput(""); setCheckoutDiscount("0"); setCheckoutCustomer(null); setCheckoutSeller(""); setCheckoutNotes(""); setCheckoutError(null); }}
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold transition-colors shadow-lg shadow-emerald-900/30">
+                  <CheckCircle2 className="w-4 h-4" /> Fechar Conta · {fmt(orderTotal)}
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Mobile tab switcher */}
