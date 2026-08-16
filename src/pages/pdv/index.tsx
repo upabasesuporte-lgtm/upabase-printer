@@ -1209,9 +1209,9 @@ export default function PdvPage() {
               </div>
             </div>
 
-            {/* Atalhos por categoria — preenche espaço restante e rola verticalmente (desktop only) */}
+            {/* Atalhos por categoria — preenche espaço restante e rola verticalmente */}
             {search === "" && (
-              <div className="hidden md:flex px-4 py-3 flex-1 overflow-y-auto flex-col">
+              <div className="flex px-4 py-3 flex-1 overflow-y-auto flex-col">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-xs text-zinc-500 flex items-center gap-1">
                     <Star className="w-3 h-3 fill-amber-400 text-amber-400" /> Atalhos rápidos
@@ -2007,12 +2007,12 @@ export default function PdvPage() {
       {/* GERENCIADOR DE ATALHOS */}
       {showShortcutManager && (
         <Modal title="Gerenciar Atalhos por Categoria" onClose={() => { setShowShortcutManager(false); setShortcutSearch(""); }} wide>
-          <div className="flex gap-4 min-h-[420px]">
+          <div className="flex flex-col md:flex-row gap-4 md:min-h-[420px]">
 
             {/* Painel esquerdo — lista de grupos */}
-            <div className="w-48 flex-shrink-0 flex flex-col gap-2">
+            <div className="w-full md:w-48 flex-shrink-0 flex flex-col gap-2">
               <p className="text-xs text-zinc-500 font-medium uppercase tracking-wide mb-1">Categorias</p>
-              <div className="flex-1 space-y-1 overflow-y-auto">
+              <div className="flex-1 space-y-1 overflow-y-auto max-h-40 md:max-h-none">
                 {shortcutGroups.map(g => (
                   <button key={g.id} onClick={() => setActiveGroupId(g.id)}
                     className={`w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-between gap-2 ${activeGroupId === g.id ? "bg-violet-600/20 border border-violet-500/40 text-violet-300" : "bg-zinc-800/50 border border-transparent text-zinc-300 hover:bg-zinc-800"}`}>
