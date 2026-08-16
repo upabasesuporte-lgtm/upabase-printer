@@ -1145,14 +1145,14 @@ export default function TablesPage() {
                 <>
                   <div className="flex gap-1.5 mb-1 overflow-x-auto pb-1 flex-shrink-0 scrollbar-none items-center">
                     <button onClick={() => setCatFilter(null)}
-                      style={catFilter !== null ? { background: card.bg, border: card.border } : undefined}
-                      className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors ${catFilter === null ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-white"}`}>
+                      style={catFilter !== null ? { background: card.bg, border: card.border } : { color: "#fff" }}
+                      className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors ${catFilter === null ? "bg-violet-600" : "text-zinc-400 hover:text-white"}`}>
                       Todos
                     </button>
                     {visibleCatNames.map(name => (
                       <button key={name} onClick={() => setCatFilter(name)}
-                        style={catFilter !== name ? { background: card.bg, border: card.border } : undefined}
-                        className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors ${catFilter === name ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-white"}`}>
+                        style={catFilter !== name ? { background: card.bg, border: card.border } : { color: "#fff" }}
+                        className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors ${catFilter === name ? "bg-violet-600" : "text-zinc-400 hover:text-white"}`}>
                         {name.charAt(0) + name.slice(1).toLowerCase()}
                       </button>
                     ))}
@@ -1699,7 +1699,8 @@ export default function TablesPage() {
                   placeholder={`Valor (restante: ${fmt(Math.max(0, finalTotal - totalPaid))})`}
                   className={inputCls + " flex-1"} />
                 <button onClick={addPayment}
-                  className="px-4 py-2.5 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-sm font-semibold transition-colors flex-shrink-0">
+                  className="px-4 py-2.5 bg-violet-600 hover:bg-violet-500 rounded-xl text-sm font-semibold transition-colors flex-shrink-0"
+                  style={{ color: "#fff" }}>
                   <Plus className="w-4 h-4" />
                 </button>
               </div>
@@ -1748,12 +1749,13 @@ export default function TablesPage() {
                 </div>
               )}
             </div>
-            <div className="flex gap-3 px-6 py-4 border-t border-zinc-800 flex-shrink-0">
-              <button onClick={() => setShowCheckout(false)} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
+            <div className="flex flex-col sm:flex-row gap-3 px-6 py-4 border-t border-zinc-800 flex-shrink-0">
+              <button onClick={() => setShowCheckout(false)} className="sm:flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
               <button onClick={confirmPayment} disabled={checkoutLoading || checkoutPayments.length === 0}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-colors">
-                {checkoutLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                {checkoutLoading ? "Fechando…" : `Confirmar · ${fmt(finalTotal)}`}
+                className="sm:flex-1 flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-xl text-sm font-bold transition-colors"
+                style={{ color: "#fff" }}>
+                {checkoutLoading ? <RefreshCw className="w-4 h-4 animate-spin flex-shrink-0" /> : <CheckCircle2 className="w-4 h-4 flex-shrink-0" />}
+                <span className="truncate">{checkoutLoading ? "Fechando…" : `Confirmar · ${fmt(finalTotal)}`}</span>
               </button>
             </div>
           </div>
