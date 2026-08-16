@@ -473,7 +473,7 @@ export function AppLayout() {
         {/* Logo */}
         <div className="h-20 flex items-center justify-center" style={{ overflow: "visible", borderBottom: `1px solid ${T.border}` }}>
           <img
-            src="https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/ChatGPT%20Image%2021%20de%20mai.%20de%202026,%2019_48_48.png"
+            src="https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/ChatGPT%20Image%2028%20de%20jul.%20de%202026,%2014_45_53.png"
             alt="Logo"
             style={{ height: 160, width: "auto", display: "block", imageRendering: "auto", pointerEvents: "none" }}
           />
