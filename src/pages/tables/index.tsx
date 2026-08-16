@@ -879,7 +879,7 @@ export default function TablesPage() {
           )}
 
           {/* KPI Stats */}
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
               { label: "Total de Mesas", value: tables.length,    color: "#8b5cf6", glow: "rgba(139,92,246,0.15)" },
               { label: "Livres",         value: stats.free,        color: "#2563eb", glow: "rgba(37,99,235,0.15)" },
