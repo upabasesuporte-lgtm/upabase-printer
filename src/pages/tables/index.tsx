@@ -881,10 +881,10 @@ export default function TablesPage() {
           {/* KPI Stats */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
-              { label: "Total de Mesas", value: tables.length,    color: "#71717a", glow: "rgba(113,113,122,0.15)" },
-              { label: "Livres",         value: stats.free,        color: "#10b981", glow: "rgba(16,185,129,0.15)" },
-              { label: "Ocupadas",       value: stats.occupied,    color: "#f59e0b", glow: "rgba(245,158,11,0.15)" },
-              { label: "Reservadas",     value: stats.reserved,    color: "#3b82f6", glow: "rgba(59,130,246,0.13)" },
+              { label: "Total de Mesas", value: tables.length,    color: "#8b5cf6", glow: "rgba(139,92,246,0.18)" },
+              { label: "Livres",         value: stats.free,        color: "#10b981", glow: "rgba(16,185,129,0.18)" },
+              { label: "Ocupadas",       value: stats.occupied,    color: "#f59e0b", glow: "rgba(245,158,11,0.18)" },
+              { label: "Reservadas",     value: stats.reserved,    color: "#06b6d4", glow: "rgba(6,182,212,0.18)" },
             ].map(s => (
               <div key={s.label} className="relative overflow-hidden rounded-2xl p-4"
                 style={isLight ? {
