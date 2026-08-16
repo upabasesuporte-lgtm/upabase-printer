@@ -129,6 +129,7 @@ export default function CustomersPage() {
   const [selected, setSelected] = useState<Customer | null>(null);
   const [movements, setMovements] = useState<CustomerMovement[]>([]);
   const [movLoading, setMovLoading] = useState(false);
+  const [remainingAfter, setRemainingAfter] = useState<Record<string, number>>({});
   const [dateFilter, setDateFilter] = useState<DateFilter>("month");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
@@ -242,6 +243,24 @@ export default function CustomersPage() {
       .order("created_at", { ascending: false });
     const movs = (data ?? []) as CustomerMovement[];
     setMovements(movs);
+
+    // Restante do fiado após cada pagamento (usa histórico completo, não só o período filtrado)
+    const { data: allData } = await supabase
+      .from("customer_movements")
+      .select("id, type, amount, description")
+      .eq("customer_id", customerId)
+      .in("type", ["debit", "payment"])
+      .order("created_at", { ascending: true });
+    const isSaldoMovFull = (m: { type: string; description: string | null }) =>
+      (m.description ?? "").toLowerCase().startsWith("saldo usado");
+    let running = 0;
+    const afterMap: Record<string, number> = {};
+    for (const m of (allData ?? []) as { id: string; type: string; amount: number; description: string | null }[]) {
+      if (m.type === "debit" && !isSaldoMovFull(m)) running += m.amount;
+      else if (m.type === "payment") running = Math.max(0, running - m.amount);
+      afterMap[m.id] = running;
+    }
+    setRemainingAfter(afterMap);
 
     const saleIds = movs.map(m => m.sale_id).filter(Boolean) as string[];
     if (saleIds.length > 0) {
@@ -886,13 +905,18 @@ export default function CustomersPage() {
             }).join("")}
           </td></tr>`
         : "";
-      return `<tr style="border-bottom:${items.length === 0 ? "1px solid #e5e7eb" : "none"}">
+      const remainingRow = m.type === "payment"
+        ? `<tr><td colspan="5" style="padding:0 10px 8px;font-size:10px;color:#b45309;background:#fffbeb;border-bottom:1px solid #e5e7eb">
+            ${remainingAfter[m.id] > 0 ? `Restante do fiado: ${fmt(remainingAfter[m.id])}` : "Fiado quitado"}
+          </td></tr>`
+        : "";
+      return `<tr style="border-bottom:${items.length === 0 && !remainingRow ? "1px solid #e5e7eb" : "none"}">
         <td style="padding:8px 10px;font-size:11px;color:#6b7280">${new Date(m.created_at).toLocaleString("pt-BR")}</td>
         <td style="padding:8px 10px;font-size:11px;font-weight:700;color:${amtColor}">${tl}</td>
         <td style="padding:8px 10px;font-size:11px">${m.description || "—"}</td>
         <td style="padding:8px 10px;font-size:11px;color:#6b7280">${methods}</td>
         <td style="padding:8px 10px;font-size:12px;font-weight:700;text-align:right;color:${amtColor}">${isPos ? "+" : "-"}${fmt(m.amount)}</td>
-      </tr>${itemsRow}`;
+      </tr>${itemsRow}${remainingRow}`;
     }).join("");
     win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Extrato - ${selected.name}</title>
     <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:13px;color:#111;padding:64px 24px 24px;max-width:780px;margin:0 auto}
@@ -1292,6 +1316,11 @@ export default function CustomersPage() {
                           </div>
                           <p className="text-xs text-zinc-400 mt-0.5">{m.description || "—"}</p>
                           <p className="text-xs text-zinc-600">{new Date(m.created_at).toLocaleString("pt-BR")}</p>
+                          {m.type === "payment" && (
+                            <p className="text-xs text-amber-400 mt-0.5">
+                              {remainingAfter[m.id] > 0 ? `Restante do fiado: ${fmt(remainingAfter[m.id])}` : "Fiado quitado"}
+                            </p>
+                          )}
                           {items.length > 0 && (
                             <div className="mt-1.5 space-y-0.5">
                               {items.map((item, idx) => (
