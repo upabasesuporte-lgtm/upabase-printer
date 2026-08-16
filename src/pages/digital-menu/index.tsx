@@ -929,7 +929,7 @@ export default function DigitalMenuPage() {
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex gap-4" style={{ height: "calc(100vh - 96px)" }}>
+    <div className="flex flex-col md:flex-row gap-4 md:h-[calc(100vh-96px)]">
 
       {/* ── Main ── */}
       <div className="flex-1 flex flex-col gap-4 overflow-hidden min-w-0">
@@ -1044,7 +1044,7 @@ export default function DigitalMenuPage() {
         {/* ═══ PEDIDOS ═══ */}
         {tab === "orders" && (
           <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
                 { label:"Novos",        value: pendingCount,                                         color: isLight ? "#7B2FBE" : "#f59e0b", glow: isLight ? "rgba(123,47,190,0.15)" : "rgba(245,158,11,0.15)"  },
                 { label:"Aceitos",      value: orders.filter(o=>o.status==="accepted").length,        color:"#06b6d4", glow:"rgba(6,182,212,0.15)"   },
@@ -1365,7 +1365,7 @@ export default function DigitalMenuPage() {
             {/* Basic info */}
             <div className="rounded-2xl p-4 space-y-3" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
               <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Informações da Loja</p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div><label className="text-xs text-zinc-500 mb-1 block">Nome da Loja</label><input value={settings.store_name} onChange={e => setSettings(s => ({ ...s, store_name: e.target.value }))} className={inputCls} placeholder="Ex: Restaurante da Maria" /></div>
                 <div><label className="text-xs text-zinc-500 mb-1 block">Slogan</label><input value={settings.tagline} onChange={e => setSettings(s => ({ ...s, tagline: e.target.value }))} className={inputCls} placeholder="Ex: Comida caseira de verdade" /></div>
                 <div><label className="text-xs text-zinc-500 mb-1 block">WhatsApp</label><input value={settings.whatsapp} onChange={e => setSettings(s => ({ ...s, whatsapp: e.target.value }))} className={inputCls} placeholder="(11) 99999-9999" /></div>
@@ -1411,7 +1411,7 @@ export default function DigitalMenuPage() {
             {/* Delivery & payment */}
             <div className="rounded-2xl p-4 space-y-3" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
               <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Entrega e Pagamento</p>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div><label className="text-xs text-zinc-500 mb-1 block">Pedido Mínimo (R$)</label><input type="number" value={settings.min_order_value} onChange={e => setSettings(s => ({ ...s, min_order_value: Number(e.target.value) }))} className={inputCls} /></div>
                 <div><label className="text-xs text-zinc-500 mb-1 block">Taxa Entrega (R$)</label><input type="number" value={settings.delivery_fee} onChange={e => setSettings(s => ({ ...s, delivery_fee: Number(e.target.value) }))} className={inputCls} /></div>
                 <div>
@@ -1478,7 +1478,7 @@ export default function DigitalMenuPage() {
 
       {/* ── Order Detail Panel ── */}
       {selectedOrder && tab === "orders" && (
-        <div key={selectedOrder.id} className="w-96 flex-shrink-0 flex flex-col rounded-2xl overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+        <div key={selectedOrder.id} className="w-full md:w-96 flex-shrink-0 flex flex-col rounded-2xl overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
           <div className="flex items-center justify-between p-4 border-b border-zinc-800 flex-shrink-0">
             <div>
               <p className="font-bold text-sm">Pedido #{selectedOrder.order_number}</p>
