@@ -246,6 +246,9 @@ export default function PdvPage() {
     setTimeout(() => setToastError(null), 5000);
   }
 
+  // Toast de venda concluída — com botão de reimprimir manual (celular às vezes bloqueia o popup automático)
+  const [lastSale, setLastSale] = useState<{ sale: Sale; items: SaleItem[] } | null>(null);
+
   const searchRef = useRef<HTMLInputElement>(null);
 
   // ── Totais ──
@@ -698,10 +701,10 @@ export default function PdvPage() {
       notes: i.notes || null,
       products: { name: i.product.name, item_type: i.product.item_type, category_id: i.product.category_id },
     }));
-    printSale(
-      { ...sale, total, payments, customers: customerSnapshot ? { name: customerSnapshot.name } : null, seller_name: sellerSnapshot || null, notes: notesSnapshot || null, delivery_address: addressSnapshot || null },
-      receiptItems
-    );
+    const receiptSale: Sale = { ...sale, total, payments, customers: customerSnapshot ? { name: customerSnapshot.name } : null, seller_name: sellerSnapshot || null, notes: notesSnapshot || null, delivery_address: addressSnapshot || null };
+    setLastSale({ sale: receiptSale, items: receiptItems });
+    setTimeout(() => setLastSale(prev => prev?.sale.id === receiptSale.id ? null : prev), 30000);
+    printSale(receiptSale, receiptItems);
   }
 
   // ── Novo cliente ──
@@ -1147,6 +1150,19 @@ export default function PdvPage() {
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
           <span>{toastError}</span>
           <button onClick={() => setToastError(null)} className="ml-2 text-red-400 hover:text-white"><X className="w-4 h-4" /></button>
+        </div>
+      )}
+
+      {/* Toast de venda concluída — reimprimir manual (útil quando o popup automático é bloqueado, comum no celular) */}
+      {lastSale && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[100] bg-emerald-900 border border-emerald-500/50 text-emerald-100 text-sm px-5 py-3 rounded-2xl shadow-2xl max-w-lg flex items-center gap-3">
+          <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+          <span>Venda concluída!</span>
+          <button onClick={() => printSale(lastSale.sale, lastSale.items)}
+            className="flex items-center gap-1.5 ml-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-colors">
+            <Printer className="w-3.5 h-3.5" /> Imprimir
+          </button>
+          <button onClick={() => setLastSale(null)} className="ml-1 text-emerald-400 hover:text-white"><X className="w-4 h-4" /></button>
         </div>
       )}
 
