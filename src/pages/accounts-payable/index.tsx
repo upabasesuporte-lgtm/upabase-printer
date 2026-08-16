@@ -570,7 +570,7 @@ export default function AccountsPayablePage() {
       </div>
 
       {/* ── Summary Cards ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
         {(() => {
           const totalLabel = periodF === "all" ? "Total Geral"
             : periodF === "today" ? "Total de Hoje"
