@@ -483,6 +483,7 @@ export default function PdvPage() {
     setDiscount(sale.discount ? String(sale.discount) : "");
     setOrderNotes(sale.notes || "");
     setSellerName(sale.seller_name || "");
+    setDeliveryAddress(sale.delivery_address || "");
     if (sale.customer_id) setSelectedCustomer(customers.find(c => c.id === sale.customer_id) ?? null);
     setTab("venda");
     await supabase.from("sales").delete().eq("id", sale.id);
