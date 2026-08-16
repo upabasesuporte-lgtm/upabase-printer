@@ -149,6 +149,21 @@ export default function TablesPage() {
   });
   const [showCatOrder, setShowCatOrder] = useState(false);
 
+  // Itens escolhidos pra aparecer na comanda por categoria — salvo em localStorage (vazio = mostra todos, igual antes)
+  const [hiddenProductIds, setHiddenProductIds] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem("upabase_hidden_products_tables") ?? "[]"); }
+    catch { return []; }
+  });
+  const [curateMode, setCurateMode] = useState(false);
+
+  function toggleHiddenProduct(id: string) {
+    setHiddenProductIds(prev => {
+      const updated = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id];
+      localStorage.setItem("upabase_hidden_products_tables", JSON.stringify(updated));
+      return updated;
+    });
+  }
+
   // Checkout
   const [showCheckout, setShowCheckout] = useState(false);
   const [checkoutPayments, setCheckoutPayments] = useState<PaymentEntry[]>([]);
@@ -801,7 +816,8 @@ export default function TablesPage() {
     const matchSearch = search === "" || p.name.toLowerCase().includes(search.toLowerCase());
     const matchCat    = catFilter === null ||
       (p.category_id !== null && catNameMap[catFilter]?.includes(p.category_id));
-    return matchSearch && matchCat;
+    const matchVisible = curateMode || !hiddenProductIds.includes(p.id);
+    return matchSearch && matchCat && matchVisible;
   });
 
   const areas = [...new Set(tables.map(t => t.area))].filter(Boolean);
@@ -1081,13 +1097,25 @@ export default function TablesPage() {
                       </button>
                     ))}
                     <button
+                      onClick={() => setCurateMode(v => !v)}
+                      title="Escolher itens do dia por categoria"
+                      className="ml-auto flex-shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+                      style={{ background: curateMode ? "rgba(139,92,246,0.15)" : card.bg, border: card.border, color: curateMode ? "#8b5cf6" : "#71717a" }}>
+                      <Edit2 className="w-3.5 h-3.5" /> {curateMode ? "Concluir" : "Itens do dia"}
+                    </button>
+                    <button
                       onClick={() => setShowCatOrder(v => !v)}
                       title="Ordenar categorias"
-                      className="ml-auto flex-shrink-0 p-1.5 rounded-lg transition-colors"
+                      className="flex-shrink-0 p-1.5 rounded-lg transition-colors"
                       style={{ background: showCatOrder ? "rgba(139,92,246,0.15)" : card.bg, border: card.border, color: showCatOrder ? "#8b5cf6" : "#71717a" }}>
                       <ListOrdered className="w-3.5 h-3.5" />
                     </button>
                   </div>
+                  {curateMode && (
+                    <p className="text-[11px] text-violet-400 mb-2 flex-shrink-0">
+                      Toque nos produtos abaixo pra escolher quais aparecem hoje. Os apagados ficam escondidos até você reativar.
+                    </p>
+                  )}
 
                   {/* Painel de ordenação inline */}
                   {showCatOrder && (
@@ -1126,7 +1154,7 @@ export default function TablesPage() {
                   <>
                     {visibleCatNames.map(name => {
                       const catProds = products.filter(p =>
-                        p.category_id && catNameMap[name].includes(p.category_id)
+                        p.category_id && catNameMap[name].includes(p.category_id) && (curateMode || !hiddenProductIds.includes(p.id))
                       );
                       if (catProds.length === 0) return null;
                       return (
@@ -1138,10 +1166,17 @@ export default function TablesPage() {
                             <div className="flex-1 h-px bg-zinc-800/60" />
                           </div>
                           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                            {catProds.map(p => (
-                              <button key={p.id} onClick={() => addProduct(p)}
-                                style={{ background: card.bg, border: card.border }}
-                                className="flex flex-col items-start gap-1.5 p-3 hover:border-violet-500/50 rounded-xl text-left transition-all active:scale-95">
+                            {catProds.map(p => {
+                              const isHidden = hiddenProductIds.includes(p.id);
+                              return (
+                              <button key={p.id} onClick={() => curateMode ? toggleHiddenProduct(p.id) : addProduct(p)}
+                                style={{ background: card.bg, border: curateMode && isHidden ? "1px dashed #52525b" : card.border, opacity: curateMode && isHidden ? 0.45 : 1 }}
+                                className="relative flex flex-col items-start gap-1.5 p-3 hover:border-violet-500/50 rounded-xl text-left transition-all active:scale-95">
+                                {curateMode && (
+                                  <span className={`absolute top-1.5 right-1.5 w-4 h-4 rounded-full flex items-center justify-center ${isHidden ? "bg-zinc-700" : "bg-violet-600"}`}>
+                                    {!isHidden && <CheckCircle2 className="w-3 h-3 text-white" />}
+                                  </span>
+                                )}
                                 <span className="text-sm font-semibold leading-tight line-clamp-2" style={{ color: isLight ? "#111" : "#fff" }}>{p.name}</span>
                                 <span className="text-sm font-bold text-violet-400">{fmt(p.sale_price)}</span>
                                 {!isUnlimited(p) && p.stock <= 5 && (
@@ -1150,14 +1185,15 @@ export default function TablesPage() {
                                   </span>
                                 )}
                               </button>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
                       );
                     })}
                     {/* Sem categoria */}
                     {(() => {
-                      const uncategorized = products.filter(p => !p.category_id);
+                      const uncategorized = products.filter(p => !p.category_id && (curateMode || !hiddenProductIds.includes(p.id)));
                       if (uncategorized.length === 0) return null;
                       return (
                         <div className="mb-4">
@@ -1166,14 +1202,22 @@ export default function TablesPage() {
                             <div className="flex-1 h-px bg-zinc-800/60" />
                           </div>
                           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                            {uncategorized.map(p => (
-                              <button key={p.id} onClick={() => addProduct(p)}
-                                style={{ background: card.bg, border: card.border }}
-                                className="flex flex-col items-start gap-1.5 p-3 hover:border-violet-500/50 rounded-xl text-left transition-all active:scale-95">
+                            {uncategorized.map(p => {
+                              const isHidden = hiddenProductIds.includes(p.id);
+                              return (
+                              <button key={p.id} onClick={() => curateMode ? toggleHiddenProduct(p.id) : addProduct(p)}
+                                style={{ background: card.bg, border: curateMode && isHidden ? "1px dashed #52525b" : card.border, opacity: curateMode && isHidden ? 0.45 : 1 }}
+                                className="relative flex flex-col items-start gap-1.5 p-3 hover:border-violet-500/50 rounded-xl text-left transition-all active:scale-95">
+                                {curateMode && (
+                                  <span className={`absolute top-1.5 right-1.5 w-4 h-4 rounded-full flex items-center justify-center ${isHidden ? "bg-zinc-700" : "bg-violet-600"}`}>
+                                    {!isHidden && <CheckCircle2 className="w-3 h-3 text-white" />}
+                                  </span>
+                                )}
                                 <span className="text-sm font-semibold leading-tight line-clamp-2" style={{ color: isLight ? "#111" : "#fff" }}>{p.name}</span>
                                 <span className="text-sm font-bold text-violet-400">{fmt(p.sale_price)}</span>
                               </button>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
                       );
@@ -1182,10 +1226,17 @@ export default function TablesPage() {
                 ) : (
                   // ── Categoria específica ou busca: lista plana ──
                   <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                    {filteredProducts.map(p => (
-                      <button key={p.id} onClick={() => addProduct(p)}
-                        style={{ background: card.bg, border: card.border }}
-                        className="flex flex-col items-start gap-1.5 p-3 hover:border-violet-500/50 rounded-xl text-left transition-all active:scale-95">
+                    {filteredProducts.map(p => {
+                      const isHidden = hiddenProductIds.includes(p.id);
+                      return (
+                      <button key={p.id} onClick={() => curateMode ? toggleHiddenProduct(p.id) : addProduct(p)}
+                        style={{ background: card.bg, border: curateMode && isHidden ? "1px dashed #52525b" : card.border, opacity: curateMode && isHidden ? 0.45 : 1 }}
+                        className="relative flex flex-col items-start gap-1.5 p-3 hover:border-violet-500/50 rounded-xl text-left transition-all active:scale-95">
+                        {curateMode && (
+                          <span className={`absolute top-1.5 right-1.5 w-4 h-4 rounded-full flex items-center justify-center ${isHidden ? "bg-zinc-700" : "bg-violet-600"}`}>
+                            {!isHidden && <CheckCircle2 className="w-3 h-3 text-white" />}
+                          </span>
+                        )}
                         <span className="text-sm font-semibold leading-tight line-clamp-2" style={{ color: isLight ? "#111" : "#fff" }}>{p.name}</span>
                         <span className="text-sm font-bold text-violet-400">{fmt(p.sale_price)}</span>
                         {!isUnlimited(p) && p.stock <= 5 && (
@@ -1194,7 +1245,8 @@ export default function TablesPage() {
                           </span>
                         )}
                       </button>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
