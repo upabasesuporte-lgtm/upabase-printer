@@ -7,7 +7,7 @@ import {
   UtensilsCrossed, Plus, Search, X, ChevronLeft, RefreshCw,
   Clock, Users, CheckCircle2, Settings, Edit2, Trash2,
   Banknote, CreditCard, Smartphone, Receipt, AlertTriangle, ChevronUp, ChevronDown, ListOrdered,
-  ShoppingCart, Minus, Save, Tag, Coffee,
+  ShoppingCart, Minus, Save, Tag, Coffee, Star, StarOff,
 } from "lucide-react";
 import { getStoreSettings, getSellers, refreshStoreCache } from "../settings";
 
@@ -149,19 +149,29 @@ export default function TablesPage() {
   });
   const [showCatOrder, setShowCatOrder] = useState(false);
 
-  // Itens escolhidos pra aparecer na comanda por categoria — salvo em localStorage (vazio = mostra todos, igual antes)
-  const [hiddenProductIds, setHiddenProductIds] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem("upabase_hidden_products_tables") ?? "[]"); }
-    catch { return []; }
+  // Itens do dia por categoria — lista escolhida a dedo (qualquer produto do estoque, não só os da categoria real)
+  // salvo em localStorage; categoria sem lista configurada = comportamento automático de sempre
+  const [curatedProducts, setCuratedProducts] = useState<Record<string, string[]>>(() => {
+    try { return JSON.parse(localStorage.getItem("upabase_curated_products_tables") ?? "{}"); }
+    catch { return {}; }
   });
-  const [curateMode, setCurateMode] = useState(false);
+  const [showCurateManager, setShowCurateManager] = useState(false);
+  const [curateActiveCat, setCurateActiveCat] = useState<string | null>(null);
+  const [curateSearch, setCurateSearch] = useState("");
 
-  function toggleHiddenProduct(id: string) {
-    setHiddenProductIds(prev => {
-      const updated = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id];
-      localStorage.setItem("upabase_hidden_products_tables", JSON.stringify(updated));
-      return updated;
-    });
+  function toggleCuratedProduct(catName: string, productId: string) {
+    const current = curatedProducts[catName] ?? [];
+    const updated = current.includes(productId) ? current.filter(id => id !== productId) : [...current, productId];
+    const next = { ...curatedProducts, [catName]: updated };
+    setCuratedProducts(next);
+    localStorage.setItem("upabase_curated_products_tables", JSON.stringify(next));
+  }
+
+  function resetCuratedCategory(catName: string) {
+    const next = { ...curatedProducts };
+    delete next[catName];
+    setCuratedProducts(next);
+    localStorage.setItem("upabase_curated_products_tables", JSON.stringify(next));
   }
 
   // Checkout
@@ -370,6 +380,7 @@ export default function TablesPage() {
       if (insertErr) { alert("Erro ao adicionar item: " + insertErr.message); return; }
       if (data) setOrderItems(prev => [...prev, { ...data, products: { name: product.name } } as OrderItem]);
     }
+    setSearch("");
   }
 
   async function changeQty(item: OrderItem, delta: number) {
@@ -816,9 +827,18 @@ export default function TablesPage() {
     const matchSearch = search === "" || p.name.toLowerCase().includes(search.toLowerCase());
     const matchCat    = catFilter === null ||
       (p.category_id !== null && catNameMap[catFilter]?.includes(p.category_id));
-    const matchVisible = curateMode || !hiddenProductIds.includes(p.id);
-    return matchSearch && matchCat && matchVisible;
+    return matchSearch && matchCat;
   });
+
+  // Produtos exibidos numa categoria: usa a lista escolhida a dedo (itens do dia) se existir,
+  // senão cai no comportamento automático de sempre (produtos com essa categoria cadastrada)
+  function productsForCategory(name: string): Product[] {
+    const curated = curatedProducts[name];
+    if (curated && curated.length > 0) {
+      return curated.map(id => products.find(p => p.id === id)).filter((p): p is Product => !!p);
+    }
+    return products.filter(p => p.category_id && catNameMap[name]?.includes(p.category_id));
+  }
 
   const areas = [...new Set(tables.map(t => t.area))].filter(Boolean);
   const filteredTables = areaFilter ? tables.filter(t => t.area === areaFilter) : tables;
@@ -1097,11 +1117,11 @@ export default function TablesPage() {
                       </button>
                     ))}
                     <button
-                      onClick={() => setCurateMode(v => !v)}
+                      onClick={() => { setShowCurateManager(true); setCurateActiveCat(catFilter ?? visibleCatNames[0] ?? null); setCurateSearch(""); }}
                       title="Escolher itens do dia por categoria"
-                      className="ml-auto flex-shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold transition-colors"
-                      style={{ background: curateMode ? "rgba(139,92,246,0.15)" : card.bg, border: card.border, color: curateMode ? "#8b5cf6" : "#71717a" }}>
-                      <Edit2 className="w-3.5 h-3.5" /> {curateMode ? "Concluir" : "Itens do dia"}
+                      className="ml-auto flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-colors"
+                      style={{ background: "#f59e0b", boxShadow: "0 0 12px rgba(245,158,11,0.35)" }}>
+                      <Star className="w-3.5 h-3.5" /> Itens do dia
                     </button>
                     <button
                       onClick={() => setShowCatOrder(v => !v)}
@@ -1111,11 +1131,6 @@ export default function TablesPage() {
                       <ListOrdered className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                  {curateMode && (
-                    <p className="text-[11px] text-violet-400 mb-2 flex-shrink-0">
-                      Toque nos produtos abaixo pra escolher quais aparecem hoje. Os apagados ficam escondidos até você reativar.
-                    </p>
-                  )}
 
                   {/* Painel de ordenação inline */}
                   {showCatOrder && (
@@ -1147,15 +1162,14 @@ export default function TablesPage() {
 
               {/* Product area */}
               <div className="flex-1 overflow-y-auto">
-                {filteredProducts.length === 0 ? (
-                  <div className="text-center py-10 text-xs text-zinc-600">Nenhum produto encontrado</div>
-                ) : catFilter === null && !search ? (
+                {catFilter === null && !search ? (
                   // ── Todos: agrupado por categoria ──
+                  visibleCatNames.reduce((s, name) => s + productsForCategory(name).length, 0) + products.filter(p => !p.category_id).length === 0 ? (
+                    <div className="text-center py-10 text-xs text-zinc-600">Nenhum produto encontrado</div>
+                  ) : (
                   <>
                     {visibleCatNames.map(name => {
-                      const catProds = products.filter(p =>
-                        p.category_id && catNameMap[name].includes(p.category_id) && (curateMode || !hiddenProductIds.includes(p.id))
-                      );
+                      const catProds = productsForCategory(name);
                       if (catProds.length === 0) return null;
                       return (
                         <div key={name} className="mb-4">
@@ -1166,17 +1180,10 @@ export default function TablesPage() {
                             <div className="flex-1 h-px bg-zinc-800/60" />
                           </div>
                           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                            {catProds.map(p => {
-                              const isHidden = hiddenProductIds.includes(p.id);
-                              return (
-                              <button key={p.id} onClick={() => curateMode ? toggleHiddenProduct(p.id) : addProduct(p)}
-                                style={{ background: card.bg, border: curateMode && isHidden ? "1px dashed #52525b" : card.border, opacity: curateMode && isHidden ? 0.45 : 1 }}
-                                className="relative flex flex-col items-start gap-1.5 p-3 hover:border-violet-500/50 rounded-xl text-left transition-all active:scale-95">
-                                {curateMode && (
-                                  <span className={`absolute top-1.5 right-1.5 w-4 h-4 rounded-full flex items-center justify-center ${isHidden ? "bg-zinc-700" : "bg-violet-600"}`}>
-                                    {!isHidden && <CheckCircle2 className="w-3 h-3 text-white" />}
-                                  </span>
-                                )}
+                            {catProds.map(p => (
+                              <button key={p.id} onClick={() => addProduct(p)}
+                                style={{ background: card.bg, border: card.border }}
+                                className="flex flex-col items-start gap-1.5 p-3 hover:border-violet-500/50 rounded-xl text-left transition-all active:scale-95">
                                 <span className="text-sm font-semibold leading-tight line-clamp-2" style={{ color: isLight ? "#111" : "#fff" }}>{p.name}</span>
                                 <span className="text-sm font-bold text-violet-400">{fmt(p.sale_price)}</span>
                                 {!isUnlimited(p) && p.stock <= 5 && (
@@ -1185,15 +1192,14 @@ export default function TablesPage() {
                                   </span>
                                 )}
                               </button>
-                              );
-                            })}
+                            ))}
                           </div>
                         </div>
                       );
                     })}
                     {/* Sem categoria */}
                     {(() => {
-                      const uncategorized = products.filter(p => !p.category_id && (curateMode || !hiddenProductIds.includes(p.id)));
+                      const uncategorized = products.filter(p => !p.category_id);
                       if (uncategorized.length === 0) return null;
                       return (
                         <div className="mb-4">
@@ -1202,52 +1208,44 @@ export default function TablesPage() {
                             <div className="flex-1 h-px bg-zinc-800/60" />
                           </div>
                           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                            {uncategorized.map(p => {
-                              const isHidden = hiddenProductIds.includes(p.id);
-                              return (
-                              <button key={p.id} onClick={() => curateMode ? toggleHiddenProduct(p.id) : addProduct(p)}
-                                style={{ background: card.bg, border: curateMode && isHidden ? "1px dashed #52525b" : card.border, opacity: curateMode && isHidden ? 0.45 : 1 }}
-                                className="relative flex flex-col items-start gap-1.5 p-3 hover:border-violet-500/50 rounded-xl text-left transition-all active:scale-95">
-                                {curateMode && (
-                                  <span className={`absolute top-1.5 right-1.5 w-4 h-4 rounded-full flex items-center justify-center ${isHidden ? "bg-zinc-700" : "bg-violet-600"}`}>
-                                    {!isHidden && <CheckCircle2 className="w-3 h-3 text-white" />}
-                                  </span>
-                                )}
+                            {uncategorized.map(p => (
+                              <button key={p.id} onClick={() => addProduct(p)}
+                                style={{ background: card.bg, border: card.border }}
+                                className="flex flex-col items-start gap-1.5 p-3 hover:border-violet-500/50 rounded-xl text-left transition-all active:scale-95">
                                 <span className="text-sm font-semibold leading-tight line-clamp-2" style={{ color: isLight ? "#111" : "#fff" }}>{p.name}</span>
                                 <span className="text-sm font-bold text-violet-400">{fmt(p.sale_price)}</span>
                               </button>
-                              );
-                            })}
+                            ))}
                           </div>
                         </div>
                       );
                     })()}
                   </>
+                  )
                 ) : (
                   // ── Categoria específica ou busca: lista plana ──
-                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                    {filteredProducts.map(p => {
-                      const isHidden = hiddenProductIds.includes(p.id);
-                      return (
-                      <button key={p.id} onClick={() => curateMode ? toggleHiddenProduct(p.id) : addProduct(p)}
-                        style={{ background: card.bg, border: curateMode && isHidden ? "1px dashed #52525b" : card.border, opacity: curateMode && isHidden ? 0.45 : 1 }}
-                        className="relative flex flex-col items-start gap-1.5 p-3 hover:border-violet-500/50 rounded-xl text-left transition-all active:scale-95">
-                        {curateMode && (
-                          <span className={`absolute top-1.5 right-1.5 w-4 h-4 rounded-full flex items-center justify-center ${isHidden ? "bg-zinc-700" : "bg-violet-600"}`}>
-                            {!isHidden && <CheckCircle2 className="w-3 h-3 text-white" />}
-                          </span>
-                        )}
-                        <span className="text-sm font-semibold leading-tight line-clamp-2" style={{ color: isLight ? "#111" : "#fff" }}>{p.name}</span>
-                        <span className="text-sm font-bold text-violet-400">{fmt(p.sale_price)}</span>
-                        {!isUnlimited(p) && p.stock <= 5 && (
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${p.stock === 0 ? "bg-red-500/10 text-red-400" : "bg-amber-500/10 text-amber-400"}`}>
-                            {p.stock === 0 ? "Esgotado" : `${p.stock} rest.`}
-                          </span>
-                        )}
-                      </button>
-                      );
-                    })}
-                  </div>
+                  (() => {
+                    const listProds = search !== "" ? filteredProducts : (catFilter !== null ? productsForCategory(catFilter) : []);
+                    return listProds.length === 0 ? (
+                      <div className="text-center py-10 text-xs text-zinc-600">Nenhum produto encontrado</div>
+                    ) : (
+                      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                        {listProds.map(p => (
+                          <button key={p.id} onClick={() => addProduct(p)}
+                            style={{ background: card.bg, border: card.border }}
+                            className="flex flex-col items-start gap-1.5 p-3 hover:border-violet-500/50 rounded-xl text-left transition-all active:scale-95">
+                            <span className="text-sm font-semibold leading-tight line-clamp-2" style={{ color: isLight ? "#111" : "#fff" }}>{p.name}</span>
+                            <span className="text-sm font-bold text-violet-400">{fmt(p.sale_price)}</span>
+                            {!isUnlimited(p) && p.stock <= 5 && (
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${p.stock === 0 ? "bg-red-500/10 text-red-400" : "bg-amber-500/10 text-amber-400"}`}>
+                                {p.stock === 0 ? "Esgotado" : `${p.stock} rest.`}
+                              </span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })()
                 )}
               </div>
             </div>
@@ -1712,6 +1710,75 @@ export default function TablesPage() {
           </div>
         </div>
       ) : null, document.body)}
+
+      {showCurateManager && createPortal(
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 flex-shrink-0">
+              <h2 className="text-base font-semibold">Itens do Dia por Categoria</h2>
+              <button onClick={() => { setShowCurateManager(false); setCurateSearch(""); }} className="p-1.5 text-zinc-400 hover:text-white rounded-lg"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5">
+              <div className="flex flex-col sm:flex-row gap-4">
+                {/* Categorias */}
+                <div className="w-full sm:w-48 flex-shrink-0 flex flex-col gap-2">
+                  <p className="text-xs text-zinc-500 font-medium uppercase tracking-wide mb-1">Categorias</p>
+                  <div className="flex sm:flex-col gap-1 overflow-x-auto sm:overflow-visible max-h-40 sm:max-h-none">
+                    {visibleCatNames.map(name => (
+                      <button key={name} onClick={() => setCurateActiveCat(name)}
+                        className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-between gap-2 whitespace-nowrap flex-shrink-0 ${curateActiveCat === name ? "bg-violet-600/20 border border-violet-500/40 text-violet-300" : "bg-zinc-800/50 border border-transparent text-zinc-300 hover:bg-zinc-800"}`}>
+                        <span className="truncate">{name.charAt(0) + name.slice(1).toLowerCase()}</span>
+                        <span className="text-xs text-zinc-500 flex-shrink-0">{curatedProducts[name]?.length ?? 0}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Busca em todo o estoque + seleção */}
+                <div className="flex-1 flex flex-col gap-3 min-w-0">
+                  {!curateActiveCat ? (
+                    <div className="flex-1 flex items-center justify-center text-zinc-600 text-sm py-10">Selecione uma categoria</div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-semibold">{curateActiveCat.charAt(0) + curateActiveCat.slice(1).toLowerCase()}</p>
+                        {(curatedProducts[curateActiveCat]?.length ?? 0) > 0 ? (
+                          <button onClick={() => resetCuratedCategory(curateActiveCat)} className="text-xs text-zinc-500 hover:text-red-400 transition-colors">Restaurar automático</button>
+                        ) : (
+                          <span className="text-xs text-zinc-600">Mostrando automático (todos da categoria)</span>
+                        )}
+                      </div>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                        <input placeholder="Buscar em todo o estoque..." value={curateSearch} onChange={e => setCurateSearch(e.target.value)}
+                          className="w-full pl-10 pr-4 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-violet-500" />
+                      </div>
+                      <div className="flex-1 space-y-1 overflow-y-auto max-h-80">
+                        {products
+                          .filter(p => curateSearch === "" || p.name.toLowerCase().includes(curateSearch.toLowerCase()))
+                          .map(p => {
+                            const inCat = (curatedProducts[curateActiveCat!] ?? []).includes(p.id);
+                            return (
+                              <button key={p.id} onClick={() => toggleCuratedProduct(curateActiveCat!, p.id)}
+                                className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-colors text-left ${inCat ? "bg-violet-600/15 border border-violet-500/30" : "hover:bg-zinc-800 border border-transparent"}`}>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-white truncate">{p.name}</p>
+                                  <p className="text-xs text-violet-400">{fmt(p.sale_price)}</p>
+                                </div>
+                                {inCat ? <Star className="w-4 h-4 fill-amber-400 text-amber-400 flex-shrink-0" /> : <StarOff className="w-4 h-4 text-zinc-600 flex-shrink-0" />}
+                              </button>
+                            );
+                          })}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
