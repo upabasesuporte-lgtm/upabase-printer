@@ -524,7 +524,7 @@ export default function StockPage() {
             ) : (
             <>
             {/* Summary cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
               {[
                 { gFrom:"#8b5cf6", gTo:"#a78bfa", glow:"rgba(139,92,246,0.13)",
                   icon:<Boxes className="w-4 h-4" style={{color:"#8b5cf6"}} />,
