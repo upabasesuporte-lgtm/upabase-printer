@@ -833,8 +833,10 @@ export default function PdvPage() {
     <style>
       *{box-sizing:border-box;margin:0;padding:0}
       body{font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:400;color:#000;background:#fff;padding:16px 14px;max-width:320px;margin:0 auto}
-      @media print{body{padding:4px 2px;max-width:none}@page{margin:2mm}}
+      @media print{body{padding:4px 2px;max-width:none}@page{margin:2mm}button{display:none!important}}
     </style></head><body>
+
+    <button onclick="window.print()" style="position:fixed;top:12px;right:12px;z-index:1000;background:#7c3aed;color:#fff;border:none;padding:10px 22px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.2)">Imprimir</button>
 
     <div style="text-align:center;padding-bottom:8px">
       <div style="font-size:16px;font-weight:700;color:#000">${store.name}</div>
