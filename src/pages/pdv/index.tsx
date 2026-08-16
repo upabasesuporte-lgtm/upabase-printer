@@ -716,10 +716,17 @@ export default function PdvPage() {
   }
 
   // ── Imprimir ──
-  function printSale(sale: Sale, items: SaleItem[]) {
+  async function printSale(sale: Sale, items: SaleItem[]) {
     const store = getStoreSettings();
     const win = window.open("", "_blank", "width=420,height=700");
     if (!win) return;
+
+    // Busca a dívida atual do cliente (mesmo dado da aba Clientes) pra mostrar na comanda
+    let customerFiadoBalance = 0;
+    if (sale.customer_id) {
+      const { data: custDebt } = await supabase.from("customers").select("fiado_balance").eq("id", sale.customer_id).single();
+      customerFiadoBalance = custDebt?.fiado_balance ?? 0;
+    }
     const orderNum = sale.id.slice(-6).toUpperCase();
     const dt = new Date(sale.created_at).toLocaleString("pt-BR", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" });
     const subtotal = items.reduce((s, i) => s + i.unit_price * i.quantity, 0);
@@ -852,6 +859,14 @@ export default function PdvPage() {
     ${paymentsHtml}
     ${pixLine}
     ${chg > 0.01 ? ROW("Troco", fmt(chg)) : ""}
+
+    ${customerFiadoBalance > 0.01 ? `
+    ${SEP()}
+    <div style="border:1px solid #000;border-radius:4px;padding:8px 10px;margin:6px 0">
+      <div style="font-size:11px;font-weight:700;letter-spacing:0.5px;color:#000;text-transform:uppercase">Fiado - Total devendo</div>
+      <div style="font-size:18px;font-weight:800;color:#000;margin-top:2px">${fmt(customerFiadoBalance)}</div>
+    </div>
+    ` : ""}
 
     ${sale.notes ? `${SEP()}${LABEL("Observacoes")}<div style="font-size:12px;font-weight:400;color:#000">${sale.notes}</div>` : ""}
 
