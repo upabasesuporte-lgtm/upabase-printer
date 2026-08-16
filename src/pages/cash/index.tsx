@@ -568,7 +568,7 @@ export default function CashPage() {
       {subTab === "current" && (
         <>
           {/* ── Cards de resumo ── */}
-          <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             <SummaryCard label="Total de Vendas" value={fmt(salesTotal)}
               sub={`${sales.length} venda${sales.length !== 1 ? "s" : ""}`}
               icon={<TrendingUp className="w-5 h-5" />} iconBg="bg-emerald-500/15" iconColor="text-emerald-400" accent color="#10b981" />
@@ -1029,7 +1029,7 @@ function HistoryTab({
                 </div>
 
                 {/* Valores resumo */}
-                <div className="flex gap-5 text-right items-start">
+                <div className="flex gap-5 text-right items-start flex-wrap">
                   <div>
                     <p className="text-[10px] text-zinc-500 mb-0.5">Fundo Inicial</p>
                     <p className="text-sm font-bold" style={{ color: isLight ? "#3f3f46" : "#a1a1aa" }}>{fmtCur(reg.opening_amount ?? 0)}</p>
