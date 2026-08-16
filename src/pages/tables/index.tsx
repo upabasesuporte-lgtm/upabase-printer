@@ -7,7 +7,7 @@ import {
   UtensilsCrossed, Plus, Search, X, ChevronLeft, RefreshCw,
   Clock, Users, CheckCircle2, Settings, Edit2, Trash2,
   Banknote, CreditCard, Smartphone, Receipt, AlertTriangle, ChevronUp, ChevronDown, ListOrdered,
-  ShoppingCart, Minus, Save, Tag, Coffee, Star, StarOff,
+  ShoppingCart, Minus, Save, Tag, Coffee, Star, StarOff, MessageSquare,
 } from "lucide-react";
 import { getStoreSettings, getSellers, refreshStoreCache } from "../settings";
 
@@ -172,6 +172,45 @@ export default function TablesPage() {
     delete next[catName];
     setCuratedProducts(next);
     localStorage.setItem("upabase_curated_products_tables", JSON.stringify(next));
+  }
+
+  const [newCatName, setNewCatName] = useState("");
+
+  async function createCategory() {
+    if (!newCatName.trim()) return;
+    await supabase.from("categories").insert({ name: newCatName.trim(), parent_id: null });
+    setNewCatName("");
+    await loadAll();
+  }
+
+  async function renameCategory(catName: string) {
+    const ids = catNameMap[catName] ?? [];
+    const current = catName.charAt(0) + catName.slice(1).toLowerCase();
+    const newName = prompt("Novo nome da categoria:", current);
+    if (!newName || !newName.trim() || newName.trim() === current) return;
+    const trimmed = newName.trim();
+    await Promise.all(ids.map(id => supabase.from("categories").update({ name: trimmed }).eq("id", id)));
+    // Migra os itens do dia salvos e a categoria ativa pra chave do novo nome
+    const newKey = trimmed.toUpperCase();
+    if (curatedProducts[catName]) {
+      const next = { ...curatedProducts, [newKey]: curatedProducts[catName] };
+      delete next[catName];
+      setCuratedProducts(next);
+      localStorage.setItem("upabase_curated_products_tables", JSON.stringify(next));
+    }
+    if (curateActiveCat === catName) setCurateActiveCat(newKey);
+    if (catFilter === catName) setCatFilter(newKey);
+    await loadAll();
+  }
+
+  async function deleteCategory(catName: string) {
+    if (!confirm(`Excluir a categoria "${catName.charAt(0) + catName.slice(1).toLowerCase()}"? Os produtos dela ficam sem categoria.`)) return;
+    const ids = catNameMap[catName] ?? [];
+    await Promise.all(ids.map(id => supabase.from("categories").delete().eq("id", id)));
+    if (curatedProducts[catName]) resetCuratedCategory(catName);
+    if (curateActiveCat === catName) setCurateActiveCat(null);
+    if (catFilter === catName) setCatFilter(null);
+    await loadAll();
   }
 
   // Checkout
@@ -1069,7 +1108,8 @@ export default function TablesPage() {
               </button>
               {orderItems.length > 0 && (
                 <button onClick={() => { setSellers(getSellers()); setShowCheckout(true); setCheckoutPayments([]); setCheckoutInput(""); setCheckoutDiscount("0"); setCheckoutCustomer(null); setCheckoutSeller(""); setCheckoutNotes(""); setCheckoutError(null); }}
-                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold transition-colors shadow-lg shadow-emerald-900/30">
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-sm font-bold transition-colors shadow-lg shadow-emerald-900/30"
+                  style={{ color: "#fff" }}>
                   <CheckCircle2 className="w-4 h-4" /> Fechar Conta · {fmt(orderTotal)}
                 </button>
               )}
@@ -1080,8 +1120,8 @@ export default function TablesPage() {
           <div className="flex sm:hidden gap-2 mb-4 flex-shrink-0">
             {(["catalog", "order"] as const).map(t => (
               <button key={t} onClick={() => setComandaTab(t)}
-                style={comandaTab !== t ? { background: card.bg, border: card.border } : undefined}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-medium transition-colors ${comandaTab === t ? "bg-violet-600 text-white" : "text-zinc-400"}`}>
+                style={comandaTab !== t ? { background: card.bg, border: card.border } : { color: "#fff" }}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-medium transition-colors ${comandaTab === t ? "bg-violet-600" : "text-zinc-400"}`}>
                 {t === "catalog" ? <><Coffee className="w-3.5 h-3.5" />Cardápio</> : <><ShoppingCart className="w-3.5 h-3.5" />Comanda {orderItems.length > 0 && `(${orderItems.reduce((s,i)=>s+i.quantity,0)})`}</>}
               </button>
             ))}
@@ -1300,7 +1340,10 @@ export default function TablesPage() {
                       <div className="text-right flex-shrink-0">
                         <p className="text-sm font-bold text-white">{fmt(item.unit_price * item.quantity)}</p>
                         <button onClick={() => { setNoteTarget(item); setNoteText(item.notes ?? ""); setModal("itemNote"); }}
-                          className="text-[10px] text-zinc-600 hover:text-violet-400 transition-colors">obs</button>
+                          title="Observação do item"
+                          className={`flex items-center gap-1 mt-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-medium transition-colors ${item.notes ? "bg-violet-600/20 text-violet-300" : "text-zinc-500 hover:text-violet-400 hover:bg-zinc-800"}`}>
+                          <MessageSquare className="w-3 h-3" /> {item.notes ? "editar obs" : "obs"}
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -1315,7 +1358,8 @@ export default function TablesPage() {
                     <span className="text-lg font-black text-white">{fmt(orderTotal)}</span>
                   </div>
                   <button onClick={() => { setSellers(getSellers()); setShowCheckout(true); setCheckoutPayments([]); setCheckoutInput(""); setCheckoutDiscount("0"); setCheckoutCustomer(null); setCheckoutSeller(""); setCheckoutNotes(""); setCheckoutError(null); }}
-                    className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm transition-colors">
+                    className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 font-bold rounded-xl text-sm transition-colors"
+                    style={{ color: "#fff" }}>
                     Fechar Conta
                   </button>
                 </div>
@@ -1630,6 +1674,11 @@ export default function TablesPage() {
                 </select>
               </div>
               <div>
+                <label className="block text-xs font-medium text-zinc-400 mb-1.5">Observação geral do pedido (opcional)</label>
+                <input value={checkoutNotes} onChange={e => setCheckoutNotes(e.target.value)}
+                  placeholder="Ex: entregar rápido, mesa perto da janela..." className={inputCls} />
+              </div>
+              <div>
                 <p className="text-xs font-medium text-zinc-400 mb-2">Forma de pagamento</p>
                 <div className="grid grid-cols-3 gap-2">
                   {(Object.keys(PAY_INFO) as PayMethod[]).map(m => {
@@ -1721,16 +1770,36 @@ export default function TablesPage() {
             <div className="flex-1 overflow-y-auto p-5">
               <div className="flex flex-col sm:flex-row gap-4">
                 {/* Categorias */}
-                <div className="w-full sm:w-48 flex-shrink-0 flex flex-col gap-2">
+                <div className="w-full sm:w-56 flex-shrink-0 flex flex-col gap-2">
                   <p className="text-xs text-zinc-500 font-medium uppercase tracking-wide mb-1">Categorias</p>
-                  <div className="flex sm:flex-col gap-1 overflow-x-auto sm:overflow-visible max-h-40 sm:max-h-none">
-                    {visibleCatNames.map(name => (
-                      <button key={name} onClick={() => setCurateActiveCat(name)}
-                        className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-between gap-2 whitespace-nowrap flex-shrink-0 ${curateActiveCat === name ? "bg-violet-600/20 border border-violet-500/40 text-violet-300" : "bg-zinc-800/50 border border-transparent text-zinc-300 hover:bg-zinc-800"}`}>
-                        <span className="truncate">{name.charAt(0) + name.slice(1).toLowerCase()}</span>
-                        <span className="text-xs text-zinc-500 flex-shrink-0">{curatedProducts[name]?.length ?? 0}</span>
-                      </button>
+                  <div className="flex flex-col gap-1 overflow-y-auto max-h-56 sm:max-h-96">
+                    {Object.keys(catNameMap).sort().map(name => (
+                      <div key={name} className="flex items-center gap-1">
+                        <button onClick={() => setCurateActiveCat(name)}
+                          className={`flex-1 min-w-0 px-3 py-2 rounded-xl text-sm font-medium transition-colors flex items-center justify-between gap-2 ${curateActiveCat === name ? "bg-violet-600/20 border border-violet-500/40 text-violet-300" : "bg-zinc-800/50 border border-transparent text-zinc-300 hover:bg-zinc-800"}`}>
+                          <span className="truncate">{name.charAt(0) + name.slice(1).toLowerCase()}</span>
+                          <span className="text-xs text-zinc-500 flex-shrink-0">{curatedProducts[name]?.length ?? 0}</span>
+                        </button>
+                        <button onClick={() => renameCategory(name)} title="Renomear categoria"
+                          className="p-1.5 text-zinc-600 hover:text-violet-400 hover:bg-zinc-800 rounded-lg transition-colors flex-shrink-0">
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={() => deleteCategory(name)} title="Excluir categoria"
+                          className="p-1.5 text-zinc-600 hover:text-red-400 hover:bg-zinc-800 rounded-lg transition-colors flex-shrink-0">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     ))}
+                  </div>
+                  <div className="flex items-center gap-1 pt-1">
+                    <input value={newCatName} onChange={e => setNewCatName(e.target.value)}
+                      onKeyDown={e => e.key === "Enter" && createCategory()}
+                      placeholder="Nova categoria..." className="flex-1 min-w-0 px-2.5 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500" />
+                    <button onClick={createCategory} disabled={!newCatName.trim()}
+                      className="flex-shrink-0 p-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 rounded-xl transition-colors"
+                      style={{ color: "#fff" }}>
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
 
