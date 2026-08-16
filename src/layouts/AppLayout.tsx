@@ -475,7 +475,7 @@ export function AppLayout() {
           <img
             src="https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/ChatGPT%20Image%2028%20de%20jul.%20de%202026,%2014_45_53.png"
             alt="Logo"
-            style={{ height: 160, width: "auto", display: "block", imageRendering: "auto", pointerEvents: "none" }}
+            style={{ height: "auto", width: 190, maxWidth: "80%", display: "block", imageRendering: "auto", pointerEvents: "none" }}
           />
         </div>
 
