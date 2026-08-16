@@ -79,7 +79,7 @@ interface SaleItem {
   unit_price: number;
   total_price: number;
   notes: string | null;
-  products?: { name: string; item_type?: string | null } | null;
+  products?: { name: string; item_type?: string | null; category_id?: string | null } | null;
 }
 
 type PayMethod = "cash" | "credit" | "debit" | "pix" | "fiado" | "house_credit" | "ifood_receivable";
@@ -164,6 +164,7 @@ export default function PdvPage() {
   };
   const [tab, setTab] = useState<"venda" | "historico">("venda");
   const [products, setProducts] = useState<Product[]>([]);
+  const [categoryNames, setCategoryNames] = useState<Record<string, string>>({});
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
@@ -275,6 +276,8 @@ export default function PdvPage() {
     const { data: prods } = await supabase.from("products").select("*").neq("is_active", false).order("name");
     setProducts(prods ?? []);
     setLoadingProducts(false);
+    const { data: cats } = await supabase.from("categories").select("id,name");
+    setCategoryNames(Object.fromEntries((cats ?? []).map((c: any) => [c.id, c.name])));
     const { data: custs } = await supabase.from("customers").select("id,name,phone,address,balance,fiado_balance,credit_limit").order("name");
     setCustomers(custs ?? []);
     // Carrega caixa aberto
@@ -319,7 +322,7 @@ export default function PdvPage() {
       return;
     }
     const { data } = await supabase.from("sales")
-      .select("*, customers(name), sale_items(*, products(name, item_type))")
+      .select("*, customers(name), sale_items(*, products(name, item_type, category_id))")
       .eq("status", "paid")
       .gte("created_at", fromDate)
       .order("created_at", { ascending: false })
@@ -330,7 +333,7 @@ export default function PdvPage() {
 
   const loadPending = useCallback(async () => {
     const { data } = await supabase.from("sales")
-      .select("*, customers(name), sale_items(*, products(name, item_type))")
+      .select("*, customers(name), sale_items(*, products(name, item_type, category_id))")
       .eq("status", "open")
       .order("created_at", { ascending: false });
     setPendingSales((data ?? []) as Sale[]);
@@ -693,7 +696,7 @@ export default function PdvPage() {
       unit_price: i.customPrice ?? i.product.sale_price,
       total_price: (i.customPrice ?? i.product.sale_price) * i.quantity,
       notes: i.notes || null,
-      products: { name: i.product.name, item_type: i.product.item_type },
+      products: { name: i.product.name, item_type: i.product.item_type, category_id: i.product.category_id },
     }));
     printSale(
       { ...sale, total, payments, customers: customerSnapshot ? { name: customerSnapshot.name } : null, seller_name: sellerSnapshot || null, notes: notesSnapshot || null, delivery_address: addressSnapshot || null },
@@ -747,10 +750,15 @@ export default function PdvPage() {
         <div style="font-size:20px;font-weight:800;color:#000;margin-top:2px">${v}</div>
       </div>`;
 
-    // Identificar bebidas e separar itens
-    const isDrink = (name: string) => /bebida|coca|água|suco|refrigerante|vinho|cerveja|chopp|açaí|milkshake|café|leite/i.test(name);
-    const mainItems = items.filter(i => !isDrink(i.products?.name ?? ""));
-    const drinkItems = items.filter(i => isDrink(i.products?.name ?? ""));
+    // Identificar bebidas e separar itens (pela categoria do produto; nome é so um reforco)
+    const isDrink = (item: SaleItem) => {
+      const catId = item.products?.category_id;
+      const catName = catId ? (categoryNames[catId] ?? "") : "";
+      const name = item.products?.name ?? "";
+      return /bebida/i.test(catName) || /bebida|coca|água|suco|refrigerante|vinho|cerveja|chopp|açaí|milkshake|café|leite/i.test(name);
+    };
+    const mainItems = items.filter(i => !isDrink(i));
+    const drinkItems = items.filter(i => isDrink(i));
 
     const mainItemsHtml = mainItems.length > 0 ? mainItems.map((i, idx) => {
       const name = i.products?.name ?? "Produto";
@@ -886,7 +894,7 @@ export default function PdvPage() {
     const { data: freshSale } = await supabase.from("sales").select("*").eq("id", sale.id).single();
     const saleToUse = (freshSale ?? sale) as Sale;
 
-    const { data } = await supabase.from("sale_items").select("*, products(name, item_type)").eq("sale_id", sale.id);
+    const { data } = await supabase.from("sale_items").select("*, products(name, item_type, category_id)").eq("sale_id", sale.id);
     setShowEditItems(data ?? []);
     setEditSalePayments((saleToUse as any).payments ?? []);
     setEditCustomer(customers.find(c => c.id === saleToUse.customer_id) ?? null);
@@ -913,7 +921,7 @@ export default function PdvPage() {
       const { data } = await supabase.from("sale_items").insert({
         sale_id: showEditSale.id, product_id: product.id,
         quantity: 1, unit_price: product.sale_price, total_price: product.sale_price, notes: null,
-      }).select("*, products(name, item_type)").single();
+      }).select("*, products(name, item_type, category_id)").single();
       if (data) setShowEditItems(prev => [...prev, data as SaleItem]);
     }
     setEditProductSearch("");
