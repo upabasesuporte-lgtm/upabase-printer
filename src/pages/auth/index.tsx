@@ -191,7 +191,7 @@ export default function AuthPage() {
 
           {/* Logo */}
           <img
-            src="https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/ChatGPT%20Image%2021%20de%20mai.%20de%202026,%2019_48_48.png"
+            src="https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/ChatGPT%20Image%2028%20de%20jul.%20de%202026,%2014_45_53.png"
             alt="Logo"
             style={{ height: 150, width: "auto", display: "block", alignSelf: "center", imageRendering: "auto", marginBottom: -20 }}
           />
@@ -308,15 +308,15 @@ export default function AuthPage() {
       </div>
 
       {/* PAINEL DIREITO */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-6" style={{ height: "100vh", overflowY: "auto", background: "#ffffff" }}>
+      <div className="w-full lg:w-1/2 flex items-start lg:items-center justify-center p-6" style={{ height: "100vh", overflowY: "auto", background: "#ffffff" }}>
         <div className="w-full max-w-md">
 
           {/* Logo mobile */}
-          <div className="flex lg:hidden justify-center mb-8">
+          <div className="flex lg:hidden justify-center mb-4">
             <img
-              src="https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/ChatGPT%20Image%2021%20de%20mai.%20de%202026,%2019_48_48.png"
+              src="https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/ChatGPT%20Image%2028%20de%20jul.%20de%202026,%2014_45_53.png"
               alt="Logo"
-              style={{ height: 140, width: "auto", display: "block", imageRendering: "auto", maxWidth: "90%" }}
+              style={{ height: 100, width: "auto", display: "block", imageRendering: "auto", maxWidth: "90%" }}
             />
           </div>
 
