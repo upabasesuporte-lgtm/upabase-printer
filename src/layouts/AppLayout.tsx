@@ -471,7 +471,7 @@ export function AppLayout() {
         style={{ background: T.sidebarBg, borderRight: `1px solid ${T.border}` }}>
 
         {/* Logo */}
-        <div className="h-20 flex items-center justify-center" style={{ overflow: "visible", borderBottom: `1px solid ${T.border}` }}>
+        <div className="h-24 flex items-center justify-center" style={{ overflow: "visible", borderBottom: `1px solid ${T.border}` }}>
           <img
             src="https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/ChatGPT%20Image%2028%20de%20jul.%20de%202026,%2014_45_53.png"
             alt="Logo"
