@@ -318,7 +318,7 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
     ? { name: product.name, description: product.description, sku: product.sku, barcode: product.barcode, image_url: product.image_url, category_id: product.category_id, subcategory_id: product.subcategory_id, sale_price: product.sale_price, cost_price: product.cost_price ?? 0, promo_price: product.promo_price, promo_price_until: product.promo_price_until, unit: product.unit ?? "unidade", stock: product.stock ?? 0, stock_type: product.stock_type ?? "controlled", stock_min: product.stock_min ?? 0, stock_max: product.stock_max, visible_pdv: product.visible_pdv ?? true, visible_tables: product.visible_tables ?? true, visible_digital_menu: product.visible_digital_menu ?? true, printer_destination: product.printer_destination ?? "balcao", item_type: product.item_type ?? "principal", status: product.status ?? "active", is_active: product.is_active ?? true }
     : { ...DEFAULT_FORM, name: initialName ?? "" });
   const [variations, setVariations] = useState<Variation[]>([]);
-  const [newVar, setNewVar] = useState<Variation>({ type: "tamanho", name: "", additional_price: 0, stock: 0, is_active: true });
+  const [newVar, setNewVar] = useState<Variation>({ type: "tamanho", name: "", additional_price: 0, stock: 1, is_active: true });
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -376,7 +376,7 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
   function addVariation() {
     if (!newVar.name.trim()) return;
     setVariations(prev => [...prev, { ...newVar, id: undefined }]);
-    setNewVar({ type: newVar.type, name: "", additional_price: 0, stock: 0, is_active: true });
+    setNewVar({ type: newVar.type, name: "", additional_price: 0, stock: 1, is_active: true });
   }
 
   function removeVariation(idx: number) {
@@ -671,7 +671,7 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
               {/* Adicionar variação */}
               <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-3">
                 <p className="text-xs font-medium text-zinc-400">Nova variação</p>
-                <div className="grid grid-cols-[auto_1fr_auto_auto] gap-2 items-end">
+                <div className="grid grid-cols-[auto_1fr_auto_auto_auto] gap-2 items-end">
                   <Field label="Tipo">
                     <select value={newVar.type} onChange={e => setNewVar(v => ({ ...v, type: e.target.value }))} className={`${selectCls} w-28`}>
                       {VAR_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
@@ -679,6 +679,10 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
                   </Field>
                   <Field label="Nome / Valor">
                     <input value={newVar.name} onChange={e => setNewVar(v => ({ ...v, name: e.target.value }))} placeholder="Ex: G, Vermelho, Grande..." className={inputCls} />
+                  </Field>
+                  <Field label="Quantidade">
+                    <input type="number" min="0" step="1" value={newVar.stock || ""} onChange={e => setNewVar(v => ({ ...v, stock: parseInt(e.target.value) || 0 }))}
+                      placeholder="1" className={`${inputCls} w-20`} />
                   </Field>
                   <Field label="+ Preço (R$)">
                     <input type="number" step="0.01" value={newVar.additional_price || ""} onChange={e => setNewVar(v => ({ ...v, additional_price: parseFloat(e.target.value) || 0 }))}
@@ -689,6 +693,7 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
                     <Plus className="w-4 h-4" />
                   </button>
                 </div>
+                <p className="text-[11px] text-zinc-600">Já lançando 3 unidades do mesmo tamanho? Cadastre uma vez com Quantidade = 3.</p>
               </div>
 
               {/* Lista de variações */}
@@ -703,6 +708,12 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
                         <div key={v._idx} className="flex items-center gap-3 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5">
                           <span className="text-sm font-medium flex-1">{v.name}</span>
                           {v.additional_price > 0 && <span className="text-xs text-emerald-400">+{fmt(v.additional_price)}</span>}
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <span className="text-[10px] text-zinc-500 uppercase tracking-wide">Qtd</span>
+                            <input type="number" min="0" value={v.stock || ""}
+                              onChange={e => setVariations(prev => prev.map((p, i) => i === v._idx ? { ...p, stock: parseInt(e.target.value) || 0 } : p))}
+                              className="w-14 px-2 py-1 bg-zinc-900 border border-zinc-800 rounded-lg text-sm text-white text-center" />
+                          </div>
                           <Toggle value={v.is_active} onChange={val => setVariations(prev => prev.map((p, i) => i === v._idx ? { ...p, is_active: val } : p))} />
                           <button type="button" onClick={() => removeVariation(v._idx)} className="text-red-400 hover:text-red-300 transition-colors">
                             <X className="w-4 h-4" />

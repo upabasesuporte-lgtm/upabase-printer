@@ -113,7 +113,8 @@ export default function PurchasesPage() {
   // Editar produto já selecionado numa linha da compra (corrigir algo digitado errado)
   const [editProductTarget, setEditProductTarget] = useState<Product | null>(null);
   const [editProductIdx, setEditProductIdx] = useState<number | null>(null);
-  useEscapeKey(() => { setEditProductTarget(null); setEditProductIdx(null); }, !!editProductTarget);
+  const [editProductBaseline, setEditProductBaseline] = useState<{ stock: number; cost_price: number } | null>(null);
+  useEscapeKey(() => { setEditProductTarget(null); setEditProductIdx(null); setEditProductBaseline(null); }, !!editProductTarget);
 
   // Importação de XML de NFe
   const xmlInputRef = useRef<HTMLInputElement>(null);
@@ -392,17 +393,36 @@ export default function PurchasesPage() {
   // Editar produto já lançado na compra (corrigir algo digitado errado sem sair da tela)
   async function openEditProductFromRow(idx: number, id: string) {
     const { data } = await supabase.from("products").select("*").eq("id", id).single();
-    if (data) { setEditProductTarget(data as Product); setEditProductIdx(idx); }
+    if (data) {
+      setEditProductTarget(data as Product);
+      setEditProductIdx(idx);
+      setEditProductBaseline({ stock: data.stock ?? 0, cost_price: data.cost_price ?? 0 });
+    }
   }
 
   async function handleEditProductSaved(id?: string) {
-    await loadLimitedProducts();
     if (editProductIdx !== null && id) {
       const idx = editProductIdx;
-      const { data } = await supabase.from("products").select("name").eq("id", id).single();
-      if (data) setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, itemName: data.name } : p));
+      const { data } = await supabase.from("products").select("name, stock, cost_price").eq("id", id).single();
+      if (data) {
+        const baseline = editProductBaseline ?? { stock: 0, cost_price: 0 };
+        const deltaQty = (data.stock ?? 0) - baseline.stock;
+        const newCost = data.cost_price ?? 0;
+        const costChanged = newCost > 0 && newCost !== baseline.cost_price;
+        // So consome a diferenca de estoque como quantidade desta compra quando
+        // ela aumentou (edicao usada pra completar o que faltou preencher) —
+        // devolve o estoque pro valor original pra "Confirmar Recebimento"
+        // somar certo, sem duplicar nem mexer no estoque real ja existente.
+        if (deltaQty > 0) await supabase.from("products").update({ stock: baseline.stock }).eq("id", id);
+        setPOItems(prev => prev.map((p, i) => i === idx ? {
+          ...p, itemName: data.name,
+          quantity: deltaQty > 0 ? String(deltaQty) : p.quantity,
+          unit_cost: costChanged ? String(newCost) : p.unit_cost,
+        } : p));
+      }
     }
-    setEditProductTarget(null); setEditProductIdx(null);
+    await loadLimitedProducts();
+    setEditProductTarget(null); setEditProductIdx(null); setEditProductBaseline(null);
   }
 
   async function savePurchase() {
