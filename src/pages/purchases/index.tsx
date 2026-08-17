@@ -373,6 +373,7 @@ export default function PurchasesPage() {
     if (po.status !== "cancelled" || deletingId) return;
     if (!confirm("Excluir definitivamente esta compra cancelada? Essa ação não pode ser desfeita.")) return;
     setDeletingId(po.id);
+    await supabase.from("accounts_payable").delete().eq("purchase_order_id", po.id);
     await supabase.from("purchase_order_items").delete().eq("purchase_order_id", po.id);
     const { error } = await supabase.from("purchase_orders").delete().eq("id", po.id);
     if (error) { alert(error.message); setDeletingId(null); return; }
@@ -483,7 +484,7 @@ export default function PurchasesPage() {
                   </button>
                   {isExpanded && (
                     <div className="border-t border-zinc-800">
-                      <div className="hidden sm:grid grid-cols-[1fr_100px_100px_100px] gap-x-4 px-5 py-2 bg-zinc-950/40 text-xs text-zinc-500 font-medium">
+                      <div className="hidden sm:grid grid-cols-[1fr_100px_100px_100px] gap-x-4 px-5 py-2 text-xs text-zinc-500 font-medium">
                         <span>Item</span><span>Quantidade</span><span>Custo Unit.</span><span className="text-right">Total</span>
                       </div>
                       <div className="divide-y divide-zinc-800/50">
