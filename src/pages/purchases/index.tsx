@@ -83,6 +83,7 @@ export default function PurchasesPage() {
   const [poSupplierId, setPOSupplierId] = useState("");
   const [poNotes, setPONotes] = useState("");
   const [poDueDate, setPODueDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [poInstallments, setPOInstallments] = useState("1");
   const [poItems, setPOItems] = useState<{ ref_type: "ingredient" | "product"; item_id: string; itemName: string; quantity: string; unit_cost: string }[]>([]);
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
 
@@ -94,6 +95,7 @@ export default function PurchasesPage() {
   const [receivingId, setReceivingId] = useState<string | null>(null);
   const [receiveTarget, setReceiveTarget] = useState<PurchaseOrder | null>(null);
   const [receiveDueDate, setReceiveDueDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [receiveInstallments, setReceiveInstallments] = useState("1");
   const [openSearchIdx, setOpenSearchIdx] = useState<number | null>(null);
   const [itemSearchText, setItemSearchText] = useState("");
 
@@ -278,7 +280,7 @@ export default function PurchasesPage() {
       await Promise.all([loadStockItems(), loadLimitedProducts()]);
       setPOSupplierId(xmlSupplierId ?? "");
       setPONotes(xmlInvoiceRef);
-      setPODueDate(new Date().toISOString().split("T")[0]);
+      setPODueDate(new Date().toISOString().split("T")[0]); setPOInstallments("1");
       setPurchaseError(null);
       setPOItems(finalItems);
       setXmlItems(null);
@@ -292,7 +294,7 @@ export default function PurchasesPage() {
 
   function openPurchaseModal() {
     setPOSupplierId(""); setPONotes(""); setPurchaseError(null);
-    setPODueDate(new Date().toISOString().split("T")[0]);
+    setPODueDate(new Date().toISOString().split("T")[0]); setPOInstallments("1");
     setPOItems([{ ref_type: "ingredient", item_id: "", itemName: "", quantity: "", unit_cost: "" }]);
     setModal("purchase");
   }
@@ -323,7 +325,7 @@ export default function PurchasesPage() {
     const chosen = suggestions.filter(s => suggestionSelected[s.key] && parseFloat(suggestionQty[s.key]) > 0);
     if (chosen.length === 0) return;
     setPOSupplierId(""); setPONotes(""); setPurchaseError(null);
-    setPODueDate(new Date().toISOString().split("T")[0]);
+    setPODueDate(new Date().toISOString().split("T")[0]); setPOInstallments("1");
     setPOItems(chosen.map(s => ({
       ref_type: s.ref_type, item_id: s.id, itemName: s.name,
       quantity: suggestionQty[s.key], unit_cost: s.cost_price ? String(s.cost_price) : "",
@@ -386,6 +388,7 @@ export default function PurchasesPage() {
       p_supplier_id: poSupplierId || null,
       p_notes: poNotes || null,
       p_due_date: poDueDate,
+      p_installments: parseInt(poInstallments) || 1,
       p_items: validItems.map(i => ({
         ref_type: i.ref_type,
         item_id: i.item_id,
@@ -432,12 +435,13 @@ export default function PurchasesPage() {
 
   // Confirma que a mercadoria de uma compra pendente chegou: só agora estoque
   // e conta a pagar são atualizados.
-  async function confirmReceivePurchase(po: PurchaseOrder, dueDate: string) {
+  async function confirmReceivePurchase(po: PurchaseOrder, dueDate: string, installments: string) {
     if (receivingId) return;
     setReceivingId(po.id);
     const { error } = await supabase.rpc("receive_purchase_order", {
       p_purchase_order_id: po.id,
       p_due_date: dueDate,
+      p_installments: parseInt(installments) || 1,
     });
     if (error) {
       alert(error.message);
@@ -629,7 +633,7 @@ export default function PurchasesPage() {
                         </div>
                         {po.status === "pending" ? (
                           <div className="px-5 py-3 flex flex-wrap items-center gap-4">
-                            <button onClick={() => { setReceiveTarget(po); setReceiveDueDate(new Date().toISOString().split("T")[0]); setModal("receive"); }}
+                            <button onClick={() => { setReceiveTarget(po); setReceiveDueDate(new Date().toISOString().split("T")[0]); setReceiveInstallments("1"); setModal("receive"); }}
                               disabled={receivingId === po.id}
                               className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 hover:text-emerald-300 disabled:opacity-50 transition-colors">
                               {receivingId === po.id ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Truck className="w-3.5 h-3.5" />}
@@ -732,14 +736,20 @@ export default function PurchasesPage() {
               <p className="text-sm text-zinc-400">
                 Isso vai somar os itens dessa compra no estoque e criar a conta a pagar. Confere o vencimento antes de confirmar:
               </p>
-              <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1.5">Vencimento (Contas a Pagar)</label>
-                <input type="date" value={receiveDueDate} onChange={e => setReceiveDueDate(e.target.value)} className={inputCls} />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Vencimento (Contas a Pagar)</label>
+                  <input type="date" value={receiveDueDate} onChange={e => setReceiveDueDate(e.target.value)} className={inputCls} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Número de parcelas</label>
+                  <input type="number" min="1" max="60" value={receiveInstallments} onChange={e => setReceiveInstallments(e.target.value)} className={inputCls} />
+                </div>
               </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 px-6 py-4 border-t border-zinc-800 flex-shrink-0">
               <button onClick={() => setModal("none")} className="sm:flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
-              <button onClick={() => confirmReceivePurchase(receiveTarget, receiveDueDate)} disabled={receivingId === receiveTarget.id}
+              <button onClick={() => confirmReceivePurchase(receiveTarget, receiveDueDate, receiveInstallments)} disabled={receivingId === receiveTarget.id}
                 className="sm:flex-1 flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-xl text-sm font-semibold transition-colors"
                 style={{ color: "#fff" }}>
                 {receivingId === receiveTarget.id ? <RefreshCw className="w-4 h-4 animate-spin flex-shrink-0" /> : <Check className="w-4 h-4 flex-shrink-0" />}
@@ -777,6 +787,11 @@ export default function PurchasesPage() {
                 <div>
                   <label className="block text-xs font-medium text-zinc-400 mb-1.5">Vencimento (Contas a Pagar)</label>
                   <input type="date" value={poDueDate} onChange={e => setPODueDate(e.target.value)} className={inputCls} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Número de parcelas</label>
+                  <input type="number" min="1" max="60" value={poInstallments} onChange={e => setPOInstallments(e.target.value)} className={inputCls} />
+                  <p className="text-[10px] text-zinc-600 mt-1">Só vale pra "Confirmar Recebimento" — "Só Fazer Pedido" não cria conta a pagar ainda.</p>
                 </div>
               </div>
 
