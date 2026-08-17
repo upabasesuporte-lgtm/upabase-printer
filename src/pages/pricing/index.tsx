@@ -1,99 +1,65 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Check, ChevronDown, ArrowRight, Lock, Shield, Zap, Headphones, Cloud, HardDrive } from "lucide-react";
-import { PLAN_INFO, getMpCheckoutUrl } from "../../lib/plans";
-import { supabase } from "../../lib/supabase";
+import {
+  Check,
+  ArrowRight,
+  LayoutDashboard,
+  Wallet,
+  ShoppingCart,
+  BookOpen,
+  LayoutGrid,
+  Package,
+  Boxes,
+  Truck,
+  Building2,
+  Users,
+  Receipt,
+  BarChart3,
+} from "lucide-react";
+import { PLAN_INFO } from "../../lib/plans";
 
-const PRIMARY = "#2563eb";
+const BLUE = "#2451f5";
+const PURPLE = "#7c3aed";
+const AQUA = "#0fb8a4";
+const AQUA_LIGHT = "#e3faf5";
+const INK = "#12141f";
+const INK_SOFT = "#5b6072";
+const BG_SOFT = "#f4f6fc";
+const LINE = "#e4e7f2";
+const MONO = "ui-monospace, SFMono-Regular, 'JetBrains Mono', Menlo, Consolas, monospace";
 
-interface BenefitCard {
-  emoji: string;
-  title: string;
-  desc: string;
-}
-
-interface GuaranteeCard {
-  icon: React.ReactNode;
-  title: string;
-  desc: string;
-}
-
-interface FAQItem {
-  q: string;
-  a: string;
-}
-
-const BENEFITS: BenefitCard[] = [
-  {
-    emoji: "💰",
-    title: "Controle financeiro completo",
-    desc: "Acompanhe entradas, saídas, lucro e movimentações em tempo real.",
-  },
-  {
-    emoji: "📦",
-    title: "Estoque inteligente",
-    desc: "Controle produtos e movimentações automaticamente.",
-  },
-  {
-    emoji: "🖥️",
-    title: "PDV moderno",
-    desc: "Venda rapidamente com uma interface intuitiva.",
-  },
-  {
-    emoji: "📈",
-    title: "Relatórios completos",
-    desc: "Tome decisões com base em dados reais.",
-  },
+const TICKET_ITEMS = [
+  "Dashboard",
+  "Caixa",
+  "Vendas / PDV",
+  "Catálogo digital",
+  "Mesas",
+  "Produtos",
+  "Estoque",
+  "Compras",
+  "Fornecedores",
+  "Clientes",
+  "Contas a pagar",
+  "Relatórios",
+  "Configurações",
 ];
 
-const FEATURES = [
-  {
-    title: "Caixa e PDV",
-    desc: "Controle abertura de caixa, vendas, sangrias, reforços e fechamento.",
-    images: [
-      "https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/caixa.png",
-      "https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/pdv.png",
-    ],
-  },
-  {
-    title: "Cardápio Digital",
-    desc: "Receba pedidos online sem pagar comissão para marketplaces.",
-    images: ["https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/cardapio%20digital.png"],
-  },
-  {
-    title: "Gestão de Mesas",
-    desc: "Organize comandas e acompanhe ocupação em tempo real.",
-    images: ["https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/mesas.png"],
-  },
-  {
-    title: "Controle de Estoque",
-    desc: "Movimentação automática de produtos e ingredientes.",
-    images: ["https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/estoque.png"],
-  },
-  {
-    title: "Relatórios",
-    desc: "Visualize vendas, lucro e desempenho do negócio.",
-    images: ["https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/relatorios.png"],
-  },
+const FEATURES_GRID = [
+  { icon: LayoutDashboard, title: "Dashboard", desc: "Visão geral do negócio em tempo real." },
+  { icon: Wallet, title: "Caixa", desc: "Abertura, sangria e fechamento sem dor de cabeça." },
+  { icon: ShoppingCart, title: "Vendas / PDV", desc: "Ponto de venda rápido para o dia a dia." },
+  { icon: BookOpen, title: "Catálogo digital", desc: "Cardápio online para pedidos sem garçom." },
+  { icon: LayoutGrid, title: "Mesas", desc: "Controle de ocupação e pedidos por mesa." },
+  { icon: Package, title: "Produtos", desc: "Cadastro completo, com fichas e variações." },
+  { icon: Boxes, title: "Estoque", desc: "Entradas, saídas e alertas de nível baixo." },
+  { icon: Truck, title: "Compras", desc: "Pedidos de reposição direto com fornecedores." },
+  { icon: Building2, title: "Fornecedores", desc: "Histórico e contatos organizados." },
+  { icon: Users, title: "Clientes", desc: "Base de clientes com histórico de compras." },
+  { icon: Receipt, title: "Contas a pagar", desc: "Vencimentos e pagamentos sob controle." },
+  { icon: BarChart3, title: "Relatórios", desc: "Números claros para decidir com dados." },
 ];
 
-const CREDIBILITY = [
-  { title: "✅ Testado em operação real" },
-  { title: "✅ Atualizações constantes" },
-  { title: "✅ Suporte humano" },
-  { title: "✅ Desenvolvimento ativo" },
-];
-
-const GUARANTEES: GuaranteeCard[] = [
-  { icon: <Zap size={24} />, title: "15 dias grátis", desc: "Sem limitações" },
-  { icon: <Lock size={24} />, title: "Sem fidelidade", desc: "Cancele quando quiser" },
-  { icon: <Cloud size={24} />, title: "Sem cartão", desc: "Comece agora" },
-  { icon: <ArrowRight size={24} />, title: "Cancelamento imediato", desc: "Sem taxas" },
-  { icon: <Headphones size={24} />, title: "Suporte humano", desc: "Atendimento rápido" },
-  { icon: <Shield size={24} />, title: "Dados protegidos", desc: "Criptografia avançada" },
-];
-
-const FAQS: FAQItem[] = [
+const FAQS = [
   {
     q: "Preciso informar cartão para testar?",
     a: "Não. Os 15 dias de teste são completamente grátis e sem cartão. Você só informa o pagamento quando decidir continuar.",
@@ -120,1101 +86,329 @@ const FAQS: FAQItem[] = [
   },
 ];
 
+const fmt = (n: number) => n.toFixed(2).replace(".", ",");
+
 export default function PricingPage() {
-  const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const [caixaPdvImageIndex, setCaixaPdvImageIndex] = useState(0);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [isAnnual, setIsAnnual] = useState(false);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUserEmail(data.user?.email ?? null);
-    });
-
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+  const plan = PLAN_INFO.loja;
+  const amount = isAnnual ? plan.price_annual_monthly : plan.price_monthly;
+  const savingsPct = Math.round((1 - plan.price_annual_total / (plan.price_monthly * 12)) * 100);
 
   return (
-    <div style={{ background: "#fff", minHeight: "100vh", overflowX: "hidden" }}>
-      {/* ── HERO ─────────────────────────────────────────────────────────────────── */}
-      <section
-        style={{
-          paddingTop: "80px",
-          paddingBottom: "60px",
-          paddingLeft: "1rem",
-          paddingRight: "1rem",
-          maxWidth: "1200px",
-          margin: "0 auto",
-        }}
-      >
-        {/* Badge */}
+    <div style={{ position: "relative", background: BG_SOFT, minHeight: "100vh", overflowX: "hidden" }}>
+      <style>{`
+        .up-dots{
+          position:absolute; inset:0; z-index:0; pointer-events:none;
+          background-image: radial-gradient(rgba(18,20,31,0.07) 1px, transparent 1px);
+          background-size: 24px 24px;
+        }
+        .up-ambient{ position:fixed; inset:0; z-index:0; overflow:hidden; pointer-events:none; }
+        .up-blob{ position:absolute; border-radius:50%; filter:blur(80px); }
+        .up-blob-blue{ width:460px; height:460px; top:-160px; left:-120px; background:radial-gradient(circle, ${BLUE}, transparent 70%); opacity:.35; animation: up-float-a 17s ease-in-out infinite; }
+        .up-blob-purple{ width:400px; height:400px; top:60px; right:-160px; background:radial-gradient(circle, ${PURPLE}, transparent 70%); opacity:.3; animation: up-float-b 19s ease-in-out infinite; }
+        .up-blob-aqua{ width:380px; height:380px; top:520px; left:38%; background:radial-gradient(circle, ${AQUA}, transparent 70%); opacity:.28; animation: up-float-c 21s ease-in-out infinite; }
+        @keyframes up-float-a{ 0%,100%{ transform:translate(0,0) scale(1); } 50%{ transform:translate(40px,50px) scale(1.06); } }
+        @keyframes up-float-b{ 0%,100%{ transform:translate(0,0) scale(1); } 50%{ transform:translate(-35px,45px) scale(1.05); } }
+        @keyframes up-float-c{ 0%,100%{ transform:translate(-50%,0) scale(1); } 50%{ transform:translate(-50%,-40px) scale(1.08); } }
+        @media (prefers-reduced-motion: reduce){ .up-blob{ animation:none; } }
+
+        .up-toggle-btn{ position:relative; z-index:2; border:none; background:transparent; cursor:pointer; font-weight:700; font-size:14px; padding:10px 22px; border-radius:999px; color:${INK_SOFT}; transition:color .2s ease; display:flex; align-items:center; gap:7px; font-family:inherit; }
+        .up-toggle-btn.active{ color:#fff; }
+        .up-toggle-thumb{ position:absolute; top:4px; left:4px; height:calc(100% - 8px); width:calc(50% - 4px); border-radius:999px; background:linear-gradient(120deg, ${BLUE}, ${PURPLE}); transition:transform .28s cubic-bezier(.65,0,.35,1); z-index:1; }
+
+        .up-cta-btn{ display:block; text-align:center; background:linear-gradient(120deg, ${BLUE}, ${PURPLE}); color:#fff; font-weight:700; font-size:15px; padding:14px 0; border-radius:12px; box-shadow:0 14px 26px -12px rgba(36,81,245,0.55); transition:transform .15s ease, box-shadow .15s ease; border:none; cursor:pointer; text-decoration:none; }
+        .up-cta-btn:hover{ transform:translateY(-2px); box-shadow:0 18px 30px -12px rgba(36,81,245,0.6); }
+
+        .up-feat-card{ background:#fff; border:1px solid ${LINE}; border-radius:14px; padding:20px 18px; transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+        .up-feat-card:hover{ transform:translateY(-3px); box-shadow:0 16px 28px -18px rgba(18,20,31,0.25); border-color:transparent; }
+
+        .up-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:14px; }
+        @media (max-width: 760px){ .up-grid{ grid-template-columns:repeat(2,1fr); } .up-trust{ gap:16px 22px!important; font-size:12.5px!important; } }
+
+        .up-faq{ border-bottom:1px solid ${LINE}; padding:18px 0; }
+        .up-faq summary{ cursor:pointer; font-weight:600; font-size:15.5px; list-style:none; display:flex; justify-content:space-between; align-items:center; gap:12px; color:${INK}; }
+        .up-faq summary::-webkit-details-marker{ display:none; }
+        .up-faq .up-plus{ width:22px; height:22px; border-radius:50%; background:${BG_SOFT}; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:15px; color:${INK_SOFT}; transition:transform .2s ease; }
+        .up-faq[open] .up-plus{ transform:rotate(45deg); }
+        .up-faq p{ margin-top:12px; color:${INK_SOFT}; font-size:14.5px; line-height:1.6; }
+      `}</style>
+
+      <div className="up-ambient" aria-hidden="true">
+        <div className="up-blob up-blob-blue" />
+        <div className="up-blob up-blob-purple" />
+        <div className="up-blob up-blob-aqua" />
+      </div>
+      <div className="up-dots" aria-hidden="true" />
+
+      {/* ── HERO + TOGGLE ─────────────────────────────────────────────────── */}
+      <section style={{ position: "relative", zIndex: 2, padding: "44px 1rem 4px", textAlign: "center" }}>
+        <h1
+          style={{
+            fontSize: "clamp(24px, 3.6vw, 32px)",
+            fontWeight: 700,
+            lineHeight: 1.15,
+            maxWidth: 540,
+            margin: "0 auto",
+            letterSpacing: "-0.02em",
+            color: INK,
+          }}
+        >
+          Seu negócio,{" "}
+          <span
+            style={{
+              background: `linear-gradient(100deg, ${BLUE}, ${PURPLE})`,
+              WebkitBackgroundClip: "text",
+              backgroundClip: "text",
+              color: "transparent",
+            }}
+          >
+            em um sistema só.
+          </span>
+        </h1>
+      </section>
+
+      <div style={{ position: "relative", zIndex: 2, display: "flex", justifyContent: "center", alignItems: "center", gap: 14, flexWrap: "wrap", margin: "22px 0 28px" }}>
         <div
           style={{
-            display: "flex",
-            justifyContent: "center",
-            marginBottom: "24px",
+            position: "relative",
+            display: "inline-flex",
+            background: "#fff",
+            border: `1px solid ${LINE}`,
+            borderRadius: 999,
+            padding: 4,
+            boxShadow: "0 8px 20px -12px rgba(18,20,31,0.15)",
+          }}
+        >
+          <div className="up-toggle-thumb" style={{ transform: isAnnual ? "translateX(100%)" : "translateX(0)" }} />
+          <button className={`up-toggle-btn${!isAnnual ? " active" : ""}`} onClick={() => setIsAnnual(false)}>
+            Mensal
+          </button>
+          <button className={`up-toggle-btn${isAnnual ? " active" : ""}`} onClick={() => setIsAnnual(true)}>
+            Anual
+          </button>
+        </div>
+        <span
+          style={{
+            background: AQUA_LIGHT,
+            color: "#0a8a7a",
+            fontSize: 12.5,
+            fontWeight: 700,
+            padding: "5px 11px",
+            borderRadius: 999,
+            whiteSpace: "nowrap",
+          }}
+        >
+          Economize {savingsPct}% no anual
+        </span>
+      </div>
+
+      {/* ── RECEIPT PRICING CARD ─────────────────────────────────────────── */}
+      <div style={{ position: "relative", zIndex: 2, display: "flex", justifyContent: "center", padding: "0 1rem 10px" }}>
+        <div
+          style={{
+            width: "100%",
+            maxWidth: 380,
+            background: "#fff",
+            borderRadius: 18,
+            boxShadow: "0 30px 60px -25px rgba(18,20,31,0.25)",
+            padding: "0 0 26px",
+            transform: "rotate(-0.6deg)",
           }}
         >
           <div
             style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-              padding: "8px 14px",
-              background: "#f0f4ff",
-              border: `1px solid ${PRIMARY}20`,
-              borderRadius: "999px",
+              height: 16,
+              background:
+                `radial-gradient(circle at 10px 0, transparent 9px, #fff 9.5px) top left/20px 16px repeat-x, ${BG_SOFT}`,
+              borderRadius: "18px 18px 0 0",
             }}
-          >
-            <span style={{ fontSize: "12px", fontWeight: 600, color: PRIMARY }}>
-              ✨ 15 dias grátis • Sem cartão
-            </span>
-          </div>
-        </div>
+          />
 
-        {/* Título */}
-        <h1
-          style={{
-            fontSize: "clamp(32px, 6vw, 56px)",
-            fontWeight: 900,
-            lineHeight: 1.2,
-            textAlign: "center",
-            color: "#0f172a",
-            marginBottom: "16px",
-            maxWidth: "900px",
-            margin: "0 auto 16px",
-            letterSpacing: "-0.02em",
-          }}
-        >
-          Tudo o que sua empresa precisa em um só lugar
-        </h1>
-
-        {/* Subtítulo */}
-        <p
-          style={{
-            fontSize: "clamp(16px, 2.5vw, 20px)",
-            color: "#6B7280",
-            textAlign: "center",
-            maxWidth: "700px",
-            margin: "0 auto 24px",
-            lineHeight: 1.6,
-          }}
-        >
-          Controle vendas, estoque, clientes, financeiro e delivery com uma plataforma simples, completa e feita para pequenas empresas.
-        </p>
-
-        {/* Tipos de negócios */}
-        <p
-          style={{
-            fontSize: "14px",
-            color: "#6B7280",
-            textAlign: "center",
-            maxWidth: "700px",
-            margin: "0 auto 32px",
-            lineHeight: 1.6,
-          }}
-        >
-          🏪 Lojas • 🛒 Mercadinhos • 👟 Calçados • 👕 Roupas • 🍔 Restaurantes • 🛵 Delivery
-        </p>
-
-        {/* Benefícios */}
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            justifyContent: "center",
-            gap: "20px",
-            marginBottom: "40px",
-          }}
-        >
-          {["15 dias grátis", "Sem cartão de crédito", "Suporte humano", "Cancele quando quiser"].map((benefit) => (
-            <div
-              key={benefit}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-                fontSize: "13px",
-                fontWeight: 600,
-                color: "#374151",
-              }}
-            >
-              <Check size={16} color={PRIMARY} strokeWidth={3} />
-              {benefit}
+          <div style={{ textAlign: "center", padding: "22px 30px 16px" }}>
+            <div style={{ fontSize: 11, letterSpacing: "0.14em", color: INK_SOFT, fontWeight: 600 }}>
+              UPABASE · RECIBO DO PLANO
             </div>
-          ))}
-        </div>
+            <h3 style={{ fontSize: 20, marginTop: 6, color: INK }}>{plan.label}</h3>
+          </div>
 
-        {/* Botões */}
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            justifyContent: "center",
-            gap: "12px",
-            marginBottom: "60px",
-          }}
-        >
+          <div style={{ borderTop: `1.5px dashed ${LINE}`, margin: "0 26px" }} />
+
+          <ul style={{ padding: "16px 30px 6px", listStyle: "none" }}>
+            {TICKET_ITEMS.map((item) => (
+              <li key={item} style={{ display: "flex", alignItems: "baseline", gap: 6, fontSize: 13.5, color: INK, padding: "5px 0" }}>
+                <span style={{ color: AQUA, fontWeight: 700, fontSize: 13 }}>✓</span>
+                {item}
+                <span style={{ flex: 1, borderBottom: "1px dotted #c9cce0", transform: "translateY(-3px)" }} />
+              </li>
+            ))}
+          </ul>
+
+          <div style={{ borderTop: `1.5px dashed ${LINE}`, margin: "0 26px" }} />
+
+          <div style={{ padding: "18px 30px 4px", textAlign: "center" }}>
+            <div style={{ fontSize: 11.5, letterSpacing: ".1em", textTransform: "uppercase", color: INK_SOFT, fontWeight: 600 }}>
+              Total
+            </div>
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 6, marginTop: 6, fontFamily: MONO }}>
+              <span style={{ fontSize: 20, fontWeight: 600, alignSelf: "flex-start", marginTop: 4, color: INK }}>R$</span>
+              <span style={{ fontSize: 46, fontWeight: 700, lineHeight: 1, color: INK }}>{fmt(amount)}</span>
+              <span style={{ fontSize: 14, color: INK_SOFT, fontWeight: 500 }}>/mês</span>
+            </div>
+            <div style={{ fontSize: 12.5, color: INK_SOFT, marginTop: 8, minHeight: 16, fontFamily: MONO }}>
+              {isAnnual ? `cobrado 1x ao ano · R$ ${fmt(plan.price_annual_total)}` : " "}
+            </div>
+          </div>
+
           <Link
             to="/auth?register=1"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-              padding: "14px 32px",
-              background: PRIMARY,
-              color: "#fff",
-              borderRadius: "8px",
-              fontWeight: 700,
-              fontSize: "15px",
-              textDecoration: "none",
-              boxShadow: `0 4px 16px ${PRIMARY}40`,
-              transition: "all 0.2s",
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-2px)";
-              (e.currentTarget as HTMLAnchorElement).style.boxShadow = `0 8px 24px ${PRIMARY}50`;
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(0)";
-              (e.currentTarget as HTMLAnchorElement).style.boxShadow = `0 4px 16px ${PRIMARY}40`;
-            }}
+            className="up-cta-btn"
+            style={{ margin: "20px 30px 0", width: "calc(100% - 60px)" }}
           >
-            Testar grátis <ArrowRight size={16} />
+            Começar teste grátis
           </Link>
-          <Link
-            to="/auth?register=1"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-              padding: "14px 32px",
-              background: "#f3f4f6",
-              color: "#111",
-              borderRadius: "8px",
-              fontWeight: 700,
-              fontSize: "15px",
-              border: "none",
-              cursor: "pointer",
-              transition: "all 0.2s",
-              textDecoration: "none",
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLAnchorElement).style.background = "#e5e7eb";
-              (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-2px)";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLAnchorElement).style.background = "#f3f4f6";
-              (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(0)";
-            }}
-          >
-            Ver demonstração
-          </Link>
-        </div>
+          <div style={{ textAlign: "center", fontSize: 12, color: INK_SOFT, margin: "12px 30px 0" }}>
+            <b style={{ color: INK }}>15 dias grátis</b> · sem cartão de crédito
+          </div>
 
-        {/* Mockup */}
-        <div
-          style={{
-            borderRadius: "12px",
-            overflow: "hidden",
-            boxShadow: "0 20px 60px rgba(0,0,0,0.12), 0 1px 3px rgba(0,0,0,0.1)",
-            background: "#f9fafb",
-            border: "1px solid #e5e7eb",
-          }}
-        >
-          <img
-            src="https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/ChatGPT%20Image%2015%20de%20jun.%20de%202026,%2023_27_14.png"
-            alt="UpaBase Dashboard"
+          <div
             style={{
-              width: "100%",
-              height: "auto",
-              display: "block",
+              margin: "20px 30px 0",
+              height: 34,
+              background: `repeating-linear-gradient(90deg, ${INK} 0 2px, transparent 2px 5px, ${INK} 5px 6px, transparent 6px 9px, ${INK} 9px 12px, transparent 12px 14px)`,
+              opacity: 0.85,
+            }}
+          />
+          <div
+            style={{
+              height: 16,
+              transform: "scaleY(-1)",
+              background:
+                `radial-gradient(circle at 10px 0, transparent 9px, #fff 9.5px) top left/20px 16px repeat-x, ${BG_SOFT}`,
+              borderRadius: "0 0 18px 18px",
             }}
           />
         </div>
-      </section>
+      </div>
 
-      {/* ── BENEFÍCIOS ───────────────────────────────────────────────────────────── */}
-      <section
-        style={{
-          padding: "80px 1rem",
-          background: "#f9fafb",
-        }}
-      >
-        <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: "60px" }}>
-            <h2
+      <div className="up-trust" style={{ position: "relative", zIndex: 2, display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 28, padding: "34px 0 10px", fontSize: 13.5, fontWeight: 600, color: INK_SOFT }}>
+        {["15 dias grátis", "Sem cartão de crédito", "Cancele quando quiser"].map((t) => (
+          <span key={t} style={{ display: "flex", alignItems: "center", gap: 7 }}>
+            <Check size={16} color={AQUA} strokeWidth={3} />
+            {t}
+          </span>
+        ))}
+      </div>
+
+      {/* ── FEATURES GRID ─────────────────────────────────────────────────── */}
+      <section style={{ position: "relative", zIndex: 2, padding: "90px 1rem 40px" }}>
+        <div style={{ maxWidth: 1120, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", maxWidth: 600, margin: "0 auto 48px" }}>
+            <div
               style={{
-                fontSize: "clamp(28px, 5vw, 40px)",
-                fontWeight: 800,
-                color: "#0f172a",
-                marginBottom: "12px",
-                letterSpacing: "-0.02em",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                fontSize: 12.5,
+                fontWeight: 600,
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
+                color: "#0a8a7a",
+                background: AQUA_LIGHT,
+                padding: "7px 14px",
+                borderRadius: 999,
+                marginBottom: 22,
               }}
             >
-              Por que escolher nossa plataforma?
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: PURPLE }} />
+              Tudo incluso
+            </div>
+            <h2 style={{ fontSize: "clamp(26px,3.4vw,36px)", marginBottom: 12, color: INK, letterSpacing: "-0.02em" }}>
+              Um sistema, do balcão ao relatório
             </h2>
-            <p
-              style={{
-                fontSize: "16px",
-                color: "#6B7280",
-                maxWidth: "500px",
-                margin: "0 auto",
-                lineHeight: 1.6,
-              }}
-            >
-              Tudo que você precisa para administrar seu negócio sem complicação.
-            </p>
+            <p style={{ color: INK_SOFT, fontSize: 16 }}>Nenhum recurso fica de fora e nenhum módulo é vendido à parte.</p>
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-              gap: "24px",
-            }}
-          >
-            {BENEFITS.map((benefit, i) => (
-              <div
-                key={i}
-                style={{
-                  background: "#fff",
-                  borderRadius: "12px",
-                  padding: "32px 24px",
-                  border: "1px solid #e5e7eb",
-                  transition: "all 0.2s",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLDivElement).style.borderColor = PRIMARY;
-                  (e.currentTarget as HTMLDivElement).style.boxShadow = `0 12px 24px rgba(37, 99, 235, 0.12)`;
-                  (e.currentTarget as HTMLDivElement).style.transform = "translateY(-4px)";
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLDivElement).style.borderColor = "#e5e7eb";
-                  (e.currentTarget as HTMLDivElement).style.boxShadow = "0 1px 3px rgba(0,0,0,0.05)";
-                  (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
-                }}
-              >
-                <div style={{ fontSize: "36px", marginBottom: "12px" }}>{benefit.emoji}</div>
-                <h3 style={{ fontSize: "16px", fontWeight: 700, color: "#0f172a", marginBottom: "8px" }}>
-                  {benefit.title}
-                </h3>
-                <p style={{ fontSize: "14px", color: "#6B7280", margin: 0, lineHeight: 1.5 }}>
-                  {benefit.desc}
-                </p>
+          <div className="up-grid">
+            {FEATURES_GRID.map(({ icon: Icon, title, desc }) => (
+              <div key={title} className="up-feat-card">
+                <div style={{ width: 36, height: 36, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12, background: BG_SOFT, color: BLUE }}>
+                  <Icon size={18} />
+                </div>
+                <h4 style={{ fontSize: 14.5, fontWeight: 700, marginBottom: 4, color: INK }}>{title}</h4>
+                <p style={{ fontSize: 12.5, color: INK_SOFT, lineHeight: 1.45, margin: 0 }}>{desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-{/* ── FUNCIONALIDADES ──────────────────────────────────────────────────────── */}
-      <section style={{ padding: "80px 1rem", background: "#f9fafb" }}>
-        <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: "80px" }}>
-            <h2
-              style={{
-                fontSize: "clamp(28px, 5vw, 40px)",
-                fontWeight: 800,
-                color: "#0f172a",
-                marginBottom: "12px",
-                letterSpacing: "-0.02em",
-              }}
-            >
-              Funcionalidades que impulsionam seu negócio
-            </h2>
-          </div>
-
-          {FEATURES.map((feature, i) => (
-            <div
-              key={i}
-              style={{
-                display: "flex",
-                flexDirection: isMobile ? "column" : i % 2 === 0 ? "row" : "row-reverse",
-                gap: isMobile ? "24px" : "60px",
-                alignItems: isMobile ? "stretch" : "center",
-                marginBottom: isMobile ? "80px" : "120px",
-              }}
-            >
-              {i % 2 === 0 ? (
-                <>
-                  <div>
-                    <h3
-                      style={{
-                        fontSize: "32px",
-                        fontWeight: 800,
-                        color: "#0f172a",
-                        marginBottom: "16px",
-                        letterSpacing: "-0.02em",
-                      }}
-                    >
-                      {feature.title}
-                    </h3>
-                    <p
-                      style={{
-                        fontSize: "16px",
-                        color: "#6B7280",
-                        lineHeight: 1.7,
-                        marginBottom: "24px",
-                      }}
-                    >
-                      {feature.desc}
-                    </p>
-                    <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-                      {["Interface intuitiva", "Rápido", "Confiável"].map((tag, j) => (
-                        <span
-                          key={j}
-                          style={{
-                            padding: "6px 12px",
-                            background: "#f0f4ff",
-                            border: `1px solid ${PRIMARY}20`,
-                            borderRadius: "6px",
-                            fontSize: "12px",
-                            fontWeight: 600,
-                            color: PRIMARY,
-                          }}
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  <div
-                    style={{
-                      background: "#fff",
-                      borderRadius: "12px",
-                      border: "1px solid #e5e7eb",
-                      overflow: "hidden",
-                      position: "relative",
-                    }}
-                  >
-                    <img
-                      src={feature.images && feature.images.length > 0 ? feature.images[i === 0 ? caixaPdvImageIndex : 0] : ""}
-                      alt={feature.title}
-                      style={{
-                        width: "100%",
-                        height: isMobile ? "250px" : "400px",
-                        objectFit: "cover",
-                        display: "block",
-                      }}
-                    />
-                    {feature.images && feature.images.length > 1 && (
-                      <div
-                        style={{
-                          position: "absolute",
-                          bottom: "16px",
-                          left: "50%",
-                          transform: "translateX(-50%)",
-                          display: "flex",
-                          gap: "8px",
-                        }}
-                      >
-                        {feature.images.map((_, imgIdx) => (
-                          <button
-                            key={imgIdx}
-                            onClick={() => setCaixaPdvImageIndex(imgIdx)}
-                            style={{
-                              width: "8px",
-                              height: "8px",
-                              borderRadius: "50%",
-                              background: caixaPdvImageIndex === imgIdx ? PRIMARY : "rgba(255,255,255,0.5)",
-                              border: "none",
-                              cursor: "pointer",
-                              transition: "all 0.2s",
-                            }}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div
-                    style={{
-                      background: "#fff",
-                      borderRadius: "12px",
-                      border: "1px solid #e5e7eb",
-                      overflow: "hidden",
-                      position: "relative",
-                    }}
-                  >
-                    <img
-                      src={feature.images && feature.images.length > 0 ? feature.images[i === 0 ? caixaPdvImageIndex : 0] : ""}
-                      alt={feature.title}
-                      style={{
-                        width: "100%",
-                        height: isMobile ? "250px" : "400px",
-                        objectFit: "cover",
-                        display: "block",
-                      }}
-                    />
-                    {feature.images && feature.images.length > 1 && (
-                      <div
-                        style={{
-                          position: "absolute",
-                          bottom: "16px",
-                          left: "50%",
-                          transform: "translateX(-50%)",
-                          display: "flex",
-                          gap: "8px",
-                        }}
-                      >
-                        {feature.images.map((_, imgIdx) => (
-                          <button
-                            key={imgIdx}
-                            onClick={() => setCaixaPdvImageIndex(imgIdx)}
-                            style={{
-                              width: "8px",
-                              height: "8px",
-                              borderRadius: "50%",
-                              background: caixaPdvImageIndex === imgIdx ? PRIMARY : "rgba(255,255,255,0.5)",
-                              border: "none",
-                              cursor: "pointer",
-                              transition: "all 0.2s",
-                            }}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <h3
-                      style={{
-                        fontSize: "32px",
-                        fontWeight: 800,
-                        color: "#0f172a",
-                        marginBottom: "16px",
-                        letterSpacing: "-0.02em",
-                      }}
-                    >
-                      {feature.title}
-                    </h3>
-                    <p
-                      style={{
-                        fontSize: "16px",
-                        color: "#6B7280",
-                        lineHeight: 1.7,
-                        marginBottom: "24px",
-                      }}
-                    >
-                      {feature.desc}
-                    </p>
-                    <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-                      {["Interface intuitiva", "Rápido", "Confiável"].map((tag, j) => (
-                        <span
-                          key={j}
-                          style={{
-                            padding: "6px 12px",
-                            background: "#f0f4ff",
-                            border: `1px solid ${PRIMARY}20`,
-                            borderRadius: "6px",
-                            fontSize: "12px",
-                            fontWeight: 600,
-                            color: PRIMARY,
-                          }}
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
+      {/* ── FAQ ───────────────────────────────────────────────────────────── */}
+      <section style={{ position: "relative", zIndex: 2, padding: "70px 1rem" }}>
+        <div style={{ maxWidth: 720, margin: "0 auto" }}>
+          <h2 style={{ textAlign: "center", fontSize: "clamp(24px,3vw,32px)", marginBottom: 36, color: INK }}>
+            Perguntas frequentes
+          </h2>
+          {FAQS.map((faq, i) => (
+            <details key={faq.q} className="up-faq" open={i === 0}>
+              <summary>
+                {faq.q}
+                <span className="up-plus">+</span>
+              </summary>
+              <p>{faq.a}</p>
+            </details>
           ))}
         </div>
       </section>
 
-      {/* ── CREDIBILIDADE ────────────────────────────────────────────────────────── */}
-      <section style={{ padding: "80px 1rem", background: "#fff" }}>
-        <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: "60px" }}>
-            <h2
-              style={{
-                fontSize: "clamp(28px, 5vw, 40px)",
-                fontWeight: 800,
-                color: "#0f172a",
-                marginBottom: "16px",
-                letterSpacing: "-0.02em",
-              }}
-            >
-              Desenvolvido em operação real
-            </h2>
-            <p
-              style={{
-                fontSize: "16px",
-                color: "#6B7280",
-                maxWidth: "600px",
-                margin: "0 auto",
-                lineHeight: 1.6,
-              }}
-            >
-              Nosso sistema é utilizado e aprimorado continuamente em uma operação real, garantindo funcionalidades práticas para o dia a dia de restaurantes, lanchonetes e delivery.
-            </p>
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-              gap: "24px",
-            }}
-          >
-            {CREDIBILITY.map((item, i) => (
-              <div
-                key={i}
-                style={{
-                  background: "#f9fafb",
-                  border: "1px solid #e5e7eb",
-                  borderRadius: "12px",
-                  padding: "28px 20px",
-                  textAlign: "center",
-                  fontSize: "15px",
-                  fontWeight: 600,
-                  color: "#0f172a",
-                }}
-              >
-                {item.title}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── PLANO ÚNICO ──────────────────────────────────────────────────────────── */}
-      <section style={{ padding: "100px 1rem", background: "#f9fafb" }}>
-        <div style={{ maxWidth: "700px", margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: "48px" }}>
-            <h2
-              style={{
-                fontSize: "clamp(28px, 5vw, 40px)",
-                fontWeight: 800,
-                color: "#0f172a",
-                marginBottom: "12px",
-                letterSpacing: "-0.02em",
-              }}
-            >
-              Um único plano. Tudo incluso.
-            </h2>
-            <p
-              style={{
-                fontSize: "16px",
-                color: "#6B7280",
-                marginBottom: "0",
-              }}
-            >
-              Sem limitações e sem cobranças escondidas.
-            </p>
-          </div>
-
-          <div
-            style={{
-              maxWidth: "460px",
-              width: "100%",
-              margin: "0 auto",
-              borderRadius: "24px",
-              background: "#ffffff",
-              boxShadow: "0 20px 60px rgba(0,0,0,.08)",
-              overflow: "hidden",
-            }}
-          >
-            {/* Top Bar */}
-            <div
-              style={{
-                height: "12px",
-                background: "linear-gradient(90deg, #2563EB 0%, #4F46E5 50%, #7C3AED 100%)",
-                width: "100%",
-              }}
-            />
-
-            {/* Card Content */}
-            <div style={{ padding: "0 40px 40px 40px" }}>
-              {/* Badge */}
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "center",
-                  marginTop: "24px",
-                  marginBottom: "24px",
-                }}
-              >
-                <div
-                  style={{
-                    height: "32px",
-                    padding: "0 16px",
-                    background: "#EEF4FF",
-                    color: "#2563EB",
-                    fontWeight: 700,
-                    borderRadius: "999px",
-                    display: "flex",
-                    alignItems: "center",
-                    fontSize: "12px",
-                    letterSpacing: "0.5px",
-                  }}
-                >
-                  MAIS POPULAR
-                </div>
-              </div>
-
-              {/* Toggle */}
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "center",
-                  marginTop: "24px",
-                  marginBottom: "36px",
-                }}
-              >
-                <div
-                  style={{
-                    width: "220px",
-                    height: "48px",
-                    background: "#F3F4F6",
-                    borderRadius: "14px",
-                    display: "flex",
-                    padding: "4px",
-                    gap: "0",
-                  }}
-                >
-                  {[
-                    { label: "Mensal", isAnnual: false },
-                    { label: "Anual", isAnnual: true },
-                  ].map(({ label, isAnnual: annual }) => (
-                    <button
-                      key={label}
-                      onClick={() => setIsAnnual(annual)}
-                      style={{
-                        flex: 1,
-                        border: "none",
-                        borderRadius: "12px",
-                        background: isAnnual === annual ? "#FFFFFF" : "transparent",
-                        boxShadow: isAnnual === annual ? "0 2px 8px rgba(0,0,0,.08)" : "none",
-                        fontWeight: isAnnual === annual ? 700 : 500,
-                        color: isAnnual === annual ? "#111827" : "#6B7280",
-                        cursor: "pointer",
-                        fontSize: "14px",
-                        transition: "all .2s ease",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: "6px",
-                      }}
-                    >
-                      {label}
-                      {annual && <span style={{ color: "#2563EB", fontWeight: 700 }}>−18%</span>}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Price */}
-              <div
-                style={{
-                  marginTop: "36px",
-                  marginBottom: "0px",
-                  textAlign: "center",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: "72px",
-                    fontWeight: 800,
-                    lineHeight: 1,
-                    background: "linear-gradient(90deg, #2563EB 0%, #4F46E5 50%, #7C3AED 100%)",
-                    WebkitBackgroundClip: "text",
-                    WebkitTextFillColor: "transparent",
-                    backgroundClip: "text",
-                  }}
-                >
-                  R$ {isAnnual ? "49,90" : "59,90"}
-                </div>
-                <div
-                  style={{
-                    fontSize: "18px",
-                    color: "#6B7280",
-                    marginTop: "12px",
-                  }}
-                >
-                  {isAnnual ? "por mês (cobrado anualmente)" : "por mês"}
-                </div>
-                {isAnnual && (
-                  <div
-                    style={{
-                      fontSize: "16px",
-                      fontWeight: 600,
-                      color: "#111827",
-                      marginTop: "12px",
-                      padding: "12px",
-                      background: "#F3F4F6",
-                      borderRadius: "10px",
-                    }}
-                  >
-                    Total: R$ 598,80/ano
-                  </div>
-                )}
-                <div
-                  style={{
-                    color: "#10B981",
-                    fontWeight: 600,
-                    fontSize: "15px",
-                    marginTop: "16px",
-                  }}
-                >
-                  Economize 18% no plano anual
-                </div>
-              </div>
-
-              {/* Divisor */}
-              <div
-                style={{
-                  borderTop: "1px solid #E5E7EB",
-                  marginTop: "40px",
-                  marginBottom: "40px",
-                }}
-              />
-
-              {/* Benefícios */}
-              <div style={{ marginBottom: "40px" }}>
-                {[
-                  "Dashboard Completo",
-                  "Caixa",
-                  "PDV",
-                  "Produtos",
-                  "Estoque",
-                  "Mesas",
-                  "Cardápio Digital",
-                  "Relatórios",
-                  "Clientes",
-                  "Financeiro",
-                  "Contas a Pagar",
-                  "Suporte WhatsApp",
-                ].map((item, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "12px",
-                      marginBottom: "18px",
-                      fontSize: "16px",
-                      fontWeight: 500,
-                      color: "#111827",
-                    }}
-                  >
-                    <Check size={20} color="#2563EB" strokeWidth={2.5} style={{ flexShrink: 0 }} />
-                    {item}
-                  </div>
-                ))}
-              </div>
-
-              {/* Button */}
-              <Link
-                to="/auth?register=1"
-                style={{
-                  marginTop: "40px",
-                  height: "56px",
-                  width: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: "#2563EB",
-                  color: "#FFFFFF",
-                  fontWeight: 700,
-                  fontSize: "16px",
-                  borderRadius: "14px",
-                  border: "none",
-                  cursor: "pointer",
-                  textDecoration: "none",
-                  transition: "all .3s ease",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLAnchorElement).style.background = "#1D4ED8";
-                  (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-2px)";
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLAnchorElement).style.background = "#2563EB";
-                  (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(0)";
-                }}
-              >
-                Começar Teste Grátis
-              </Link>
-
-              {/* Footer */}
-              <div
-                style={{
-                  marginTop: "16px",
-                  textAlign: "center",
-                  fontSize: "14px",
-                  color: "#6B7280",
-                  lineHeight: "1.6",
-                }}
-              >
-                7 dias grátis<br />
-                Sem cartão de crédito
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── GARANTIAS ────────────────────────────────────────────────────────────── */}
-      <section style={{ padding: "80px 1rem", background: "#fff" }}>
-        <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: "60px" }}>
-            <h2
-              style={{
-                fontSize: "clamp(28px, 5vw, 40px)",
-                fontWeight: 800,
-                color: "#0f172a",
-                marginBottom: "12px",
-                letterSpacing: "-0.02em",
-              }}
-            >
-              Sem risco. Sem complicação.
-            </h2>
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-              gap: "24px",
-            }}
-          >
-            {GUARANTEES.map((guarantee, i) => (
-              <div
-                key={i}
-                style={{
-                  background: "#f9fafb",
-                  border: "1px solid #e5e7eb",
-                  borderRadius: "12px",
-                  padding: "28px 24px",
-                  textAlign: "center",
-                }}
-              >
-                <div
-                  style={{
-                    width: "44px",
-                    height: "44px",
-                    borderRadius: "8px",
-                    background: `${PRIMARY}10`,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    margin: "0 auto 12px",
-                    color: PRIMARY,
-                  }}
-                >
-                  {guarantee.icon}
-                </div>
-                <h3
-                  style={{
-                    fontSize: "14px",
-                    fontWeight: 700,
-                    color: "#0f172a",
-                    marginBottom: "4px",
-                  }}
-                >
-                  {guarantee.title}
-                </h3>
-                <p
-                  style={{
-                    fontSize: "12px",
-                    color: "#6B7280",
-                    margin: 0,
-                  }}
-                >
-                  {guarantee.desc}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── FAQ ──────────────────────────────────────────────────────────────────── */}
-      <section style={{ padding: "80px 1rem", background: "#f9fafb" }}>
-        <div style={{ maxWidth: "700px", margin: "0 auto" }}>
-          <div style={{ textAlign: "center", marginBottom: "60px" }}>
-            <h2
-              style={{
-                fontSize: "clamp(28px, 5vw, 40px)",
-                fontWeight: 800,
-                color: "#0f172a",
-                marginBottom: "12px",
-                letterSpacing: "-0.02em",
-              }}
-            >
-              Perguntas frequentes
-            </h2>
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            {FAQS.map((faq, i) => {
-              const isOpen = openFaq === i;
-              return (
-                <button
-                  key={i}
-                  onClick={() => setOpenFaq(isOpen ? null : i)}
-                  style={{
-                    background: "#fff",
-                    border: isOpen ? `2px solid ${PRIMARY}` : "1px solid #e5e7eb",
-                    borderRadius: "12px",
-                    padding: "20px 24px",
-                    textAlign: "left",
-                    cursor: "pointer",
-                    transition: "all 0.2s",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isOpen) {
-                      (e.currentTarget as HTMLButtonElement).style.borderColor = PRIMARY + "40";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isOpen) {
-                      (e.currentTarget as HTMLButtonElement).style.borderColor = "#e5e7eb";
-                    }
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      gap: "12px",
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: "15px",
-                        fontWeight: 600,
-                        color: isOpen ? PRIMARY : "#0f172a",
-                      }}
-                    >
-                      {faq.q}
-                    </span>
-                    <ChevronDown
-                      size={18}
-                      style={{
-                        color: PRIMARY,
-                        transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
-                        transition: "transform 0.2s",
-                        flexShrink: 0,
-                      }}
-                    />
-                  </div>
-                  {isOpen && (
-                    <p
-                      style={{
-                        fontSize: "14px",
-                        color: "#6B7280",
-                        marginTop: "12px",
-                        marginBottom: 0,
-                        lineHeight: 1.6,
-                      }}
-                    >
-                      {faq.a}
-                    </p>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* ── CTA FINAL ────────────────────────────────────────────────────────────── */}
-      <section
+      {/* ── FOOTER CTA ────────────────────────────────────────────────────── */}
+      <div
         style={{
-          padding: "80px 1rem",
-          background: `linear-gradient(135deg, ${PRIMARY} 0%, #10b981 100%)`,
+          position: "relative",
+          zIndex: 2,
+          margin: "20px 24px 24px",
+          padding: "60px 24px",
+          borderRadius: 28,
+          textAlign: "center",
+          background: "linear-gradient(135deg, #14163a, #241a4d 55%, #0f2c3f)",
+          color: "#fff",
+          overflow: "hidden",
         }}
       >
-        <div style={{ maxWidth: "700px", margin: "0 auto", textAlign: "center" }}>
-          <h2
-            style={{
-              fontSize: "clamp(28px, 5vw, 40px)",
-              fontWeight: 800,
-              color: "#fff",
-              marginBottom: "16px",
-              letterSpacing: "-0.02em",
-            }}
-          >
-            Comece a organizar seu negócio hoje
-          </h2>
-          <p
-            style={{
-              fontSize: "16px",
-              color: "rgba(255,255,255,0.85)",
-              marginBottom: "32px",
-              lineHeight: 1.6,
-            }}
-          >
-            Experimente gratuitamente e descubra como simplificar sua operação.
+        <div
+          aria-hidden="true"
+          style={{
+            content: '""',
+            position: "absolute",
+            inset: 0,
+            background: `radial-gradient(400px 240px at 50% -10%, ${AQUA}59, transparent 70%)`,
+          }}
+        />
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <h2 style={{ fontSize: "clamp(24px,3.4vw,34px)", marginBottom: 10 }}>Comece a organizar seu negócio hoje</h2>
+          <p style={{ color: "#c7c9e0", fontSize: 15, marginBottom: 26 }}>
+            15 dias grátis, sistema completo, sem cartão de crédito.
           </p>
-
-          <Link
-            to="/auth?register=1"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-              padding: "14px 32px",
-              background: "#fff",
-              color: PRIMARY,
-              borderRadius: "8px",
-              fontWeight: 700,
-              fontSize: "15px",
-              textDecoration: "none",
-              boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
-              transition: "all 0.2s",
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-2px)";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(0)";
-            }}
-          >
-            Testar grátis agora <ArrowRight size={16} />
+          <Link to="/auth?register=1" className="up-cta-btn" style={{ display: "inline-flex", alignItems: "center", gap: 8, width: "auto", padding: "15px 34px" }}>
+            Começar teste grátis <ArrowRight size={16} />
           </Link>
-
-          <p
-            style={{
-              fontSize: "13px",
-              color: "rgba(255,255,255,0.7)",
-              marginTop: "16px",
-              marginBottom: 0,
-            }}
-          >
-            15 dias grátis • Sem cartão • Cancelamento quando quiser
-          </p>
         </div>
-      </section>
+      </div>
 
-      {/* ── FOOTER ───────────────────────────────────────────────────────────────── */}
-      <footer style={{ borderTop: "1px solid #e5e7eb", padding: "40px 1rem", textAlign: "center", background: "#fff" }}>
-        <p style={{ fontSize: "12px", color: "#9CA3AF", marginBottom: "12px" }}>
-          © {new Date().getFullYear()} UpaBase · Pagamentos via{" "}
-          <span style={{ fontWeight: 600, color: PRIMARY }}>Mercado Pago</span>
-          {" "}· Dados seguros com{" "}
-          <span style={{ fontWeight: 600, color: PRIMARY }}>Supabase</span>
+      {/* ── FOOTER ────────────────────────────────────────────────────────── */}
+      <footer style={{ position: "relative", zIndex: 2, textAlign: "center", padding: "0 1rem 40px" }}>
+        <p style={{ fontSize: 12, color: INK_SOFT, marginBottom: 12 }}>
+          © {new Date().getFullYear()} Upabase · Pagamentos via{" "}
+          <span style={{ fontWeight: 600, color: BLUE }}>Mercado Pago</span> · Dados seguros com{" "}
+          <span style={{ fontWeight: 600, color: BLUE }}>Supabase</span>
         </p>
-        <div style={{ display: "flex", justifyContent: "center", gap: "24px" }}>
-          <Link to="/privacy" style={{ fontSize: "11px", color: "#9CA3AF", textDecoration: "none" }}>
+        <div style={{ display: "flex", justifyContent: "center", gap: 24 }}>
+          <Link to="/privacy" style={{ fontSize: 11, color: INK_SOFT, textDecoration: "none" }}>
             Privacidade
           </Link>
-          <Link to="/terms" style={{ fontSize: "11px", color: "#9CA3AF", textDecoration: "none" }}>
+          <Link to="/terms" style={{ fontSize: 11, color: INK_SOFT, textDecoration: "none" }}>
             Termos
           </Link>
-          <Link to="/auth" style={{ fontSize: "11px", color: "#9CA3AF", textDecoration: "none" }}>
+          <Link to="/auth" style={{ fontSize: 11, color: INK_SOFT, textDecoration: "none" }}>
             Entrar
           </Link>
         </div>
