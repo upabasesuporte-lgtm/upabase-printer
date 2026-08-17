@@ -494,7 +494,7 @@ export default function ReportsPage() {
 
   // ── Derived: compras ──────────────────────────────────────────────────────
 
-  const validPurchases = purchases.filter(p=>p.status!=="cancelled");
+  const validPurchases = purchases.filter(p=>p.status!=="cancelled"&&p.status!=="pending");
   const purchaseTotal  = validPurchases.reduce((sum,p)=>sum+(p.purchase_order_items??[]).reduce((s,i)=>s+i.quantity*i.unit_cost,0),0);
   const purchaseCount  = validPurchases.length;
   const purchaseAvgTicket = purchaseCount>0 ? purchaseTotal/purchaseCount : 0;

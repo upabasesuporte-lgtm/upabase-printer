@@ -3,7 +3,7 @@ import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import {
-  Plus, X, RefreshCw, Truck, ChevronDown, Ban, Search, FileUp, Check, AlertCircle, Trash2,
+  Plus, X, RefreshCw, Truck, ChevronDown, Ban, Search, FileUp, Check, AlertCircle, Trash2, Clock,
 } from "lucide-react";
 import { ProductModal, type Category } from "../products";
 
@@ -42,7 +42,7 @@ interface PurchaseOrder {
   purchase_order_items?: POItem[];
 }
 
-type Modal = "none" | "purchase" | "suggestions";
+type Modal = "none" | "purchase" | "suggestions" | "receive";
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const fmtQty = (v: number, unit: string) =>
@@ -91,6 +91,9 @@ export default function PurchasesPage() {
   const [suggestionQty, setSuggestionQty] = useState<Record<string, string>>({});
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [receivingId, setReceivingId] = useState<string | null>(null);
+  const [receiveTarget, setReceiveTarget] = useState<PurchaseOrder | null>(null);
+  const [receiveDueDate, setReceiveDueDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [openSearchIdx, setOpenSearchIdx] = useState<number | null>(null);
   const [itemSearchText, setItemSearchText] = useState("");
 
@@ -400,6 +403,64 @@ export default function PurchasesPage() {
     setModal("none");
   }
 
+  // Registra o pedido sem mexer em estoque/financeiro — só quando a mercadoria
+  // chegar de fato é que isso acontece (confirmReceivePurchase).
+  async function savePendingPurchase() {
+    const validItems = poItems.filter(i => i.item_id && i.quantity);
+    if (validItems.length === 0 || saving) return;
+    setSaving(true);
+    setPurchaseError(null);
+    const { error } = await supabase.rpc("create_pending_purchase", {
+      p_supplier_id: poSupplierId || null,
+      p_notes: poNotes || null,
+      p_items: validItems.map(i => ({
+        ref_type: i.ref_type,
+        item_id: i.item_id,
+        quantity: parseFloat(i.quantity),
+        unit_cost: parseFloat(i.unit_cost) || 0,
+      })),
+    });
+    if (error) {
+      setPurchaseError(error.message);
+      setSaving(false);
+      return;
+    }
+    await loadPurchases();
+    setSaving(false);
+    setModal("none");
+  }
+
+  // Confirma que a mercadoria de uma compra pendente chegou: só agora estoque
+  // e conta a pagar são atualizados.
+  async function confirmReceivePurchase(po: PurchaseOrder, dueDate: string) {
+    if (receivingId) return;
+    setReceivingId(po.id);
+    const { error } = await supabase.rpc("receive_purchase_order", {
+      p_purchase_order_id: po.id,
+      p_due_date: dueDate,
+    });
+    if (error) {
+      alert(error.message);
+      setReceivingId(null);
+      return;
+    }
+    await Promise.all([loadPurchases(), loadStockItems(), loadLimitedProducts()]);
+    setReceivingId(null);
+    setModal("none");
+  }
+
+  // Cancela um pedido pendente — como ainda não mexeu em estoque/financeiro,
+  // não precisa reverter nada, só marca como cancelado.
+  async function cancelPendingPurchase(po: PurchaseOrder) {
+    if (po.status !== "pending" || cancellingId) return;
+    if (!confirm("Cancelar este pedido? Ele ainda não afetou estoque nem financeiro.")) return;
+    setCancellingId(po.id);
+    const { error } = await supabase.from("purchase_orders").update({ status: "cancelled" }).eq("id", po.id).eq("status", "pending");
+    if (error) { alert(error.message); setCancellingId(null); return; }
+    await loadPurchases();
+    setCancellingId(null);
+  }
+
   async function cancelPurchase(po: PurchaseOrder) {
     if (po.status === "cancelled" || cancellingId) return;
     if (!confirm("Cancelar esta compra? O estoque somado por ela será revertido e a conta a pagar vinculada será cancelada.")) return;
@@ -518,6 +579,10 @@ export default function PurchasesPage() {
                             <span className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">
                               Cancelada
                             </span>
+                          ) : po.status === "pending" ? (
+                            <span className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                              Aguardando entrega
+                            </span>
                           ) : (
                             <span className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                               Recebida
@@ -562,7 +627,21 @@ export default function PurchasesPage() {
                           <span className="text-xs text-zinc-500">Total da compra</span>
                           <span className="text-base font-black text-white">{fmt(total)}</span>
                         </div>
-                        {po.status !== "cancelled" ? (
+                        {po.status === "pending" ? (
+                          <div className="px-5 py-3 flex flex-wrap items-center gap-4">
+                            <button onClick={() => { setReceiveTarget(po); setReceiveDueDate(new Date().toISOString().split("T")[0]); setModal("receive"); }}
+                              disabled={receivingId === po.id}
+                              className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 hover:text-emerald-300 disabled:opacity-50 transition-colors">
+                              {receivingId === po.id ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Truck className="w-3.5 h-3.5" />}
+                              Confirmar Recebimento
+                            </button>
+                            <button onClick={() => cancelPendingPurchase(po)} disabled={cancellingId === po.id}
+                              className="flex items-center gap-1.5 text-xs font-medium text-red-400 hover:text-red-300 disabled:opacity-50 transition-colors">
+                              {cancellingId === po.id ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Ban className="w-3.5 h-3.5" />}
+                              Cancelar pedido
+                            </button>
+                          </div>
+                        ) : po.status !== "cancelled" ? (
                           <div className="px-5 py-3">
                             <button onClick={() => cancelPurchase(po)} disabled={cancellingId === po.id}
                               className="flex items-center gap-1.5 text-xs font-medium text-red-400 hover:text-red-300 disabled:opacity-50 transition-colors">
@@ -634,6 +713,39 @@ export default function PurchasesPage() {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Confirmar Recebimento (pedido pendente) */}
+      {modal === "receive" && receiveTarget && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-sm flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 flex-shrink-0">
+              <div>
+                <h2 className="text-base font-semibold">Confirmar Recebimento</h2>
+                <p className="text-xs text-zinc-500 mt-0.5">{receiveTarget.suppliers?.name ?? "Fornecedor não informado"}</p>
+              </div>
+              <button onClick={() => setModal("none")} className="p-1.5 text-zinc-400 hover:text-white rounded-lg"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-zinc-400">
+                Isso vai somar os itens dessa compra no estoque e criar a conta a pagar. Confere o vencimento antes de confirmar:
+              </p>
+              <div>
+                <label className="block text-xs font-medium text-zinc-400 mb-1.5">Vencimento (Contas a Pagar)</label>
+                <input type="date" value={receiveDueDate} onChange={e => setReceiveDueDate(e.target.value)} className={inputCls} />
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 px-6 py-4 border-t border-zinc-800 flex-shrink-0">
+              <button onClick={() => setModal("none")} className="sm:flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
+              <button onClick={() => confirmReceivePurchase(receiveTarget, receiveDueDate)} disabled={receivingId === receiveTarget.id}
+                className="sm:flex-1 flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-xl text-sm font-semibold transition-colors"
+                style={{ color: "#fff" }}>
+                {receivingId === receiveTarget.id ? <RefreshCw className="w-4 h-4 animate-spin flex-shrink-0" /> : <Check className="w-4 h-4 flex-shrink-0" />}
+                <span className="truncate">Confirmar</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -774,6 +886,14 @@ export default function PurchasesPage() {
             </div>
             <div className="flex flex-col sm:flex-row gap-3 px-6 py-4 border-t border-zinc-800 flex-shrink-0">
               <button onClick={() => setModal("none")} className="sm:flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
+              <button onClick={savePendingPurchase}
+                disabled={poItems.every(i => !i.item_id || !i.quantity) || saving}
+                title="Registra o pedido sem mexer no estoque — confirme o recebimento quando a mercadoria chegar"
+                className="sm:flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-xl text-sm font-semibold transition-colors"
+                style={{ color: "#fff" }}>
+                {saving ? <RefreshCw className="w-4 h-4 animate-spin flex-shrink-0" /> : <Clock className="w-4 h-4 flex-shrink-0" />}
+                <span className="truncate">Só Fazer Pedido</span>
+              </button>
               <button onClick={savePurchase}
                 disabled={poItems.every(i => !i.item_id || !i.quantity) || saving}
                 className="sm:flex-1 flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 rounded-xl text-sm font-semibold transition-colors"
