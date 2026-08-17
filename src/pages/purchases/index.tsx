@@ -9,7 +9,10 @@ import { ProductModal, type Category } from "../products";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface SimpleItem { id: string; name: string; barcode?: string | null; }
+interface SimpleItem {
+  id: string; name: string; barcode?: string | null;
+  current_qty?: number; min_qty?: number; max_qty?: number | null; cost_price?: number;
+}
 
 interface POItem {
   id?: string; stock_item_id: string | null; product_id?: string | null; quantity: number; unit_cost: number;
@@ -39,7 +42,7 @@ interface PurchaseOrder {
   purchase_order_items?: POItem[];
 }
 
-type Modal = "none" | "purchase";
+type Modal = "none" | "purchase" | "suggestions";
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const fmtQty = (v: number, unit: string) =>
@@ -82,6 +85,10 @@ export default function PurchasesPage() {
   const [poDueDate, setPODueDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [poItems, setPOItems] = useState<{ ref_type: "ingredient" | "product"; item_id: string; itemName: string; quantity: string; unit_cost: string }[]>([]);
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
+
+  // Sugestão de compra — itens abaixo do mínimo, prontos pra virar um pedido
+  const [suggestionSelected, setSuggestionSelected] = useState<Record<string, boolean>>({});
+  const [suggestionQty, setSuggestionQty] = useState<Record<string, string>>({});
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [openSearchIdx, setOpenSearchIdx] = useState<number | null>(null);
@@ -130,16 +137,20 @@ export default function PurchasesPage() {
   }
 
   async function loadStockItems() {
-    const { data } = await supabase.from("stock_items").select("id, name").eq("is_active", true).order("name");
+    const { data } = await supabase.from("stock_items")
+      .select("id, name, current_qty, min_qty, max_qty, cost_price").eq("is_active", true).order("name");
     setStockItems((data ?? []) as SimpleItem[]);
   }
 
   async function loadLimitedProducts() {
     const { data } = await supabase
-      .from("products").select("id, name, barcode, unlimited_stock, stock_type")
+      .from("products").select("id, name, barcode, unlimited_stock, stock_type, stock, stock_min, stock_max, cost_price")
       .or("unlimited_stock.eq.false,unlimited_stock.is.null")
       .eq("is_active", true).order("name");
-    setLimitedProducts((data ?? []) as SimpleItem[]);
+    setLimitedProducts(((data ?? []) as any[]).map(p => ({
+      id: p.id, name: p.name, barcode: p.barcode,
+      current_qty: p.stock, min_qty: p.stock_min, max_qty: p.stock_max, cost_price: p.cost_price,
+    })) as SimpleItem[]);
   }
 
   async function loadSuppliers() {
@@ -283,6 +294,40 @@ export default function PurchasesPage() {
     setModal("purchase");
   }
 
+  // Itens abaixo do mínimo: sugere repor até o máximo cadastrado (ou até o mínimo, se não houver máximo)
+  const suggestions = [
+    ...stockItems.filter(s => (s.min_qty ?? 0) > 0 && (s.current_qty ?? 0) <= (s.min_qty ?? 0)).map(s => ({ ref_type: "ingredient" as const, ...s })),
+    ...limitedProducts.filter(p => (p.min_qty ?? 0) > 0 && (p.current_qty ?? 0) <= (p.min_qty ?? 0)).map(p => ({ ref_type: "product" as const, ...p })),
+  ].map(s => {
+    const target = s.max_qty && s.max_qty > (s.min_qty ?? 0) ? s.max_qty : (s.min_qty ?? 0);
+    const suggestedQty = Math.max(target - (s.current_qty ?? 0), 0);
+    return { ...s, key: `${s.ref_type}:${s.id}`, suggestedQty };
+  });
+
+  function openSuggestions() {
+    const selected: Record<string, boolean> = {};
+    const qty: Record<string, string> = {};
+    for (const s of suggestions) {
+      selected[s.key] = true;
+      qty[s.key] = String(s.suggestedQty || 1);
+    }
+    setSuggestionSelected(selected);
+    setSuggestionQty(qty);
+    setModal("suggestions");
+  }
+
+  function addSuggestionsToOrder() {
+    const chosen = suggestions.filter(s => suggestionSelected[s.key] && parseFloat(suggestionQty[s.key]) > 0);
+    if (chosen.length === 0) return;
+    setPOSupplierId(""); setPONotes(""); setPurchaseError(null);
+    setPODueDate(new Date().toISOString().split("T")[0]);
+    setPOItems(chosen.map(s => ({
+      ref_type: s.ref_type, item_id: s.id, itemName: s.name,
+      quantity: suggestionQty[s.key], unit_cost: s.cost_price ? String(s.cost_price) : "",
+    })));
+    setModal("purchase");
+  }
+
   function openQuickCreate(idx: number, type: "ingredient" | "product", initialName: string) {
     setQuickCreateIdx(idx);
     setQuickCreateType(type);
@@ -417,6 +462,15 @@ export default function PurchasesPage() {
                 {xmlParsing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
                 Importar XML da NFe
               </button>
+              <button onClick={openSuggestions}
+                className="relative flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold border border-amber-500/30 text-amber-400 hover:border-amber-500/60 hover:bg-amber-500/10 transition-colors">
+                <AlertCircle className="w-4 h-4" /> Sugestão de Compra
+                {suggestions.length > 0 && (
+                  <span className="ml-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full text-[10px] font-bold bg-amber-500 text-black">
+                    {suggestions.length}
+                  </span>
+                )}
+              </button>
               <button onClick={openPurchaseModal}
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${isLight ? "bg-blue-600 hover:bg-blue-700" : "bg-violet-600 hover:bg-violet-500 text-white"}`}
                 style={isLight ? { color: "#ffffff" } : undefined}>
@@ -534,6 +588,55 @@ export default function PurchasesPage() {
           </div>
         )}
       </div>
+
+      {/* Sugestão de Compra */}
+      {modal === "suggestions" && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 flex-shrink-0">
+              <div>
+                <h2 className="text-base font-semibold">Sugestão de Compra</h2>
+                <p className="text-xs text-zinc-500 mt-0.5">Itens abaixo do estoque mínimo cadastrado</p>
+              </div>
+              <button onClick={() => setModal("none")} className="p-1.5 text-zinc-400 hover:text-white rounded-lg"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              {suggestions.length === 0 ? (
+                <div className="text-center py-10">
+                  <Check className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+                  <p className="text-sm text-zinc-400 font-medium">Tudo em dia!</p>
+                  <p className="text-xs text-zinc-600 mt-1">Nenhum item está abaixo do estoque mínimo cadastrado.</p>
+                </div>
+              ) : suggestions.map(s => (
+                <div key={s.key} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-zinc-800 bg-zinc-950/40">
+                  <input type="checkbox" checked={!!suggestionSelected[s.key]}
+                    onChange={e => setSuggestionSelected(prev => ({ ...prev, [s.key]: e.target.checked }))}
+                    className="w-4 h-4 rounded accent-violet-600 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white truncate">{s.name}</p>
+                    <p className="text-xs text-zinc-500">
+                      Atual: {s.current_qty ?? 0} · Mínimo: {s.min_qty ?? 0}{s.max_qty ? ` · Máximo: ${s.max_qty}` : ""}
+                    </p>
+                  </div>
+                  <input type="number" min="0" step="0.001" value={suggestionQty[s.key] ?? ""}
+                    onChange={e => setSuggestionQty(prev => ({ ...prev, [s.key]: e.target.value }))}
+                    className="w-20 px-2 py-1.5 bg-zinc-950 border border-zinc-800 rounded-lg text-sm text-white text-center flex-shrink-0" />
+                </div>
+              ))}
+            </div>
+            {suggestions.length > 0 && (
+              <div className="flex gap-3 px-6 py-4 border-t border-zinc-800 flex-shrink-0">
+                <button onClick={() => setModal("none")} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
+                <button onClick={addSuggestionsToOrder}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 rounded-xl text-sm font-semibold transition-colors"
+                  style={{ color: "#fff" }}>
+                  <Plus className="w-4 h-4" /> Adicionar à Compra
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Purchase Modal */}
       {modal === "purchase" && (
