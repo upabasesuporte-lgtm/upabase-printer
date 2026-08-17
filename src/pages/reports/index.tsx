@@ -9,7 +9,7 @@ import {
   BarChart3, Package, Users, Wallet, Boxes,
   TrendingUp, TrendingDown, Calendar, RefreshCw,
   ShoppingCart, Banknote, AlertTriangle,
-  CheckCircle2, Award, Zap, Activity, Clock, Trophy,
+  CheckCircle2, Award, Zap, Activity, Clock, Trophy, Truck,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -69,6 +69,18 @@ interface Product {
   stock_type: string | null;
 }
 
+interface PurchaseOrderRow {
+  id: string;
+  status: string;
+  created_at: string;
+  suppliers: { name: string } | null;
+  purchase_order_items: {
+    quantity: number; unit_cost: number;
+    stock_items: { name: string } | null;
+    products: { name: string } | null;
+  }[];
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const fmt  = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -85,7 +97,7 @@ const PAY_LABELS: Record<string, string> = {
 const WEEKDAYS = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
 
 type Preset = "today"|"yesterday"|"week"|"month"|"last_month"|"custom";
-type Tab = "overview"|"sales"|"products"|"payments"|"sellers"|"customers"|"stock";
+type Tab = "overview"|"sales"|"products"|"payments"|"sellers"|"customers"|"stock"|"purchases";
 
 const PRESETS: { key: Preset; label: string }[] = [
   { key:"today", label:"Hoje" }, { key:"yesterday", label:"Ontem" },
@@ -101,6 +113,7 @@ const TABS: { key: Tab; label: string; icon: React.ReactNode; color: string }[] 
   { key:"sellers",   label:"Vendedores",  icon:<Award className="w-3.5 h-3.5" />,       color:"#d946ef" },
   { key:"customers", label:"Clientes",    icon:<Users className="w-3.5 h-3.5" />,       color:"#f43f5e" },
   { key:"stock",     label:"Estoque",     icon:<Boxes className="w-3.5 h-3.5" />,       color:"#3b82f6" },
+  { key:"purchases", label:"Compras",     icon:<Truck className="w-3.5 h-3.5" />,       color:"#f97316" },
 ];
 
 function presetToRange(p: Preset): { from: Date; to: Date } {
@@ -243,6 +256,7 @@ export default function ReportsPage() {
   const [custMovs,   setCustMovs]   = useState<CustomerMovement[]>([]);
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   const [products,   setProducts]   = useState<Product[]>([]);
+  const [purchases,  setPurchases]  = useState<PurchaseOrderRow[]>([]);
 
   const { from, to } = preset === "custom"
     ? { from: new Date(customFrom+"T00:00:00"), to: new Date(customTo+"T23:59:59") }
@@ -296,7 +310,7 @@ export default function ReportsPage() {
       }
 
       // 3. Restante em paralelo
-      const [cm, cu, st, pr] = await Promise.all([
+      const [cm, cu, st, pr, po] = await Promise.all([
         supabase.from("cash_movements")
           .select("id,movement_type,amount,payment_method,description,created_at")
           .gte("created_at", fromISO)
@@ -317,17 +331,25 @@ export default function ReportsPage() {
           .select("id,name,stock,stock_min,sale_price,unlimited_stock,stock_type")
           .eq("is_active",true)
           .order("stock"),
+
+        supabase.from("purchase_orders")
+          .select("id,status,created_at,suppliers(name),purchase_order_items(quantity,unit_cost,stock_items(name),products(name))")
+          .gte("created_at", fromISO)
+          .lte("created_at", toISO)
+          .order("created_at",{ascending:false}),
       ]);
 
       if (cm.error) errs.push(`Caixa: ${cm.error.message}`);
       if (cu.error) errs.push(`Clientes: ${cu.error.message}`);
       if (st.error) errs.push(`Estoque: ${st.error.message}`);
       if (pr.error) errs.push(`Produtos: ${pr.error.message}`);
+      if (po.error) errs.push(`Compras: ${po.error.message}`);
 
       setCashMovs((cm.data ?? []) as CashMovement[]);
       setCustMovs((cu.data ?? []) as unknown as CustomerMovement[]);
       setStockItems((st.data ?? []) as StockItem[]);
       setProducts((pr.data ?? []) as Product[]);
+      setPurchases((po.data ?? []) as unknown as PurchaseOrderRow[]);
     } catch (e: any) {
       // Sem try/catch, um erro em qualquer await deixava a tela travada em
       // "Carregando..." pra sempre. Agora o erro aparece e o loading encerra.
@@ -469,6 +491,33 @@ export default function ReportsPage() {
   const lowStockItems   = stockItems.filter(i=>i.current_qty<=i.min_qty&&i.min_qty>0);
   const outOfStockItems = stockItems.filter(i=>i.current_qty<=0);
   const lowStockProds   = limitedProds.filter(p=>p.stock<=(p.stock_min??0)&&p.stock_min>0);
+
+  // ── Derived: compras ──────────────────────────────────────────────────────
+
+  const validPurchases = purchases.filter(p=>p.status!=="cancelled");
+  const purchaseTotal  = validPurchases.reduce((sum,p)=>sum+(p.purchase_order_items??[]).reduce((s,i)=>s+i.quantity*i.unit_cost,0),0);
+  const purchaseCount  = validPurchases.length;
+  const purchaseAvgTicket = purchaseCount>0 ? purchaseTotal/purchaseCount : 0;
+
+  const supplierMap: Record<string,{name:string;total:number;orders:number}> = {};
+  validPurchases.forEach(p=>{
+    const name = p.suppliers?.name ?? "Sem fornecedor";
+    const poTotal = (p.purchase_order_items??[]).reduce((s,i)=>s+i.quantity*i.unit_cost,0);
+    if(!supplierMap[name]) supplierMap[name]={name,total:0,orders:0};
+    supplierMap[name].total+=poTotal; supplierMap[name].orders+=1;
+  });
+  const supplierRanking = Object.values(supplierMap).sort((a,b)=>b.total-a.total);
+  const maxSupplierTotal = supplierRanking[0]?.total??1;
+
+  const purchaseItemMap: Record<string,{name:string;qty:number;total:number}> = {};
+  validPurchases.forEach(p=>{
+    (p.purchase_order_items??[]).forEach(i=>{
+      const name = i.stock_items?.name ?? i.products?.name ?? "Item";
+      if(!purchaseItemMap[name]) purchaseItemMap[name]={name,qty:0,total:0};
+      purchaseItemMap[name].qty+=i.quantity; purchaseItemMap[name].total+=i.quantity*i.unit_cost;
+    });
+  });
+  const topPurchaseItems = Object.values(purchaseItemMap).sort((a,b)=>b.total-a.total).slice(0,8);
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -1208,6 +1257,80 @@ export default function ReportsPage() {
                 </div>
               </Card>
             )}
+          </div>
+        )}
+
+        {/* ════ COMPRAS ════ */}
+        {tab==="purchases" && (
+          <div className="space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <KPICard label="Total Gasto em Compras" value={fmt(purchaseTotal)} sub={`${purchaseCount} compra${purchaseCount!==1?"s":""} no período`}
+                from="#f97316" to="#ea580c" glow="rgba(249,115,22,0.15)"
+                icon={<Truck className="w-4 h-4" style={{color:"#f97316"}} />} />
+              <KPICard label="Ticket Médio de Compra" value={fmt(purchaseAvgTicket)} sub="por compra registrada"
+                from="#f59e0b" to="#f97316" glow="rgba(245,158,11,0.12)"
+                icon={<Wallet className="w-4 h-4" style={{color:"#f59e0b"}} />} />
+              <KPICard label="Fornecedores no Período" value={String(supplierRanking.length)} sub="com compra registrada"
+                from="#3b82f6" to="#6366f1" glow="rgba(59,130,246,0.12)"
+                icon={<Package className="w-4 h-4" style={{color:"#3b82f6"}} />} />
+            </div>
+
+            <Card className="p-6">
+              <CardTitle sub="Ranking de gastos por fornecedor no período">Gasto por Fornecedor</CardTitle>
+              {supplierRanking.length===0 ? (
+                <Empty text="Nenhuma compra registrada no período" />
+              ) : (
+                <div className="space-y-4">
+                  {supplierRanking.map((s,i)=>(
+                    <div key={s.name} className="rounded-xl border border-zinc-800/80 p-4"
+                      style={i===0?{background:"linear-gradient(135deg,rgba(249,115,22,0.05),transparent)",borderColor:"rgba(249,115,22,0.3)"}:{}}>
+                      <div className="flex items-center gap-4 mb-3">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-base flex-shrink-0"
+                          style={{ background: i===0?"linear-gradient(135deg,#f59e0b,#d97706)":i===1?"linear-gradient(135deg,#a1a1aa,#71717a)":i===2?"linear-gradient(135deg,#cd7c2f,#92400e)":"#27272a", color:"#fff" }}>
+                          {i===0?<Trophy className="w-4 h-4" />:i+1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-sm">{s.name}</p>
+                          <p className="text-xs text-zinc-600">{s.orders} compra{s.orders!==1?"s":""}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-black text-lg" style={{color:"#f97316"}}>{fmt(s.total)}</p>
+                          <p className="text-[10px] text-zinc-600">{purchaseTotal>0?`${fmtN((s.total/purchaseTotal)*100,1)}% do total`:""}</p>
+                        </div>
+                      </div>
+                      <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full" style={{
+                          width:`${(s.total/maxSupplierTotal)*100}%`,
+                          background:"linear-gradient(90deg,#f97316,#f59e0b)",
+                          boxShadow:"0 0 8px rgba(249,115,22,0.5)"
+                        }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+            <Card className="p-5">
+              <CardTitle sub="Itens que mais pesaram no custo de compras">Itens Mais Comprados</CardTitle>
+              {topPurchaseItems.length===0 ? <Empty text="Nenhuma compra registrada no período" /> : (
+                <div className="space-y-2">
+                  {topPurchaseItems.map((it,i)=>(
+                    <div key={it.name} className="flex items-center gap-3 p-3 rounded-xl border border-zinc-800/60">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-black flex-shrink-0"
+                        style={{ background:`${PIE_COLORS[i%PIE_COLORS.length]}30`, border:`1px solid ${PIE_COLORS[i%PIE_COLORS.length]}40`, color:PIE_COLORS[i%PIE_COLORS.length] }}>
+                        {it.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold truncate">{it.name}</p>
+                        <p className="text-xs text-zinc-600">{fmtN(it.qty,2)} unidades compradas</p>
+                      </div>
+                      <span className="font-black text-sm" style={{color:PIE_COLORS[i%PIE_COLORS.length]}}>{fmt(it.total)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
           </div>
         )}
 
