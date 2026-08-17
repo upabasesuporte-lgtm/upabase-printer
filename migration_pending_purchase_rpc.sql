@@ -12,6 +12,13 @@
 --    recebida na hora, so que agora acontece no momento do
 --    recebimento em vez do momento do pedido.
 --
+-- CORRECAO (v2): a versao anterior de receive_purchase_order tentava
+-- gravar em stock_movements com colunas que essa tabela nao tem nesse
+-- banco (mesmo problema que ja foi corrigido em register_purchase por
+-- migration_register_purchase_fix_stock_movements.sql). Removido aqui
+-- tambem. Se voce ja rodou a v1, so rodar esta de novo (create or
+-- replace substitui a funcao antiga sem duplicar nada).
+--
 -- Cole tudo no Supabase SQL Editor e execute.
 -- ============================================================
 
@@ -154,12 +161,6 @@ begin
     where purchase_order_id = p_purchase_order_id
   loop
     v_total := v_total + (v_item.quantity * v_item.unit_cost);
-
-    insert into stock_movements (stock_item_id, product_id, user_id, type, quantity, cost_price, reference_type, reference_id, notes)
-    values (
-      v_item.stock_item_id, v_item.product_id,
-      v_user_id, 'entry', v_item.quantity, v_item.unit_cost, 'purchase', p_purchase_order_id, 'Entrada via compra (recebimento confirmado)'
-    );
 
     if v_item.stock_item_id is not null then
       update stock_items
