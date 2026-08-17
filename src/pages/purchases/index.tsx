@@ -709,7 +709,7 @@ export default function PurchasesPage() {
             </div>
             {suggestions.length > 0 && (
               <div className="flex gap-3 px-6 py-4 border-t border-zinc-800 flex-shrink-0">
-                <button onClick={() => setModal("none")} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
+                <button onClick={() => setModal("none")} className="flex-1 py-2.5 bg-transparent border border-amber-500/30 text-amber-300 hover:bg-amber-500/10 hover:border-amber-500/50 rounded-xl text-sm font-medium transition-colors">Cancelar</button>
                 <button onClick={addSuggestionsToOrder}
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 rounded-xl text-sm font-semibold transition-colors"
                   style={{ color: "#fff" }}>
@@ -899,19 +899,19 @@ export default function PurchasesPage() {
                 </span>
               </div>
             </div>
-            <div className="flex flex-col sm:flex-row gap-3 px-6 py-4 border-t border-zinc-800 flex-shrink-0">
-              <button onClick={() => setModal("none")} className="sm:flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
+            <div className="flex flex-col gap-3 px-6 py-4 border-t border-zinc-800 flex-shrink-0">
+              <button onClick={() => setModal("none")} className="w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
               <button onClick={savePendingPurchase}
                 disabled={poItems.every(i => !i.item_id || !i.quantity) || saving}
                 title="Registra o pedido sem mexer no estoque — confirme o recebimento quando a mercadoria chegar"
-                className="sm:flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-xl text-sm font-semibold transition-colors"
+                className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-xl text-sm font-semibold transition-colors"
                 style={{ color: "#fff" }}>
                 {saving ? <RefreshCw className="w-4 h-4 animate-spin flex-shrink-0" /> : <Clock className="w-4 h-4 flex-shrink-0" />}
                 <span className="truncate">Só Fazer Pedido</span>
               </button>
               <button onClick={savePurchase}
                 disabled={poItems.every(i => !i.item_id || !i.quantity) || saving}
-                className="sm:flex-1 flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 rounded-xl text-sm font-semibold transition-colors"
+                className="w-full flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 rounded-xl text-sm font-semibold transition-colors"
                 style={{ color: "#fff" }}>
                 {saving ? <RefreshCw className="w-4 h-4 animate-spin flex-shrink-0" /> : <Truck className="w-4 h-4 flex-shrink-0" />}
                 <span className="truncate">Confirmar Recebimento</span>
