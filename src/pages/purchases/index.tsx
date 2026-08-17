@@ -3,9 +3,9 @@ import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import {
-  Plus, X, RefreshCw, Truck, ChevronDown, Ban, Search, FileUp, Check, AlertCircle, Trash2, Clock,
+  Plus, X, RefreshCw, Truck, ChevronDown, Ban, Search, FileUp, Check, AlertCircle, Trash2, Clock, Pencil,
 } from "lucide-react";
-import { ProductModal, type Category } from "../products";
+import { ProductModal, type Category, type Product } from "../products";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -109,6 +109,11 @@ export default function PurchasesPage() {
   const [qcSaving, setQcSaving] = useState(false);
   const [qcError, setQcError] = useState<string | null>(null);
   useEscapeKey(() => setQuickCreateIdx(null), quickCreateIdx !== null);
+
+  // Editar produto já selecionado numa linha da compra (corrigir algo digitado errado)
+  const [editProductTarget, setEditProductTarget] = useState<Product | null>(null);
+  const [editProductIdx, setEditProductIdx] = useState<number | null>(null);
+  useEscapeKey(() => { setEditProductTarget(null); setEditProductIdx(null); }, !!editProductTarget);
 
   // Importação de XML de NFe
   const xmlInputRef = useRef<HTMLInputElement>(null);
@@ -365,13 +370,39 @@ export default function PurchasesPage() {
   // Cadastro de produto de revenda: reaproveita o mesmo ProductModal
   // completo da tela de Produtos (mesmos campos, mesma logica de salvar).
   async function handleNewProductSaved(id?: string) {
-    await loadLimitedProducts();
     if (quickCreateIdx !== null && id) {
       const idx = quickCreateIdx;
-      const created = await supabase.from("products").select("id, name").eq("id", id).single();
-      const name = created.data?.name ?? "";
-      setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, ref_type: "product", item_id: id, itemName: name } : p));
+      const { data } = await supabase.from("products").select("id, name, stock, cost_price").eq("id", id).single();
+      const name = data?.name ?? "";
+      const qty  = data?.stock ?? 0;
+      const cost = data?.cost_price ?? 0;
+      // Quantidade/custo digitados na criação do produto viram a quantidade
+      // desta compra — zera o estoque aqui pra "Confirmar Recebimento" não
+      // somar esse valor de novo e duplicar o estoque.
+      if (qty > 0) await supabase.from("products").update({ stock: 0 }).eq("id", id);
+      setPOItems(prev => prev.map((p, i) => i === idx ? {
+        ...p, ref_type: "product", item_id: id, itemName: name,
+        quantity: qty > 0 ? String(qty) : p.quantity,
+        unit_cost: cost > 0 ? String(cost) : p.unit_cost,
+      } : p));
     }
+    await loadLimitedProducts();
+  }
+
+  // Editar produto já lançado na compra (corrigir algo digitado errado sem sair da tela)
+  async function openEditProductFromRow(idx: number, id: string) {
+    const { data } = await supabase.from("products").select("*").eq("id", id).single();
+    if (data) { setEditProductTarget(data as Product); setEditProductIdx(idx); }
+  }
+
+  async function handleEditProductSaved(id?: string) {
+    await loadLimitedProducts();
+    if (editProductIdx !== null && id) {
+      const idx = editProductIdx;
+      const { data } = await supabase.from("products").select("name").eq("id", id).single();
+      if (data) setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, itemName: data.name } : p));
+    }
+    setEditProductTarget(null); setEditProductIdx(null);
   }
 
   async function savePurchase() {
@@ -851,6 +882,12 @@ export default function PurchasesPage() {
                                 {item.ref_type === "ingredient" ? "Insumo" : "Produto"}
                               </span>
                             </button>
+                            {item.ref_type === "product" && item.item_id && (
+                              <button type="button" onClick={() => openEditProductFromRow(idx, item.item_id!)}
+                                title="Editar produto" className="p-1.5 text-zinc-500 hover:text-violet-400 rounded-lg flex-shrink-0 transition-colors">
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                            )}
                             <input value={item.quantity} placeholder="Qtd"
                               onChange={e => setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, quantity: e.target.value } : p))}
                               type="number" min="0" step="0.001" className={inputCls + " w-20"} />
@@ -992,6 +1029,16 @@ export default function PurchasesPage() {
           onClose={() => setQuickCreateIdx(null)}
           onSave={handleNewProductSaved}
           initialName={qcName}
+        />
+      )}
+
+      {/* Editar produto já selecionado numa linha da compra */}
+      {editProductTarget && (
+        <ProductModal
+          product={editProductTarget}
+          categories={categories}
+          onClose={() => { setEditProductTarget(null); setEditProductIdx(null); }}
+          onSave={handleEditProductSaved}
         />
       )}
 
