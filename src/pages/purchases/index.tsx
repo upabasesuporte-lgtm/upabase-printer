@@ -503,7 +503,7 @@ export default function PurchasesPage() {
                             </div>
                           );
                         })}
-                        <div className="flex items-center justify-between px-5 py-3 bg-zinc-950/40">
+                        <div className="flex items-center justify-between px-5 py-3">
                           <span className="text-xs text-zinc-500">Total da compra</span>
                           <span className="text-base font-black text-white">{fmt(total)}</span>
                         </div>
