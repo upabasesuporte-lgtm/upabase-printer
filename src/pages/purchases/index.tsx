@@ -3,7 +3,7 @@ import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import {
-  Plus, X, RefreshCw, Truck, ChevronDown, ChevronLeft, Ban, Search, FileUp, Check, AlertCircle, Trash2, Clock,
+  Plus, X, RefreshCw, Truck, ChevronDown, Ban, Search, FileUp, Check, AlertCircle, Trash2, Clock,
 } from "lucide-react";
 import { ProductModal, type Category } from "../products";
 
@@ -98,8 +98,6 @@ export default function PurchasesPage() {
   const [receiveInstallments, setReceiveInstallments] = useState("1");
   const [openSearchIdx, setOpenSearchIdx] = useState<number | null>(null);
   const [itemSearchText, setItemSearchText] = useState("");
-  // Ao abrir o seletor de item: mostra primeiro a escolha "criar novo" x "usar existente"
-  const [pickerShowExisting, setPickerShowExisting] = useState(false);
 
   // Cadastro rápido de insumo/produto direto pela Compra
   const [quickCreateIdx, setQuickCreateIdx] = useState<number | null>(null);
@@ -821,18 +819,37 @@ export default function PurchasesPage() {
                     ].slice(0, 8);
                     return (
                       <div key={idx} className="pb-2 border-b border-zinc-800 last:border-0 space-y-1.5">
-                        {!isSearching ? (
-                          <div className="flex gap-2 items-center">
-                            <button type="button" onClick={() => { setItemSearchText(""); setPickerShowExisting(false); setOpenSearchIdx(idx); }}
-                              className="flex-1 flex items-center justify-between gap-2 px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 hover:border-zinc-700 rounded-xl text-sm text-left transition-colors">
-                              <span className={item.item_id ? "text-white truncate" : "text-zinc-500"}>
-                                {item.itemName || "Selecionar item..."}
-                              </span>
-                              {item.item_id && (
-                                <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${item.ref_type === "ingredient" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" : "bg-blue-500/10 text-blue-400 border border-blue-500/20"}`}>
-                                  {item.ref_type === "ingredient" ? "Insumo" : "Produto"}
-                                </span>
+                        {!item.item_id && !isSearching ? (
+                          <div className="space-y-1.5">
+                            <div className="flex gap-2">
+                              <button type="button" onClick={() => openQuickCreate(idx, "product", "")}
+                                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold transition-colors">
+                                <Plus className="w-3.5 h-3.5 flex-shrink-0" /> Criar Produto Novo
+                              </button>
+                              <button type="button" onClick={() => { setItemSearchText(""); setOpenSearchIdx(idx); }}
+                                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-zinc-700 hover:border-zinc-600 text-zinc-300 hover:text-white text-xs font-semibold transition-colors">
+                                <Search className="w-3.5 h-3.5 flex-shrink-0" /> Usar Produto Existente
+                              </button>
+                              {poItems.length > 1 && (
+                                <button onClick={() => setPOItems(prev => prev.filter((_, i) => i !== idx))}
+                                  className="p-1.5 text-zinc-600 hover:text-red-400 rounded-lg flex-shrink-0 transition-colors">
+                                  <X className="w-4 h-4" />
+                                </button>
                               )}
+                            </div>
+                            <button type="button" onClick={() => openQuickCreate(idx, "ingredient", "")}
+                              className="w-full text-center text-[11px] text-zinc-600 hover:text-zinc-400 transition-colors py-0.5">
+                              Não é produto de venda, é insumo/ingrediente de receita? Cadastre aqui
+                            </button>
+                          </div>
+                        ) : !isSearching ? (
+                          <div className="flex gap-2 items-center">
+                            <button type="button" onClick={() => { setItemSearchText(""); setOpenSearchIdx(idx); }}
+                              className="flex-1 flex items-center justify-between gap-2 px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 hover:border-zinc-700 rounded-xl text-sm text-left transition-colors">
+                              <span className="text-white truncate">{item.itemName}</span>
+                              <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${item.ref_type === "ingredient" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" : "bg-blue-500/10 text-blue-400 border border-blue-500/20"}`}>
+                                {item.ref_type === "ingredient" ? "Insumo" : "Produto"}
+                              </span>
                             </button>
                             <input value={item.quantity} placeholder="Qtd"
                               onChange={e => setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, quantity: e.target.value } : p))}
@@ -847,35 +864,9 @@ export default function PurchasesPage() {
                               </button>
                             )}
                           </div>
-                        ) : !pickerShowExisting ? (
-                          <div className="bg-zinc-900 border border-violet-500/40 rounded-xl overflow-hidden">
-                            <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-800">
-                              <span className="text-xs text-zinc-500">O que você quer lançar?</span>
-                              <button onClick={() => setOpenSearchIdx(null)} className="text-zinc-500 hover:text-white transition-colors flex-shrink-0">
-                                <X className="w-4 h-4" />
-                              </button>
-                            </div>
-                            <div className="p-2 space-y-1.5">
-                              <button type="button" onClick={() => openQuickCreate(idx, "product", "")}
-                                className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold transition-colors">
-                                <Plus className="w-3.5 h-3.5 flex-shrink-0" /> Criar Produto Novo
-                              </button>
-                              <button type="button" onClick={() => setPickerShowExisting(true)}
-                                className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg border border-zinc-700 hover:border-zinc-600 text-zinc-300 hover:text-white text-xs font-semibold transition-colors">
-                                <Search className="w-3.5 h-3.5 flex-shrink-0" /> Usar Produto Existente
-                              </button>
-                              <button type="button" onClick={() => openQuickCreate(idx, "ingredient", "")}
-                                className="w-full text-center text-[11px] text-zinc-600 hover:text-zinc-400 transition-colors py-0.5">
-                                Não é produto de venda, é insumo/ingrediente de receita? Cadastre aqui
-                              </button>
-                            </div>
-                          </div>
                         ) : (
                           <div className="bg-zinc-900 border border-violet-500/40 rounded-xl overflow-hidden">
                             <div className="flex items-center gap-2 px-3 py-2 border-b border-zinc-800">
-                              <button type="button" onClick={() => setPickerShowExisting(false)} className="text-zinc-500 hover:text-white transition-colors flex-shrink-0">
-                                <ChevronLeft className="w-4 h-4" />
-                              </button>
                               <Search className="w-4 h-4 text-zinc-500 flex-shrink-0" />
                               <input autoFocus value={itemSearchText} onChange={e => setItemSearchText(e.target.value)}
                                 placeholder="Buscar produto existente..."
