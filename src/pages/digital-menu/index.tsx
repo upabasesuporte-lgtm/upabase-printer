@@ -938,14 +938,14 @@ export default function DigitalMenuPage() {
         <div className="relative overflow-hidden rounded-2xl p-5 flex-shrink-0"
           style={{ background: card.bg, border: card.border, boxShadow: card.shadow, backgroundImage:"radial-gradient(rgba(123,47,190,0.08) 1px,transparent 1px)", backgroundSize:"24px 24px" }}>
           <div className="absolute inset-0 pointer-events-none" style={{ background: isLight ? "linear-gradient(135deg,rgba(123,47,190,0.04) 0%,rgba(0,180,216,0.03) 100%)" : "linear-gradient(135deg,rgba(123,47,190,0.08) 0%,transparent 100%)" }} />
-          <div className="relative flex items-center justify-between">
-            <div>
+          <div className="relative flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background:"#7B2FBE", boxShadow:"0 0 6px #7B2FBE" }} />
+                <div className="w-1.5 h-1.5 rounded-full animate-pulse flex-shrink-0" style={{ background:"#7B2FBE", boxShadow:"0 0 6px #7B2FBE" }} />
                 <span className="text-[11px] font-semibold uppercase tracking-widest"
                   style={isLight ? { color:"#2563eb" } : { color:"#7B2FBE", WebkitTextFillColor:"#7B2FBE", backgroundClip:"unset", WebkitBackgroundClip:"unset", background:"none" }}>Cardápio Digital</span>
               </div>
-              <h1 className={`text-2xl font-black ${isLight ? "" : "g-text g-text-purple"}`}
+              <h1 className={`text-2xl font-black truncate ${isLight ? "" : "g-text g-text-purple"}`}
                 style={isLight ? { color:"#2563eb" } : undefined}>
                 {settings.store_name || "Meu Cardápio"}
               </h1>
@@ -953,7 +953,7 @@ export default function DigitalMenuPage() {
                 {isStoreOpenNow(settings) ? "🟢 Loja aberta agora" : "🔴 Loja fechada agora"} · {products.filter(p => p.visible_digital_menu).length} produtos visíveis
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <button onClick={() => { loadOrders(); loadProducts(); if (userId) loadSettings(userId); }} disabled={loading}
                 className="flex items-center gap-1.5 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs rounded-xl transition-all border border-zinc-700 whitespace-nowrap">
                 <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Atualizar
@@ -969,7 +969,7 @@ export default function DigitalMenuPage() {
               </button>
               {menuUrl && (
                 <button onClick={() => window.open(menuUrl, "_blank")}
-                  className="flex items-center gap-1.5 px-3 py-2 text-xs rounded-xl border transition-all"
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs rounded-xl border transition-all whitespace-nowrap"
                   style={isLight ? { color:"#7B2FBE", background:"rgba(123,47,190,0.08)", borderColor:"rgba(123,47,190,0.3)" } : { color:"#f59e0b", background:"rgba(245,158,11,0.08)", borderColor:"rgba(245,158,11,0.3)" }}>
                   <ExternalLink className="w-3.5 h-3.5" /> Ver Cardápio
                 </button>
