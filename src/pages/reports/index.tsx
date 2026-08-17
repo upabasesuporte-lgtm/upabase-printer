@@ -34,6 +34,12 @@ interface SaleItem {
   sales: { created_at: string; status: string } | null;
 }
 
+interface CashRegisterRow {
+  id: string;
+  opened_at: string;
+  closed_at: string | null;
+}
+
 interface CashMovement {
   id: string;
   movement_type: string; // campo correto: movement_type
@@ -271,18 +277,46 @@ export default function ReportsPage() {
     const errs: string[] = [];
 
     try {
+      // 0. Caixas (turnos) cuja ABERTURA caiu dentro do período selecionado.
+      //    Uma venda pertence ao turno de caixa em que foi lançada — não ao dia-calendário
+      //    do created_at. Um caixa aberto ontem e fechado só hoje continua sendo "de ontem":
+      //    as vendas lançadas nele hoje (antes de fechar) devem contar para o turno de ontem.
+      const { data: regsRaw, error: regsErr } = await supabase
+        .from("cash_registers")
+        .select("id,opened_at,closed_at")
+        .gte("opened_at", fromISO)
+        .lte("opened_at", toISO)
+        .order("opened_at",{ascending:true});
+
+      if (regsErr) errs.push(`Caixas: ${regsErr.message}`);
+      const regs: CashRegisterRow[] = (regsRaw ?? []) as CashRegisterRow[];
+      const nowISO = new Date().toISOString();
+
+      // Se não há caixas abertos no período (ex.: dados antigos anteriores ao uso do
+      // caixa), mantém o comportamento antigo por dia-calendário como fallback.
+      const useRegisterWindow = regs.length > 0;
+      const inAnyRegister = (createdAt: string) =>
+        regs.some(r => createdAt >= r.opened_at && createdAt <= (r.closed_at ?? nowISO));
+      const sessionFrom = useRegisterWindow ? regs[0].opened_at : fromISO;
+      const sessionTo   = useRegisterWindow
+        ? regs.reduce((max, r) => { const end = r.closed_at ?? nowISO; return end > max ? end : max; }, regs[0].closed_at ?? nowISO)
+        : toISO;
+
       // 1. Vendas finalizadas — colunas que sabemos que existem (sem "seller")
       const { data: salesRaw, error: salesErr } = await supabase
         .from("sales")
         .select("id,total_amount,discount,origin,created_at,status,seller_name,payments")
         .eq("status","paid")
         .neq("origin","fiado_payment")
-        .gte("created_at", fromISO)
-        .lte("created_at", toISO)
+        .gte("created_at", sessionFrom)
+        .lte("created_at", sessionTo)
         .order("created_at",{ascending:false});
 
       if (salesErr) errs.push(`Vendas: ${salesErr.message}`);
-      const salesData: Sale[] = (salesRaw ?? []).map((r: any) => ({
+      const salesFiltered = useRegisterWindow
+        ? (salesRaw ?? []).filter((r: any) => inAnyRegister(r.created_at))
+        : (salesRaw ?? []);
+      const salesData: Sale[] = salesFiltered.map((r: any) => ({
         ...r,
         total_amount: Number(r.total_amount ?? 0),
         discount:     Number(r.discount ?? 0),
