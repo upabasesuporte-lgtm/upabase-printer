@@ -516,7 +516,7 @@ export default function PurchasesPage() {
                 {purchases.length} compra{purchases.length !== 1 ? "s" : ""} registrada{purchases.length !== 1 ? "s" : ""}
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center flex-wrap gap-2">
               <input ref={xmlInputRef} type="file" accept=".xml,text/xml" className="hidden" onChange={handleXmlFile} />
               <button onClick={() => xmlInputRef.current?.click()} disabled={xmlParsing}
                 className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold border border-zinc-700 text-zinc-300 hover:border-zinc-600 hover:text-white transition-colors disabled:opacity-50">
