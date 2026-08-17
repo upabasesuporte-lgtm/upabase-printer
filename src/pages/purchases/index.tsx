@@ -448,35 +448,38 @@ export default function PurchasesPage() {
               return (
                 <div key={po.id} className="rounded-2xl overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
                   <button onClick={() => setExpandedPO(isExpanded ? null : po.id)}
-                    className="w-full flex items-center gap-4 px-5 py-4 text-left transition-colors">
-                    <div className="w-10 h-10 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <Truck className="w-4 h-4 text-blue-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-sm font-semibold text-white truncate">
-                          {po.suppliers?.name ?? "Fornecedor não informado"}
-                        </span>
-                        {po.status === "cancelled" ? (
-                          <span className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">
-                            Cancelada
-                          </span>
-                        ) : (
-                          <span className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                            Recebida
-                          </span>
-                        )}
+                    style={{ WebkitTapHighlightColor: "transparent" }}
+                    className="w-full flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 px-5 py-4 text-left transition-colors">
+                    <div className="flex items-center gap-4 min-w-0 sm:flex-1">
+                      <div className="w-10 h-10 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <Truck className="w-4 h-4 text-blue-400" />
                       </div>
-                      <p className="text-xs text-zinc-500 mt-0.5">
-                        {new Date(po.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}
-                        {" · "}{itemCount} ite{itemCount !== 1 ? "ns" : "m"}
-                        {po.notes && ` · ${po.notes}`}
-                      </p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                          <span className="text-sm font-semibold text-white truncate max-w-full">
+                            {po.suppliers?.name ?? "Fornecedor não informado"}
+                          </span>
+                          {po.status === "cancelled" ? (
+                            <span className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">
+                              Cancelada
+                            </span>
+                          ) : (
+                            <span className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                              Recebida
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-zinc-500 mt-0.5">
+                          {new Date(po.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}
+                          {" · "}{itemCount} ite{itemCount !== 1 ? "ns" : "m"}
+                          {po.notes && ` · ${po.notes}`}
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-right flex-shrink-0 mr-2">
+                    <div className="flex items-center justify-between sm:justify-end gap-2 flex-shrink-0 pl-14 sm:pl-0">
                       <p className="text-base font-bold text-white">{fmt(total)}</p>
+                      <ChevronDown className={`w-4 h-4 text-zinc-500 transition-transform flex-shrink-0 ${isExpanded ? "rotate-180" : ""}`} />
                     </div>
-                    <ChevronDown className={`w-4 h-4 text-zinc-500 transition-transform flex-shrink-0 ${isExpanded ? "rotate-180" : ""}`} />
                   </button>
                   {isExpanded && (
                     <div className="border-t border-zinc-800">
