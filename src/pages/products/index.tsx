@@ -201,7 +201,7 @@ function CategoryModal({ categories, onClose, onRefresh }: {
         </div>
 
         {/* Formulário de criação */}
-        <div className="p-5 border-b border-zinc-800 flex-shrink-0 bg-zinc-950/50">
+        <div className="p-5 border-b border-zinc-800 flex-shrink-0">
           <p className="text-xs font-semibold text-violet-400 uppercase tracking-wider mb-3">+ Nova Categoria</p>
           {error && (
             <div className="mb-3 bg-red-500/10 border border-red-500/20 text-red-400 text-xs p-2.5 rounded-lg flex gap-2 items-center">
@@ -223,7 +223,8 @@ function CategoryModal({ categories, onClose, onRefresh }: {
               autoFocus
             />
             <button onClick={save} disabled={loading || !name.trim()}
-              className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors whitespace-nowrap">
+              className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 rounded-xl text-sm font-semibold transition-colors whitespace-nowrap"
+              style={{ color: "#fff" }}>
               <Plus className="w-4 h-4" />
               {loading ? "Criando..." : "Criar"}
             </button>
@@ -941,8 +942,8 @@ export default function ProductsPage() {
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => setShowCatModal(true)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all ${isLight ? "text-white" : "border border-zinc-700 hover:border-zinc-600 bg-zinc-900 hover:bg-zinc-800"}`}
-              style={isLight ? { background:"#7c3aed" } : undefined}>
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all ${isLight ? "" : "border border-zinc-700 hover:border-zinc-600 bg-zinc-900 hover:bg-zinc-800"}`}
+              style={isLight ? { background:"#7c3aed", color:"#fff" } : undefined}>
               <FolderOpen className="w-4 h-4" /> Categorias
             </button>
             <button onClick={openCreate}
