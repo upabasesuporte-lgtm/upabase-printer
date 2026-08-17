@@ -3,7 +3,7 @@ import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import {
-  Plus, X, RefreshCw, Truck, ChevronDown, Ban, Search, FileUp, Check, AlertCircle,
+  Plus, X, RefreshCw, Truck, ChevronDown, Ban, Search, FileUp, Check, AlertCircle, Trash2,
 } from "lucide-react";
 import { ProductModal, type Category } from "../products";
 
@@ -83,6 +83,7 @@ export default function PurchasesPage() {
   const [poItems, setPOItems] = useState<{ ref_type: "ingredient" | "product"; item_id: string; itemName: string; quantity: string; unit_cost: string }[]>([]);
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [openSearchIdx, setOpenSearchIdx] = useState<number | null>(null);
   const [itemSearchText, setItemSearchText] = useState("");
 
@@ -368,6 +369,17 @@ export default function PurchasesPage() {
     setCancellingId(null);
   }
 
+  async function deletePurchase(po: PurchaseOrder) {
+    if (po.status !== "cancelled" || deletingId) return;
+    if (!confirm("Excluir definitivamente esta compra cancelada? Essa ação não pode ser desfeita.")) return;
+    setDeletingId(po.id);
+    await supabase.from("purchase_order_items").delete().eq("purchase_order_id", po.id);
+    const { error } = await supabase.from("purchase_orders").delete().eq("id", po.id);
+    if (error) { alert(error.message); setDeletingId(null); return; }
+    setPurchases(prev => prev.filter(p => p.id !== po.id));
+    setDeletingId(null);
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -436,21 +448,21 @@ export default function PurchasesPage() {
               return (
                 <div key={po.id} className="rounded-2xl overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
                   <button onClick={() => setExpandedPO(isExpanded ? null : po.id)}
-                    className="w-full flex items-center gap-4 px-5 py-4 text-left hover:bg-zinc-800/30 transition-colors">
+                    className="w-full flex items-center gap-4 px-5 py-4 text-left transition-colors">
                     <div className="w-10 h-10 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
                       <Truck className="w-4 h-4 text-blue-400" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-white">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-sm font-semibold text-white truncate">
                           {po.suppliers?.name ?? "Fornecedor não informado"}
                         </span>
                         {po.status === "cancelled" ? (
-                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">
+                          <span className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">
                             Cancelada
                           </span>
                         ) : (
-                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          <span className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                             Recebida
                           </span>
                         )}
@@ -492,12 +504,20 @@ export default function PurchasesPage() {
                           <span className="text-xs text-zinc-500">Total da compra</span>
                           <span className="text-base font-black text-white">{fmt(total)}</span>
                         </div>
-                        {po.status !== "cancelled" && (
+                        {po.status !== "cancelled" ? (
                           <div className="px-5 py-3">
                             <button onClick={() => cancelPurchase(po)} disabled={cancellingId === po.id}
                               className="flex items-center gap-1.5 text-xs font-medium text-red-400 hover:text-red-300 disabled:opacity-50 transition-colors">
                               {cancellingId === po.id ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Ban className="w-3.5 h-3.5" />}
                               Cancelar compra
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="px-5 py-3">
+                            <button onClick={() => deletePurchase(po)} disabled={deletingId === po.id}
+                              className="flex items-center gap-1.5 text-xs font-medium text-red-400 hover:text-red-300 disabled:opacity-50 transition-colors">
+                              {deletingId === po.id ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                              Excluir compra
                             </button>
                           </div>
                         )}
@@ -645,13 +665,14 @@ export default function PurchasesPage() {
                 </span>
               </div>
             </div>
-            <div className="flex gap-3 px-6 py-4 border-t border-zinc-800 flex-shrink-0">
-              <button onClick={() => setModal("none")} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
+            <div className="flex flex-col sm:flex-row gap-3 px-6 py-4 border-t border-zinc-800 flex-shrink-0">
+              <button onClick={() => setModal("none")} className="sm:flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
               <button onClick={savePurchase}
                 disabled={poItems.every(i => !i.item_id || !i.quantity) || saving}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
-                {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Truck className="w-4 h-4" />}
-                Confirmar Recebimento
+                className="sm:flex-1 flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 rounded-xl text-sm font-semibold transition-colors"
+                style={{ color: "#fff" }}>
+                {saving ? <RefreshCw className="w-4 h-4 animate-spin flex-shrink-0" /> : <Truck className="w-4 h-4 flex-shrink-0" />}
+                <span className="truncate">Confirmar Recebimento</span>
               </button>
             </div>
           </div>
