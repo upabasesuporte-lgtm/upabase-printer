@@ -209,7 +209,7 @@ export default function PublicMenuPage() {
   const [configError, setConfigError]     = useState("");
 
   // checkout
-  const [orderType, setOrderType]     = useState<"delivery"|"takeaway">("takeaway");
+  const [orderType, setOrderType]     = useState<"delivery"|"takeaway"|null>(null);
   const [custName, setCustName]       = useState("");
   const [custPhone, setCustPhone]     = useState("");
   const [address, setAddress]         = useState("");
@@ -218,6 +218,17 @@ export default function PublicMenuPage() {
   const [obsGeral, setObsGeral]       = useState("");
   const [formError, setFormError]     = useState("");
   const [submitting, setSubmitting]   = useState(false);
+  const afterOrderTypeRef             = useRef<HTMLDivElement>(null);
+
+  // Só depois que o cliente escolhe retirada/delivery é que o resto do
+  // formulário aparece — evita erro de gente que deixava marcado o que
+  // já vinha selecionado sem perceber. Ao escolher, rola suavemente até
+  // a próxima seção.
+  useEffect(() => {
+    if (orderType && afterOrderTypeRef.current) {
+      afterOrderTypeRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [orderType]);
 
   // tracking
   const [trackedOrder, setTrackedOrder]   = useState<TrackedOrder | null>(null);
@@ -455,6 +466,7 @@ export default function PublicMenuPage() {
   async function submitOrder() {
     setFormError("");
 
+    if (!orderType) { setFormError("Escolha se é retirada ou delivery."); return; }
     if (!custName.trim()) { setFormError("Informe seu nome para continuar."); return; }
     if (!custPhone.trim()) { setFormError("Informe seu telefone para continuar."); return; }
     if (orderType === "delivery" && !address.trim()) { setFormError("Informe o endereço de entrega."); return; }
@@ -886,10 +898,17 @@ export default function PublicMenuPage() {
                 <Truck className="w-5 h-5" /> Delivery
               </button>
             </div>
+            {!orderType && (
+              <p className="text-xs text-zinc-500 mt-3 flex items-center gap-1.5">
+                <ChevronDown className="w-3.5 h-3.5" /> Escolha uma opção acima para continuar
+              </p>
+            )}
           </div>
 
+          {!orderType ? null : (
+          <>
           {/* Dados do cliente */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
+          <div ref={afterOrderTypeRef} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
             <p className="text-sm font-semibold">Seus dados</p>
             <div className="relative">
               <User className="w-4 h-4 text-teal-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -974,6 +993,8 @@ export default function PublicMenuPage() {
               className="w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-teal-500 resize-none"
             />
           </div>
+          </>
+          )}
 
           {/* Resumo */}
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-2">
