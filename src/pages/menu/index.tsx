@@ -7,6 +7,7 @@ import {
   ChefHat, MapPin, Phone, User, ChevronRight, AlertCircle,
   Truck, UtensilsCrossed, ArrowLeft, Send, MessageSquare,
   Banknote, CreditCard, QrCode, Package, ChevronDown, ExternalLink,
+  Store,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -194,6 +195,13 @@ function isStoreOpenNow(settings: StoreSettings): boolean {
   return cur >= openMin && cur < closeMin;
 }
 
+const WEEKDAYS = [
+  { key: "seg", label: "Segunda" }, { key: "ter", label: "Terça"   },
+  { key: "qua", label: "Quarta"  }, { key: "qui", label: "Quinta"  },
+  { key: "sex", label: "Sexta"   }, { key: "sab", label: "Sábado"  },
+  { key: "dom", label: "Domingo" },
+];
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function PublicMenuPage() {
@@ -226,6 +234,7 @@ export default function PublicMenuPage() {
   const [step, setStep]             = useState<Step>("menu");
   const [activeCat, setActiveCat]   = useState("all");
   const [search, setSearch]         = useState("");
+  const [showProfile, setShowProfile] = useState(false);
   const [cart, setCart]             = useState<CartItem[]>([]);
   // Pedidos salvos localmente (array) para o cliente acompanhar todos os pedidos
   type SavedOrderEntry = { orderId: string; orderNumber: string; timestamp: number };
@@ -1334,6 +1343,14 @@ export default function PublicMenuPage() {
           <div className="h-24 bg-gradient-to-br from-teal-900/40 to-zinc-900" />
         )}
 
+        {/* Aberto/Fechado — canto da capa */}
+        <span className={`absolute top-3 right-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold backdrop-blur-sm ${
+          isOpen ? "bg-emerald-500/90 text-white" : "bg-red-500/90 text-white"
+        }`}>
+          <span className={`w-1.5 h-1.5 rounded-full bg-white ${isOpen ? "animate-pulse" : ""}`} />
+          {isOpen ? "Aberto" : "Fechado"}
+        </span>
+
         {/* Logo */}
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2">
           {settings.logo_url ? (
@@ -1348,47 +1365,44 @@ export default function PublicMenuPage() {
         </div>
       </div>
 
-      {/* Store info */}
-      <div className="pt-14 pb-4 px-4 text-center">
-        <h1 className="text-xl font-black">{settings.store_name || "Cardápio Digital"}</h1>
-        {settings.tagline && <p className="text-sm text-zinc-400 mt-0.5">{settings.tagline}</p>}
-        <div className="flex items-center justify-center gap-3 mt-2 flex-wrap">
-          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
-            isOpen ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"
-          }`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${isOpen ? "bg-emerald-400 animate-pulse" : "bg-red-400"}`} />
-            {isOpen ? "Aberto" : "Fechado"}
-          </span>
-          {(settings.estimated_time_min > 0 || settings.estimated_time_max > 0) && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
-              style={{ background:"rgba(249,115,22,0.12)", color:"#f97316", border:"1px solid rgba(249,115,22,0.2)" }}>
-              <Clock className="w-3.5 h-3.5" />
-              {settings.estimated_time_min}–{settings.estimated_time_max} min
-            </span>
-          )}
-          {settings.delivery_fee > 0 && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
-              style={{ background:"rgba(20,184,166,0.12)", color:"#2dd4bf", border:"1px solid rgba(20,184,166,0.2)" }}>
-              <Truck className="w-3.5 h-3.5" /> Entrega {fmt(settings.delivery_fee)}
-            </span>
-          )}
-        </div>
-        {settings.address && (
-          <p className="text-xs mt-2 flex items-center justify-center gap-1.5" style={{ color:"#94a3b8" }}>
-            <MapPin className="w-3.5 h-3.5 flex-shrink-0 text-teal-400" /> {settings.address}
+      {/* Store info — compacto */}
+      <div className="pt-11 pb-3 px-4 text-center">
+        <h1 className="text-lg font-black">{settings.store_name || "Cardápio Digital"}</h1>
+        {settings.tagline && <p className="text-xs text-zinc-400 mt-0.5">{settings.tagline}</p>}
+
+        {(settings.delivery_fee > 0 || settings.estimated_time_min > 0) && (
+          <p className="text-[11px] text-zinc-500 mt-1.5 flex items-center justify-center gap-1.5">
+            {settings.estimated_time_min > 0 && (
+              <span className="inline-flex items-center gap-1">
+                <Clock className="w-3 h-3" /> {settings.estimated_time_min}–{settings.estimated_time_max} min
+              </span>
+            )}
+            {settings.delivery_fee > 0 && settings.estimated_time_min > 0 && <span className="text-zinc-700">·</span>}
+            {settings.delivery_fee > 0 && (
+              <span className="inline-flex items-center gap-1">
+                <Truck className="w-3 h-3" /> Entrega {fmt(settings.delivery_fee)}
+              </span>
+            )}
           </p>
         )}
-        {/* WhatsApp de atendimento */}
-        {settings.whatsapp && (
-          <a
-            href={`https://wa.me/55${settings.whatsapp.replace(/\D/g,"")}`}
-            target="_blank" rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full text-xs font-semibold transition-all"
-            style={{ background:"rgba(37,211,102,0.12)", color:"#25d366", border:"1px solid rgba(37,211,102,0.25)" }}>
-            <Phone className="w-3 h-3" /> Falar no WhatsApp
-          </a>
-        )}
+
+        <button onClick={() => setShowProfile(true)}
+          className="inline-flex items-center gap-1.5 mt-2.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all bg-zinc-900 border border-zinc-800 text-zinc-300 hover:border-zinc-700">
+          <Store className="w-3.5 h-3.5 text-teal-400" /> Perfil da loja <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
+        </button>
       </div>
+
+      {/* WhatsApp — botão flutuante discreto */}
+      {settings.whatsapp && (
+        <a
+          href={`https://wa.me/55${settings.whatsapp.replace(/\D/g,"")}`}
+          target="_blank" rel="noopener noreferrer"
+          aria-label="Falar no WhatsApp"
+          className="fixed bottom-24 right-4 z-30 w-11 h-11 rounded-full flex items-center justify-center transition-transform hover:scale-105"
+          style={{ background:"#25d366", boxShadow:"0 4px 14px rgba(37,211,102,0.4)" }}>
+          <Phone className="w-5 h-5 text-white" />
+        </a>
+      )}
 
       {/* Pedidos em andamento — lista todos os pedidos salvos */}
       {savedOrders.length > 0 && (
@@ -1537,6 +1551,96 @@ export default function PublicMenuPage() {
             </div>
             <span className="font-bold">{fmt(subtotal)}</span>
           </button>
+        </div>
+      )}
+
+      {/* Perfil da loja — endereço, horários e formas de pagamento */}
+      {showProfile && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowProfile(false)} />
+          <div className="relative w-full max-w-lg max-h-[85vh] overflow-y-auto bg-zinc-950 border-t border-zinc-800 rounded-t-3xl">
+            <div className="sticky top-0 z-10 bg-zinc-950/95 backdrop-blur border-b border-zinc-800 px-4 py-3 flex items-center gap-3">
+              <Store className="w-4 h-4 text-teal-400" />
+              <p className="font-bold text-base flex-1">Perfil da loja</p>
+              <button onClick={() => setShowProfile(false)} className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-zinc-800 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-3 pb-6">
+              <div className="flex items-center gap-3">
+                {settings.logo_url ? (
+                  <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 border border-zinc-800">
+                    <img src={settings.logo_url} className="w-full h-full object-cover" alt="logo" />
+                  </div>
+                ) : (
+                  <div className="w-12 h-12 rounded-xl bg-teal-500/20 flex items-center justify-center flex-shrink-0">
+                    <UtensilsCrossed className="w-5 h-5 text-teal-400" />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="font-bold truncate">{settings.store_name || "Cardápio Digital"}</p>
+                  {settings.tagline && <p className="text-xs text-zinc-400 truncate">{settings.tagline}</p>}
+                </div>
+              </div>
+
+              {settings.address && (
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.address)}`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="flex items-start gap-3 bg-zinc-900 border border-zinc-800 rounded-2xl p-3.5 transition-all hover:border-teal-500/40"
+                >
+                  <MapPin className="w-4 h-4 text-teal-400 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm">{settings.address}</p>
+                    <p className="text-xs text-teal-400 font-semibold mt-1">Abrir no Google Maps</p>
+                  </div>
+                  <ExternalLink className="w-3.5 h-3.5 text-zinc-600 flex-shrink-0 mt-0.5" />
+                </a>
+              )}
+
+              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3.5">
+                <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5" /> Horário de Funcionamento
+                </p>
+                <div className="space-y-1">
+                  {WEEKDAYS.map(d => {
+                    const h = settings.hours[d.key];
+                    const isToday = d.key === ["dom","seg","ter","qua","qui","sex","sab"][new Date().getDay()];
+                    return (
+                      <div key={d.key} className={`flex justify-between text-xs ${isToday ? "text-white font-semibold" : "text-zinc-400"}`}>
+                        <span>{d.label}{isToday && " · hoje"}</span>
+                        <span>{h?.active ? `${h.open} – ${h.close}` : "Fechado"}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {payMethods.length > 0 && (
+                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3.5">
+                  <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Formas de Pagamento</p>
+                  <div className="flex gap-2 flex-wrap">
+                    {payMethods.map(pm => (
+                      <span key={pm} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-zinc-800 text-zinc-300">
+                        <PayIcon method={pm} className="w-3.5 h-3.5" /> {PAY_LABELS[pm] ?? pm}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {settings.whatsapp && (
+                <a
+                  href={`https://wa.me/55${settings.whatsapp.replace(/\D/g,"")}`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl font-bold text-sm transition-all"
+                  style={{ background:"rgba(37,211,102,0.12)", color:"#25d366", border:"1px solid rgba(37,211,102,0.25)" }}>
+                  <Phone className="w-4 h-4" /> Falar no WhatsApp
+                </a>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
