@@ -1392,18 +1392,6 @@ export default function PublicMenuPage() {
         </button>
       </div>
 
-      {/* WhatsApp — botão flutuante discreto */}
-      {settings.whatsapp && (
-        <a
-          href={`https://wa.me/55${settings.whatsapp.replace(/\D/g,"")}`}
-          target="_blank" rel="noopener noreferrer"
-          aria-label="Falar no WhatsApp"
-          className="fixed bottom-24 right-4 z-30 w-11 h-11 rounded-full flex items-center justify-center transition-transform hover:scale-105"
-          style={{ background:"#25d366", boxShadow:"0 4px 14px rgba(37,211,102,0.4)" }}>
-          <Phone className="w-5 h-5 text-white" />
-        </a>
-      )}
-
       {/* Pedidos em andamento — lista todos os pedidos salvos */}
       {savedOrders.length > 0 && (
         <div className="mx-4 mb-3 rounded-2xl overflow-hidden"
