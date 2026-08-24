@@ -1349,9 +1349,10 @@ export default function PublicMenuPage() {
         )}
 
         {/* Aberto/Fechado — canto da capa */}
-        <span className={`absolute bottom-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold text-white backdrop-blur-sm ${
-          isOpen ? "" : "bg-red-500/90"
-        }`} style={isOpen ? { background: "#16d16f", boxShadow: "0 0 10px rgba(22,209,111,0.5)" } : undefined}>
+        <span className="absolute bottom-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold backdrop-blur-sm"
+          style={isOpen
+            ? { background: "#16d16f", color: "#fff", boxShadow: "0 0 10px rgba(22,209,111,0.5)" }
+            : { background: "rgba(239,68,68,0.9)", color: "#fff" }}>
           <span className={`w-1.5 h-1.5 rounded-full bg-white ${isOpen ? "animate-pulse" : ""}`} />
           {isOpen ? "Aberto" : "Fechado"}
         </span>
