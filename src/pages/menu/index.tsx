@@ -117,6 +117,37 @@ function normNeighborhood(v: string): string {
   return v.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 }
 
+// Nº mínimo de edições (trocar/tirar/pôr uma letra) pra transformar "a" em "b"
+function levenshtein(a: string, b: string): number {
+  const m = a.length, n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  let prev = Array.from({ length: n + 1 }, (_, j) => j);
+  for (let i = 1; i <= m; i++) {
+    const curr = [i];
+    for (let j = 1; j <= n; j++) {
+      curr[j] = a[i - 1] === b[j - 1]
+        ? prev[j - 1]
+        : 1 + Math.min(prev[j - 1], prev[j], curr[j - 1]);
+    }
+    prev = curr;
+  }
+  return prev[n];
+}
+
+// Considera "o mesmo bairro" mesmo com pequeno erro de digitação (letra a
+// mais/a menos/trocada) — ex: "Gasparelli" com um só "l", ou "Jardim"
+// digitado com "n" no lugar do "m". Tolerância cresce com o tamanho do nome
+// pra não confundir bairros curtos e realmente diferentes.
+function isSameNeighborhood(typed: string, saved: string): boolean {
+  const a = normNeighborhood(typed), b = normNeighborhood(saved);
+  if (!a || !b) return false;
+  if (a === b) return true;
+  const maxLen = Math.max(a.length, b.length);
+  const tolerance = maxLen <= 4 ? 1 : maxLen <= 9 ? 2 : 3;
+  return levenshtein(a, b) <= tolerance;
+}
+
 const PAY_LABELS: Record<string, string> = {
   cash: "Dinheiro", pix: "PIX", credit: "Cartão Crédito", debit: "Cartão Débito",
 };
@@ -462,7 +493,7 @@ export default function PublicMenuPage() {
 
   const subtotal    = cart.reduce((s, i) => s + itemPrice(i) * i.quantity, 0);
   const isFreeShippingNeighborhood = orderType === "delivery" && bairro.trim() !== "" &&
-    (settings.free_shipping_neighborhoods ?? []).some(n => normNeighborhood(n) === normNeighborhood(bairro));
+    (settings.free_shipping_neighborhoods ?? []).some(n => isSameNeighborhood(bairro, n));
   const deliveryFee = orderType === "delivery" ? (isFreeShippingNeighborhood ? 0 : (settings.delivery_fee ?? 0)) : 0;
   const total       = subtotal + deliveryFee;
   const fullAddress = bairro.trim() ? `Bairro: ${bairro.trim()} - ${address.trim()}` : address.trim();
