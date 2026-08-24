@@ -217,7 +217,12 @@ export default function PublicMenuPage() {
   // tema que o painel administrativo estiver usando.
   useEffect(() => {
     const previous = document.documentElement.getAttribute("data-theme");
-    document.documentElement.setAttribute("data-theme", "light");
+    // Roda depois do commit atual (numa micro-task) pra garantir que ganha
+    // mesmo quando o ThemeProvider (que envolve o app inteiro) monta junto
+    // nesse mesmo commit — ele também escreve em data-theme, e como é o
+    // componente pai, o efeito dele dispara depois do nosso e sobrescreveria
+    // de volta pra escuro se essa escrita fosse síncrona aqui.
+    queueMicrotask(() => document.documentElement.setAttribute("data-theme", "light"));
     return () => {
       if (previous) document.documentElement.setAttribute("data-theme", previous);
       else document.documentElement.removeAttribute("data-theme");
@@ -1344,9 +1349,9 @@ export default function PublicMenuPage() {
         )}
 
         {/* Aberto/Fechado — canto da capa */}
-        <span className={`absolute top-3 right-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold backdrop-blur-sm ${
-          isOpen ? "bg-emerald-500/90 text-white" : "bg-red-500/90 text-white"
-        }`}>
+        <span className={`absolute bottom-3 left-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold text-white backdrop-blur-sm ${
+          isOpen ? "" : "bg-red-500/90"
+        }`} style={isOpen ? { background: "#16d16f", boxShadow: "0 0 10px rgba(22,209,111,0.5)" } : undefined}>
           <span className={`w-1.5 h-1.5 rounded-full bg-white ${isOpen ? "animate-pulse" : ""}`} />
           {isOpen ? "Aberto" : "Fechado"}
         </span>
