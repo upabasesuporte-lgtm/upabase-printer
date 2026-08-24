@@ -23,6 +23,7 @@ interface StoreSettings {
   min_order_value: number; delivery_fee: number;
   estimated_time_min: number; estimated_time_max: number;
   whatsapp: string; address: string;
+  free_shipping_neighborhoods?: string[];
   hidden_categories_digital_menu?: string[];
   category_order?: string[];
   slug?: string;
@@ -99,6 +100,7 @@ const DEFAULT_SETTINGS: StoreSettings = {
   payment_methods: ["cash", "pix"],
   min_order_value: 0, delivery_fee: 0, estimated_time_min: 30, estimated_time_max: 50,
   whatsapp: "", address: "",
+  free_shipping_neighborhoods: [],
   hidden_categories_digital_menu: [],
   category_order: [],
   slug: "",
@@ -124,6 +126,11 @@ function sanitizeSlug(v: string): string {
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 40);
+}
+
+// Compara bairros ignorando maiúsculas/minúsculas, acento e espaços nas pontas
+function normNeighborhood(v: string): string {
+  return v.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 }
 
 function isStoreOpenNow(s: StoreSettings): boolean {
@@ -378,6 +385,8 @@ export default function DigitalMenuPage() {
   const [logoUploading,      setLogoUploading]     = useState(false);
   const [bannerUploading,    setBannerUploading]   = useState(false);
   const [productImgUploading,setProductImgUploading] = useState(false);
+  // Bairros com frete grátis
+  const [neighborhoodInput, setNeighborhoodInput] = useState("");
 
   const menuUrl  = userId ? (settings.slug ? `${window.location.origin}/loja/${settings.slug}` : `${window.location.origin}/menu/${userId}`) : "";
   const inputCls = "w-full px-3 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500/60 transition-all";
@@ -731,6 +740,19 @@ export default function DigitalMenuPage() {
     );
     if (error) console.error("Erro ao salvar configurações:", error);
     setSettingsSaving(false); setSettingsSaved(true); setTimeout(() => setSettingsSaved(false), 2500);
+  }
+
+  function addNeighborhood() {
+    const name = neighborhoodInput.trim();
+    if (!name) return;
+    const current = settings.free_shipping_neighborhoods ?? [];
+    if (current.some(n => normNeighborhood(n) === normNeighborhood(name))) { setNeighborhoodInput(""); return; }
+    setSettings(s => ({ ...s, free_shipping_neighborhoods: [...(s.free_shipping_neighborhoods ?? []), name] }));
+    setNeighborhoodInput("");
+  }
+
+  function removeNeighborhood(name: string) {
+    setSettings(s => ({ ...s, free_shipping_neighborhoods: (s.free_shipping_neighborhoods ?? []).filter(n => n !== name) }));
   }
 
   async function saveSlug() {
@@ -1437,6 +1459,38 @@ export default function DigitalMenuPage() {
                     );
                   })}
                 </div>
+              </div>
+              <div>
+                <label className="text-xs text-zinc-500 mb-1 block">Bairros com Frete Grátis</label>
+                <p className="text-[10px] text-zinc-600 mb-2">Quando o cliente digitar um desses bairros no cardápio, a taxa de entrega é zerada automaticamente.</p>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    value={neighborhoodInput}
+                    onChange={e => setNeighborhoodInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addNeighborhood(); } }}
+                    placeholder="Ex: Centro"
+                    className={inputCls}
+                  />
+                  <button onClick={addNeighborhood} type="button"
+                    className="px-4 rounded-xl text-xs font-bold transition-all flex-shrink-0"
+                    style={isLight ? { background:"rgba(16,185,129,0.15)", color:"#059669", border:"1px solid rgba(16,185,129,0.4)" } : { background:"rgba(16,185,129,0.15)", color:"#10b981", border:"1px solid rgba(16,185,129,0.4)" }}>
+                    Adicionar
+                  </button>
+                </div>
+                {(settings.free_shipping_neighborhoods ?? []).length > 0 && (
+                  <div className="flex gap-2 flex-wrap">
+                    {(settings.free_shipping_neighborhoods ?? []).map(name => (
+                      <span key={name}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold"
+                        style={{ background:"rgba(16,185,129,0.12)", color:"#10b981", border:"1px solid rgba(16,185,129,0.35)" }}>
+                        {name}
+                        <button onClick={() => removeNeighborhood(name)} type="button" className="hover:opacity-70">
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 

@@ -19,6 +19,7 @@ interface StoreSettings {
   min_order_value: number; delivery_fee: number;
   estimated_time_min: number; estimated_time_max: number;
   whatsapp: string; address: string;
+  free_shipping_neighborhoods?: string[];
   hidden_categories_digital_menu?: string[];
   category_order?: string[];
 }
@@ -107,8 +108,14 @@ const DEFAULT_SETTINGS: StoreSettings = {
   min_order_value: 0, delivery_fee: 0,
   estimated_time_min: 30, estimated_time_max: 50,
   whatsapp: "", address: "",
+  free_shipping_neighborhoods: [],
   category_order: [],
 };
+
+// Compara bairros ignorando maiúsculas/minúsculas, acento e espaços nas pontas
+function normNeighborhood(v: string): string {
+  return v.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
 
 const PAY_LABELS: Record<string, string> = {
   cash: "Dinheiro", pix: "PIX", credit: "Cartão Crédito", debit: "Cartão Débito",
@@ -212,6 +219,7 @@ export default function PublicMenuPage() {
   const [orderType, setOrderType]     = useState<"delivery"|"takeaway"|null>(null);
   const [custName, setCustName]       = useState("");
   const [custPhone, setCustPhone]     = useState("");
+  const [bairro, setBairro]           = useState("");
   const [address, setAddress]         = useState("");
   const [payMethod, setPayMethod]     = useState<PayMethod>("pix");
   const [changeFor, setChangeFor]     = useState("");
@@ -453,8 +461,11 @@ export default function PublicMenuPage() {
   }
 
   const subtotal    = cart.reduce((s, i) => s + itemPrice(i) * i.quantity, 0);
-  const deliveryFee = orderType === "delivery" ? (settings.delivery_fee ?? 0) : 0;
+  const isFreeShippingNeighborhood = orderType === "delivery" && bairro.trim() !== "" &&
+    (settings.free_shipping_neighborhoods ?? []).some(n => normNeighborhood(n) === normNeighborhood(bairro));
+  const deliveryFee = orderType === "delivery" ? (isFreeShippingNeighborhood ? 0 : (settings.delivery_fee ?? 0)) : 0;
   const total       = subtotal + deliveryFee;
+  const fullAddress = bairro.trim() ? `Bairro: ${bairro.trim()} - ${address.trim()}` : address.trim();
   const totalItems  = cart.reduce((s, i) => s + i.quantity, 0);
 
   function getFixedQty(productId: string): number {
@@ -469,6 +480,7 @@ export default function PublicMenuPage() {
     if (!orderType) { setFormError("Escolha se é retirada ou delivery."); return; }
     if (!custName.trim()) { setFormError("Informe seu nome para continuar."); return; }
     if (!custPhone.trim()) { setFormError("Informe seu telefone para continuar."); return; }
+    if (orderType === "delivery" && !bairro.trim()) { setFormError("Informe o bairro para entrega."); return; }
     if (orderType === "delivery" && !address.trim()) { setFormError("Informe o endereço de entrega."); return; }
     if (subtotal < (settings.min_order_value ?? 0)) {
       setFormError(`Pedido mínimo de ${fmt(settings.min_order_value)}.`); return;
@@ -504,7 +516,7 @@ export default function PublicMenuPage() {
       user_id:          uid,
       customer_name:    custName.trim(),
       customer_phone:   custPhone.trim(),
-      delivery_address: orderType === "delivery" ? address.trim() : null,
+      delivery_address: orderType === "delivery" ? fullAddress : null,
       order_type:       orderType,
       items,
       total_amount:     total,
@@ -541,7 +553,7 @@ export default function PublicMenuPage() {
         `Olá! Acabei de fazer o pedido *#${orderRow.order_number}* pelo cardápio digital.\n\n` +
         `${itemsText}\n\n` +
         `Total: ${fmt(total)}\n` +
-        (orderType === "delivery" ? `Entrega: ${address.trim()}\n` : `Retirada no local\n`) +
+        (orderType === "delivery" ? `Entrega: ${fullAddress}\n` : `Retirada no local\n`) +
         `\nAguardo a confirmação, obrigado!`;
       const phone = `55${settings.whatsapp.replace(/\D/g, "")}`;
       try { waWindowRef.location.href = `https://wa.me/${phone}?text=${encodeURIComponent(waMessage)}`; } catch {}
@@ -932,15 +944,27 @@ export default function PublicMenuPage() {
           {orderType === "delivery" && (
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
               <p className="text-sm font-semibold mb-3">Endereço de Entrega</p>
+              <div className="relative mb-3">
+                <MapPin className="w-4 h-4 text-teal-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  value={bairro} onChange={e => setBairro(e.target.value)}
+                  placeholder="Bairro *"
+                  className="w-full pl-9 px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-teal-500 transition-all"
+                />
+              </div>
               <div className="relative">
                 <MapPin className="w-4 h-4 text-teal-400 absolute left-3 top-3" />
                 <textarea
                   value={address} onChange={e => setAddress(e.target.value)}
-                  placeholder="Rua, número, bairro, complemento..." rows={3}
+                  placeholder="Rua, número, complemento..." rows={3}
                   className="w-full pl-9 px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-teal-500 resize-none"
                 />
               </div>
-              {settings.delivery_fee > 0 && (
+              {isFreeShippingNeighborhood ? (
+                <p className="text-xs text-emerald-400 mt-2 flex items-center gap-1 font-semibold">
+                  <Truck className="w-3 h-3" /> Frete grátis para o bairro {bairro.trim()}!
+                </p>
+              ) : settings.delivery_fee > 0 && (
                 <p className="text-xs text-zinc-500 mt-2 flex items-center gap-1">
                   <Truck className="w-3 h-3" /> Taxa de entrega: {fmt(settings.delivery_fee)}
                 </p>
