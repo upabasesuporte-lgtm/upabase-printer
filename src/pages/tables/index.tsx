@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect, useCallback } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { supabase } from "../../lib/supabase";
+import { recalcFiadoBalance } from "../../lib/fiado";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import {
@@ -544,25 +545,25 @@ export default function TablesPage() {
         const fiadoAmt = checkoutPayments.find(p => p.method === "fiado")?.amount ?? 0;
         const houseAmt = checkoutPayments.find(p => p.method === "house_credit")?.amount ?? 0;
         if (fiadoAmt > 0 || houseAmt > 0) {
-          const { data: curr } = await supabase.from("customers").select("balance, fiado_balance").eq("id", checkoutCustomer.id).single();
-          const updates: Record<string, number> = {};
+          const { data: curr } = await supabase.from("customers").select("balance").eq("id", checkoutCustomer.id).single();
           if (fiadoAmt > 0) {
-            updates.fiado_balance = (curr?.fiado_balance ?? 0) + fiadoAmt;
             await supabase.from("customer_movements").insert({
               customer_id: checkoutCustomer.id, user_id: userId, type: "debit",
               amount: fiadoAmt, description: `Fiado - Mesa ${tableName} #${orderNum}`,
               sale_id: saleId, payment_methods: [],
             });
+            await recalcFiadoBalance(checkoutCustomer.id);
           }
           if (houseAmt > 0) {
-            updates.balance = Math.max(0, (curr?.balance ?? 0) - houseAmt);
             await supabase.from("customer_movements").insert({
               customer_id: checkoutCustomer.id, user_id: userId, type: "saldo",
               amount: houseAmt, description: `Saldo usado - Mesa ${tableName} #${orderNum}`,
               sale_id: saleId, payment_methods: [],
             });
+            await supabase.from("customers")
+              .update({ balance: Math.max(0, (curr?.balance ?? 0) - houseAmt) })
+              .eq("id", checkoutCustomer.id);
           }
-          await supabase.from("customers").update(updates).eq("id", checkoutCustomer.id);
         }
       }
 

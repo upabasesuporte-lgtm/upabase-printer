@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
+import { recalcFiadoBalance } from "../../lib/fiado";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import {
@@ -466,9 +467,6 @@ export default function CustomersPage() {
     try {
       const totalPaid = payEntries.reduce((s, e) => s + e.amount, 0);
 
-      const { data: curr } = await supabase.from("customers").select("fiado_balance").eq("id", selected.id).single();
-      const newFiado = Math.max(0, (curr?.fiado_balance ?? 0) - totalPaid);
-
       // Lança no histórico de Vendas (origin "fiado_payment" para não duplicar faturamento:
       // a receita da venda original já foi contabilizada quando o fiado foi gerado).
       // Isso é "best effort": se o banco rejeitar (ex: check constraint de origin ainda não
@@ -494,7 +492,9 @@ export default function CustomersPage() {
       });
       if (movErr) throw movErr;
 
-      await supabase.from("customers").update({ fiado_balance: newFiado }).eq("id", selected.id);
+      // Recalcula o fiado a partir do histórico real (evita o contador salvo
+      // ficar dessincronizado do extrato se algum passo anterior tiver falhado).
+      await recalcFiadoBalance(selected.id);
 
       // Busca o caixa aberto agora (não usa cashRegisterId, que pode estar desatualizado
       // se o caixa foi fechado/reaberto depois que a página Clientes carregou).
@@ -570,17 +570,12 @@ export default function CustomersPage() {
     if (!confirm(`Cancelar este pagamento de ${fmt(m.amount)}? O valor volta a ser dívida do cliente.`)) return;
     setSaving(true);
     try {
-      // 1) Devolve o valor ao fiado em aberto do cliente
-      const { data: curr } = await supabase.from("customers").select("fiado_balance").eq("id", selected.id).single();
-      const restoredFiado = (curr?.fiado_balance ?? 0) + m.amount;
-      await supabase.from("customers").update({ fiado_balance: restoredFiado }).eq("id", selected.id);
-
-      // 2) Apaga a venda criada para esse pagamento (some do Histórico/Vendas)
+      // 1) Apaga a venda criada para esse pagamento (some do Histórico/Vendas)
       if (m.sale_id) {
         await supabase.from("sales").delete().eq("id", m.sale_id);
       }
 
-      // 3) Apaga o(s) lançamento(s) desse pagamento no Caixa
+      // 2) Apaga o(s) lançamento(s) desse pagamento no Caixa
       const movDate = new Date(m.created_at);
       const fromDate = new Date(movDate.getTime() - 120000).toISOString();
       const toDate   = new Date(movDate.getTime() + 120000).toISOString();
@@ -595,8 +590,10 @@ export default function CustomersPage() {
         console.warn("Nenhum lançamento de caixa encontrado para este pagamento — pode já ter sido removido ou o caixa era de outro turno.");
       }
 
-      // 4) Apaga o movimento do extrato do cliente
+      // 3) Apaga o movimento do extrato do cliente e recalcula o fiado
+      // (isso devolve o valor à dívida do cliente, já com base no histórico real)
       await supabase.from("customer_movements").delete().eq("id", m.id);
+      await recalcFiadoBalance(selected.id);
 
       await refreshSelected(selected.id);
       await loadMovements(selected.id);
@@ -620,12 +617,7 @@ export default function CustomersPage() {
       const saleId = m.sale_id;
       const orderNum = saleId.slice(-6).toUpperCase();
 
-      // 1) Reduz o fiado em aberto do cliente
-      const { data: curr } = await supabase.from("customers").select("fiado_balance").eq("id", selected.id).single();
-      const newFiado = Math.max(0, (curr?.fiado_balance ?? 0) - m.amount);
-      await supabase.from("customers").update({ fiado_balance: newFiado }).eq("id", selected.id);
-
-      // 2) Apaga o(s) lançamento(s) dessa venda no Caixa
+      // 1) Apaga o(s) lançamento(s) dessa venda no Caixa
       const { data: deletedCash, error: cashDelErr } = await supabase.from("cash_movements").delete()
         .eq("movement_type", "sale")
         .like("description", `%#${orderNum}%`)
@@ -637,10 +629,11 @@ export default function CustomersPage() {
         console.warn(`Nenhum lançamento de caixa encontrado para a venda #${orderNum} — pode já ter sido removido ou o caixa era de outro turno.`);
       }
 
-      // 3) Apaga os movimentos do cliente ligados a essa venda
+      // 2) Apaga os movimentos do cliente ligados a essa venda e recalcula o fiado
       await supabase.from("customer_movements").delete().eq("sale_id", saleId);
+      await recalcFiadoBalance(selected.id);
 
-      // 4) Apaga os itens e a venda em si (some do Histórico do PDV / Vendas)
+      // 3) Apaga os itens e a venda em si (some do Histórico do PDV / Vendas)
       await supabase.from("sale_items").delete().eq("sale_id", saleId);
       await supabase.from("sales").delete().eq("id", saleId);
 
@@ -828,22 +821,8 @@ export default function CustomersPage() {
           .filter(p => p.method === "fiado" && p.amount > 0)
           .reduce((s, p) => s + p.amount, 0);
 
-        // Pega o valor antigo de fiado nesta venda
-        const { data: oldMov } = await supabase.from("customer_movements")
-          .select("amount, type").eq("sale_id", saleId);
-        const oldFiadoAmt = (oldMov ?? [])
-          .filter((m: any) => m.type === "debit")
-          .reduce((s: number, m: any) => s + m.amount, 0);
-
         // Apaga todos os movimentos desta venda e recria só se ainda for fiado
         await supabase.from("customer_movements").delete().eq("sale_id", saleId);
-
-        // Ajusta fiado_balance pelo delta
-        if (oldFiadoAmt !== newFiadoAmt) {
-          const { data: curr } = await supabase.from("customers").select("fiado_balance").eq("id", selected.id).single();
-          const newBal = Math.max(0, (curr as any)?.fiado_balance - oldFiadoAmt + newFiadoAmt);
-          await supabase.from("customers").update({ fiado_balance: newBal }).eq("id", selected.id);
-        }
 
         // Reinsere movimento de débito somente se ainda for fiado
         if (newFiadoAmt > 0) {
@@ -854,6 +833,9 @@ export default function CustomersPage() {
             sale_id: saleId, payment_methods: [],
           });
         }
+
+        // Recalcula o fiado a partir do histórico real (já refletindo a troca acima)
+        await recalcFiadoBalance(selected.id);
       }
 
       await refreshSelected(selected.id);

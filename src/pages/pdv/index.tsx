@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../../lib/supabase";
+import { recalcFiadoBalance } from "../../lib/fiado";
 import { getStoreSettings, getSellers, refreshStoreCache } from "../settings";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
@@ -653,28 +654,28 @@ export default function PdvPage() {
 
       if (fiadoAmt > 0 || houseAmt > 0) {
         const { data: curr } = await supabase.from("customers")
-          .select("balance, fiado_balance").eq("id", selectedCustomer.id).single();
+          .select("balance").eq("id", selectedCustomer.id).single();
 
-        const updates: Record<string, number> = {};
         if (fiadoAmt > 0) {
-          updates.fiado_balance = (curr?.fiado_balance ?? 0) + fiadoAmt;
           await supabase.from("customer_movements").insert({
             customer_id: selectedCustomer.id, user_id: userId,
             type: "debit", amount: fiadoAmt,
             description: `Fiado - Venda #${orderNum}`,
             sale_id: sale.id, payment_methods: [],
           });
+          await recalcFiadoBalance(selectedCustomer.id);
         }
         if (houseAmt > 0) {
-          updates.balance = Math.max(0, (curr?.balance ?? 0) - houseAmt);
           await supabase.from("customer_movements").insert({
             customer_id: selectedCustomer.id, user_id: userId,
             type: "saldo", amount: houseAmt,
             description: `Saldo usado - Venda #${orderNum}`,
             sale_id: sale.id, payment_methods: [],
           });
+          await supabase.from("customers")
+            .update({ balance: Math.max(0, (curr?.balance ?? 0) - houseAmt) })
+            .eq("id", selectedCustomer.id);
         }
-        await supabase.from("customers").update(updates).eq("id", selectedCustomer.id);
       }
     }
 
@@ -1034,26 +1035,8 @@ export default function PdvPage() {
         .filter(p => p.method === "fiado" && p.amount > 0)
         .reduce((s, p) => s + p.amount, 0);
 
-      // Busca movimentos antigos desta venda para calcular o delta do fiado_balance
-      const { data: oldMov } = await supabase.from("customer_movements")
-        .select("amount, type")
-        .eq("sale_id", saleId);
-      const oldFiadoAmt = (oldMov ?? [])
-        .filter((m: any) => m.type === "debit")
-        .reduce((s: number, m: any) => s + m.amount, 0);
-
       // Apaga todos os movimentos desta venda
       await supabase.from("customer_movements").delete().eq("sale_id", saleId);
-
-      // Atualiza fiado_balance do cliente com o delta
-      if (oldFiadoAmt !== newFiadoAmt) {
-        const { data: currCust } = await supabase.from("customers")
-          .select("fiado_balance")
-          .eq("id", showEditSale.customer_id)
-          .single();
-        const newBalance = Math.max(0, (currCust?.fiado_balance ?? 0) - oldFiadoAmt + newFiadoAmt);
-        await supabase.from("customers").update({ fiado_balance: newBalance }).eq("id", showEditSale.customer_id);
-      }
 
       // Reinsere o movimento com o valor atualizado
       if (newFiadoAmt > 0) {
@@ -1067,6 +1050,9 @@ export default function PdvPage() {
           payment_methods: [],
         });
       }
+
+      // Recalcula o fiado a partir do histórico real, já refletindo a troca acima
+      await recalcFiadoBalance(showEditSale.customer_id);
     }
 
     // 5. Atualiza estado local e recarrega histórico
@@ -1118,21 +1104,19 @@ export default function PdvPage() {
       console.warn(`Nenhum lançamento de caixa encontrado para a venda #${orderNum} — pode já ter sido removido ou o caixa era de outro turno.`);
     }
 
-    // Remove movimentos do cliente e ajusta fiado_balance
-    if (sale?.customer_id) {
-      const fiadoAmt = (sale.payments ?? [])
-        .filter(p => p.method === "fiado")
-        .reduce((s, p) => s + p.amount, 0);
-      if (fiadoAmt > 0) {
-        const { data: currCust } = await supabase.from("customers")
-          .select("fiado_balance").eq("id", sale.customer_id).single();
-        const newBalance = Math.max(0, (currCust?.fiado_balance ?? 0) - fiadoAmt);
-        await supabase.from("customers").update({ fiado_balance: newBalance }).eq("id", sale.customer_id);
-      }
-    }
+    // Descobre o cliente dono dos movimentos desta venda (não confia só em
+    // sale?.customer_id: se a venda não carregou/veio nula, ainda assim os
+    // movimentos apontam pro cliente certo via sale_id).
+    const { data: movCust } = await supabase.from("customer_movements")
+      .select("customer_id").eq("sale_id", saleId).limit(1);
+    const customerId = sale?.customer_id ?? movCust?.[0]?.customer_id ?? null;
+
     // Sempre remove os lançamentos do histórico do cliente vinculados a essa venda,
     // mesmo quando a venda não estava carregada localmente (ex.: histórico de outro dia).
     await supabase.from("customer_movements").delete().eq("sale_id", saleId);
+
+    // Recalcula o fiado a partir do histórico real (já sem os movimentos apagados acima)
+    if (customerId) await recalcFiadoBalance(customerId);
 
     await supabase.from("sales").delete().eq("id", saleId);
     setSales(prev => prev.filter(s => s.id !== saleId));
