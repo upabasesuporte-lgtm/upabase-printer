@@ -915,11 +915,12 @@ export default function CustomersPage() {
       </div>
       <div style="text-align:right"><div style="font-size:11px;color:#6b7280">Período: ${filterLabel[dateFilter]}</div>
         <div style="font-size:11px;color:#6b7280">Emitido: ${new Date().toLocaleString("pt-BR")}</div>
-        <div style="font-size:14px;font-weight:700;margin-top:8px">Saldo: <span style="color:${selected.balance > 0 ? "#059669" : "#6b7280"}">${fmt(selected.balance)}</span>${totalDebit > 0 ? ` · Fiado: <span style="color:#dc2626">${fmt(totalDebit)}</span>` : ""}</div>
+        <div style="font-size:14px;font-weight:700;margin-top:8px">Saldo: <span style="color:${selected.balance > 0 ? "#059669" : "#6b7280"}">${fmt(selected.balance)}</span> · Deve atualmente: <span style="color:#b45309">${fmt(selected.fiado_balance ?? 0)}</span></div>
       </div>
     </div>
-    <div class="grid">
-      <div class="card"><div class="cl">Débitos / Fiado</div><div class="cv" style="color:#dc2626">-${fmt(totalDebit)}</div></div>
+    <div class="grid" style="grid-template-columns:1fr 1fr">
+      <div class="card"><div class="cl">Débitos no período</div><div class="cv" style="color:#dc2626">-${fmt(totalDebit)}</div></div>
+      <div class="card"><div class="cl">Deve atualmente</div><div class="cv" style="color:#b45309">${fmt(selected.fiado_balance ?? 0)}</div></div>
     </div>
     ${movements.length === 0 ? '<p style="text-align:center;color:#9ca3af;padding:40px 0">Nenhuma movimentação no período selecionado</p>' : `
     <table><thead><tr><th>Data/Hora</th><th>Tipo</th><th>Descrição</th><th>Formas de Pag.</th><th style="text-align:right">Valor</th></tr></thead>
@@ -1259,12 +1260,18 @@ export default function CustomersPage() {
               </div>
             )}
 
-            {/* Summary row */}
+            {/* Summary row — "Débitos" é o total debitado NO PERÍODO filtrado (quanto
+                ela gastou); "Deve atualmente" é o saldo devedor de hoje, igual ao do
+                topo da tela, e NÃO muda com o filtro — evita confundir os dois. */}
             {!movLoading && movements.length > 0 && (
-              <div className="grid grid-cols-1 border-b border-zinc-800">
+              <div className="grid grid-cols-2 border-b border-zinc-800 divide-x divide-zinc-800">
                 <div className="px-5 py-3">
-                  <p className="text-xs text-zinc-500">Débitos</p>
+                  <p className="text-xs text-zinc-500">Débitos no período</p>
                   <p className="text-sm font-bold text-red-400">-{fmt(totalDebits)}</p>
+                </div>
+                <div className="px-5 py-3">
+                  <p className="text-xs text-zinc-500">Deve atualmente</p>
+                  <p className="text-sm font-bold text-amber-400">{fmt(selected?.fiado_balance ?? 0)}</p>
                 </div>
               </div>
             )}

@@ -12,7 +12,26 @@
       "PowerShell(cd \"C:\\\\Users\\\\WESLEY\\\\Desktop\\\\UPABASE\"; \\(Get-Content \"src\\\\pages\\\\tables\\\\index.tsx\"\\).Count)",
       "PowerShell(cd \"C:\\\\Users\\\\WESLEY\\\\Desktop\\\\UPABASE\"; Start-Process powershell -ArgumentList \"-NoExit\", \"-Command\", \"cd 'C:\\\\Users\\\\WESLEY\\\\Desktop\\\\UPABASE'; npm run dev\" -WindowStyle Normal)",
       "PowerShell(Test-NetConnection *)",
-      "PowerShell(npm run *)"
+      "PowerShell(npm run *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git commit *)",
+      "Bash(git config *)",
+      "Bash(gh auth *)",
+      "PowerShell(cmdkey *)",
+      "Bash(env -u GIT_ASKPASS -u GIT_TERMINAL_PROMPT git push origin main)",
+      "Bash(git-credential-manager github *)",
+      "Bash(echo \"exit:$?\")",
+      "Bash(git-credential-manager erase *)",
+      "Bash(echo \"started in background, pid $!\")",
+      "Bash(echo \"erase-exit:$?\")",
+      "Bash(curl -sL \"https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/ChatGPT%20Image%2028%20de%20jul.%20de%202026,%2014_45_53.png\" -o \"/c/Users/WESLEY/AppData/Local/Temp/claude/C--Users-WESLEY-Desktop-UPABASE/51244bee-e0d3-4253-b4b7-ab49ca10a9aa/scratchpad/logo_new.png\")",
+      "Read(//c/Users/WESLEY/AppData/Local/Temp/claude/C--Users-WESLEY-Desktop-UPABASE/51244bee-e0d3-4253-b4b7-ab49ca10a9aa/scratchpad/**)",
+      "Bash(curl *)",
+      "Bash(npm run *)",
+      "Read(//tmp/**)",
+      "WebSearch"
     ]
   }
 }
