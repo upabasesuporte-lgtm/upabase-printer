@@ -1209,8 +1209,15 @@ export default function CustomersPage() {
                   <p className="text-xs text-emerald-400/60">Pré-pago / crédito</p>
                 </div>
               </button>
-              <button onClick={() => {
-                if (!cashRegisterId) {
+              <button onClick={async () => {
+                // Reconsulta agora — cashRegisterId é carregado só uma vez ao abrir
+                // a página e fica desatualizado se o caixa foi aberto depois disso.
+                const { data: reg } = await supabase.from("cash_registers")
+                  .select("id").eq("user_id", userId).eq("status", "open")
+                  .order("opened_at", { ascending: false }).limit(1).maybeSingle();
+                const regId = reg?.id ?? null;
+                setCashRegisterId(regId);
+                if (!regId) {
                   alert("Caixa deve estar aberto para quitar fiado.");
                   return;
                 }
