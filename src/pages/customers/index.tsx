@@ -210,6 +210,8 @@ export default function CustomersPage() {
           .select("id")
           .eq("status", "open")
           .eq("user_id", user.id)
+          .order("opened_at", { ascending: false })
+          .limit(1)
           .maybeSingle();
         setCashRegisterId(reg?.id ?? null);
       }
@@ -499,7 +501,8 @@ export default function CustomersPage() {
       // Busca o caixa aberto agora (não usa cashRegisterId, que pode estar desatualizado
       // se o caixa foi fechado/reaberto depois que a página Clientes carregou).
       const { data: freshReg } = await supabase.from("cash_registers")
-        .select("id").eq("user_id", userId).eq("status", "open").maybeSingle();
+        .select("id").eq("user_id", userId).eq("status", "open")
+        .order("opened_at", { ascending: false }).limit(1).maybeSingle();
       const regId = (freshReg as any)?.id ?? cashRegisterId;
 
       if (regId && userId) {
@@ -788,7 +791,8 @@ export default function CustomersPage() {
 
         // Re-busca caixa aberto no momento do save (cashRegisterId pode estar desatualizado)
         const { data: freshReg } = await supabase.from("cash_registers")
-          .select("id").eq("user_id", userId).eq("status", "open").maybeSingle();
+          .select("id").eq("user_id", userId).eq("status", "open")
+          .order("opened_at", { ascending: false }).limit(1).maybeSingle();
         const freshRegId = (freshReg as any)?.id ?? cashRegisterId;
 
         // Busca register_id original da venda para manter no caixa correto
