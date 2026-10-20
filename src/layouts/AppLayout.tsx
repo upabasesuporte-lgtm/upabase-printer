@@ -460,6 +460,8 @@ export function AppLayout() {
   const planBlocked = !isAdmin && !isPlanValid(userPlan);
   // A rota atual está liberada para o plano?
   const routeBlocked = !isAdmin && !planBlocked && !isRouteAllowed(currentPath, userPlan);
+  // PDV em tela cheia no desktop: sem o topo para o carrinho ocupar a altura toda
+  const pdvFullScreen = currentPath === "/pdv" && (!planReady || (!planBlocked && !routeBlocked));
 
   return (
     <div className="h-screen flex overflow-hidden" style={{ background: T.pageBg, color: T.text }}>
@@ -639,7 +641,7 @@ export function AppLayout() {
       <main className="flex-1 flex flex-col overflow-hidden">
 
         {/* ── Top bar ─────────────────────────────────────────────────────── */}
-        <header className="h-16 px-4 md:px-4 flex items-center justify-between flex-shrink-0 gap-3 md:gap-4 md:mx-3 md:mt-3 md:rounded-2xl md:border md:shadow-sm"
+        <header className={`h-16 px-4 md:px-4 flex items-center justify-between flex-shrink-0 gap-3 md:gap-4 md:mx-3 md:mt-3 md:rounded-2xl md:border md:shadow-sm ${pdvFullScreen ? "md:hidden" : ""}`}
           style={{ background: T.headerBg, borderColor: T.border, borderBottomWidth: 1 }}>
 
           {/* Menu hambúrguer móvel */}

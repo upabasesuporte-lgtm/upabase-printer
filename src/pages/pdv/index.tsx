@@ -8,7 +8,7 @@ import {
   Search, ShoppingCart, Plus, Minus, Trash2, X, User, UserPlus,
   Clock, CheckCircle2, AlertCircle, Printer, CreditCard, Banknote,
   Smartphone, Ticket, Star, StarOff, ChevronRight, Edit2, History,
-  Package, RefreshCw, Receipt,
+  Package, RefreshCw, Receipt, MapPin, FileText, UserCog,
 } from "lucide-react";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -178,6 +178,9 @@ export default function PdvPage() {
   const [sellerName, setSellerName] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  // Desktop: campos extras do carrinho ficam recolhidos em botões (só visual)
+  const [extraOpen, setExtraOpen] = useState<"address" | "notes" | "seller" | null>(null);
+  const [showDiscountField, setShowDiscountField] = useState(false);
 
   // Canal de venda (PDV ou iFood)
   const [saleChannel, setSaleChannel] = useState<"pdv" | "ifood">("pdv");
@@ -414,7 +417,7 @@ export default function PdvPage() {
   function removeFromCart(cartId: string) { setCart(prev => prev.filter(i => i.cartId !== cartId)); }
   function updateItemNotes(cartId: string, notes: string) { setCart(prev => prev.map(i => i.cartId === cartId ? { ...i, notes } : i)); }
   function updateItemPrice(cartId: string, price: number) { setCart(prev => prev.map(i => i.cartId === cartId ? { ...i, customPrice: price } : i)); }
-  function clearCart() { setCart([]); setDiscount(""); setOrderNotes(""); setSellerName(""); setDeliveryAddress(""); setSelectedCustomer(null); setDiscountType("value"); }
+  function clearCart() { setCart([]); setDiscount(""); setOrderNotes(""); setSellerName(""); setDeliveryAddress(""); setSelectedCustomer(null); setDiscountType("value"); setShowDiscountField(false); setExtraOpen(null); }
 
   // ── Atalhos ──
   async function persistShortcuts(groups: ShortcutGroup[]) {
@@ -1127,8 +1130,23 @@ export default function PdvPage() {
   // RENDER
   // ══════════════════════════════════════════════════════════════════════════
 
+  // Abas Nova Venda / Histórico compactas — usadas no desktop ao lado da busca (no celular fica a barra de abas)
+  const tabSwitch = (
+    <div className="hidden md:flex items-center gap-1 p-1 rounded-xl flex-shrink-0" style={{ background: card.bg, border: card.border }}>
+      {(["venda", "historico"] as const).map(t => (
+        <button key={t} onClick={() => setTab(t)}
+          className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-all"
+          style={tab === t
+            ? { color: "#fff", background: isLight ? "#2563eb" : "#7B2FBE" }
+            : { color: "#9ca3af", background: "transparent" }}>
+          {t === "venda" ? <><ShoppingCart className="w-3.5 h-3.5" />Nova Venda</> : <><History className="w-3.5 h-3.5" />Histórico</>}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
-    <div className="flex flex-col overflow-hidden -m-6 h-[calc(100vh-64px)] md:h-[calc(100vh-76px)]">
+    <div className="flex flex-col overflow-hidden -m-6 h-[calc(100vh-64px)] md:h-screen">
 
       {/* Toast de erro global */}
       {toastError && (
@@ -1153,7 +1171,7 @@ export default function PdvPage() {
       )}
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 px-6 pt-3 border-b border-zinc-800/80 flex-shrink-0"
+      <div className="flex md:hidden items-center gap-1 px-6 pt-3 border-b border-zinc-800/80 flex-shrink-0"
         style={{ background: isLight ? "#f9fafb" : "linear-gradient(135deg,#0f0f13 0%,#09090b 100%)" }}>
         {(["venda", "historico"] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
@@ -1193,6 +1211,7 @@ export default function PdvPage() {
             {/* Busca */}
             <div className="p-4 border-b border-zinc-800 flex-shrink-0">
               <div className="flex items-center gap-2">
+                {tabSwitch}
                 <button className="flex-shrink-0 p-2 rounded-lg" style={{ background: "rgba(59,182,243,0.2)", color: "#3bb6f3", minWidth: "44px", minHeight: "44px", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <Search className="w-6 h-6" />
                 </button>
@@ -1377,23 +1396,64 @@ export default function PdvPage() {
               {/* Totais — só mostra quando tem itens */}
               {cart.length > 0 && (
                 <>
-                  <div className="flex items-center gap-2">
+                  <div className={`flex items-center gap-2 ${showDiscountField || discount ? "" : "md:hidden"}`}>
                     <span className="text-xs text-zinc-500 w-20 flex-shrink-0">Desconto R$</span>
                     <input type="text" inputMode="decimal" placeholder="0,00" value={discount} onChange={e => setDiscount(e.target.value)}
                       className="flex-1 text-xs px-2.5 py-1.5 rounded-lg placeholder-zinc-600 focus:outline-none focus:border-violet-500"
                       style={{ background: card.bg, border: card.border, color: isLight ? "#111" : "#fff" }} />
                   </div>
                   <div className="rounded-xl p-3 space-y-1" style={{ background: card.bg, border: card.border }}>
-                    <div className="flex justify-between text-xs text-zinc-400"><span>Subtotal</span><span>{fmt(subtotal)}</span></div>
+                    <div className="flex justify-between text-xs text-zinc-400">
+                      <span className="flex items-center gap-2">
+                        Subtotal
+                        {/* Desktop: desconto recolhido num link */}
+                        {!showDiscountField && !discount && (
+                          <button onClick={() => setShowDiscountField(true)}
+                            className="hidden md:inline text-[11px] font-semibold text-violet-500 hover:text-violet-400 transition-colors">
+                            + Desconto
+                          </button>
+                        )}
+                      </span>
+                      <span>{fmt(subtotal)}</span>
+                    </div>
                     {discountVal > 0 && <div className="flex justify-between text-xs text-red-400"><span>Desconto</span><span>-{fmt(discountVal)}</span></div>}
-                    <div className="flex justify-between text-sm font-bold border-t border-zinc-800 pt-1.5"><span>Total</span><span style={{ color: "#7B2FBE" }}>{fmt(total)}</span></div>
+                    <div className="flex justify-between items-baseline text-sm md:text-base font-bold border-t border-zinc-800 pt-1.5"><span>Total</span><span className="md:text-2xl md:font-black" style={{ color: "#7B2FBE" }}>{fmt(total)}</span></div>
                   </div>
                 </>
               )}
 
-              {/* Cliente — sempre visível */}
+              {/* Desktop: cliente, entrega, obs e vendedor recolhidos em botões — coloridos quando preenchidos */}
+              <div className="hidden md:grid grid-cols-4 gap-1.5">
+                {([
+                  { key: "customer", label: "Cliente",  icon: User,     filled: !!selectedCustomer },
+                  { key: "address",  label: "Entrega",  icon: MapPin,   filled: !!deliveryAddress.trim() },
+                  { key: "notes",    label: "Obs",      icon: FileText, filled: !!orderNotes.trim() },
+                  { key: "seller",   label: "Vendedor", icon: UserCog,  filled: !!sellerName.trim() },
+                ] as const).map(chip => {
+                  const ChipIcon = chip.icon;
+                  const open = extraOpen === chip.key;
+                  return (
+                    <button key={chip.key}
+                      onClick={() => chip.key === "customer"
+                        ? setShowCustomer(true)
+                        : setExtraOpen(open ? null : chip.key)}
+                      title={chip.label}
+                      className="flex flex-col items-center justify-center gap-1 py-2 rounded-xl text-[10px] font-semibold transition-all"
+                      style={chip.filled
+                        ? { background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.45)", color: "#059669" }
+                        : open
+                          ? { background: card.bg, border: "1px solid #8b5cf6", color: "#8b5cf6" }
+                          : { background: card.bg, border: card.border, color: "#9ca3af" }}>
+                      <ChipIcon className="w-4 h-4" />
+                      {chip.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Cliente — sempre visível (no desktop só aparece quando há cliente selecionado) */}
               <button onClick={() => setShowCustomer(true)}
-                className="w-full flex items-center gap-2 hover:border-zinc-700 rounded-xl px-3 py-2.5 transition-colors text-left"
+                className={`w-full flex items-center gap-2 hover:border-zinc-700 rounded-xl px-3 py-2.5 transition-colors text-left ${selectedCustomer ? "" : "md:hidden"}`}
                 style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
                 <User className="w-4 h-4 text-zinc-500 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
@@ -1408,45 +1468,59 @@ export default function PdvPage() {
                 <ChevronRight className="w-3.5 h-3.5 text-zinc-600 flex-shrink-0" />
               </button>
 
-              {/* Endereço + Obs + Vendedor — sempre visíveis */}
+              {/* Endereço + Obs + Vendedor — sempre visíveis no celular; no desktop abrem pelo botão */}
               <input placeholder="Endereço de entrega (opcional)..." value={deliveryAddress} onChange={e => setDeliveryAddress(e.target.value)}
-                className="w-full text-xs px-3 py-2 rounded-xl placeholder-zinc-500 focus:outline-none focus:border-violet-500"
+                className={`w-full text-xs px-3 py-2 rounded-xl placeholder-zinc-500 focus:outline-none focus:border-violet-500 ${extraOpen === "address" ? "" : "md:hidden"}`}
                 style={{ background: card.bg, border: card.border, color: isLight ? "#374151" : "#d4d4d8" }} />
               <input placeholder="Observações do pedido..." value={orderNotes} onChange={e => setOrderNotes(e.target.value)}
-                className="w-full text-xs px-3 py-2 rounded-xl placeholder-zinc-500 focus:outline-none focus:border-violet-500"
+                className={`w-full text-xs px-3 py-2 rounded-xl placeholder-zinc-500 focus:outline-none focus:border-violet-500 ${extraOpen === "notes" ? "" : "md:hidden"}`}
                 style={{ background: card.bg, border: card.border, color: isLight ? "#374151" : "#d4d4d8" }} />
               {sellers.length > 0 ? (
                 <select value={sellerName} onChange={e => setSellerName(e.target.value)}
-                  className="w-full text-xs px-3 py-2 rounded-xl focus:outline-none focus:border-violet-500 appearance-none"
+                  className={`w-full text-xs px-3 py-2 rounded-xl focus:outline-none focus:border-violet-500 appearance-none ${extraOpen === "seller" ? "" : "md:hidden"}`}
                   style={{ background: card.bg, border: card.border, color: isLight ? "#374151" : "#d4d4d8" }}>
                   <option value="">— Vendedor / Garçom —</option>
                   {sellers.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               ) : (
                 <input placeholder="Vendedor / Garçom responsável..." value={sellerName} onChange={e => setSellerName(e.target.value)}
-                  className="w-full text-xs px-3 py-2 rounded-xl placeholder-zinc-500 focus:outline-none focus:border-violet-500"
+                  className={`w-full text-xs px-3 py-2 rounded-xl placeholder-zinc-500 focus:outline-none focus:border-violet-500 ${extraOpen === "seller" ? "" : "md:hidden"}`}
                   style={{ background: card.bg, border: card.border, color: isLight ? "#374151" : "#d4d4d8" }} />
               )}
               </div>
 
               {/* Botões — sempre visíveis (fixos embaixo no desktop), Finalizar desabilitado sem itens */}
-              <div className="grid grid-cols-2 gap-2 px-3 pb-3 md:flex-shrink-0">
+              <div className="grid grid-cols-2 gap-2 px-3 pb-3 md:flex-shrink-0 md:grid-cols-[auto_auto_1fr]">
+                {/* Desktop: vendas em pausa ficam aqui, ao lado do Pausar */}
+                <button onClick={() => { loadPending(); setShowPending(true); }}
+                  title="Vendas em pausa"
+                  className="hidden md:flex items-center justify-center gap-1.5 px-3 py-3 text-xs font-semibold rounded-xl transition-all"
+                  style={{ background: card.bg, border: card.border, color: isLight ? "#2563eb" : "#10b981" }}>
+                  <History className="w-3.5 h-3.5" />
+                  Pausadas
+                  {pendingSales.length > 0 && (
+                    <span className="min-w-[18px] h-[18px] px-1 text-[10px] font-black rounded-full flex items-center justify-center"
+                      style={{ background: "#10b981", color: "#fff" }}>
+                      {pendingSales.length}
+                    </span>
+                  )}
+                </button>
                 <button onClick={savePending} disabled={cart.length === 0}
-                  className="flex items-center justify-center gap-1.5 py-2.5 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold rounded-xl transition-all"
+                  className="flex items-center justify-center gap-1.5 py-2.5 md:py-3 md:px-3 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold rounded-xl transition-all"
                   style={isLight ? { border:"1px solid #2563eb", color:"#fff", background:"#2563eb" } : { border:"1px solid rgba(16,185,129,0.4)", color:"#10b981", background:"rgba(16,185,129,0.07)" }}>
                   <Clock className="w-3.5 h-3.5" />
                   Pausar
                   <kbd className="text-[10px] px-1 py-0.5 rounded font-bold" style={isLight ? { background:"rgba(255,255,255,0.2)", border:"1px solid rgba(255,255,255,0.3)", color:"#fff" } : { background:"rgba(16,185,129,0.15)", border:"1px solid rgba(16,185,129,0.3)", color:"#10b981" }}>F2</kbd>
                 </button>
                 <button onClick={openCheckout} disabled={cart.length === 0 || !cashRegisterId}
-                  className="flex items-center justify-center gap-1.5 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold rounded-xl transition-colors shadow-lg shadow-violet-900/30"
+                  className="flex items-center justify-center gap-1.5 py-2.5 md:py-3 md:text-sm bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold rounded-xl transition-colors shadow-lg shadow-violet-900/30"
                   style={{ color: "#fff" }}>
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   Finalizar
                   <kbd className="text-[10px] bg-white/10 border border-white/20 px-1 py-0.5 rounded font-bold" style={{ color: "#fff" }}>F1</kbd>
                 </button>
                 {!cashRegisterId && !loadingProducts && (
-                  <p className="text-[10px] text-amber-400 text-center flex items-center justify-center gap-1 mt-0.5">
+                  <p className="text-[10px] text-amber-400 text-center flex items-center justify-center gap-1 mt-0.5 md:col-span-3">
                     <AlertCircle className="w-3 h-3 flex-shrink-0" /> Caixa fechado — abra o caixa para vender
                   </p>
                 )}
@@ -1461,6 +1535,7 @@ export default function PdvPage() {
       {tab === "historico" && (
         <div className="flex-1 overflow-y-auto p-6">
           <div className="flex items-center gap-3 mb-5">
+            {tabSwitch}
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
               <input placeholder="Buscar cliente, ID ou endereço..." value={historySearch} onChange={e => setHistorySearch(e.target.value)}
