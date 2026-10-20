@@ -467,11 +467,14 @@ export function AppLayout() {
       )}
 
       {/* ── Sidebar ───────────────────────────────────────────────────────── */}
-      <aside className={`w-72 flex flex-col flex-shrink-0 fixed md:relative h-screen z-50 md:z-auto transition-all duration-300 md:duration-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
-        style={{ background: T.sidebarBg, borderRight: `1px solid ${T.border}` }}>
+      {/* Espaço reservado da sidebar recolhida (desktop) — ao expandir ela sobrepõe o conteúdo */}
+      <div className="hidden md:block w-[88px] flex-shrink-0" />
 
-        {/* Logo */}
-        <div className="h-24 flex items-center justify-center" style={{ overflow: "visible", borderBottom: `1px solid ${T.border}` }}>
+      <aside className={`group w-72 flex flex-col flex-shrink-0 fixed h-screen z-50 transition-all duration-300 md:top-3 md:bottom-3 md:left-3 md:h-auto md:w-[68px] md:hover:w-64 md:z-30 md:rounded-2xl md:border md:shadow-xl md:overflow-hidden md:duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
+        style={{ background: T.sidebarBg, borderColor: T.border, borderRightWidth: 1 }}>
+
+        {/* Logo (somente celular) */}
+        <div className="h-24 flex items-center justify-center md:hidden" style={{ overflow: "visible", borderBottom: `1px solid ${T.border}` }}>
           <img
             src="https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/ChatGPT%20Image%2028%20de%20jul.%20de%202026,%2014_45_53.png"
             alt="Logo"
@@ -480,7 +483,7 @@ export function AppLayout() {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-3 pt-3 pb-0 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-3 pt-3 pb-0 space-y-1 overflow-y-auto overflow-x-hidden">
           {visibleMenuItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -499,26 +502,34 @@ export function AppLayout() {
                   fontSize: "14px",
                   fontWeight: isActive ? 600 : 500,
                   transition: "all 0.15s",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
                   color: isActive ? item.color : "#71717a",
                   background: isActive ? `${item.color}15` : "transparent",
                   boxShadow: isActive ? `inset 0 0 0 1px ${item.color}30` : "none",
                 })}
+                title={item.label}
               >
                 {({ isActive }) => (
                   <>
-                    <span className="flex-shrink-0" style={isActive ? { filter:`drop-shadow(0 0 4px ${item.color})` } : {}}>
+                    <span className="relative flex-shrink-0" style={isActive ? { filter:`drop-shadow(0 0 4px ${item.color})` } : {}}>
                       <Icon size={16} />
+                      {/* Ponto de alerta no ícone quando a sidebar está recolhida (desktop) */}
+                      {item.path === "/digital-menu" && digitalPending > 0 && (
+                        <span className="hidden md:block md:group-hover:hidden absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full animate-pulse"
+                          style={{ background: "#f43f5e", boxShadow: "0 0 6px rgba(244,63,94,0.8)" }} />
+                      )}
                     </span>
-                    <span>{item.label}</span>
+                    <span className="md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">{item.label}</span>
                     {/* Badge de pedidos pendentes no Cardápio Digital */}
                     {item.path === "/digital-menu" && digitalPending > 0 && (
-                      <span className="ml-auto flex-shrink-0 min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] font-black text-white animate-pulse"
+                      <span className="ml-auto flex-shrink-0 min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] font-black text-white animate-pulse md:opacity-0 md:group-hover:opacity-100"
                         style={{ background: "#f43f5e", boxShadow: "0 0 8px rgba(244,63,94,0.6)", padding: "0 4px" }}>
                         {digitalPending}
                       </span>
                     )}
                     {isActive && digitalPending === 0 && (
-                      <span className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0"
+                      <span className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0 md:opacity-0 md:group-hover:opacity-100"
                         style={{ background: item.color, boxShadow:`0 0 6px ${item.color}` }} />
                     )}
                   </>
@@ -539,6 +550,7 @@ export function AppLayout() {
                   display: "flex", alignItems: "center", gap: "10px",
                   padding: "11px 14px", borderRadius: "12px", fontSize: "14px",
                   fontWeight: isActive ? 600 : 500, transition: "all 0.15s",
+                  whiteSpace: "nowrap", overflow: "hidden",
                   color: isActive ? "#8b5cf6" : "#71717a",
                   background: isActive ? "#8b5cf615" : "transparent",
                   boxShadow: isActive ? "inset 0 0 0 1px #8b5cf630" : "none",
@@ -549,9 +561,9 @@ export function AppLayout() {
                     <span className="flex-shrink-0" style={isActive ? { filter: "drop-shadow(0 0 4px #8b5cf6)" } : {}}>
                       <Shield size={16} />
                     </span>
-                    <span>Painel Admin</span>
+                    <span className="md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">Painel Admin</span>
                     {isActive && (
-                      <span className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0"
+                      <span className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0 md:opacity-0 md:group-hover:opacity-100"
                         style={{ background: "#8b5cf6", boxShadow: "0 0 6px #8b5cf6" }} />
                     )}
                   </>
@@ -565,6 +577,7 @@ export function AppLayout() {
                   display: "flex", alignItems: "center", gap: "10px",
                   padding: "11px 14px", borderRadius: "12px", fontSize: "14px",
                   fontWeight: isActive ? 600 : 500, transition: "all 0.15s",
+                  whiteSpace: "nowrap", overflow: "hidden",
                   color: isActive ? "#f59e0b" : "#71717a",
                   background: isActive ? "#f59e0b15" : "transparent",
                   boxShadow: isActive ? "inset 0 0 0 1px #f59e0b30" : "none",
@@ -575,9 +588,9 @@ export function AppLayout() {
                     <span className="flex-shrink-0" style={isActive ? { filter: "drop-shadow(0 0 4px #f59e0b)" } : {}}>
                       <Star size={16} />
                     </span>
-                    <span>Avaliações</span>
+                    <span className="md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">Avaliações</span>
                     {isActive && (
-                      <span className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0"
+                      <span className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0 md:opacity-0 md:group-hover:opacity-100"
                         style={{ background: "#f59e0b", boxShadow: "0 0 6px #f59e0b" }} />
                     )}
                   </>
@@ -589,7 +602,7 @@ export function AppLayout() {
 
         {/* Rodapé minimalista — tema + feedback + suporte + sair */}
         <div className="px-3 pt-2 pb-3 space-y-1.5" style={{ borderTop: `1px solid ${T.border}` }}>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 md:flex-col md:group-hover:flex-row">
             <button
               onClick={toggleTheme}
               title={isLight ? "Tema escuro" : "Tema claro"}
@@ -621,10 +634,11 @@ export function AppLayout() {
 
           <button
             onClick={() => window.open("https://wa.me/5518997066843?text=upabase%20atendente%20wesley", "_blank")}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg transition-all text-green-600 hover:text-green-500 font-medium text-sm"
+            title="Suporte"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg transition-all text-green-600 hover:text-green-500 font-medium text-sm whitespace-nowrap overflow-hidden"
             style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", hover: { background: "rgba(34,197,94,0.12)" } }}>
-            <HelpCircle size={16} />
-            <span>Suporte</span>
+            <HelpCircle size={16} className="flex-shrink-0" />
+            <span className="md:hidden md:group-hover:inline">Suporte</span>
           </button>
         </div>
       </aside>
