@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { AvaliacaoModal } from "../components/AvaliacaoModal";
 import { prefetchReports, clearReportsCache } from "../pages/reports";
+import { clearDashboardCache } from "../pages/dashboard";
 
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || "";
 
@@ -425,6 +426,7 @@ export function AppLayout() {
 
   async function handleLogout() {
     clearReportsCache();
+    clearDashboardCache();
     await supabase.auth.signOut();
     navigate("/auth");
   }

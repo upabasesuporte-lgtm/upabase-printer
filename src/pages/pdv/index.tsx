@@ -278,28 +278,41 @@ export default function PdvPage() {
   useEffect(() => { loadAll(); loadPending(); }, []);
 
   const loadAll = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    // Sessão local (sem ida ao servidor); a segurança continua garantida pelo RLS no banco
+    const { data: { session } } = await supabase.auth.getSession();
+    const user = session?.user ?? null;
     if (user) { setUserId(user.id); refreshStoreCache(user.id); }
-    const { data: prods } = await supabase.from("products").select("*").neq("is_active", false).order("name");
-    setProducts(prods ?? []);
-    setLoadingProducts(false);
-    const { data: cats } = await supabase.from("categories").select("id,name");
-    setCategoryNames(Object.fromEntries((cats ?? []).map((c: any) => [c.id, c.name])));
-    const { data: custs } = await supabase.from("customers").select("id,name,phone,address,balance,fiado_balance,credit_limit").order("name");
-    setCustomers(custs ?? []);
-    // Carrega caixa aberto
-    if (user) {
-      const { data: reg } = await supabase.from("cash_registers")
-        .select("id").eq("user_id", user.id).eq("status", "open")
-        .order("opened_at", { ascending: false }).limit(1).maybeSingle();
-      setCashRegisterId(reg?.id ?? null);
 
+    // Todas as buscas em paralelo (antes eram feitas uma de cada vez)
+    const [prodsRes, catsRes, custsRes, regRes, settingsRes] = await Promise.all([
+      supabase.from("products").select("*").neq("is_active", false).order("name"),
+      supabase.from("categories").select("id,name"),
+      supabase.from("customers").select("id,name,phone,address,balance,fiado_balance,credit_limit").order("name"),
+      // Carrega caixa aberto
+      user
+        ? supabase.from("cash_registers")
+            .select("id").eq("user_id", user.id).eq("status", "open")
+            .order("opened_at", { ascending: false }).limit(1).maybeSingle()
+        : Promise.resolve(null),
       // Carrega atalhos rápidos do banco (fonte autoritativa)
-      const { data: settings } = await supabase
-        .from("user_settings")
-        .select("pdv_shortcut_groups")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      user
+        ? supabase
+            .from("user_settings")
+            .select("pdv_shortcut_groups")
+            .eq("user_id", user.id)
+            .maybeSingle()
+        : Promise.resolve(null),
+    ]);
+
+    setProducts(prodsRes.data ?? []);
+    setCategoryNames(Object.fromEntries((catsRes.data ?? []).map((c: any) => [c.id, c.name])));
+    setCustomers(custsRes.data ?? []);
+    if (user) {
+      setCashRegisterId(regRes?.data?.id ?? null);
+    }
+    setLoadingProducts(false);
+    if (user) {
+      const settings = settingsRes?.data;
       if (settings?.pdv_shortcut_groups && Array.isArray(settings.pdv_shortcut_groups)) {
         setShortcutGroups(settings.pdv_shortcut_groups as ShortcutGroup[]);
         localStorage.setItem(SHORTCUT_GROUPS_KEY, JSON.stringify(settings.pdv_shortcut_groups));

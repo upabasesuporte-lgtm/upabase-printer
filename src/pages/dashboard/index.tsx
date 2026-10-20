@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback, useMemo } from "react";
+﻿import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
@@ -148,6 +148,30 @@ function KpiCard({ label, value, sub, icon, change, changeLabel, from: gFrom, to
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
+// ─── Cache em memória do painel ───────────────────────────────────────────────
+// Fica só na memória da aba (nunca no disco), separado por usuário, e é limpo no
+// "Sair". Ao voltar para o Dashboard mostra os últimos números na hora e atualiza por trás.
+interface DashSnapshot {
+  sales: Sale[];
+  prevSales: Sale[];
+  todayItems: SaleItem[];
+  ifoodItems: SaleItem[];
+  lowStock: Product[];
+  pendingDig: number;
+  tableStats: { total: number; occupied: number };
+  recentSales: Sale[];
+  apExpenses: number;
+  paymentMethods: { method: string; amount: number }[];
+  topSellers: { name: string; total: number; count: number }[];
+  topCustomers: { name: string; id: string; total: number; count: number }[];
+}
+
+const dashCache = new Map<string, DashSnapshot>();
+
+export function clearDashboardCache() {
+  dashCache.clear();
+}
+
 export default function DashboardPage() {
   const { theme } = useTheme();
   const isLight = theme === "light";
@@ -189,14 +213,45 @@ export default function DashboardPage() {
 
   // ── Auth
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => { if (data.user) setUserId(data.user.id); });
+    // Sessão local (sem ida ao servidor); a segurança continua garantida pelo RLS no banco
+    supabase.auth.getSession().then(({ data }) => { if (data.session?.user) setUserId(data.session.user.id); });
   }, []);
 
   // ── Load
+  const [refreshing, setRefreshing] = useState(false);
+  const loadReqRef = useRef(0);
+
+  const applySnapshot = (d: DashSnapshot) => {
+    setSales(d.sales);
+    setPrevSales(d.prevSales);
+    setTodayItems(d.todayItems);
+    setIfoodItems(d.ifoodItems);
+    setLowStock(d.lowStock);
+    setPendingDig(d.pendingDig);
+    setTableStats(d.tableStats);
+    setRecentSales(d.recentSales);
+    setApExpenses(d.apExpenses);
+    setPaymentMethods(d.paymentMethods);
+    setTopSellers(d.topSellers);
+    setTopCustomers(d.topCustomers);
+  };
+
   const load = useCallback(async () => {
     if (!userId) return;
-    setLoading(true);
+    const req = ++loadReqRef.current;
+    const cacheKey = `${userId}|${period}|${customFrom}|${customTo}`;
+    const cached = dashCache.get(cacheKey);
 
+    // Já tem o painel na memória: mostra na hora e atualiza por trás
+    if (cached) {
+      applySnapshot(cached);
+      setLoading(false);
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+
+    try {
     const { from, to } = getRange(period, customFrom, customTo);
     const fromISO = from.toISOString();
     const toISO   = to.toISOString();
@@ -204,14 +259,13 @@ export default function DashboardPage() {
     const pad = (n: number) => String(n).padStart(2, "0");
     const toLocalDate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
     const fromDate = toLocalDate(from);
-    const toDate   = toLocalDate(to);
 
     // Previous period for comparison (same duration)
     const duration = to.getTime() - from.getTime();
     const prevFrom = new Date(from.getTime() - duration).toISOString();
     const prevTo   = from.toISOString();
 
-    const [salesRes, prevRes, prodRes, digRes, tabRes, recentRes, apRes] = await Promise.all([
+    const [salesRes, prevRes, prodRes, digRes, tabRes, recentRes, apRes, custMovRes] = await Promise.all([
       supabase.from("sales").select("id,total_amount,discount,origin,created_at,status,seller_name,payments")
         .eq("user_id", userId).eq("status", "paid").neq("origin", "fiado_payment")
         .gte("created_at", fromISO).lte("created_at", toISO).order("created_at"),
@@ -228,43 +282,33 @@ export default function DashboardPage() {
         .order("created_at", { ascending: false }).limit(15),
       supabase.from("accounts_payable").select("*")
         .eq("user_id", userId).not("status", "eq", "cancelled"),
+      // Top customers ranking - from customer_movements with customer names
+      supabase.from("customer_movements")
+        .select("customer_id,amount,created_at,customers(name)")
+        .eq("user_id", userId)
+        .gte("created_at", fromISO)
+        .lte("created_at", toISO),
     ]);
 
     const currentSales = (salesRes.data ?? []) as Sale[];
-    setSales(currentSales);
-    setPrevSales((prevRes.data ?? []) as Sale[]);
 
-    // Load sale items for the selected period (not just today)
+    // Load sale items for the selected period (not just today).
+    // Os itens do iFood saem da mesma busca (antes era uma segunda busca igual).
     const periodSaleIds = currentSales.map(s => s.id);
+    let periodItems: (SaleItem & { sale_id?: string })[] = [];
     if (periodSaleIds.length > 0) {
       const { data: itemsData } = await supabase
-        .from("sale_items").select("product_id,quantity,unit_price,products(name)")
+        .from("sale_items").select("sale_id,product_id,quantity,unit_price,products(name)")
         .in("sale_id", periodSaleIds);
-      setTodayItems((itemsData ?? []) as unknown as SaleItem[]);
-    } else {
-      setTodayItems([]);
+      periodItems = (itemsData ?? []) as unknown as (SaleItem & { sale_id?: string })[];
     }
-
-    // Carrega itens das vendas iFood no período
-    const ifoodSaleIds = currentSales.filter(s => s.origin === "ifood").map(s => s.id);
-    if (ifoodSaleIds.length > 0) {
-      const { data: iData } = await supabase
-        .from("sale_items").select("product_id,quantity,unit_price,products(name)")
-        .in("sale_id", ifoodSaleIds);
-      setIfoodItems((iData ?? []) as unknown as SaleItem[]);
-    } else {
-      setIfoodItems([]);
-    }
+    const ifoodSaleIds = new Set(currentSales.filter(s => s.origin === "ifood").map(s => s.id));
+    const ifoodItems = periodItems.filter(i => i.sale_id && ifoodSaleIds.has(i.sale_id));
 
     const prods = (prodRes.data ?? []) as Product[];
-    setLowStock(prods.filter(p => p.stock <= (p.stock_min ?? 0) && p.stock_min > 0));
-    setPendingDig(digRes.count ?? 0);
     const tabs = (tabRes.data ?? []) as { id: string; status: string }[];
-    setTableStats({ total: tabs.length, occupied: tabs.filter(t => t.status === "occupied").length });
-    setRecentSales((recentRes.data ?? []) as Sale[]);
 
     // Filtra despesas pelo período (mesmo padrão de accounts-payable)
-    const now = new Date();
     const filteredAp = (apRes.data ?? []).filter((b: any) => {
       const due = new Date(b.due_date + "T12:00:00");
       if (period === "day") {
@@ -282,7 +326,6 @@ export default function DashboardPage() {
     });
     const totalAp = filteredAp.reduce((s: number, b: any) =>
       s + b.amount - (b.discount || 0) + (b.interest || 0) + (b.fine || 0), 0);
-    setApExpenses(totalAp);
 
     // Payment methods aggregation from actual sales data
     const methodAggregation: Record<string, number> = {};
@@ -305,8 +348,6 @@ export default function DashboardPage() {
       { method: "iFood (A Receber)", amount: methodAggregation["ifood_receivable"] || 0 },
     ].filter(m => m.amount > 0);
 
-    setPaymentMethods(methods);
-
     // Top sellers ranking
     const sellerAgg: Record<string, { total: number; count: number }> = {};
     currentSales.forEach(sale => {
@@ -319,16 +360,8 @@ export default function DashboardPage() {
       .map(([name, data]) => ({ name, total: data.total, count: data.count }))
       .sort((a, b) => b.total - a.total)
       .slice(0, 5);
-    setTopSellers(sellers);
 
-    // Top customers ranking - from customer_movements with customer names
-    const { data: customerMovements } = await supabase
-      .from("customer_movements")
-      .select("customer_id,amount,created_at,customers(name)")
-      .eq("user_id", userId)
-      .gte("created_at", fromISO)
-      .lte("created_at", toISO);
-
+    const customerMovements = custMovRes.data;
     const customerAgg: Record<string, { total: number; count: number; name: string }> = {};
 
     if (customerMovements && customerMovements.length > 0) {
@@ -346,10 +379,34 @@ export default function DashboardPage() {
       .filter(c => c.total > 0)
       .sort((a, b) => b.total - a.total)
       .slice(0, 50);
-    setTopCustomers(customers);
-    setCustomerPage(0);
 
-    setLoading(false);
+    const snapshot: DashSnapshot = {
+      sales: currentSales,
+      prevSales: (prevRes.data ?? []) as Sale[],
+      todayItems: periodItems,
+      ifoodItems,
+      lowStock: prods.filter(p => p.stock <= (p.stock_min ?? 0) && p.stock_min > 0),
+      pendingDig: digRes.count ?? 0,
+      tableStats: { total: tabs.length, occupied: tabs.filter(t => t.status === "occupied").length },
+      recentSales: (recentRes.data ?? []) as Sale[],
+      apExpenses: totalAp,
+      paymentMethods: methods,
+      topSellers: sellers,
+      topCustomers: customers,
+    };
+
+    if (req !== loadReqRef.current) return; // período mudou no meio — ignora resposta antiga
+    applySnapshot(snapshot);
+    if (!cached) setCustomerPage(0);
+    // Só guarda no cache quando as consultas principais vieram sem erro
+    if (!salesRes.error && !prevRes.error && !custMovRes.error) dashCache.set(cacheKey, snapshot);
+    } finally {
+      if (req === loadReqRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, period, customFrom, customTo]);
 
   useEffect(() => { if (userId) load(); }, [userId, load]);
@@ -483,8 +540,8 @@ export default function DashboardPage() {
               background: "#18181b", border: "1px solid #3f3f46", color: "#a1a1aa",
               boxShadow: loading ? "none" : "0 0 12px rgba(139,92,246,0.2)",
             }}>
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} style={{ color: loading ? "#7B2FBE" : isLight ? "#9CA3AF" : "#71717a" }} />
-            {loading ? "Carregando..." : "Atualizar"}
+            <RefreshCw className={`w-4 h-4 ${loading || refreshing ? "animate-spin" : ""}`} style={{ color: loading || refreshing ? "#7B2FBE" : isLight ? "#9CA3AF" : "#71717a" }} />
+            {loading ? "Carregando..." : refreshing ? "Atualizando..." : "Atualizar"}
           </button>
         </div>
       </div>
