@@ -6,12 +6,26 @@ import {
   Plus, X, RefreshCw, Truck, ChevronDown, Ban, Search, FileUp, Check, AlertCircle, Trash2, Clock, Pencil,
 } from "lucide-react";
 import { ProductModal, type Category, type Product } from "../products";
+import PurchaseScreen from "./PurchaseScreen";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface SimpleItem {
-  id: string; name: string; barcode?: string | null;
-  current_qty?: number; min_qty?: number; max_qty?: number | null; cost_price?: number;
+  id: string; name: string; barcode?: string | null; unit?: string | null;
+  current_qty?: number; min_qty?: number; max_qty?: number | null; cost_price?: number; sale_price?: number;
+}
+
+// Computador (1024px+) usa a tela cheia de lançamento; celular mantém o modal antigo
+function useIsDesktop() {
+  const query = "(min-width: 1024px)";
+  const [isDesktop, setIsDesktop] = useState(() => typeof window !== "undefined" && window.matchMedia(query).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const onChange = () => setIsDesktop(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return isDesktop;
 }
 
 interface POItem {
@@ -42,7 +56,7 @@ interface PurchaseOrder {
   purchase_order_items?: POItem[];
 }
 
-type Modal = "none" | "purchase" | "suggestions" | "receive";
+type Modal = "none" | "purchase" | "receive";
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const fmtQty = (v: number, unit: string) =>
@@ -77,7 +91,9 @@ export default function PurchasesPage() {
   const [expandedPO, setExpandedPO] = useState<string | null>(null);
 
   const [modal, setModal] = useState<Modal>("none");
-  useEscapeKey(() => setModal("none"), modal !== "none");
+  const isDesktop = useIsDesktop();
+  const purchaseScreenOpen = modal === "purchase" && isDesktop;
+  useEscapeKey(() => setModal("none"), modal !== "none" && !purchaseScreenOpen);
 
   // Purchase form
   const [poSupplierId, setPOSupplierId] = useState("");
@@ -87,9 +103,9 @@ export default function PurchasesPage() {
   const [poItems, setPOItems] = useState<{ ref_type: "ingredient" | "product"; item_id: string; itemName: string; quantity: string; unit_cost: string }[]>([]);
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
 
-  // Sugestão de compra — itens abaixo do mínimo, prontos pra virar um pedido
-  const [suggestionSelected, setSuggestionSelected] = useState<Record<string, boolean>>({});
-  const [suggestionQty, setSuggestionQty] = useState<Record<string, string>>({});
+  // Preço de venda editado na tela de compra (computador) — só é gravado no
+  // produto depois que a compra for salva com sucesso.
+  const [salePrices, setSalePrices] = useState<Record<string, string>>({});
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [receivingId, setReceivingId] = useState<string | null>(null);
@@ -149,18 +165,18 @@ export default function PurchasesPage() {
 
   async function loadStockItems() {
     const { data } = await supabase.from("stock_items")
-      .select("id, name, current_qty, min_qty, max_qty, cost_price").eq("is_active", true).order("name");
+      .select("id, name, unit, current_qty, min_qty, max_qty, cost_price").eq("is_active", true).order("name");
     setStockItems((data ?? []) as SimpleItem[]);
   }
 
   async function loadLimitedProducts() {
     const { data } = await supabase
-      .from("products").select("id, name, barcode, unlimited_stock, stock_type, stock, stock_min, stock_max, cost_price")
+      .from("products").select("id, name, barcode, unit, unlimited_stock, stock_type, stock, stock_min, stock_max, cost_price, sale_price")
       .or("unlimited_stock.eq.false,unlimited_stock.is.null")
       .eq("is_active", true).order("name");
     setLimitedProducts(((data ?? []) as any[]).map(p => ({
-      id: p.id, name: p.name, barcode: p.barcode,
-      current_qty: p.stock, min_qty: p.stock_min, max_qty: p.stock_max, cost_price: p.cost_price,
+      id: p.id, name: p.name, barcode: p.barcode, unit: p.unit,
+      current_qty: p.stock, min_qty: p.stock_min, max_qty: p.stock_max, cost_price: p.cost_price, sale_price: p.sale_price,
     })) as SimpleItem[]);
   }
 
@@ -288,7 +304,7 @@ export default function PurchasesPage() {
       setPONotes(xmlInvoiceRef);
       setPODueDate(new Date().toISOString().split("T")[0]); setPOInstallments("1");
       setPurchaseError(null);
-      setPOItems(finalItems);
+      setPOItems(finalItems); setSalePrices({});
       setXmlItems(null);
       setModal("purchase");
     } catch (err: any) {
@@ -302,41 +318,36 @@ export default function PurchasesPage() {
     setPOSupplierId(""); setPONotes(""); setPurchaseError(null);
     setPODueDate(new Date().toISOString().split("T")[0]); setPOInstallments("1");
     setPOItems([{ ref_type: "ingredient", item_id: "", itemName: "", quantity: "", unit_cost: "" }]);
+    setSalePrices({});
     setModal("purchase");
   }
 
-  // Itens abaixo do mínimo: sugere repor até o máximo cadastrado (ou até o mínimo, se não houver máximo)
-  const suggestions = [
-    ...stockItems.filter(s => (s.min_qty ?? 0) > 0 && (s.current_qty ?? 0) <= (s.min_qty ?? 0)).map(s => ({ ref_type: "ingredient" as const, ...s })),
-    ...limitedProducts.filter(p => (p.min_qty ?? 0) > 0 && (p.current_qty ?? 0) <= (p.min_qty ?? 0)).map(p => ({ ref_type: "product" as const, ...p })),
-  ].map(s => {
-    const target = s.max_qty && s.max_qty > (s.min_qty ?? 0) ? s.max_qty : (s.min_qty ?? 0);
-    const suggestedQty = Math.max(target - (s.current_qty ?? 0), 0);
-    return { ...s, key: `${s.ref_type}:${s.id}`, suggestedQty };
-  });
+  // Fechar a tela cheia (computador) pede confirmação se já tem item lançado
+  function closePurchaseScreen() {
+    if (saving) return;
+    if (poItems.some(i => i.item_id) && !confirm("Sair sem salvar? Os itens lançados nesta compra serão perdidos.")) return;
+    setModal("none");
+  }
+  useEscapeKey(closePurchaseScreen, purchaseScreenOpen && quickCreateIdx === null && !editProductTarget && !xmlItems);
 
-  function openSuggestions() {
-    const selected: Record<string, boolean> = {};
-    const qty: Record<string, string> = {};
-    for (const s of suggestions) {
-      selected[s.key] = true;
-      qty[s.key] = String(s.suggestedQty || 1);
-    }
-    setSuggestionSelected(selected);
-    setSuggestionQty(qty);
-    setModal("suggestions");
+  // Cadastro de item novo a partir da busca da tela cheia: cria uma linha
+  // vazia e reaproveita o mesmo fluxo de cadastro rápido já existente.
+  function createFromScreen(type: "ingredient" | "product", name: string) {
+    const idx = poItems.length;
+    setPOItems(prev => [...prev, { ref_type: type, item_id: "", itemName: "", quantity: "", unit_cost: "" }]);
+    openQuickCreate(idx, type, name);
   }
 
-  function addSuggestionsToOrder() {
-    const chosen = suggestions.filter(s => suggestionSelected[s.key] && parseFloat(suggestionQty[s.key]) > 0);
-    if (chosen.length === 0) return;
-    setPOSupplierId(""); setPONotes(""); setPurchaseError(null);
-    setPODueDate(new Date().toISOString().split("T")[0]); setPOInstallments("1");
-    setPOItems(chosen.map(s => ({
-      ref_type: s.ref_type, item_id: s.id, itemName: s.name,
-      quantity: suggestionQty[s.key], unit_cost: s.cost_price ? String(s.cost_price) : "",
-    })));
-    setModal("purchase");
+  // Grava no produto o preço de venda que foi alterado na tela de compra
+  async function applySalePrices(items: { ref_type: string; item_id: string }[]) {
+    const ids = new Set(items.filter(i => i.ref_type === "product").map(i => i.item_id));
+    const updates = Object.entries(salePrices).filter(([id, v]) => {
+      if (!ids.has(id)) return false;
+      const val = parseFloat(v);
+      const current = limitedProducts.find(p => p.id === id)?.sale_price ?? 0;
+      return val > 0 && Math.abs(val - current) > 0.0001;
+    });
+    await Promise.all(updates.map(([id, v]) => supabase.from("products").update({ sale_price: parseFloat(v) }).eq("id", id)));
   }
 
   function openQuickCreate(idx: number, type: "ingredient" | "product", initialName: string) {
@@ -420,6 +431,8 @@ export default function PurchasesPage() {
           unit_cost: costChanged ? String(newCost) : p.unit_cost,
         } : p));
       }
+      // O cadastro completo pode ter mudado o preço de venda — passa a valer o salvo
+      setSalePrices(prev => { const next = { ...prev }; delete next[id]; return next; });
     }
     await loadLimitedProducts();
     setEditProductTarget(null); setEditProductIdx(null); setEditProductBaseline(null);
@@ -452,7 +465,8 @@ export default function PurchasesPage() {
       setSaving(false);
       return;
     }
-    await loadPurchases();
+    await applySalePrices(validItems);
+    await Promise.all([loadPurchases(), loadStockItems(), loadLimitedProducts()]);
     setSaving(false);
     setModal("none");
   }
@@ -479,7 +493,8 @@ export default function PurchasesPage() {
       setSaving(false);
       return;
     }
-    await loadPurchases();
+    await applySalePrices(validItems);
+    await Promise.all([loadPurchases(), loadLimitedProducts()]);
     setSaving(false);
     setModal("none");
   }
@@ -577,15 +592,6 @@ export default function PurchasesPage() {
                 className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold border border-zinc-700 text-zinc-300 hover:border-zinc-600 hover:text-white transition-colors disabled:opacity-50">
                 {xmlParsing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
                 Importar XML da NFe
-              </button>
-              <button onClick={openSuggestions}
-                className="relative flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold border border-amber-500/30 text-amber-400 hover:border-amber-500/60 hover:bg-amber-500/10 transition-colors">
-                <AlertCircle className="w-4 h-4" /> Sugestão de Compra
-                {suggestions.length > 0 && (
-                  <span className="ml-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full text-[10px] font-bold bg-amber-500 text-black">
-                    {suggestions.length}
-                  </span>
-                )}
               </button>
               <button onClick={openPurchaseModal}
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${isLight ? "bg-blue-600 hover:bg-blue-700" : "bg-violet-600 hover:bg-violet-500 text-white"}`}
@@ -723,55 +729,6 @@ export default function PurchasesPage() {
         )}
       </div>
 
-      {/* Sugestão de Compra */}
-      {modal === "suggestions" && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 flex-shrink-0">
-              <div>
-                <h2 className="text-base font-semibold">Sugestão de Compra</h2>
-                <p className="text-xs text-zinc-500 mt-0.5">Itens abaixo do estoque mínimo cadastrado</p>
-              </div>
-              <button onClick={() => setModal("none")} className="p-1.5 text-zinc-400 hover:text-white rounded-lg"><X className="w-4 h-4" /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-2">
-              {suggestions.length === 0 ? (
-                <div className="text-center py-10">
-                  <Check className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-                  <p className="text-sm text-zinc-400 font-medium">Tudo em dia!</p>
-                  <p className="text-xs text-zinc-600 mt-1">Nenhum item está abaixo do estoque mínimo cadastrado.</p>
-                </div>
-              ) : suggestions.map(s => (
-                <div key={s.key} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-zinc-800 bg-zinc-950/40">
-                  <input type="checkbox" checked={!!suggestionSelected[s.key]}
-                    onChange={e => setSuggestionSelected(prev => ({ ...prev, [s.key]: e.target.checked }))}
-                    className="w-4 h-4 rounded accent-violet-600 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-white truncate">{s.name}</p>
-                    <p className="text-xs text-zinc-500">
-                      Atual: {s.current_qty ?? 0} · Mínimo: {s.min_qty ?? 0}{s.max_qty ? ` · Máximo: ${s.max_qty}` : ""}
-                    </p>
-                  </div>
-                  <input type="number" min="0" step="0.001" value={suggestionQty[s.key] ?? ""}
-                    onChange={e => setSuggestionQty(prev => ({ ...prev, [s.key]: e.target.value }))}
-                    className="w-20 px-2 py-1.5 bg-zinc-950 border border-zinc-800 rounded-lg text-sm text-white text-center flex-shrink-0" />
-                </div>
-              ))}
-            </div>
-            {suggestions.length > 0 && (
-              <div className="flex gap-3 px-6 py-4 border-t border-zinc-800 flex-shrink-0">
-                <button onClick={() => setModal("none")} className="flex-1 py-2.5 bg-transparent border border-amber-500/30 text-amber-300 hover:bg-amber-500/10 hover:border-amber-500/50 rounded-xl text-sm font-medium transition-colors">Cancelar</button>
-                <button onClick={addSuggestionsToOrder}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 rounded-xl text-sm font-semibold transition-colors"
-                  style={{ color: "#fff" }}>
-                  <Plus className="w-4 h-4" /> Adicionar à Compra
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Confirmar Recebimento (pedido pendente) */}
       {modal === "receive" && receiveTarget && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
@@ -811,8 +768,33 @@ export default function PurchasesPage() {
         </div>
       )}
 
-      {/* Purchase Modal */}
-      {modal === "purchase" && (
+      {/* Tela cheia de lançamento de compra (computador) */}
+      {purchaseScreenOpen && (
+        <PurchaseScreen
+          suppliers={suppliers}
+          stockItems={stockItems}
+          products={limitedProducts}
+          supplierId={poSupplierId} setSupplierId={setPOSupplierId}
+          notes={poNotes} setNotes={setPONotes}
+          dueDate={poDueDate} setDueDate={setPODueDate}
+          installments={poInstallments} setInstallments={setPOInstallments}
+          items={poItems} setItems={setPOItems}
+          salePrices={salePrices} setSalePrices={setSalePrices}
+          error={purchaseError ?? (!xmlItems ? xmlError : null)}
+          saving={saving}
+          xmlParsing={xmlParsing}
+          onImportXml={() => xmlInputRef.current?.click()}
+          onClose={closePurchaseScreen}
+          onSavePending={savePendingPurchase}
+          onSaveReceive={savePurchase}
+          onCreateProduct={name => createFromScreen("product", name)}
+          onCreateIngredient={name => createFromScreen("ingredient", name)}
+          onEditProduct={openEditProductFromRow}
+        />
+      )}
+
+      {/* Purchase Modal (celular) */}
+      {modal === "purchase" && !isDesktop && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 flex-shrink-0">
