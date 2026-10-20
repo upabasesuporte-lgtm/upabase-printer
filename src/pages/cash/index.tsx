@@ -248,7 +248,8 @@ export default function CashPage() {
   // ── Carregar caixa atual ──
   const loadData = useCallback(async () => {
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { session } } = await supabase.auth.getSession(); // sessão local; RLS protege no banco
+    const user = session?.user ?? null;
     if (user) setUserId(user.id);
 
     const { data: reg } = await supabase
@@ -262,21 +263,35 @@ export default function CashPage() {
 
     if (reg) {
       setRegister(reg);
-      const { data: movs } = await supabase
-        .from("cash_movements")
-        .select("*")
-        .eq("register_id", reg.id)
-        .order("created_at", { ascending: false });
+      // Movimentos, vendas e recebimentos de fiado do turno — buscados em paralelo
+      const [{ data: movs }, { data: salesData }, { data: fiadoPaidData }] = await Promise.all([
+        supabase
+          .from("cash_movements")
+          .select("*")
+          .eq("register_id", reg.id)
+          .order("created_at", { ascending: false }),
+
+        // Carrega vendas (iFood usa valor bruto = total + comissão para bater com recibos)
+        supabase
+          .from("sales")
+          .select("total_amount, discount, payments, origin")
+          .eq("user_id", user?.id)
+          .eq("status", "paid")
+          .neq("origin", "fiado_payment")
+          .gte("created_at", reg.opened_at),
+
+        // Pagamentos de fiado recebidos neste turno: abatem "Fiado (A Rec.)" e
+        // somam na forma de pagamento realmente usada (ex: pago no PIX → soma no PIX)
+        supabase
+          .from("sales")
+          .select("total_amount, payments")
+          .eq("user_id", user?.id)
+          .eq("status", "paid")
+          .eq("origin", "fiado_payment")
+          .gte("created_at", reg.opened_at),
+      ]);
       setMovements(movs ?? []);
 
-      // Carrega vendas (iFood usa valor bruto = total + comissão para bater com recibos)
-      const { data: salesData } = await supabase
-        .from("sales")
-        .select("total_amount, discount, payments, origin")
-        .eq("user_id", user?.id)
-        .eq("status", "paid")
-        .neq("origin", "fiado_payment")
-        .gte("created_at", reg.opened_at);
       const rows = salesData ?? [];
       setSalesRows(rows);
       setSalesTotal(rows.reduce((s: number, r: any) => {
@@ -285,15 +300,6 @@ export default function CashPage() {
         return s + Number(r.total_amount ?? 0);
       }, 0));
 
-      // Pagamentos de fiado recebidos neste turno: abatem "Fiado (A Rec.)" e
-      // somam na forma de pagamento realmente usada (ex: pago no PIX → soma no PIX)
-      const { data: fiadoPaidData } = await supabase
-        .from("sales")
-        .select("total_amount, payments")
-        .eq("user_id", user?.id)
-        .eq("status", "paid")
-        .eq("origin", "fiado_payment")
-        .gte("created_at", reg.opened_at);
       setFiadoPaymentRows(fiadoPaidData ?? []);
     } else {
       setRegister(null);

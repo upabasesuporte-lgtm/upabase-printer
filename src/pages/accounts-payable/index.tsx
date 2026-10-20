@@ -259,7 +259,7 @@ export default function AccountsPayablePage() {
 
   // ── Auth
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => { if (data.user) setUserId(data.user.id); });
+    supabase.auth.getSession().then(({ data }) => { if (data.session?.user) setUserId(data.session.user.id); });
   }, []);
 
   // ── Load

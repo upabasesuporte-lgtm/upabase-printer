@@ -161,7 +161,8 @@ export default function StockPage() {
 
   useEffect(() => {
     async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession(); // sessão local; RLS protege no banco
+      const user = session?.user ?? null;
       if (user) setUserId(user.id);
       await Promise.all([loadStockItems(), loadSuppliers(), loadProducts(), loadLimitedProducts()]);
       setLoading(false);

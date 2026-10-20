@@ -404,10 +404,10 @@ export default function DigitalMenuPage() {
 
   // ── Init
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) {
-        setUserId(data.user.id);
-        refreshStoreCache(data.user.id); // Garante cache de impressão atualizado
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session?.user) {
+        setUserId(data.session.user.id);
+        refreshStoreCache(data.session.user.id); // Garante cache de impressão atualizado
       }
     });
   }, []);

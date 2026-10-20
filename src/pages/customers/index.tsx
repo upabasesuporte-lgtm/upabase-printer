@@ -201,8 +201,11 @@ export default function CustomersPage() {
   // ── Init ────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
+    // Lista de clientes não depende do caixa — começa a carregar já
+    loadCustomers();
     async function init() {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession(); // sessão local; RLS protege no banco
+      const user = session?.user ?? null;
       if (user) {
         setUserId(user.id);
         const { data: reg } = await supabase
@@ -215,7 +218,6 @@ export default function CustomersPage() {
           .maybeSingle();
         setCashRegisterId(reg?.id ?? null);
       }
-      loadCustomers();
     }
     init();
   }, []);
@@ -237,23 +239,26 @@ export default function CustomersPage() {
   async function loadMovements(customerId: string) {
     setMovLoading(true);
     const range = getDateRange(dateFilter, customFrom, customTo);
-    const { data } = await supabase
-      .from("customer_movements")
-      .select("*")
-      .eq("customer_id", customerId)
-      .gte("created_at", range.from)
-      .lte("created_at", range.to)
-      .order("created_at", { ascending: false });
+    // Movimentos do período e histórico completo — buscados em paralelo
+    const [{ data }, { data: allData }] = await Promise.all([
+      supabase
+        .from("customer_movements")
+        .select("*")
+        .eq("customer_id", customerId)
+        .gte("created_at", range.from)
+        .lte("created_at", range.to)
+        .order("created_at", { ascending: false }),
+
+      // Restante do fiado após cada pagamento (usa histórico completo, não só o período filtrado)
+      supabase
+        .from("customer_movements")
+        .select("id, type, amount, description")
+        .eq("customer_id", customerId)
+        .in("type", ["debit", "payment"])
+        .order("created_at", { ascending: true }),
+    ]);
     const movs = (data ?? []) as CustomerMovement[];
     setMovements(movs);
-
-    // Restante do fiado após cada pagamento (usa histórico completo, não só o período filtrado)
-    const { data: allData } = await supabase
-      .from("customer_movements")
-      .select("id, type, amount, description")
-      .eq("customer_id", customerId)
-      .in("type", ["debit", "payment"])
-      .order("created_at", { ascending: true });
     const isSaldoMovFull = (m: { type: string; description: string | null }) =>
       (m.description ?? "").toLowerCase().startsWith("saldo usado");
     let running = 0;

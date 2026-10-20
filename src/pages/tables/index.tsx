@@ -254,21 +254,25 @@ export default function TablesPage() {
   // ── Init ────────────────────────────────────────────────────────────────────
 
   const loadAll = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { session } } = await supabase.auth.getSession(); // sessão local; RLS protege no banco
+    const user = session?.user ?? null;
     if (user) {
       setUserId(user.id);
       refreshStoreCache(user.id);
-      const { data: reg } = await supabase.from("cash_registers")
-        .select("id").eq("user_id", user.id).eq("status", "open")
-        .order("opened_at", { ascending: false }).limit(1).maybeSingle();
-      setCashRegisterId(reg?.id ?? null);
     }
-    const [{ data: t }, { data: p }, { data: c }, { data: custs }] = await Promise.all([
+    // Caixa aberto junto com o resto (antes era buscado antes, em fila)
+    const [{ data: t }, { data: p }, { data: c }, { data: custs }, regRes] = await Promise.all([
       supabase.from("tables").select("*").eq("is_active", true).order("number").order("name"),
       supabase.from("products").select("*").neq("is_active", false).order("name"),
       supabase.from("categories").select("*").order("name"),
       supabase.from("customers").select("id,name,phone,balance,fiado_balance,credit_limit").order("name"),
+      user
+        ? supabase.from("cash_registers")
+            .select("id").eq("user_id", user.id).eq("status", "open")
+            .order("opened_at", { ascending: false }).limit(1).maybeSingle()
+        : Promise.resolve(null),
     ]);
+    if (user) setCashRegisterId(regRes?.data?.id ?? null);
     setTables((t ?? []) as TableRecord[]);
     setProducts((p ?? []) as Product[]);
     setCategories((c ?? []) as Category[]);
