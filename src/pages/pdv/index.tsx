@@ -1128,7 +1128,7 @@ export default function PdvPage() {
   // ══════════════════════════════════════════════════════════════════════════
 
   return (
-    <div className="flex flex-col overflow-hidden -m-6" style={{ height: "calc(100vh - 64px)" }}>
+    <div className="flex flex-col overflow-hidden -m-6 h-[calc(100vh-64px)] md:h-[calc(100vh-76px)]">
 
       {/* Toast de erro global */}
       {toastError && (
@@ -1325,7 +1325,9 @@ export default function PdvPage() {
               {cart.length > 0 && <button onClick={clearCart} className="text-xs text-red-400 hover:text-red-300 transition-colors">Limpar tudo</button>}
             </div>
 
-            <div className="flex-1 overflow-y-auto">
+            {/* Celular: tudo rola junto. Desktop: só os itens rolam e o bloco de totais/botões fica fixo embaixo */}
+            <div className="flex-1 overflow-y-auto md:overflow-hidden md:flex md:flex-col md:min-h-0">
+              <div className="md:flex-1 md:overflow-y-auto md:min-h-0">
               {cart.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-10 text-zinc-600 text-sm gap-3 p-6">
                   <ShoppingCart className="w-10 h-10" />
@@ -1367,9 +1369,10 @@ export default function PdvPage() {
                   ))}
                 </div>
               )}
+              </div>
 
-              {/* Bloco inferior: desconto, totais, cliente, botões — rola junto com os itens */}
-              <div className="border-t border-zinc-800 p-3 space-y-2.5">
+              {/* Bloco inferior: desconto, totais, cliente, botões — fixo no desktop */}
+              <div className="border-t border-zinc-800 p-3 space-y-2.5 md:flex-shrink-0 md:max-h-[70%] md:overflow-y-auto">
 
               {/* Totais — só mostra quando tem itens */}
               {cart.length > 0 && (
