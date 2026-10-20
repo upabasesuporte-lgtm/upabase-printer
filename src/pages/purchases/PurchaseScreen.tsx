@@ -47,6 +47,8 @@ const cellInputCls = "w-full px-2 py-1.5 bg-white border border-gray-200 rounded
 export default function PurchaseScreen(p: Props) {
   const [search, setSearch] = useState("");
   const [highlight, setHighlight] = useState(0);
+  const [supplierWarn, setSupplierWarn] = useState(false);
+  const supplierRef = useRef<HTMLSelectElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { searchRef.current?.focus(); }, []);
@@ -97,6 +99,12 @@ export default function PurchaseScreen(p: Props) {
   const canSave = lines.some(({ l }) => num(l.quantity) > 0) && !p.saving;
   const inst = Math.max(parseInt(p.installments) || 1, 1);
 
+  // O fornecedor é obrigatório para gravar a compra — avisa antes de enviar
+  function guardSave(save: () => void) {
+    if (!p.supplierId) { setSupplierWarn(true); supplierRef.current?.focus(); return; }
+    save();
+  }
+
   return (
     <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-[2px] p-3">
       <div className="h-full w-full flex gap-3">
@@ -114,21 +122,30 @@ export default function PurchaseScreen(p: Props) {
                 <p className="text-xs text-gray-500">Entrada de mercadoria do fornecedor</p>
               </div>
             </div>
+            <div className="flex items-center gap-2">
+            <button onClick={() => p.onCreateProduct(search.trim())}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-700 transition-colors"
+              style={{ color: "#fff" }}>
+              <Plus className="w-4 h-4" /> Cadastrar produto novo
+            </button>
             <button onClick={p.onImportXml} disabled={p.xmlParsing}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50">
               {p.xmlParsing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
               Importar XML da NFe
             </button>
+            </div>
           </div>
 
           {/* Dados da nota */}
           <div className="grid grid-cols-[2fr_1fr] gap-3 px-6 pb-4">
             <div>
-              <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">Fornecedor</label>
-              <select value={p.supplierId} onChange={e => p.setSupplierId(e.target.value)} className={fieldCls + " cursor-pointer"}>
-                <option value="">Não informado</option>
+              <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">Fornecedor *</label>
+              <select ref={supplierRef} value={p.supplierId} onChange={e => { p.setSupplierId(e.target.value); setSupplierWarn(false); }}
+                className={fieldCls + " cursor-pointer" + (supplierWarn ? " border-red-400 ring-2 ring-red-500/15" : "")}>
+                <option value="">Selecione o fornecedor...</option>
                 {p.suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
+              {supplierWarn && <p className="text-xs text-red-600 mt-1">Selecione o fornecedor para salvar a compra.</p>}
             </div>
             <div>
               <label className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1">Nº da nota / pedido</label>
@@ -200,7 +217,11 @@ export default function PurchaseScreen(p: Props) {
                     <Package className="w-6 h-6 text-gray-300" />
                   </div>
                   <p className="text-sm font-semibold text-gray-700">Nenhum item na compra</p>
-                  <p className="text-xs text-gray-500 mt-1">Use a busca acima para adicionar produtos ou importe o XML da nota.</p>
+                  <p className="text-xs text-gray-500 mt-1">Use a busca acima para adicionar produtos que já existem, ou cadastre um produto novo.</p>
+                  <button onClick={() => p.onCreateProduct("")}
+                    className="mt-4 flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold border border-blue-200 text-blue-700 hover:bg-blue-50 transition-colors">
+                    <Plus className="w-4 h-4" /> Cadastrar produto novo
+                  </button>
                 </div>
               ) : lines.map(({ l, idx }) => {
                 const ref = lookup(l);
@@ -222,7 +243,8 @@ export default function PurchaseScreen(p: Props) {
                       </p>
                     </div>
                     <input value={l.quantity} onChange={e => updateLine(idx, { quantity: e.target.value })}
-                      type="number" min="0" step="0.001" className={cellInputCls} />
+                      type="number" min="0" step="0.001" placeholder="Qtd"
+                      className={cellInputCls + (num(l.quantity) > 0 ? "" : " border-red-300 bg-red-50/40")} />
                     <div>
                       <input value={l.unit_cost} onChange={e => updateLine(idx, { unit_cost: e.target.value })}
                         type="number" min="0" step="0.01" placeholder="0,00" className={cellInputCls} />
@@ -304,13 +326,13 @@ export default function PurchaseScreen(p: Props) {
           </div>
 
           <div className="p-4 border-t border-gray-100 space-y-2">
-            <button onClick={p.onSaveReceive} disabled={!canSave}
+            <button onClick={() => guardSave(p.onSaveReceive)} disabled={!canSave}
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               style={{ color: "#fff" }}>
               {p.saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
               Dar entrada no estoque
             </button>
-            <button onClick={p.onSavePending} disabled={!canSave}
+            <button onClick={() => guardSave(p.onSavePending)} disabled={!canSave}
               title="Registra o pedido sem mexer no estoque nem no financeiro — confirme o recebimento quando a mercadoria chegar"
               className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
               <Clock className="w-4 h-4" /> Salvar como pedido

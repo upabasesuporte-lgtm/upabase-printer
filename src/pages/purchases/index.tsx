@@ -334,7 +334,7 @@ export default function PurchasesPage() {
   // vazia e reaproveita o mesmo fluxo de cadastro rápido já existente.
   function createFromScreen(type: "ingredient" | "product", name: string) {
     const idx = poItems.length;
-    setPOItems(prev => [...prev, { ref_type: type, item_id: "", itemName: "", quantity: "", unit_cost: "" }]);
+    setPOItems(prev => [...prev, { ref_type: type, item_id: "", itemName: "", quantity: "1", unit_cost: "" }]);
     openQuickCreate(idx, type, name);
   }
 
