@@ -19,13 +19,12 @@ import {
   Settings,
   Store,
   LogOut,
-  Clock,
   TrendingUp,
   LockOpen,
   Lock,
   Shield,
   Crown,
-  Gift,
+  CalendarDays,
   AlertTriangle,
   Camera,
   Star,
@@ -75,58 +74,76 @@ function daysLeftFromNow(expiresAt: string | null, isLifetime: boolean): number 
   return Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 86400000);
 }
 
+// Vencimento do plano no topo — verde em dia, vermelho quando vencido/suspenso
 function PlanBadge({ plan }: { plan: UserPlanRecord }) {
   const dl = daysLeftFromNow(plan.plan_expires_at, plan.is_lifetime);
   const isExpired = !plan.is_lifetime && dl !== null && dl <= 0;
 
   if (plan.is_lifetime || plan.plan === "lifetime") {
     return (
-      <span style={{
-        display: "inline-flex", alignItems: "center", gap: 4,
-        padding: "2px 10px", borderRadius: 999, fontSize: 11, fontWeight: 700,
-        color: "#a78bfa", background: "rgba(167,139,250,0.12)", border: "1px solid rgba(167,139,250,0.35)",
-        boxShadow: "0 0 8px rgba(167,139,250,0.2)",
-      }}>
-        <Crown size={10} /> Vitalício
-      </span>
+      <div className="flex items-center gap-2 pl-1.5 pr-3 sm:pr-4 py-1.5 rounded-full border"
+        style={{ background: "rgba(167,139,250,0.08)", borderColor: "rgba(167,139,250,0.35)" }}>
+        <span className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+          style={{ background: "rgba(167,139,250,0.18)", color: "#8b5cf6" }}>
+          <Crown size={14} />
+        </span>
+        <span className="text-xs font-bold whitespace-nowrap" style={{ color: "#8b5cf6" }}>Vitalício</span>
+      </div>
     );
   }
 
-  if (plan.plan === "suspended" || isExpired) {
-    return (
-      <span style={{
-        display: "inline-flex", alignItems: "center", gap: 4,
-        padding: "2px 10px", borderRadius: 999, fontSize: 11, fontWeight: 700,
-        color: "#ef4444", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.35)",
-        boxShadow: "0 0 8px rgba(239,68,68,0.2)",
-      }}>
-        <AlertTriangle size={10} /> {plan.plan === "suspended" ? "Suspenso" : "Vencido"}
-      </span>
-    );
-  }
+  const alert = plan.plan === "suspended" || isExpired;
+  const color = alert ? "#ef4444" : "#10b981";
+  const dateText = plan.plan_expires_at
+    ? new Date(plan.plan_expires_at).toLocaleDateString("pt-BR")
+    : null;
 
-  if (plan.plan === "trial") {
-    return (
-      <span style={{
-        display: "inline-flex", alignItems: "center", gap: 4,
-        padding: "2px 10px", borderRadius: 999, fontSize: 11, fontWeight: 700,
-        color: "#f59e0b", background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.35)",
-        boxShadow: "0 0 8px rgba(245,158,11,0.2)",
-      }}>
-        <Gift size={10} /> Trial{dl !== null ? ` · ${dl}d` : ""}
-      </span>
-    );
-  }
+  const label = plan.plan === "suspended"
+    ? "Plano suspenso"
+    : isExpired
+      ? "Venceu em"
+      : plan.plan === "trial"
+        ? "Teste grátis até"
+        : "Vencimento";
 
   return (
-    <span style={{
-      display: "inline-flex", alignItems: "center", gap: 4,
-      padding: "2px 10px", borderRadius: 999, fontSize: 11, fontWeight: 700,
-      color: "#10b981", background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.35)",
-      boxShadow: "0 0 8px rgba(16,185,129,0.2)",
-    }}>
-      ✓ Ativo{dl !== null ? ` · ${dl}d` : ""}
-    </span>
+    <div className="flex items-center gap-2 pl-1.5 pr-3 sm:pr-4 py-1.5 rounded-full border"
+      title={dateText ? `${label} ${dateText}` : label}
+      style={{
+        background: alert ? "rgba(239,68,68,0.08)" : "rgba(16,185,129,0.07)",
+        borderColor: alert ? "rgba(239,68,68,0.45)" : "rgba(16,185,129,0.3)",
+      }}>
+      <span className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${alert ? "animate-pulse" : ""}`}
+        style={{ background: alert ? "rgba(239,68,68,0.15)" : "rgba(16,185,129,0.15)", color }}>
+        {alert ? <AlertTriangle size={14} /> : <CalendarDays size={14} />}
+      </span>
+      <div className="leading-none">
+        <p className="hidden sm:block text-[10px] font-medium text-zinc-500 mb-1 whitespace-nowrap">{label}</p>
+        <p className="text-xs font-bold tabular-nums whitespace-nowrap" style={{ color }}>
+          {dateText ?? (plan.plan === "suspended" ? "Suspenso" : "—")}
+          {!alert && dl !== null && (
+            <span className="hidden sm:inline font-medium text-zinc-500"> · {dl === 1 ? "1 dia" : `${dl} dias`}</span>
+          )}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Card de métrica do topo (vendas, caixa, mesas)
+function HeaderStat({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string; color: string }) {
+  return (
+    <div className="flex items-center gap-2.5 pl-1.5 pr-4 py-1.5 rounded-full border"
+      style={{ background: "#ffffff", borderColor: `${color}33` }}>
+      <span className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+        style={{ background: `${color}1a`, color }}>
+        {icon}
+      </span>
+      <div className="leading-none">
+        <p className="text-[10px] font-medium text-zinc-500 mb-1 whitespace-nowrap">{label}</p>
+        <p className="text-[13px] font-bold tabular-nums whitespace-nowrap" style={{ color }}>{value}</p>
+      </div>
+    </div>
   );
 }
 
@@ -161,9 +178,6 @@ export function AppLayout() {
   // Badge + alarme de pedidos pendentes no Cardápio Digital
   const [digitalPending, setDigitalPending] = useState(0);
   const appAlertLoopRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // Relógio
-  const [now, setNow] = useState(new Date());
 
   // Dados do topo
   const [todaySales,      setTodaySales]      = useState<number>(0);
@@ -258,12 +272,6 @@ export function AppLayout() {
     document.addEventListener("click", unlock, true);
     document.addEventListener("touchstart", unlock, true);
     return () => { document.removeEventListener("click", unlock, true); document.removeEventListener("touchstart", unlock, true); };
-  }, []);
-
-  // ── Relógio — atualiza a cada segundo
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
   }, []);
 
   // ── Dados operacionais do topo
@@ -429,9 +437,6 @@ export function AppLayout() {
       </div>
     );
   }
-
-  const timeStr = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-  const dateStr = now.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" });
 
   // ── Controle de plano ─────────────────────────────────────────────────────
   const isAdmin = userEmail === ADMIN_EMAIL;
@@ -634,8 +639,8 @@ export function AppLayout() {
       <main className="flex-1 flex flex-col overflow-hidden">
 
         {/* ── Top bar ─────────────────────────────────────────────────────── */}
-        <header className="h-16 px-4 md:px-6 flex items-center justify-between flex-shrink-0 gap-3 md:gap-4"
-          style={{ background: T.headerBg, borderBottom: `1px solid ${T.border}` }}>
+        <header className="h-16 px-4 md:px-4 flex items-center justify-between flex-shrink-0 gap-3 md:gap-4 md:mx-3 md:mt-3 md:rounded-2xl md:border md:shadow-sm"
+          style={{ background: T.headerBg, borderColor: T.border, borderBottomWidth: 1 }}>
 
           {/* Menu hambúrguer móvel */}
           <button onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -644,88 +649,38 @@ export function AppLayout() {
             {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
 
-          {/* Esquerda — online + relógio + data */}
-          <div className="flex items-center gap-2 md:gap-4 flex-shrink-0 md:flex-1">
-            {/* Online */}
-            <div className="hidden sm:flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" style={{ boxShadow:"0 0 6px #10b981" }} />
-              <span className="text-[10px] text-zinc-600 uppercase tracking-widest font-medium">Online</span>
-            </div>
-
-            <div className="w-px h-5 bg-zinc-800" />
-
-            {/* Relógio */}
-            <div className="flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 text-zinc-600 flex-shrink-0" />
-              <span className="text-sm font-bold tabular-nums tracking-tight"
-                style={isLight
-                  ? { color: "#7B2FBE", WebkitTextFillColor: "#7B2FBE", backgroundClip: "unset", WebkitBackgroundClip: "unset", background: "none" }
-                  : { background: "linear-gradient(135deg,#c4b5fd,#67e8f9)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text" }}>
-                {timeStr}
-              </span>
-            </div>
-
-            {/* Data */}
-            <span className="text-xs text-zinc-500 capitalize hidden md:block">{dateStr}</span>
-          </div>
-
-          {/* Centro — métricas operacionais (apenas desktop) */}
-          <div className="hidden lg:flex items-center gap-1 flex-1 justify-center">
+          {/* Esquerda — métricas operacionais (apenas desktop) */}
+          <div className="hidden lg:flex items-center gap-2.5 flex-1">
 
             {/* Vendas do dia */}
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border"
-              style={{ background:"rgba(16,185,129,0.06)", borderColor:"rgba(16,185,129,0.2)" }}>
-              <TrendingUp className="w-3.5 h-3.5 flex-shrink-0" style={{ color:"#10b981" }} />
-              <div className="leading-none">
-                <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-0.5">Vendas hoje</p>
-                <p className="text-xs font-black tabular-nums" style={{ color:"#10b981" }}>{fmt(todaySales)}</p>
-              </div>
-            </div>
-
-            <div className="w-px h-8 bg-zinc-800/80" />
+            <HeaderStat
+              icon={<TrendingUp size={15} />}
+              label="Vendas hoje"
+              value={fmt(todaySales)}
+              color="#10b981"
+            />
 
             {/* Caixa */}
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border"
-              style={cashOpenedAt
-                ? { background:"rgba(139,92,246,0.06)", borderColor:"rgba(139,92,246,0.2)" }
-                : { background:"rgba(244,63,94,0.05)",  borderColor:"rgba(244,63,94,0.18)" }}>
-              {cashOpenedAt
-                ? <LockOpen className="w-3.5 h-3.5 flex-shrink-0" style={{ color:"#8b5cf6" }} />
-                : <Lock     className="w-3.5 h-3.5 flex-shrink-0" style={{ color:"#f43f5e" }} />}
-              <div className="leading-none">
-                <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-0.5">Caixa</p>
-                <p className="text-xs font-black"
-                  style={{ color: cashOpenedAt ? "#8b5cf6" : "#f43f5e" }}>
-                  {cashOpenedAt ? `Aberto · ${timeSince(cashOpenedAt)}` : "Fechado"}
-                </p>
-              </div>
-            </div>
-
-            <div className="w-px h-8 bg-zinc-800/80" />
+            <HeaderStat
+              icon={cashOpenedAt ? <LockOpen size={15} /> : <Lock size={15} />}
+              label="Caixa"
+              value={cashOpenedAt ? `Aberto · ${timeSince(cashOpenedAt)}` : "Fechado"}
+              color={cashOpenedAt ? "#8b5cf6" : "#f43f5e"}
+            />
 
             {/* Mesas */}
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border"
-              style={occupiedTables > 0
-                ? { background:"rgba(245,158,11,0.06)", borderColor:"rgba(245,158,11,0.2)" }
-                : { background:"rgba(113,113,122,0.06)", borderColor:"rgba(113,113,122,0.18)" }}>
-              <UtensilsCrossed className="w-3.5 h-3.5 flex-shrink-0"
-                style={{ color: occupiedTables > 0 ? "#f59e0b" : "#52525b" }} />
-              <div className="leading-none">
-                <p className="text-[9px] text-zinc-600 uppercase tracking-wider mb-0.5">Mesas</p>
-                <p className="text-xs font-black"
-                  style={{ color: occupiedTables > 0 ? "#f59e0b" : "#52525b" }}>
-                  {occupiedTables > 0 ? `${occupiedTables}/${totalTables} ocupadas` : "Todas livres"}
-                </p>
-              </div>
-            </div>
+            <HeaderStat
+              icon={<UtensilsCrossed size={15} />}
+              label="Mesas"
+              value={occupiedTables > 0 ? `${occupiedTables}/${totalTables} ocupadas` : "Todas livres"}
+              color={occupiedTables > 0 ? "#f59e0b" : "#71717a"}
+            />
           </div>
 
-          {/* Direita — plan badge + empresa + avatar */}
+          {/* Direita — vencimento do plano + empresa + avatar */}
           <div className="flex-shrink-0 flex items-center gap-2 md:gap-3">
             {userEmail !== ADMIN_EMAIL && userPlan && (
-              <div className="hidden sm:block">
-                <PlanBadge plan={userPlan} />
-              </div>
+              <PlanBadge plan={userPlan} />
             )}
 
             {companyName && (
