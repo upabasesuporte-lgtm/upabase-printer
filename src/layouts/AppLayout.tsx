@@ -36,6 +36,7 @@ import {
   Building2,
 } from "lucide-react";
 import { AvaliacaoModal } from "../components/AvaliacaoModal";
+import { prefetchReports, clearReportsCache } from "../pages/reports";
 
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || "";
 
@@ -423,6 +424,7 @@ export function AppLayout() {
   }
 
   async function handleLogout() {
+    clearReportsCache();
     await supabase.auth.signOut();
     navigate("/auth");
   }
@@ -498,6 +500,7 @@ export function AppLayout() {
                 to={item.path}
                 end={item.path === "/"}
                 onClick={() => setSidebarOpen(false)}
+                onMouseEnter={item.path === "/reports" ? prefetchReports : undefined}
                 className="block"
                 style={({ isActive }) => ({
                   display: "flex",

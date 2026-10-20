@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from "react";
+﻿import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
 import {
@@ -136,6 +136,188 @@ function presetToRange(p: Preset): { from: Date; to: Date } {
   }
 }
 
+// ─── Busca dos dados + cache em memória ───────────────────────────────────────
+// O cache fica só na memória da aba (nunca no disco), separado por usuário, e é
+// limpo no "Sair". Ao abrir a aba, mostra o último relatório na hora e atualiza
+// por trás. As consultas continuam passando pelas mesmas regras de segurança (RLS).
+
+interface ReportData {
+  sales: Sale[];
+  saleItems: SaleItem[];
+  cashMovs: CashMovement[];
+  custMovs: CustomerMovement[];
+  stockItems: StockItem[];
+  products: Product[];
+  purchases: PurchaseOrderRow[];
+}
+
+const reportCache    = new Map<string, { data: ReportData; at: number }>();
+const reportInflight = new Map<string, Promise<{ data: ReportData; errs: string[] }>>();
+
+async function currentUserId(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.user.id ?? null;
+}
+
+async function fetchReportData(fromISO: string, toISO: string): Promise<{ data: ReportData; errs: string[] }> {
+  const errs: string[] = [];
+  const data: ReportData = { sales: [], saleItems: [], cashMovs: [], custMovs: [], stockItems: [], products: [], purchases: [] };
+
+  try {
+    // Consultas que não dependem das vendas — já disparam em paralelo
+    const restPromise = Promise.all([
+      supabase.from("cash_movements")
+        .select("id,movement_type,amount,payment_method,description,created_at")
+        .gte("created_at", fromISO)
+        .lte("created_at", toISO)
+        .order("created_at",{ascending:false}),
+
+      supabase.from("customer_movements")
+        .select("id,type,amount,created_at,customers(name)")
+        .gte("created_at", fromISO)
+        .lte("created_at", toISO)
+        .order("created_at",{ascending:false}),
+
+      supabase.from("stock_items")
+        .select("id,name,current_qty,min_qty,unit")
+        .order("current_qty"),
+
+      supabase.from("products")
+        .select("id,name,stock,stock_min,sale_price,unlimited_stock,stock_type")
+        .eq("is_active",true)
+        .order("stock"),
+
+      supabase.from("purchase_orders")
+        .select("id,status,created_at,suppliers(name),purchase_order_items(quantity,unit_cost,stock_items(name),products(name))")
+        .gte("created_at", fromISO)
+        .lte("created_at", toISO)
+        .order("created_at",{ascending:false}),
+    ]);
+
+    // 0. Caixas (turnos) cuja ABERTURA caiu dentro do período selecionado.
+    //    Uma venda pertence ao turno de caixa em que foi lançada — não ao dia-calendário
+    //    do created_at. Um caixa aberto ontem e fechado só hoje continua sendo "de ontem":
+    //    as vendas lançadas nele hoje (antes de fechar) devem contar para o turno de ontem.
+    const { data: regsRaw, error: regsErr } = await supabase
+      .from("cash_registers")
+      .select("id,opened_at,closed_at")
+      .gte("opened_at", fromISO)
+      .lte("opened_at", toISO)
+      .order("opened_at",{ascending:true});
+
+    if (regsErr) errs.push(`Caixas: ${regsErr.message}`);
+    const regs: CashRegisterRow[] = (regsRaw ?? []) as CashRegisterRow[];
+    const nowISO = new Date().toISOString();
+
+    // Se não há caixas abertos no período (ex.: dados antigos anteriores ao uso do
+    // caixa), mantém o comportamento antigo por dia-calendário como fallback.
+    const useRegisterWindow = regs.length > 0;
+    const inAnyRegister = (createdAt: string) =>
+      regs.some(r => createdAt >= r.opened_at && createdAt <= (r.closed_at ?? nowISO));
+    const sessionFrom = useRegisterWindow ? regs[0].opened_at : fromISO;
+    const sessionTo   = useRegisterWindow
+      ? regs.reduce((max, r) => { const end = r.closed_at ?? nowISO; return end > max ? end : max; }, regs[0].closed_at ?? nowISO)
+      : toISO;
+
+    // 1. Vendas finalizadas — colunas que sabemos que existem (sem "seller")
+    const { data: salesRaw, error: salesErr } = await supabase
+      .from("sales")
+      .select("id,total_amount,discount,origin,created_at,status,seller_name,payments")
+      .eq("status","paid")
+      .neq("origin","fiado_payment")
+      .gte("created_at", sessionFrom)
+      .lte("created_at", sessionTo)
+      .order("created_at",{ascending:false});
+
+    if (salesErr) errs.push(`Vendas: ${salesErr.message}`);
+    const salesFiltered = useRegisterWindow
+      ? (salesRaw ?? []).filter((r: any) => inAnyRegister(r.created_at))
+      : (salesRaw ?? []);
+    data.sales = salesFiltered.map((r: any) => ({
+      ...r,
+      total_amount: Number(r.total_amount ?? 0),
+      discount:     Number(r.discount ?? 0),
+    }));
+
+    // 2. Itens de venda — busca pelos IDs das vendas encontradas, em lotes
+    //    (uma lista IN muito grande pode estourar/falhar a requisição).
+    //    Os lotes são buscados em paralelo, mantendo a ordem.
+    const saleIds = data.sales.map(s => s.id);
+    if (saleIds.length > 0) {
+      const CHUNK = 100;
+      const chunks: string[][] = [];
+      for (let i = 0; i < saleIds.length; i += CHUNK) chunks.push(saleIds.slice(i, i + CHUNK));
+      const results = await Promise.all(chunks.map(ids =>
+        supabase
+          .from("sale_items")
+          .select("sale_id,product_id,quantity,unit_price,products(name,category_id)")
+          .in("sale_id", ids)
+      ));
+      const allItems: any[] = [];
+      for (const { data: itemsRaw, error: itemsErr } of results) {
+        if (itemsErr) { errs.push(`Itens: ${itemsErr.message}`); break; }
+        if (itemsRaw) allItems.push(...itemsRaw);
+      }
+      data.saleItems = allItems as unknown as SaleItem[];
+    }
+
+    // 3. Restante (já estava sendo buscado em paralelo)
+    const [cm, cu, st, pr, po] = await restPromise;
+
+    if (cm.error) errs.push(`Caixa: ${cm.error.message}`);
+    if (cu.error) errs.push(`Clientes: ${cu.error.message}`);
+    if (st.error) errs.push(`Estoque: ${st.error.message}`);
+    if (pr.error) errs.push(`Produtos: ${pr.error.message}`);
+    if (po.error) errs.push(`Compras: ${po.error.message}`);
+
+    data.cashMovs   = (cm.data ?? []) as CashMovement[];
+    data.custMovs   = (cu.data ?? []) as unknown as CustomerMovement[];
+    data.stockItems = (st.data ?? []) as StockItem[];
+    data.products   = (pr.data ?? []) as Product[];
+    data.purchases  = (po.data ?? []) as unknown as PurchaseOrderRow[];
+  } catch (e: any) {
+    // Um erro em qualquer await não pode deixar a tela travada em "Carregando..."
+    errs.push(`Falha ao carregar: ${e?.message ?? String(e)}`);
+    console.error("reports load error:", e);
+  }
+
+  return { data, errs };
+}
+
+// Junta pedidos iguais em andamento e guarda no cache só resultados sem erro
+function loadReportData(uid: string, fromISO: string, toISO: string) {
+  const key = `${uid}|${fromISO}|${toISO}`;
+  const running = reportInflight.get(key);
+  if (running) return running;
+  const p = fetchReportData(fromISO, toISO)
+    .then(res => {
+      if (res.errs.length === 0) reportCache.set(key, { data: res.data, at: Date.now() });
+      return res;
+    })
+    .finally(() => reportInflight.delete(key));
+  reportInflight.set(key, p);
+  return p;
+}
+
+// Chamado ao passar o mouse na aba Relatórios: já busca o período padrão (mês)
+export function prefetchReports() {
+  (async () => {
+    const uid = await currentUserId();
+    if (!uid) return;
+    const { from, to } = presetToRange("month");
+    const key = `${uid}|${from.toISOString()}|${to.toISOString()}`;
+    const cached = reportCache.get(key);
+    if (cached && Date.now() - cached.at < 30_000) return;
+    await loadReportData(uid, from.toISOString(), to.toISOString());
+  })().catch(() => {});
+}
+
+// Chamado no "Sair" — nada do relatório fica na memória para a próxima conta
+export function clearReportsCache() {
+  reportCache.clear();
+  reportInflight.clear();
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function ChartTip({ active, payload, label }: any) {
@@ -271,128 +453,50 @@ export default function ReportsPage() {
   const fromISO = from.toISOString();
   const toISO   = to.toISOString();
 
+  const [refreshing, setRefreshing] = useState(false);
+  const loadReqRef = useRef(0);
+
+  const applyData = (d: ReportData) => {
+    setSales(d.sales);
+    setSaleItems(d.saleItems);
+    setCashMovs(d.cashMovs);
+    setCustMovs(d.custMovs);
+    setStockItems(d.stockItems);
+    setProducts(d.products);
+    setPurchases(d.purchases);
+  };
+
   const load = useCallback(async () => {
-    setLoading(true);
+    const req = ++loadReqRef.current;
     setLoadErrors([]);
-    const errs: string[] = [];
+
+    const uid = await currentUserId();
+    const cached = uid ? reportCache.get(`${uid}|${fromISO}|${toISO}`) : undefined;
+
+    // Já tem o relatório na memória: mostra na hora e atualiza por trás
+    if (cached) {
+      applyData(cached.data);
+      setLoading(false);
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
 
     try {
-      // 0. Caixas (turnos) cuja ABERTURA caiu dentro do período selecionado.
-      //    Uma venda pertence ao turno de caixa em que foi lançada — não ao dia-calendário
-      //    do created_at. Um caixa aberto ontem e fechado só hoje continua sendo "de ontem":
-      //    as vendas lançadas nele hoje (antes de fechar) devem contar para o turno de ontem.
-      const { data: regsRaw, error: regsErr } = await supabase
-        .from("cash_registers")
-        .select("id,opened_at,closed_at")
-        .gte("opened_at", fromISO)
-        .lte("opened_at", toISO)
-        .order("opened_at",{ascending:true});
-
-      if (regsErr) errs.push(`Caixas: ${regsErr.message}`);
-      const regs: CashRegisterRow[] = (regsRaw ?? []) as CashRegisterRow[];
-      const nowISO = new Date().toISOString();
-
-      // Se não há caixas abertos no período (ex.: dados antigos anteriores ao uso do
-      // caixa), mantém o comportamento antigo por dia-calendário como fallback.
-      const useRegisterWindow = regs.length > 0;
-      const inAnyRegister = (createdAt: string) =>
-        regs.some(r => createdAt >= r.opened_at && createdAt <= (r.closed_at ?? nowISO));
-      const sessionFrom = useRegisterWindow ? regs[0].opened_at : fromISO;
-      const sessionTo   = useRegisterWindow
-        ? regs.reduce((max, r) => { const end = r.closed_at ?? nowISO; return end > max ? end : max; }, regs[0].closed_at ?? nowISO)
-        : toISO;
-
-      // 1. Vendas finalizadas — colunas que sabemos que existem (sem "seller")
-      const { data: salesRaw, error: salesErr } = await supabase
-        .from("sales")
-        .select("id,total_amount,discount,origin,created_at,status,seller_name,payments")
-        .eq("status","paid")
-        .neq("origin","fiado_payment")
-        .gte("created_at", sessionFrom)
-        .lte("created_at", sessionTo)
-        .order("created_at",{ascending:false});
-
-      if (salesErr) errs.push(`Vendas: ${salesErr.message}`);
-      const salesFiltered = useRegisterWindow
-        ? (salesRaw ?? []).filter((r: any) => inAnyRegister(r.created_at))
-        : (salesRaw ?? []);
-      const salesData: Sale[] = salesFiltered.map((r: any) => ({
-        ...r,
-        total_amount: Number(r.total_amount ?? 0),
-        discount:     Number(r.discount ?? 0),
-      }));
-      setSales(salesData);
-
-      // 2. Itens de venda — busca pelos IDs das vendas encontradas, em lotes
-      //    (uma lista IN muito grande pode estourar/falhar a requisição).
-      const saleIds = salesData.map(s => s.id);
-      if (saleIds.length > 0) {
-        const CHUNK = 100;
-        const allItems: any[] = [];
-        for (let i = 0; i < saleIds.length; i += CHUNK) {
-          const ids = saleIds.slice(i, i + CHUNK);
-          const { data: itemsRaw, error: itemsErr } = await supabase
-            .from("sale_items")
-            .select("sale_id,product_id,quantity,unit_price,products(name,category_id)")
-            .in("sale_id", ids);
-          if (itemsErr) { errs.push(`Itens: ${itemsErr.message}`); break; }
-          if (itemsRaw) allItems.push(...itemsRaw);
-        }
-        setSaleItems(allItems as unknown as SaleItem[]);
-      } else {
-        setSaleItems([]);
-      }
-
-      // 3. Restante em paralelo
-      const [cm, cu, st, pr, po] = await Promise.all([
-        supabase.from("cash_movements")
-          .select("id,movement_type,amount,payment_method,description,created_at")
-          .gte("created_at", fromISO)
-          .lte("created_at", toISO)
-          .order("created_at",{ascending:false}),
-
-        supabase.from("customer_movements")
-          .select("id,type,amount,created_at,customers(name)")
-          .gte("created_at", fromISO)
-          .lte("created_at", toISO)
-          .order("created_at",{ascending:false}),
-
-        supabase.from("stock_items")
-          .select("id,name,current_qty,min_qty,unit")
-          .order("current_qty"),
-
-        supabase.from("products")
-          .select("id,name,stock,stock_min,sale_price,unlimited_stock,stock_type")
-          .eq("is_active",true)
-          .order("stock"),
-
-        supabase.from("purchase_orders")
-          .select("id,status,created_at,suppliers(name),purchase_order_items(quantity,unit_cost,stock_items(name),products(name))")
-          .gte("created_at", fromISO)
-          .lte("created_at", toISO)
-          .order("created_at",{ascending:false}),
-      ]);
-
-      if (cm.error) errs.push(`Caixa: ${cm.error.message}`);
-      if (cu.error) errs.push(`Clientes: ${cu.error.message}`);
-      if (st.error) errs.push(`Estoque: ${st.error.message}`);
-      if (pr.error) errs.push(`Produtos: ${pr.error.message}`);
-      if (po.error) errs.push(`Compras: ${po.error.message}`);
-
-      setCashMovs((cm.data ?? []) as CashMovement[]);
-      setCustMovs((cu.data ?? []) as unknown as CustomerMovement[]);
-      setStockItems((st.data ?? []) as StockItem[]);
-      setProducts((pr.data ?? []) as Product[]);
-      setPurchases((po.data ?? []) as unknown as PurchaseOrderRow[]);
-    } catch (e: any) {
-      // Sem try/catch, um erro em qualquer await deixava a tela travada em
-      // "Carregando..." pra sempre. Agora o erro aparece e o loading encerra.
-      errs.push(`Falha ao carregar: ${e?.message ?? String(e)}`);
-      console.error("reports load error:", e);
-    } finally {
+      const { data, errs } = uid
+        ? await loadReportData(uid, fromISO, toISO)
+        : await fetchReportData(fromISO, toISO);
+      if (req !== loadReqRef.current) return; // período mudou no meio — ignora resposta antiga
+      // Se a atualização falhar, mantém o que já estava na tela e só mostra o erro
+      if (errs.length === 0 || !cached) applyData(data);
       setLoadErrors(errs);
-      setLoading(false);
+    } finally {
+      if (req === loadReqRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fromISO, toISO]);
 
   useEffect(() => { load(); }, [load]);
@@ -583,8 +687,8 @@ export default function ReportsPage() {
           <button onClick={load} disabled={loading}
             style={{ background: card.bg, border: card.border, boxShadow: loading?"none":"0 0 12px rgba(139,92,246,0.2)" }}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-80">
-            <RefreshCw className={`w-4 h-4 ${loading?"animate-spin text-violet-400":"text-zinc-400"}`} />
-            {loading?"Carregando...":"Atualizar"}
+            <RefreshCw className={`w-4 h-4 ${loading||refreshing?"animate-spin text-violet-400":"text-zinc-400"}`} />
+            {loading?"Carregando...":refreshing?"Atualizando...":"Atualizar"}
           </button>
         </div>
       </div>
