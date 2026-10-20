@@ -1327,7 +1327,7 @@ export default function PdvPage() {
 
             {/* Celular: tudo rola junto. Desktop: só os itens rolam e o bloco de totais/botões fica fixo embaixo */}
             <div className="flex-1 overflow-y-auto md:overflow-hidden md:flex md:flex-col md:min-h-0">
-              <div className="md:flex-1 md:overflow-y-auto md:min-h-0">
+              <div className="md:flex-1 md:overflow-y-auto md:min-h-[120px]">
               {cart.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-10 text-zinc-600 text-sm gap-3 p-6">
                   <ShoppingCart className="w-10 h-10" />
@@ -1372,7 +1372,7 @@ export default function PdvPage() {
               </div>
 
               {/* Bloco inferior: desconto, totais, cliente, botões — fixo no desktop */}
-              <div className="border-t border-zinc-800 p-3 space-y-2.5 md:flex-shrink-0 md:max-h-[70%] md:overflow-y-auto">
+              <div className="border-t border-zinc-800 p-3 space-y-2.5 md:min-h-0 md:overflow-y-auto">
 
               {/* Totais — só mostra quando tem itens */}
               {cart.length > 0 && (
@@ -1427,9 +1427,10 @@ export default function PdvPage() {
                   className="w-full text-xs px-3 py-2 rounded-xl placeholder-zinc-500 focus:outline-none focus:border-violet-500"
                   style={{ background: card.bg, border: card.border, color: isLight ? "#374151" : "#d4d4d8" }} />
               )}
+              </div>
 
-              {/* Botões — sempre visíveis, Finalizar desabilitado sem itens */}
-              <div className="grid grid-cols-2 gap-2">
+              {/* Botões — sempre visíveis (fixos embaixo no desktop), Finalizar desabilitado sem itens */}
+              <div className="grid grid-cols-2 gap-2 px-3 pb-3 md:flex-shrink-0">
                 <button onClick={savePending} disabled={cart.length === 0}
                   className="flex items-center justify-center gap-1.5 py-2.5 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold rounded-xl transition-all"
                   style={isLight ? { border:"1px solid #2563eb", color:"#fff", background:"#2563eb" } : { border:"1px solid rgba(16,185,129,0.4)", color:"#10b981", background:"rgba(16,185,129,0.07)" }}>
@@ -1450,7 +1451,6 @@ export default function PdvPage() {
                   </p>
                 )}
               </div>
-            </div>
             {/* fecha flex-1 overflow-y-auto (scroll do carrinho) */}
             </div>
           </div>
