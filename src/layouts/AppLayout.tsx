@@ -306,6 +306,7 @@ export function AppLayout() {
       .select("total_amount, discount, origin")
       .eq("status", "paid")
       .eq("user_id", uid)
+      .neq("origin", "fiado_payment") // recebimento de fiado não é venda nova (igual ao Caixa)
       .gte("created_at", filterFrom);
 
     // iFood: valor bruto (total + comissão) para bater com recibos
