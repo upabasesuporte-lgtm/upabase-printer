@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, ReactNode } from "react";
 
 type Theme = "dark" | "light";
 
@@ -7,28 +7,22 @@ interface ThemeContextValue {
   toggleTheme: () => void;
 }
 
+// Tema escuro removido — o sistema usa sempre o tema claro.
 const ThemeContext = createContext<ThemeContextValue>({
-  theme: "dark",
+  theme: "light",
   toggleTheme: () => {},
 });
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(() => {
-    const saved = localStorage.getItem("upabase-theme");
-    return saved === "light" ? "light" : "dark";
-  });
+  const theme: Theme = "light";
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("upabase-theme", theme);
-  }, [theme]);
-
-  function toggleTheme() {
-    setTheme(t => (t === "dark" ? "light" : "dark"));
-  }
+  }, []);
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme, toggleTheme: () => {} }}>
       {children}
     </ThemeContext.Provider>
   );

@@ -30,8 +30,6 @@ import {
   Camera,
   Star,
   MessageSquare,
-  Sun,
-  Moon,
   HelpCircle,
   Menu,
   X,
@@ -135,7 +133,7 @@ function PlanBadge({ plan }: { plan: UserPlanRecord }) {
 export function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { theme, toggleTheme } = useTheme();
+  const { theme } = useTheme();
   const isLight = theme === "light";
 
   // ── Paleta dinâmica (não toca em nenhuma lógica de negócio)
@@ -468,9 +466,9 @@ export function AppLayout() {
 
       {/* ── Sidebar ───────────────────────────────────────────────────────── */}
       {/* Espaço reservado da sidebar recolhida (desktop) — ao expandir ela sobrepõe o conteúdo */}
-      <div className="hidden md:block w-[88px] flex-shrink-0" />
+      <div className="hidden md:block w-[92px] flex-shrink-0" />
 
-      <aside className={`group w-72 flex flex-col flex-shrink-0 fixed h-screen z-50 transition-all duration-300 md:top-3 md:bottom-3 md:left-3 md:h-auto md:w-[68px] md:hover:w-64 md:z-30 md:rounded-2xl md:border md:shadow-xl md:overflow-hidden md:duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
+      <aside className={`group w-72 flex flex-col flex-shrink-0 fixed h-screen z-50 transition-all duration-300 md:top-3 md:bottom-3 md:left-3 md:h-auto md:w-[72px] md:hover:w-64 md:z-30 md:rounded-2xl md:border md:shadow-xl md:overflow-hidden md:duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
         style={{ background: T.sidebarBg, borderColor: T.border, borderRightWidth: 1 }}>
 
         {/* Logo (somente celular) */}
@@ -483,7 +481,7 @@ export function AppLayout() {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-3 pt-3 pb-0 space-y-1 overflow-y-auto overflow-x-hidden">
+        <nav className="sidebar-nav flex-1 px-3 pt-3 pb-0 space-y-1 overflow-y-auto overflow-x-hidden">
           {visibleMenuItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -603,17 +601,6 @@ export function AppLayout() {
         {/* Rodapé minimalista — tema + feedback + suporte + sair */}
         <div className="px-3 pt-2 pb-3 space-y-1.5" style={{ borderTop: `1px solid ${T.border}` }}>
           <div className="flex items-center gap-2 md:flex-col md:group-hover:flex-row">
-            <button
-              onClick={toggleTheme}
-              title={isLight ? "Tema escuro" : "Tema claro"}
-              className="flex items-center justify-center w-8 h-8 rounded-lg transition-all flex-shrink-0"
-              style={isLight
-                ? { color: "#7B2FBE", background: "rgba(123,47,190,0.08)", border: "1px solid rgba(123,47,190,0.18)" }
-                : { color: "#a78bfa", background: "rgba(167,139,250,0.08)", border: "1px solid rgba(167,139,250,0.18)" }}
-            >
-              {isLight ? <Moon size={14} /> : <Sun size={14} />}
-            </button>
-
             {userEmail !== ADMIN_EMAIL && (
               <button
                 onClick={() => setShowReview(true)}

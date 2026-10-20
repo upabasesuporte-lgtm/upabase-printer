@@ -33,3 +33,9 @@ body {
 .g-text-pink   { background-image: linear-gradient(135deg,#f0abfc,#e879f9); }
 .g-text-blue   { background-image: linear-gradient(135deg,#93c5fd,#60a5fa); }
 .g-text-red    { background-image: linear-gradient(135deg,#fda4af,#fb7185); }
+
+/* Sidebar desktop: esconde a barra de rolagem para não cortar os ícones no modo recolhido */
+@media (min-width: 768px) {
+  .sidebar-nav { scrollbar-width: none; }
+  .sidebar-nav::-webkit-scrollbar { display: none; }
+}
