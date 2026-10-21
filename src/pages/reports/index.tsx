@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
+import { PageHeader, btnSecondary } from "../../components/PageHeader";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
   BarChart, Bar, CartesianGrid, PieChart, Pie, Cell, ComposedChart, Line,
@@ -659,39 +660,19 @@ export default function ReportsPage() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
-  const inputCls = "px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500 transition-all";
+  const inputCls = "px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 transition-all";
 
   return (
     <div className="space-y-5">
 
-      {/* ── Header ── */}
-      <div className="relative overflow-hidden rounded-2xl p-6"
-        style={{ background: card.bg, border: card.border, boxShadow: card.shadow,
-          backgroundImage: isLight ? "radial-gradient(rgba(123,47,190,0.12) 1px,transparent 1px)" : "radial-gradient(rgba(139,92,246,0.08) 1px,transparent 1px)",
-          backgroundSize:"24px 24px" }}>
-        <div className="absolute inset-0 pointer-events-none" style={isLight ? { background: "linear-gradient(135deg, rgba(123,47,190,0.04) 0%, rgba(0,180,216,0.03) 100%)" } : undefined}>{!isLight && <div className="absolute inset-0 bg-gradient-to-r from-violet-900/10 to-cyan-900/5" />}</div>
-        <div className="relative flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: isLight ? "#3B82F6" : "#8b5cf6" }} />
-              <span className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: isLight ? "#3B82F6" : "#a78bfa" }}>Analytics</span>
-            </div>
-            <h1 className={`text-2xl font-black ${isLight ? "" : "g-text g-text-purple"}`} style={isLight ? { color:"#3B82F6" } : undefined}>
-              Central de Relatórios
-            </h1>
-            <p className="text-xs text-zinc-500 mt-1">
-              {from.toLocaleDateString("pt-BR")} — {to.toLocaleDateString("pt-BR")}
-              {!loading && sales.length>0 && <span className="text-violet-400 ml-2">· {sales.length} vendas · {fmt(totalRevenue)}</span>}
-            </p>
-          </div>
-          <button onClick={load} disabled={loading}
-            style={{ background: card.bg, border: card.border, boxShadow: loading?"none":"0 0 12px rgba(139,92,246,0.2)" }}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all hover:opacity-80">
-            <RefreshCw className={`w-4 h-4 ${loading||refreshing?"animate-spin text-violet-400":"text-zinc-400"}`} />
+      <PageHeader title="Relatórios"
+        subtitle={<>{from.toLocaleDateString("pt-BR")} — {to.toLocaleDateString("pt-BR")}{!loading && sales.length>0 && <span className="text-brand-700 font-semibold ml-1">· {sales.length} vendas · {fmt(totalRevenue)}</span>}</>}
+        actions={
+          <button onClick={load} disabled={loading} className={btnSecondary}>
+            <RefreshCw className={`w-4 h-4 ${loading||refreshing?"animate-spin text-brand-600":""}`} />
             {loading?"Carregando...":refreshing?"Atualizando...":"Atualizar"}
           </button>
-        </div>
-      </div>
+        } />
 
       {/* ── Period selector ── */}
       <Card className="p-4">
@@ -704,7 +685,7 @@ export default function ReportsPage() {
               <button key={p.key} onClick={()=>setPreset(p.key)}
                 className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                 style={preset===p.key
-                  ? { background:"linear-gradient(135deg,#7c3aed,#4f46e5)", color:"#fff", boxShadow:"0 0 12px rgba(124,58,237,0.4)" }
+                  ? { background:"#315DFB", color:"#fff" }
                   : { background: isLight ? "#f3f4f6" : "#27272a", color: isLight ? "#374151" : "#a1a1aa", border: isLight ? "1px solid #e5e7eb" : "none" }}>
                 {p.label}
               </button>
@@ -729,12 +710,12 @@ export default function ReportsPage() {
       )}
 
       {/* ── Tabs ── */}
-      <div className="flex gap-1 rounded-2xl p-1.5 overflow-x-auto" style={{ background: card.bg, border: card.border }}>
+      <div className="flex gap-1 rounded-2xl p-1.5 overflow-x-auto bg-gray-200/60">
         {TABS.map(t=>(
           <button key={t.key} onClick={()=>setTab(t.key)}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex-1 justify-center whitespace-nowrap min-w-fit"
             style={tab===t.key
-              ? { background:`${t.color}20`, color:t.color, boxShadow:`0 0 14px ${t.color}30, inset 0 0 0 1px ${t.color}40` }
+              ? { background:"#ffffff", color:"#2547D6", boxShadow:"0 1px 2px rgba(0,0,0,0.08)" }
               : { color:"#71717a" }}>
             {t.icon} {t.label}
           </button>
@@ -744,7 +725,7 @@ export default function ReportsPage() {
       {loading && (
         <div className="flex items-center justify-center py-16">
           <div className="flex flex-col items-center gap-3">
-            <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
             <p className="text-xs text-zinc-600">Carregando dados...</p>
           </div>
         </div>
@@ -1338,7 +1319,7 @@ export default function ReportsPage() {
                       </div>
                       <div className="text-right flex-shrink-0">
                         <p className="font-black text-sm text-amber-400">{p.stock} un.</p>
-                        <p className="text-[10px] text-violet-400">{fmt(p.sale_price)}</p>
+                        <p className="text-[10px] text-brand-600">{fmt(p.sale_price)}</p>
                       </div>
                     </div>
                   ))}
