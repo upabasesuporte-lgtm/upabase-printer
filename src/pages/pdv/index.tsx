@@ -602,18 +602,24 @@ export default function PdvPage() {
         stockMap[item.product.id].totalQty += item.quantity;
       }
     }
+    const saleMovements: Record<string, unknown>[] = [];
     for (const { product, totalQty } of Object.values(stockMap)) {
       const newStock = Math.max(0, product.stock - totalQty);
       await supabase.from("products").update({
         stock: newStock,
         ...(newStock === 0 ? { is_active: false } : {}),
       }).eq("id", product.id);
+      saleMovements.push({
+        product_id: product.id, type: "sale", quantity: newStock - product.stock,
+        balance_after: newStock, reference_type: "sale", reference_id: sale.id,
+        notes: `Venda #${sale.id.slice(-6).toUpperCase()}`,
+      });
     }
 
     // Baixa automática de estoque via ficha técnica
     const productIds = cart.map(i => i.product.id);
     const { data: recipes } = await supabase
-      .from("product_recipes")
+      .from("recipe_items")
       .select("product_id, stock_item_id, quantity")
       .in("product_id", productIds);
     if (recipes && recipes.length > 0) {
@@ -629,16 +635,19 @@ export default function PdvPage() {
       for (const si of stockItems ?? []) {
         const qty = deductions[si.id] ?? 0;
         if (qty > 0) {
-          await supabase.from("stock_items").update({ current_qty: Math.max(0, si.current_qty - qty) }).eq("id", si.id);
-          await supabase.from("stock_movements").insert({
-            stock_item_id: si.id, user_id: userId,
-            type: "sale", quantity: qty,
+          const newQty = Math.max(0, si.current_qty - qty);
+          await supabase.from("stock_items").update({ current_qty: newQty }).eq("id", si.id);
+          saleMovements.push({
+            stock_item_id: si.id,
+            type: "sale", quantity: newQty - si.current_qty, balance_after: newQty,
             reference_type: "sale", reference_id: sale.id,
-            notes: `Venda #${orderNum}`,
+            notes: `Venda #${orderNum} (ficha técnica)`,
           });
         }
       }
     }
+    // Histórico de estoque (se falhar, a venda segue normalmente)
+    if (saleMovements.length > 0) await supabase.from("inventory_movements").insert(saleMovements);
 
     // Registrar no caixa (se houver caixa aberto)
     if (cashRegisterId && userId) {

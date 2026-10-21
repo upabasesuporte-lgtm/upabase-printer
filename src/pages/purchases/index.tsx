@@ -13,6 +13,7 @@ import PurchaseScreen, { PURCHASE_PAY_METHODS } from "./PurchaseScreen";
 interface SimpleItem {
   id: string; name: string; barcode?: string | null; unit?: string | null;
   current_qty?: number; min_qty?: number; max_qty?: number | null; cost_price?: number; sale_price?: number;
+  controlled?: boolean; // produto com controle de estoque (insumo sempre controla)
 }
 
 // Computador (1024px+) usa a tela cheia de lançamento; celular mantém o modal antigo
@@ -183,6 +184,7 @@ export default function PurchasesPage() {
     setLimitedProducts(((data ?? []) as any[]).map(p => ({
       id: p.id, name: p.name, barcode: p.barcode, unit: p.unit,
       current_qty: p.stock, min_qty: p.stock_min, max_qty: p.stock_max, cost_price: p.cost_price, sale_price: p.sale_price,
+      controlled: p.stock_type !== "unlimited" && p.unlimited_stock !== true,
     })) as SimpleItem[]);
   }
 
@@ -488,11 +490,53 @@ export default function PurchasesPage() {
       }
       if (payErr) alert("A compra foi lançada e o estoque atualizado, mas não foi possível registrar a forma de pagamento em Contas a Pagar. Ajuste por lá. (" + payErr.message + ")");
     }
+    if (poId) await logPurchaseMovements(poId as string, validItems.map(i => ({
+      ref_type: i.ref_type, item_id: i.item_id, quantity: parseFloat(i.quantity), unit_cost: parseFloat(i.unit_cost) || 0,
+    })), "purchase", suppliers.find(s => s.id === poSupplierId)?.name ?? null);
     await applySalePrices(validItems);
     await Promise.all([loadPurchases(), loadStockItems(), loadLimitedProducts()]);
     setSaving(false);
     setModal("none");
   }
+
+  // Histórico de estoque da compra (aparece na aba Estoque). Roda depois que a
+  // compra já foi gravada e nunca a desfaz: se falhar, só fica sem o registro.
+  // Produtos "sem controle de estoque" não entram — o saldo deles não é acompanhado.
+  async function logPurchaseMovements(
+    poId: string,
+    items: { ref_type: "ingredient" | "product"; item_id: string; quantity: number; unit_cost: number }[],
+    type: "purchase" | "purchase_cancel",
+    supplierName: string | null,
+  ) {
+    const tracked = items.filter(i => i.ref_type === "ingredient" || limitedProducts.find(p => p.id === i.item_id)?.controlled !== false);
+    if (tracked.length === 0) return;
+    const prodIds = tracked.filter(i => i.ref_type === "product").map(i => i.item_id);
+    const ingIds = tracked.filter(i => i.ref_type === "ingredient").map(i => i.item_id);
+    const [prodRes, ingRes] = await Promise.all([
+      prodIds.length ? supabase.from("products").select("id, stock").in("id", prodIds) : Promise.resolve({ data: [] as any[] }),
+      ingIds.length ? supabase.from("stock_items").select("id, current_qty").in("id", ingIds) : Promise.resolve({ data: [] as any[] }),
+    ]);
+    const balance: Record<string, number> = {};
+    for (const p of (prodRes.data ?? []) as any[]) balance[p.id] = Number(p.stock);
+    for (const s of (ingRes.data ?? []) as any[]) balance[s.id] = Number(s.current_qty);
+    const label = type === "purchase" ? `Compra${supplierName ? " - " + supplierName : ""}` : `Compra cancelada${supplierName ? " - " + supplierName : ""}`;
+    await supabase.from("inventory_movements").insert(tracked.map(i => ({
+      product_id: i.ref_type === "product" ? i.item_id : null,
+      stock_item_id: i.ref_type === "ingredient" ? i.item_id : null,
+      type,
+      quantity: type === "purchase" ? i.quantity : -i.quantity,
+      balance_after: balance[i.item_id] ?? null,
+      unit_cost: i.unit_cost || null,
+      reference_type: "purchase", reference_id: poId,
+      notes: label,
+    })));
+  }
+
+  const poItemsForLog = (po: PurchaseOrder) => (po.purchase_order_items ?? []).map(i => ({
+    ref_type: (i.product_id ? "product" : "ingredient") as "product" | "ingredient",
+    item_id: (i.product_id ?? i.stock_item_id) as string,
+    quantity: Number(i.quantity), unit_cost: Number(i.unit_cost),
+  })).filter(i => !!i.item_id);
 
   // Confirma que a mercadoria de uma compra pendente chegou: só agora estoque
   // e conta a pagar são atualizados.
@@ -509,6 +553,7 @@ export default function PurchasesPage() {
       setReceivingId(null);
       return;
     }
+    await logPurchaseMovements(po.id, poItemsForLog(po), "purchase", po.suppliers?.name ?? null);
     await Promise.all([loadPurchases(), loadStockItems(), loadLimitedProducts()]);
     setReceivingId(null);
     setModal("none");
@@ -536,6 +581,7 @@ export default function PurchasesPage() {
       setCancellingId(null);
       return;
     }
+    await logPurchaseMovements(po.id, poItemsForLog(po), "purchase_cancel", po.suppliers?.name ?? null);
     await Promise.all([loadPurchases(), loadStockItems(), loadLimitedProducts()]);
     setCancellingId(null);
   }

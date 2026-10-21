@@ -494,21 +494,31 @@ export default function TablesPage() {
       const tableName = selectedTable?.name ?? "";
       const tableId   = selectedTable?.id ?? "";
 
-      // Stock deduction for limited products
+      // Stock deduction for limited products (soma as linhas do mesmo produto
+      // antes de baixar — o mesmo item pode ter sido pedido mais de uma vez)
+      const saleQtyByProduct: Record<string, number> = {};
       for (const item of orderItems) {
-        const prod = products.find(p => p.id === item.product_id);
+        saleQtyByProduct[item.product_id] = (saleQtyByProduct[item.product_id] ?? 0) + item.quantity;
+      }
+      const saleMovements: Record<string, unknown>[] = [];
+      for (const [productId, soldQty] of Object.entries(saleQtyByProduct)) {
+        const prod = products.find(p => p.id === productId);
         if (prod && !isUnlimited(prod)) {
-          const newStock = Math.max(0, prod.stock - item.quantity);
+          const newStock = Math.max(0, prod.stock - soldQty);
           await supabase.from("products").update({
             stock: newStock, ...(newStock === 0 ? { is_active: false } : {}),
           }).eq("id", prod.id);
+          saleMovements.push({
+            product_id: prod.id, type: "sale", quantity: newStock - prod.stock, balance_after: newStock,
+            reference_type: "sale", reference_id: saleId, notes: `Mesa ${tableName} - Venda #${orderNum}`,
+          });
         }
       }
 
       // Ficha técnica deduction
       const productIds = [...new Set(orderItems.map(i => i.product_id))];
       if (productIds.length > 0) {
-        const { data: recipes } = await supabase.from("product_recipes")
+        const { data: recipes } = await supabase.from("recipe_items")
           .select("product_id, stock_item_id, quantity").in("product_id", productIds);
         if (recipes && recipes.length > 0) {
           const deductions: Record<string, number> = {};
@@ -521,16 +531,19 @@ export default function TablesPage() {
           for (const si of sis ?? []) {
             const qty = deductions[si.id] ?? 0;
             if (qty > 0) {
-              await supabase.from("stock_items").update({ current_qty: Math.max(0, si.current_qty - qty) }).eq("id", si.id);
-              await supabase.from("stock_movements").insert({
-                stock_item_id: si.id, user_id: userId, type: "sale", quantity: qty,
+              const newQty = Math.max(0, si.current_qty - qty);
+              await supabase.from("stock_items").update({ current_qty: newQty }).eq("id", si.id);
+              saleMovements.push({
+                stock_item_id: si.id, type: "sale", quantity: newQty - si.current_qty, balance_after: newQty,
                 reference_type: "sale", reference_id: saleId,
-                notes: `Mesa - Venda #${orderNum}`,
+                notes: `Mesa ${tableName} - Venda #${orderNum} (ficha técnica)`,
               });
             }
           }
         }
       }
+      // Histórico de estoque (se falhar, o fechamento segue normalmente)
+      if (saleMovements.length > 0) await supabase.from("inventory_movements").insert(saleMovements);
 
       // Cash movements
       if (cashRegisterId) {

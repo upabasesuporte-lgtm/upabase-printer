@@ -1,1184 +1,1175 @@
-﻿import { useState, useEffect } from "react";
+﻿import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../../lib/supabase";
-import { useTheme } from "../../contexts/ThemeContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
+import { ProductModal, type Category, type Product } from "../products";
 import {
-  Boxes, Plus, Search, X, Edit2, Trash2, RefreshCw, AlertTriangle,
-  TrendingUp, ShoppingCart, Truck, BarChart3, ArrowDownToLine,
-  ArrowUpFromLine, RotateCcw, Flame, ClipboardList, DollarSign,
-  Check, BookOpen,
-  Package, Save, Warehouse,
+  Search, X, Plus, RefreshCw, Pencil, Trash2, AlertTriangle, Boxes, Package, BookOpen, History,
+  ArrowDownToLine, ArrowUpFromLine, Flame, ClipboardCheck, ShoppingCart, Truck, Undo2, Info,
+  ChevronRight, Infinity as InfinityIcon, Check,
 } from "lucide-react";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Tipos ────────────────────────────────────────────────────────────────────
 
-interface Supplier {
-  id: string; name: string; cnpj: string | null; phone: string | null;
-  email: string | null; contact_name: string | null; address: string | null;
-  notes: string | null; is_active: boolean; created_at: string;
-}
-
-interface StockItem {
+interface StockItemRow {
   id: string; name: string; unit: string; current_qty: number; min_qty: number;
   max_qty: number | null; cost_price: number; supplier_id: string | null;
-  category: string | null; notes: string | null; is_active: boolean; created_at: string;
+  category: string | null; notes: string | null;
   suppliers?: { name: string } | null;
 }
 
-interface RecipeIngredient {
-  id: string; product_id: string; stock_item_id: string; quantity: number; unit: string;
-  stock_items?: { name: string; unit: string; current_qty: number } | null;
+interface ProductRow {
+  id: string; name: string; unit: string | null; stock: number; stock_min: number | null;
+  stock_max: number | null; cost_price: number | null; sale_price: number | null;
+  stock_type: string | null; unlimited_stock: boolean | null; is_active: boolean; status: string | null;
 }
 
-interface StockMovement {
-  id: string; stock_item_id: string | null; product_id?: string | null; type: string; quantity: number;
-  cost_price: number | null; reference_type: string | null; notes: string | null;
-  created_at: string; stock_items?: { name: string; unit: string } | null;
-  products?: { name: string; unit: string } | null;
+type Kind = "product" | "ingredient";
+
+// Linha unificada da lista de estoque
+interface Row {
+  key: string; kind: Kind; id: string; name: string; unit: string;
+  qty: number; min: number; max: number | null; cost: number;
+  subtitle: string | null; paused: boolean;
 }
 
-interface SimpleProduct { id: string; name: string; unit: string; }
-
-interface LimitedProduct {
-  id: string; name: string; unit: string; stock: number; stock_min: number;
-  stock_max: number | null; cost_price: number; is_active: boolean;
-  unlimited_stock: boolean | null; stock_type: string | null;
+interface Movement {
+  id: string; product_id: string | null; stock_item_id: string | null; type: string;
+  quantity: number; balance_after: number | null; unit_cost: number | null;
+  notes: string | null; created_at: string;
+  products?: { name: string; unit: string | null } | null;
+  stock_items?: { name: string; unit: string } | null;
 }
 
-// item unificado para exibição na lista
-interface UnifiedItem {
-  id: string; name: string; unit: string; current_qty: number; min_qty: number;
-  max_qty: number | null; cost_price: number; category: string | null;
-  supplier_name: string | null; entry_type: "product" | "ingredient"; is_active: boolean;
-}
+interface RecipeLine { id: string; product_id: string; stock_item_id: string; quantity: number; }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+type View = "stock" | "history" | "recipes";
+type StatusFilter = "all" | "low" | "out" | "uncontrolled";
+type MoveType = "entry" | "exit" | "loss" | "count";
 
-const UNITS = ["unidade","kg","g","litro","ml","metro","cm","caixa","dúzia","pacote","porção"];
+// ─── Constantes ───────────────────────────────────────────────────────────────
+
+const UNITS = ["unidade", "kg", "g", "litro", "ml", "metro", "cm", "caixa", "dúzia", "pacote", "porção"];
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-const fmtQty = (v: number, unit: string) =>
-  `${Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 3 })} ${unit}`;
+const fmtNum = (v: number) => Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 3 });
+const fmtQty = (v: number, unit: string) => `${fmtNum(v)} ${unit}`;
+const num = (v: string) => parseFloat(v.replace(",", ".")) || 0;
+const fmtDateTime = (d: string) => new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" });
 
-const inputCls = "w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/10 transition-all";
-const selectCls = inputCls + " cursor-pointer";
+const isControlled = (p: ProductRow) => p.stock_type !== "unlimited" && p.unlimited_stock !== true;
 
-function getStockStatus(item: StockItem): "out" | "low" | "ok" {
-  if (item.current_qty <= 0) return "out";
-  if (item.min_qty > 0 && item.current_qty <= item.min_qty) return "low";
+function statusOf(qty: number, min: number): "out" | "low" | "ok" {
+  if (qty <= 0) return "out";
+  if (min > 0 && qty <= min) return "low";
   return "ok";
 }
 
-const STATUS_CFG = {
-  out: { label: "Sem Estoque", badge: "text-red-400 bg-red-500/10 border border-red-500/20", bar: "bg-red-500" },
-  low: { label: "Estoque Baixo", badge: "text-amber-400 bg-amber-500/10 border border-amber-500/20", bar: "bg-amber-500" },
-  ok:  { label: "Normal", badge: "text-emerald-400 bg-emerald-500/10 border border-emerald-500/20", bar: "bg-emerald-500" },
+const STATUS = {
+  out: { label: "Zerado", badge: "bg-red-50 text-red-700 ring-1 ring-red-100", bar: "bg-red-500", text: "text-red-600" },
+  low: { label: "Baixo", badge: "bg-amber-50 text-amber-700 ring-1 ring-amber-100", bar: "bg-amber-500", text: "text-amber-600" },
+  ok: { label: "Normal", badge: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100", bar: "bg-emerald-500", text: "text-gray-900" },
 };
 
-const MOV_INFO: Record<string, { label: string; color: string; sign: string; bg: string }> = {
-  entry:      { label: "Entrada",   color: "text-emerald-400", sign: "+", bg: "bg-emerald-500/10" },
-  exit:       { label: "Saída",     color: "text-red-400",     sign: "-", bg: "bg-red-500/10"     },
-  adjustment: { label: "Ajuste",    color: "text-blue-400",    sign: "±", bg: "bg-blue-500/10"    },
-  loss:       { label: "Perda",     color: "text-orange-400",  sign: "-", bg: "bg-orange-500/10"  },
-  sale:       { label: "Venda",     color: "text-violet-400",  sign: "-", bg: "bg-violet-500/10"  },
-  return:     { label: "Devolução", color: "text-teal-400",    sign: "+", bg: "bg-teal-500/10"    },
+const MOVE_INFO: Record<string, { label: string; icon: React.ReactNode; tone: string }> = {
+  entry: { label: "Entrada", icon: <ArrowDownToLine className="w-3.5 h-3.5" />, tone: "bg-emerald-50 text-emerald-700" },
+  purchase: { label: "Compra", icon: <Truck className="w-3.5 h-3.5" />, tone: "bg-emerald-50 text-emerald-700" },
+  return: { label: "Devolução", icon: <Undo2 className="w-3.5 h-3.5" />, tone: "bg-emerald-50 text-emerald-700" },
+  sale: { label: "Venda", icon: <ShoppingCart className="w-3.5 h-3.5" />, tone: "bg-blue-50 text-blue-700" },
+  exit: { label: "Saída", icon: <ArrowUpFromLine className="w-3.5 h-3.5" />, tone: "bg-gray-100 text-gray-700" },
+  loss: { label: "Perda", icon: <Flame className="w-3.5 h-3.5" />, tone: "bg-red-50 text-red-700" },
+  count: { label: "Contagem", icon: <ClipboardCheck className="w-3.5 h-3.5" />, tone: "bg-violet-50 text-violet-700" },
+  purchase_cancel: { label: "Compra cancelada", icon: <Undo2 className="w-3.5 h-3.5" />, tone: "bg-gray-100 text-gray-700" },
 };
 
-type Tab = "overview" | "items" | "recipes" | "movements";
-type Modal = "none" | "item" | "movement" | "deleteItem";
+const MOVE_TYPES: { key: MoveType; label: string; hint: string }[] = [
+  { key: "entry", label: "Entrada", hint: "Chegou mercadoria fora de uma compra lançada" },
+  { key: "exit", label: "Saída", hint: "Uso interno, consumo, transferência" },
+  { key: "loss", label: "Perda", hint: "Vencido, quebrado, estragado" },
+  { key: "count", label: "Contagem", hint: "Digite quanto tem de verdade — o sistema acerta a diferença" },
+];
 
-// ─── Component ────────────────────────────────────────────────────────────────
+const card = "bg-white border border-gray-200 rounded-2xl shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.04)]";
+const fieldCls = "w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all";
+const btnPrimary = "inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors";
+const btnGhost = "inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold border border-gray-200 text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-40 transition-colors";
+const WHITE = { color: "#fff" };
+
+// ─── Página ───────────────────────────────────────────────────────────────────
 
 export default function StockPage() {
-  const { theme } = useTheme();
-  const isLight = theme === "light";
-  const card = isLight ? {
-    bg: "#ffffff",
-    border: "1px solid #e5e7eb",
-    shadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.9)",
-  } : {
-    bg: "#18181b",
-    border: "1px solid rgba(39,39,42,0.8)",
-    shadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
-  };
-  const [userId, setUserId] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>("overview");
-
-  // Data
-  const [stockItems, setStockItems] = useState<StockItem[]>([]);
-  const [limitedProducts, setLimitedProducts] = useState<LimitedProduct[]>([]);
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [movements, setMovements] = useState<StockMovement[]>([]);
-  const [products, setProducts] = useState<SimpleProduct[]>([]);
-
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [view, setView] = useState<View>("stock");
 
-  // Filters
+  const [stockItems, setStockItems] = useState<StockItemRow[]>([]);
+  const [products, setProducts] = useState<ProductRow[]>([]);
+  const [suppliers, setSuppliers] = useState<{ id: string; name: string }[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [recipeCount, setRecipeCount] = useState<Record<string, number>>({});
+
+  // Filtros da lista
   const [search, setSearch] = useState("");
-  const [globalSearch, setGlobalSearch] = useState("");
-  const [stockFilter, setStockFilter] = useState<"all" | "low" | "out">("all");
-  const [itemTypeFilter, setItemTypeFilter] = useState<"all" | "product" | "ingredient">("all");
-  const [movFilter, setMovFilter] = useState<"all" | "entry" | "exit" | "adjustment" | "loss" | "sale">("all");
-  // movement modal extra
-  const [movItemType, setMovItemType] = useState<"ingredient" | "product">("ingredient");
+  const [kindFilter, setKindFilter] = useState<"all" | Kind>("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
-  // Modal
-  const [modal, setModal] = useState<Modal>("none");
-  const [editingItem, setEditingItem] = useState<StockItem | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string; table: string } | null>(null);
-  useEscapeKey(() => {
-    if (modal === "deleteItem") { setDeleteTarget(null); setModal("none"); return; }
-    setModal("none");
-  }, modal !== "none");
+  // Painel do item
+  const [selected, setSelected] = useState<{ kind: Kind; id: string } | null>(null);
 
-  // Recipe
-  const [selectedProduct, setSelectedProduct] = useState<SimpleProduct | null>(null);
-  const [recipes, setRecipes] = useState<RecipeIngredient[]>([]);
-  const [recipeItemId, setRecipeItemId] = useState("");
-  const [recipeQty, setRecipeQty] = useState("");
-  const [recipeUnit, setRecipeUnit] = useState("unidade");
-
-  // Item form
-  const [iName, setIName] = useState("");
-  const [iUnit, setIUnit] = useState("unidade");
-  const [iCurrentQty, setICurrentQty] = useState("0");
-  const [iMinQty, setIMinQty] = useState("0");
-  const [iMaxQty, setIMaxQty] = useState("");
-  const [iCostPrice, setICostPrice] = useState("0");
-  const [iSupplierId, setISupplierId] = useState("");
-  const [iCategory, setICategory] = useState("");
-  const [iNotes, setINotes] = useState("");
-
-  // Movement form
-  const [movItemId, setMovItemId] = useState("");
-  const [movType, setMovType] = useState("entry");
-  const [movQty, setMovQty] = useState("");
-  const [movCost, setMovCost] = useState("");
-  const [movNotes, setMovNotes] = useState("");
-
-  // ── Init ──────────────────────────────────────────────────────────────────
+  // Modais
+  const [ingredientModal, setIngredientModal] = useState<{ item: StockItemRow | null } | null>(null);
+  const [editProduct, setEditProduct] = useState<Product | null>(null);
+  const [controlTarget, setControlTarget] = useState<ProductRow | null>(null);
 
   useEffect(() => {
-    async function init() {
-      const { data: { session } } = await supabase.auth.getSession(); // sessão local; RLS protege no banco
-      const user = session?.user ?? null;
-      if (user) setUserId(user.id);
-      await Promise.all([loadStockItems(), loadSuppliers(), loadProducts(), loadLimitedProducts()]);
+    (async () => {
+      await Promise.all([loadStockItems(), loadProducts(), loadSuppliers(), loadCategories(), loadRecipeCounts()]);
       setLoading(false);
-    }
-    init();
+    })();
   }, []);
 
-  useEffect(() => {
-    if (tab === "movements") loadMovements();
-  }, [tab]);
-
-  // ── Loaders ───────────────────────────────────────────────────────────────
-
   async function loadStockItems() {
-    const { data } = await supabase
-      .from("stock_items").select("*, suppliers(name)")
-      .eq("is_active", true).order("name");
-    setStockItems((data ?? []) as StockItem[]);
+    const { data } = await supabase.from("stock_items").select("*, suppliers(name)").eq("is_active", true).order("name");
+    setStockItems(((data ?? []) as any[]).map(i => ({ ...i, current_qty: Number(i.current_qty) || 0, min_qty: Number(i.min_qty) || 0, cost_price: Number(i.cost_price) || 0 })));
   }
-
-  async function loadSuppliers() {
-    const { data } = await supabase.from("suppliers").select("*").order("name");
-    setSuppliers((data ?? []) as Supplier[]);
-  }
-
-  async function loadMovements() {
-    const { data } = await supabase
-      .from("stock_movements").select("*, stock_items(name, unit), products(name, unit)")
-      .order("created_at", { ascending: false }).limit(300);
-    setMovements((data ?? []) as StockMovement[]);
-  }
-
   async function loadProducts() {
-    const { data } = await supabase
-      .from("products").select("id, name, unit").eq("is_active", true).order("name");
-    setProducts((data ?? []) as SimpleProduct[]);
+    // Inativo = excluído pelo usuário. Ativo com is_active=false = pausado porque zerou.
+    const { data } = await supabase.from("products")
+      .select("id, name, unit, stock, stock_min, stock_max, cost_price, sale_price, stock_type, unlimited_stock, is_active, status")
+      .or("status.is.null,status.neq.inactive").order("name");
+    setProducts(((data ?? []) as any[]).map(p => ({ ...p, stock: Number(p.stock) || 0 })));
   }
-
-  async function loadLimitedProducts() {
-    const { data } = await supabase
-      .from("products")
-      .select("id, name, unit, stock, stock_min, stock_max, cost_price, is_active, unlimited_stock, stock_type")
-      .or("unlimited_stock.eq.false,unlimited_stock.is.null")
-      .eq("is_active", true)
-      .order("name");
-    setLimitedProducts((data ?? []) as LimitedProduct[]);
+  async function loadSuppliers() {
+    const { data } = await supabase.from("suppliers").select("id, name").order("name");
+    setSuppliers((data ?? []) as { id: string; name: string }[]);
   }
-
-  async function loadRecipes(productId: string) {
-    const { data } = await supabase
-      .from("product_recipes")
-      .select("*, stock_items(name, unit, current_qty)")
-      .eq("product_id", productId);
-    setRecipes((data ?? []) as RecipeIngredient[]);
+  async function loadCategories() {
+    const { data } = await supabase.from("categories").select("id, name, parent_id, color, description").order("name");
+    setCategories((data ?? []) as Category[]);
   }
-
-  // ── Stock Items CRUD ──────────────────────────────────────────────────────
-
-  function openItemModal(item?: StockItem) {
-    if (item) {
-      setEditingItem(item);
-      setIName(item.name); setIUnit(item.unit);
-      setICurrentQty(String(item.current_qty)); setIMinQty(String(item.min_qty));
-      setIMaxQty(item.max_qty != null ? String(item.max_qty) : "");
-      setICostPrice(String(item.cost_price)); setISupplierId(item.supplier_id ?? "");
-      setICategory(item.category ?? ""); setINotes(item.notes ?? "");
-    } else {
-      setEditingItem(null);
-      setIName(""); setIUnit("unidade"); setICurrentQty("0"); setIMinQty("0");
-      setIMaxQty(""); setICostPrice("0"); setISupplierId(""); setICategory(""); setINotes("");
-    }
-    setModal("item");
+  async function loadRecipeCounts() {
+    const { data } = await supabase.from("recipe_items").select("product_id");
+    const counts: Record<string, number> = {};
+    for (const r of (data ?? []) as { product_id: string }[]) counts[r.product_id] = (counts[r.product_id] ?? 0) + 1;
+    setRecipeCount(counts);
   }
+  const reloadItems = () => Promise.all([loadStockItems(), loadProducts()]);
 
-  async function saveItem() {
-    if (!iName.trim() || saving) return;
-    setSaving(true);
-    const payload = {
-      name: iName.trim(), unit: iUnit,
-      current_qty: parseFloat(iCurrentQty) || 0,
-      min_qty: parseFloat(iMinQty) || 0,
-      max_qty: iMaxQty ? parseFloat(iMaxQty) : null,
-      cost_price: parseFloat(iCostPrice) || 0,
-      supplier_id: iSupplierId || null,
-      category: iCategory || null,
-      notes: iNotes || null,
-    };
-    if (editingItem) {
-      await supabase.from("stock_items").update(payload).eq("id", editingItem.id);
-    } else {
-      const { data: created } = await supabase.from("stock_items").insert(payload).select("id").single();
-      if (created && payload.current_qty > 0) {
-        await supabase.from("stock_movements").insert({
-          stock_item_id: created.id, user_id: userId,
-          type: "entry", quantity: payload.current_qty,
-          cost_price: payload.cost_price, notes: "Estoque inicial",
-        });
-      }
-    }
-    await loadStockItems();
-    setSaving(false);
-    setModal("none");
-  }
+  // ── Derivados ──────────────────────────────────────────────────────────────
 
-  // ── Movement ──────────────────────────────────────────────────────────────
+  const controlledProducts = products.filter(isControlled);
+  const uncontrolledProducts = products.filter(p => !isControlled(p));
 
-  function openMovModal() {
-    setMovItemId(""); setMovType("entry"); setMovQty(""); setMovCost(""); setMovNotes("");
-    setModal("movement");
-  }
-
-  async function saveMovement() {
-    if (!movItemId || !movQty || saving) return;
-    setSaving(true);
-    const qty = parseFloat(movQty);
-    const isAdd = movType === "entry" || movType === "return" || movType === "adjustment";
-
-    if (movItemType === "ingredient") {
-      await supabase.from("stock_movements").insert({
-        stock_item_id: movItemId, user_id: userId,
-        type: movType, quantity: qty,
-        cost_price: parseFloat(movCost) || null,
-        notes: movNotes || null,
-      });
-      const item = stockItems.find(i => i.id === movItemId);
-      if (item) {
-        const newQty = isAdd ? item.current_qty + qty : Math.max(0, item.current_qty - qty);
-        await supabase.from("stock_items").update({ current_qty: newQty }).eq("id", movItemId);
-      }
-      await loadStockItems();
-    } else {
-      // produto com estoque contado
-      const prod = limitedProducts.find(p => p.id === movItemId);
-      if (prod) {
-        const newQty = isAdd ? prod.stock + qty : Math.max(0, prod.stock - qty);
-        const updates: Record<string, unknown> = { stock: newQty };
-        if (newQty > 0 && !prod.is_active) updates.is_active = true;
-        await supabase.from("products").update(updates).eq("id", movItemId);
-        await supabase.from("stock_movements").insert({
-          stock_item_id: null, product_id: movItemId, user_id: userId,
-          type: movType, quantity: qty,
-          cost_price: parseFloat(movCost) || null,
-          reference_type: "product", reference_id: movItemId,
-          notes: movNotes || `Ajuste manual - ${prod.name}`,
-        });
-      }
-      await loadLimitedProducts();
-    }
-
-    if (tab === "movements") await loadMovements();
-    setSaving(false);
-    setModal("none");
-  }
-
-  // ── Recipes ───────────────────────────────────────────────────────────────
-
-  async function addRecipeItem() {
-    if (!selectedProduct || !recipeItemId || !recipeQty) return;
-    await supabase.from("product_recipes").upsert({
-      product_id: selectedProduct.id, stock_item_id: recipeItemId,
-      quantity: parseFloat(recipeQty), unit: recipeUnit,
-    }, { onConflict: "product_id,stock_item_id" });
-    setRecipeItemId(""); setRecipeQty(""); setRecipeUnit("unidade");
-    await loadRecipes(selectedProduct.id);
-  }
-
-  async function removeRecipeItem(id: string) {
-    await supabase.from("product_recipes").delete().eq("id", id);
-    if (selectedProduct) await loadRecipes(selectedProduct.id);
-  }
-
-  async function deleteConfirmed() {
-    if (!deleteTarget || saving) return;
-    setSaving(true);
-    await (supabase.from(deleteTarget.table as any) as any)
-      .update({ is_active: false }).eq("id", deleteTarget.id);
-    await loadStockItems();
-    await loadSuppliers();
-    await loadLimitedProducts();
-    setDeleteTarget(null);
-    setSaving(false);
-    setModal("none");
-  }
-
-  // ── Derived ───────────────────────────────────────────────────────────────
-
-  // Unified item list
-  function getUnifiedStatus(item: UnifiedItem): "out" | "low" | "ok" {
-    if (item.current_qty <= 0) return "out";
-    if (item.min_qty > 0 && item.current_qty <= item.min_qty) return "low";
-    return "ok";
-  }
-
-  const allUnified: UnifiedItem[] = [
+  const rows: Row[] = useMemo(() => [
+    ...controlledProducts.map(p => ({
+      key: `product:${p.id}`, kind: "product" as const, id: p.id, name: p.name, unit: p.unit || "unidade",
+      qty: p.stock, min: p.stock_min ?? 0, max: p.stock_max, cost: Number(p.cost_price) || 0,
+      subtitle: null, paused: !p.is_active,
+    })),
     ...stockItems.map(i => ({
-      id: i.id, name: i.name, unit: i.unit, current_qty: i.current_qty,
-      min_qty: i.min_qty, max_qty: i.max_qty, cost_price: i.cost_price,
-      category: i.category, supplier_name: i.suppliers?.name ?? null,
-      entry_type: "ingredient" as const, is_active: i.is_active,
+      key: `ingredient:${i.id}`, kind: "ingredient" as const, id: i.id, name: i.name, unit: i.unit,
+      qty: i.current_qty, min: i.min_qty, max: i.max_qty, cost: i.cost_price,
+      subtitle: [i.category, i.suppliers?.name].filter(Boolean).join(" · ") || null, paused: false,
     })),
-    ...limitedProducts.map(p => ({
-      id: p.id, name: p.name, unit: p.unit, current_qty: p.stock,
-      min_qty: p.stock_min, max_qty: p.stock_max, cost_price: p.cost_price,
-      category: null, supplier_name: null,
-      entry_type: "product" as const, is_active: p.is_active,
-    })),
-  ];
+  ].sort((a, b) => a.name.localeCompare(b.name, "pt-BR")), [products, stockItems]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const filteredItems = allUnified.filter(item => {
-    const matchSearch = search === "" ||
-      item.name.toLowerCase().includes(search.toLowerCase()) ||
-      (item.category ?? "").toLowerCase().includes(search.toLowerCase());
-    const status = getUnifiedStatus(item);
-    const matchStock = stockFilter === "all" || status === stockFilter;
-    const matchType = itemTypeFilter === "all" || item.entry_type === itemTypeFilter;
-    return matchSearch && matchStock && matchType;
-  });
+  const totalValue = rows.reduce((s, r) => s + Math.max(r.qty, 0) * r.cost, 0);
+  const lowCount = rows.filter(r => statusOf(r.qty, r.min) === "low").length;
+  const outCount = rows.filter(r => statusOf(r.qty, r.min) === "out").length;
 
-  const globalResults = globalSearch === "" ? [] : allUnified.filter(i =>
-    i.name.toLowerCase().includes(globalSearch.toLowerCase())
-  );
-  const lowStockItems = allUnified.filter(i => getUnifiedStatus(i) !== "ok");
-  const totalValue = allUnified.reduce((s, i) => s + i.current_qty * i.cost_price, 0);
-  const filteredMovements = movFilter === "all" ? movements : movements.filter(m => m.type === movFilter);
+  const q = search.trim().toLowerCase();
+  const filteredRows = rows.filter(r =>
+    (q === "" || r.name.toLowerCase().includes(q) || (r.subtitle ?? "").toLowerCase().includes(q)) &&
+    (kindFilter === "all" || r.kind === kindFilter) &&
+    (statusFilter === "all" || statusFilter === "uncontrolled" || statusOf(r.qty, r.min) === statusFilter));
+  const filteredUncontrolled = uncontrolledProducts.filter(p => q === "" || p.name.toLowerCase().includes(q));
 
-  const TABS = [
-    { key: "overview",   label: "Visão Geral",  icon: <BarChart3 className="w-3.5 h-3.5" /> },
-    { key: "items",      label: "Itens",         icon: <Boxes className="w-3.5 h-3.5" /> },
-    { key: "recipes",    label: "Ficha Técnica", icon: <BookOpen className="w-3.5 h-3.5" /> },
-    { key: "movements",  label: "Movimentações", icon: <ClipboardList className="w-3.5 h-3.5" /> },
-  ] as const;
+  const selectedRow = selected ? rows.find(r => r.kind === selected.kind && r.id === selected.id) ?? null : null;
+
+  // Esc fecha a camada de cima
+  useEscapeKey(() => {
+    if (editProduct) setEditProduct(null);
+    else if (controlTarget) setControlTarget(null);
+    else if (ingredientModal) setIngredientModal(null);
+    else if (selected) setSelected(null);
+  }, !!(editProduct || controlTarget || ingredientModal || selected));
+
+  async function openEditProduct(id: string) {
+    const { data } = await supabase.from("products").select("*").eq("id", id).single();
+    if (data) setEditProduct(data as Product);
+  }
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <RefreshCw className="w-5 h-5 animate-spin text-violet-400" />
+        <RefreshCw className="w-5 h-5 animate-spin text-blue-500" />
       </div>
     );
   }
 
   return (
     <>
-      <div className="space-y-5">
-        {/* Header */}
-        <div className="relative overflow-hidden rounded-2xl p-5"
-          style={{ background: card.bg, border: card.border, boxShadow: card.shadow,
-            backgroundImage:"radial-gradient(rgba(59,130,246,0.07) 1px,transparent 1px)", backgroundSize:"24px 24px" }}>
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-900/10 to-transparent pointer-events-none" />
-          <div className="relative flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-1.5 h-1.5 rounded-full" style={{background:"#3b82f6",boxShadow:"0 0 6px #3b82f6"}} />
-              <span className="text-[11px] font-semibold uppercase tracking-widest" style={{color:"#3b82f6"}}>Armazém</span>
+      <div className="space-y-4">
+        {/* Cabeçalho */}
+        <div className={`${card} p-5`}>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-black text-gray-900 tracking-tight">Estoque</h1>
+              <p className="text-sm text-gray-500 mt-0.5">
+                {rows.length} ite{rows.length !== 1 ? "ns" : "m"} com controle de estoque
+                {uncontrolledProducts.length > 0 && <> · {uncontrolledProducts.length} produto{uncontrolledProducts.length !== 1 ? "s" : ""} vendido{uncontrolledProducts.length !== 1 ? "s" : ""} sem controle</>}
+              </p>
             </div>
-            <h1 className="text-2xl font-black g-text g-text-blue">
-              Estoque
-            </h1>
-            <p className="text-xs text-zinc-500 mt-0.5">
-              {allUnified.length} itens · {limitedProducts.length} produto{limitedProducts.length !== 1 ? "s" : ""} + {stockItems.length} insumo{stockItems.length !== 1 ? "s" : ""}
-              {lowStockItems.length > 0 && (
-                <span className="text-amber-400 ml-1">· {lowStockItems.length} com alerta</span>
-              )}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            {tab === "items" && <>
-              <button onClick={openMovModal}
-                className="flex items-center gap-1.5 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl text-sm font-medium transition-all border border-zinc-700">
-                <ArrowDownToLine className="w-4 h-4" /> Movimentação
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex p-1 bg-gray-100 rounded-xl">
+                {([
+                  { key: "stock", label: "Estoque", icon: <Boxes className="w-4 h-4" /> },
+                  { key: "history", label: "Histórico", icon: <History className="w-4 h-4" /> },
+                  { key: "recipes", label: "Fichas técnicas", icon: <BookOpen className="w-4 h-4" /> },
+                ] as const).map(t => (
+                  <button key={t.key} onClick={() => setView(t.key)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${view === t.key ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-800"}`}>
+                    {t.icon}<span className="hidden sm:inline">{t.label}</span>
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => setIngredientModal({ item: null })} className={btnPrimary} style={WHITE}>
+                <Plus className="w-4 h-4" /> Novo insumo
               </button>
-              <button onClick={() => openItemModal()}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold transition-all"
-                style={{background:"linear-gradient(135deg,#1d4ed8,#3b82f6)",color:"#fff",boxShadow:"0 0 16px rgba(59,130,246,0.35)"}}>
-                <Plus className="w-4 h-4" /> Novo Item
-              </button>
-            </>}
-            {tab === "movements" && (
-              <button onClick={openMovModal}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${isLight ? "bg-blue-600 hover:bg-blue-700" : "bg-violet-600 hover:bg-violet-500 text-white"}`}
-                style={isLight ? { color: "#ffffff" } : undefined}>
-                <Plus className="w-4 h-4" /> Nova Movimentação
-              </button>
-            )}
-          </div>
+            </div>
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1.5 overflow-x-auto pb-0.5">
-          {TABS.map(t => (
-            <button key={t.key} onClick={() => { setTab(t.key); setSearch(""); }}
-              style={tab !== t.key ? { background: card.bg, border: card.border } : isLight ? { background: "#2563eb", color: "#fff" } : undefined}
-              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0 ${tab === t.key ? (isLight ? "" : "bg-violet-600 text-white shadow-lg shadow-violet-900/30") : "text-zinc-400 hover:text-white"}`}>
-              {t.icon}{t.label}
-              {t.key === "items" && lowStockItems.length > 0 && (
-                <span className="bg-amber-500 text-black text-[10px] font-black rounded-full w-4 h-4 flex items-center justify-center">
-                  {lowStockItems.length > 9 ? "9+" : lowStockItems.length}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* ═══ OVERVIEW ═══════════════════════════════════════════════════════ */}
-        {tab === "overview" && (
-          <div className="space-y-5">
-            {/* Busca geral — encontra qualquer item cadastrado, seja qual for o status do estoque */}
-            <div className="relative">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-              <input value={globalSearch} onChange={e => setGlobalSearch(e.target.value)}
-                placeholder="Buscar qualquer produto ou insumo do estoque por nome..."
-                style={{ background: card.bg, border: card.border, color: isLight ? "#111" : "#fff" }}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm placeholder-zinc-600 focus:outline-none focus:border-violet-500 transition-all" />
+        {view === "stock" && (
+          <>
+            {/* Indicadores */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <Kpi label="Valor em estoque" value={fmt(totalValue)} sub="pelo custo de compra" />
+              <Kpi label="Itens controlados" value={String(rows.length)}
+                sub={`${controlledProducts.length} produto${controlledProducts.length !== 1 ? "s" : ""} · ${stockItems.length} insumo${stockItems.length !== 1 ? "s" : ""}`}
+                active={statusFilter === "all"} onClick={() => setStatusFilter("all")} />
+              <Kpi label="Abaixo do mínimo" value={String(lowCount)} sub="precisam de reposição" tone={lowCount > 0 ? "amber" : undefined}
+                active={statusFilter === "low"} onClick={() => setStatusFilter(statusFilter === "low" ? "all" : "low")} />
+              <Kpi label="Zerados" value={String(outCount)} sub="sem nada em estoque" tone={outCount > 0 ? "red" : undefined}
+                active={statusFilter === "out"} onClick={() => setStatusFilter(statusFilter === "out" ? "all" : "out")} />
             </div>
 
-            {globalSearch !== "" ? (
-              <div className="rounded-2xl overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
-                <div className="flex items-center gap-2 px-5 py-4 border-b border-zinc-800">
-                  <Search className="w-4 h-4 text-violet-400" />
-                  <h2 className="text-sm font-semibold">Resultados da busca</h2>
-                  <span className="ml-auto text-xs" style={{ color: isLight ? "#9CA3AF" : "#71717a" }}>{globalResults.length} ite{globalResults.length !== 1 ? "ns" : "m"}</span>
-                </div>
-                {globalResults.length === 0 ? (
-                  <p className="text-center text-xs text-zinc-600 py-8">Nenhum produto ou insumo encontrado para "{globalSearch}".</p>
-                ) : (
-                  <div className="divide-y divide-zinc-800/50">
-                    {globalResults.map(item => {
-                      const status = getUnifiedStatus(item);
-                      const cfg = STATUS_CFG[status];
-                      return (
-                        <div key={item.id} className="flex items-center gap-4 px-5 py-3">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-sm font-semibold text-white">{item.name}</span>
-                              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${item.entry_type === "product" ? "text-blue-400 bg-blue-500/10 border-blue-500/20" : "text-violet-400 bg-violet-500/10 border-violet-500/20"}`}>
-                                {item.entry_type === "product" ? "Produto" : "Insumo"}
-                              </span>
-                              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${cfg.badge}`}>{cfg.label}</span>
-                            </div>
-                            <p className="text-xs text-zinc-500 mt-0.5">
-                              {fmtQty(item.current_qty, item.unit)} / mín {fmtQty(item.min_qty, item.unit)} · custo {fmt(item.cost_price)}
-                            </p>
-                          </div>
-                          <button onClick={() => {
-                            setTab("items");
-                            setSearch(item.name);
-                            setItemTypeFilter("all");
-                            setStockFilter("all");
-                          }}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex-shrink-0 ${isLight ? "bg-blue-600 hover:bg-blue-700 border border-blue-600" : "bg-violet-600/20 hover:bg-violet-600 text-violet-400 hover:text-white border border-violet-500/30"}`}
-                            style={isLight ? { color: "#ffffff" } : undefined}>
-                            Ver em Itens
-                          </button>
-                        </div>
-                      );
-                    })}
+            {/* Barra de filtros */}
+            <div className={`${card} p-3 flex flex-col lg:flex-row gap-3 lg:items-center`}>
+              <div className="relative flex-1">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar produto ou insumo..."
+                  className={fieldCls + " pl-10 bg-gray-50"} />
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <Segmented value={kindFilter} onChange={v => setKindFilter(v)} disabled={statusFilter === "uncontrolled"}
+                  options={[{ value: "all", label: "Todos" }, { value: "product", label: "Produtos" }, { value: "ingredient", label: "Insumos" }]} />
+                <Segmented value={statusFilter} onChange={v => setStatusFilter(v)}
+                  options={[
+                    { value: "all", label: "Tudo" },
+                    { value: "low", label: "Baixo" },
+                    { value: "out", label: "Zerado" },
+                    { value: "uncontrolled", label: `Sem controle${uncontrolledProducts.length ? ` (${uncontrolledProducts.length})` : ""}` },
+                  ]} />
+              </div>
+            </div>
+
+            {statusFilter === "uncontrolled" ? (
+              <UncontrolledList products={filteredUncontrolled} recipeCount={recipeCount}
+                onControl={p => setControlTarget(p)}
+                onRecipe={() => setView("recipes")} />
+            ) : (
+              <>
+                {uncontrolledProducts.length > 0 && statusFilter === "all" && kindFilter !== "ingredient" && q === "" && (
+                  <div className="flex items-start sm:items-center gap-3 px-4 py-3 rounded-2xl bg-blue-50/60 border border-blue-100 text-sm text-blue-900">
+                    <Info className="w-4 h-4 flex-shrink-0 mt-0.5 sm:mt-0 text-blue-600" />
+                    <p className="flex-1">
+                      <span className="font-semibold">{uncontrolledProducts.length} produto{uncontrolledProducts.length !== 1 ? "s são vendidos" : " é vendido"} sem controle de estoque</span>
+                      {" "}(como pratos feitos na hora) e não aparece{uncontrolledProducts.length !== 1 ? "m" : ""} nesta lista.
+                    </p>
+                    <button onClick={() => setStatusFilter("uncontrolled")} className="flex-shrink-0 text-sm font-semibold text-blue-700 hover:underline">Ver</button>
                   </div>
                 )}
-              </div>
-            ) : (
-            <>
-            {/* Summary cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-              {[
-                { gFrom:"#8b5cf6", gTo:"#a78bfa", glow:"rgba(139,92,246,0.13)",
-                  icon:<Boxes className="w-4 h-4" style={{color:"#8b5cf6"}} />,
-                  iconBg:"rgba(139,92,246,0.1)", iconBorder:"rgba(139,92,246,0.25)",
-                  value: String(allUnified.length), label:"Total de Itens",
-                  sub:`${limitedProducts.length} produto${limitedProducts.length !== 1 ? "s" : ""} · ${stockItems.length} insumo${stockItems.length !== 1 ? "s" : ""}`,
-                  darkValue:"#fff" },
-                { gFrom: lowStockItems.length > 0 ? "#f59e0b" : "#71717a",
-                  gTo: lowStockItems.length > 0 ? "#fbbf24" : "#a1a1aa",
-                  glow: lowStockItems.length > 0 ? "rgba(245,158,11,0.18)" : "rgba(113,113,122,0.08)",
-                  icon:<AlertTriangle className="w-4 h-4" style={{color: lowStockItems.length > 0 ? "#f59e0b" : "#71717a"}} />,
-                  iconBg: lowStockItems.length > 0 ? "rgba(245,158,11,0.1)" : "rgba(113,113,122,0.1)",
-                  iconBorder: lowStockItems.length > 0 ? "rgba(245,158,11,0.25)" : "rgba(113,113,122,0.2)",
-                  value: String(lowStockItems.length), label:"Alertas de Estoque",
-                  sub: lowStockItems.length > 0 ? "Itens precisam de reposição" : "Todos os itens em dia",
-                  darkValue: lowStockItems.length > 0 ? "#f59e0b" : "#fff" },
-                { gFrom:"#10b981", gTo:"#34d399", glow:"rgba(16,185,129,0.13)",
-                  icon:<DollarSign className="w-4 h-4" style={{color:"#10b981"}} />,
-                  iconBg:"rgba(16,185,129,0.1)", iconBorder:"rgba(16,185,129,0.25)",
-                  value: fmt(totalValue), label:"Valor em Estoque",
-                  sub:`${allUnified.length} ite${allUnified.length !== 1 ? "ns" : "m"} contabilizados`,
-                  darkValue:"#10b981" },
-                { gFrom:"#3b82f6", gTo:"#60a5fa", glow:"rgba(59,130,246,0.13)",
-                  icon:<Truck className="w-4 h-4" style={{color:"#3b82f6"}} />,
-                  iconBg:"rgba(59,130,246,0.1)", iconBorder:"rgba(59,130,246,0.25)",
-                  value: String(suppliers.length), label:"Fornecedores",
-                  sub: suppliers.length > 0 ? `${suppliers.length} cadastrado${suppliers.length !== 1 ? "s" : ""}` : "Nenhum cadastrado",
-                  darkValue:"#fff" },
-              ].map((cfg, i) => (
-                <div key={i} className="relative overflow-hidden rounded-2xl p-5 cursor-default"
-                  style={isLight ? {
-                    background: "#ffffff",
-                    border: "1px solid #e5e7eb",
-                    boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.9)",
-                  } : {
-                    background: card.bg, border: card.border,
-                    boxShadow: `0 0 24px ${cfg.glow}`,
-                  }}>
-                  {isLight
-                    ? <div style={{ position:"absolute", top:0, left:0, right:0, height:3, background:`linear-gradient(90deg,${cfg.gFrom},${cfg.gTo})`, borderRadius:"12px 12px 0 0" }} />
-                    : <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full opacity-20 blur-2xl pointer-events-none" style={{ background: cfg.gFrom }} />
-                  }
-                  <div className="relative z-10">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: isLight ? "#9CA3AF" : "#71717a" }}>{cfg.label}</span>
-                      <div className="p-2 rounded-xl" style={{ background: cfg.iconBg, border:`1px solid ${cfg.iconBorder}` }}>{cfg.icon}</div>
+
+                {filteredRows.length === 0 ? (
+                  <div className={`${card} text-center py-16 px-6`}>
+                    <div className="w-14 h-14 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center mx-auto mb-3">
+                      <Boxes className="w-6 h-6 text-gray-300" />
                     </div>
-                    <div className="text-2xl font-black tabular-nums"
-                      style={isLight
-                        ? { background:`linear-gradient(135deg,${cfg.gFrom},${cfg.gTo})`, WebkitBackgroundClip:"text", display:"inline-block", WebkitTextFillColor:"transparent", backgroundClip:"text" }
-                        : { color: cfg.darkValue }}>
-                      {cfg.value}
-                    </div>
-                    <p className="text-[11px] mt-1" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>{cfg.sub}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Alerts */}
-            {lowStockItems.length > 0 && (
-              <div className="rounded-2xl overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
-                <div className={`flex items-center gap-2 px-5 py-4 border-b ${isLight ? "border-gray-100" : "border-zinc-800"}`}>
-                  <AlertTriangle className="w-4 h-4 text-amber-400" />
-                  <h2 className="text-sm font-semibold" style={{ color: isLight ? "#111827" : undefined }}>Alertas de Estoque</h2>
-                  <span className="ml-auto text-xs" style={{ color: isLight ? "#9CA3AF" : "#71717a" }}>{lowStockItems.length} ite{lowStockItems.length !== 1 ? "ns" : "m"}</span>
-                </div>
-                <div className={isLight ? "p-2 flex flex-col gap-1" : "divide-y divide-zinc-800/50"}>
-                  {lowStockItems.map(item => {
-                    const status = getUnifiedStatus(item);
-                    const stCfg = STATUS_CFG[status];
-                    const pct = item.min_qty > 0 ? Math.min(100, (item.current_qty / item.min_qty) * 100) : 0;
-                    return (
-                      <div key={item.id} className={`flex items-center gap-4 px-4 py-3 ${isLight ? "rounded-xl hover:bg-gray-50 transition-colors" : ""}`}>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className={`text-sm font-semibold truncate ${isLight ? "text-gray-900" : "text-white"}`}>{item.name}</span>
-                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${stCfg.badge}`}>{stCfg.label}</span>
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${item.entry_type === "product" ? "text-blue-400 bg-blue-500/10 border-blue-500/20" : "text-violet-400 bg-violet-500/10 border-violet-500/20"}`}>
-                              {item.entry_type === "product" ? "Produto" : "Insumo"}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <div className={`flex-1 h-1.5 rounded-full overflow-hidden ${isLight ? "bg-gray-200" : "bg-zinc-800"}`}>
-                              <div className={`h-full rounded-full transition-all ${stCfg.bar}`} style={{ width: `${pct}%` }} />
-                            </div>
-                            <span className="text-xs flex-shrink-0" style={{ color: isLight ? "#9CA3AF" : "#71717a" }}>
-                              {fmtQty(item.current_qty, item.unit)} / mín {fmtQty(item.min_qty, item.unit)}
-                            </span>
-                          </div>
-                        </div>
-                        <button onClick={() => {
-                          setTab("items");
-                          if (item.entry_type === "ingredient") {
-                            openItemModal(stockItems.find(i => i.id === item.id));
-                          } else {
-                            setMovItemType("product"); setMovItemId(item.id);
-                            setMovType("entry"); setMovQty(""); setMovCost(""); setMovNotes("");
-                            setModal("movement");
-                          }
-                        }}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex-shrink-0 ${isLight ? "bg-blue-600 hover:bg-blue-700 border border-blue-600" : "bg-violet-600/20 hover:bg-violet-600 text-violet-400 hover:text-white border border-violet-500/30"}`}
-                          style={isLight ? { color: "#ffffff" } : undefined}>
-                          Repor
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Top items by value */}
-            {stockItems.length > 0 && (
-              <div className="rounded-2xl overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
-                <div className="flex items-center gap-2 px-5 py-4 border-b border-zinc-800">
-                  <BarChart3 className="w-4 h-4 text-violet-400" />
-                  <h2 className="text-sm font-semibold">Distribuição por Valor</h2>
-                </div>
-                <div className="divide-y divide-zinc-800/30 px-5">
-                  {[...allUnified]
-                    .sort((a, b) => (b.current_qty * b.cost_price) - (a.current_qty * a.cost_price))
-                    .slice(0, 8)
-                    .map(item => {
-                      const value = item.current_qty * item.cost_price;
-                      const pct = totalValue > 0 ? (value / totalValue) * 100 : 0;
-                      return (
-                        <div key={item.id} className="flex items-center gap-4 py-2.5">
-                          <span className="text-sm text-white w-36 truncate flex-shrink-0">{item.name}</span>
-                          <div className="flex-1 h-2 bg-zinc-800 rounded-full overflow-hidden">
-                            <div className="h-full bg-violet-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
-                          </div>
-                          <span className="text-xs font-semibold text-zinc-300 w-24 text-right flex-shrink-0">{fmt(value)}</span>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-            )}
-
-            {allUnified.length === 0 && (
-              <div className="text-center py-20 border border-dashed border-zinc-800 rounded-2xl">
-                <Warehouse className="w-12 h-12 text-zinc-700 mx-auto mb-4" />
-                <p className="text-zinc-400 font-semibold">Estoque vazio</p>
-                <p className="text-zinc-600 text-sm mt-1">Cadastre itens na aba "Itens" para começar</p>
-                <button onClick={() => setTab("items")}
-                  className="mt-5 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-sm font-semibold transition-colors">
-                  Ir para Itens
-                </button>
-              </div>
-            )}
-            </>
-            )}
-          </div>
-        )}
-
-        {/* ═══ ITEMS ══════════════════════════════════════════════════════════ */}
-        {tab === "items" && (
-          <div className="space-y-4">
-            <div className="flex gap-3 flex-wrap">
-              <div className="relative flex-1 min-w-52">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-                <input value={search} onChange={e => setSearch(e.target.value)}
-                  placeholder="Buscar item ou categoria..."
-                  style={{ background: card.bg, border: card.border, color: isLight ? "#111" : "#fff" }}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm placeholder-zinc-600 focus:outline-none focus:border-violet-500 transition-all" />
-              </div>
-              <div className="flex rounded-xl p-1 gap-1" style={{ background: card.bg, border: card.border }}>
-                {(["all", "product", "ingredient"] as const).map(f => (
-                  <button key={f} onClick={() => setItemTypeFilter(f)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${itemTypeFilter === f ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-white"}`}>
-                    {f === "all" ? "Todos" : f === "product" ? "Produtos" : "Insumos"}
-                  </button>
-                ))}
-              </div>
-              <div className="flex rounded-xl p-1 gap-1" style={{ background: card.bg, border: card.border }}>
-                {(["all", "low", "out"] as const).map(f => (
-                  <button key={f} onClick={() => setStockFilter(f)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${stockFilter === f ? "bg-amber-600 text-white" : "text-zinc-400 hover:text-white"}`}>
-                    {f === "all" ? "Todos" : f === "low" ? "Baixo" : "Zerado"}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {filteredItems.length === 0 ? (
-              <div className="text-center py-20 border border-dashed border-zinc-800 rounded-2xl">
-                <Boxes className="w-12 h-12 text-zinc-700 mx-auto mb-4" />
-                <p className="text-zinc-400 font-semibold">Nenhum item encontrado</p>
-                <button onClick={() => openItemModal()}
-                  className="mt-5 text-violet-400 text-sm hover:underline">Cadastrar primeiro item</button>
-              </div>
-            ) : (
-              <div className="rounded-2xl overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
-                <div className="hidden sm:grid grid-cols-[1fr_80px_130px_120px_100px_90px] gap-x-4 px-5 py-2.5 border-b border-zinc-800 text-xs text-zinc-500 font-medium uppercase tracking-wider">
-                  <span>Item / Categoria</span>
-                  <span>Unidade</span>
-                  <span>Qtd. Atual</span>
-                  <span>Mín / Máx</span>
-                  <span>Custo Unit.</span>
-                  <span />
-                </div>
-                <div className="divide-y divide-zinc-800">
-                  {filteredItems.map(item => {
-                    const status = getUnifiedStatus(item);
-                    const cfg = STATUS_CFG[status];
-                    const isProduct = item.entry_type === "product";
-                    return (
-                      <div key={item.id}
-                        className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_80px_130px_120px_100px_100px] gap-x-4 px-5 py-3.5 items-center hover:bg-zinc-800/30 transition-colors">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-semibold text-white">{item.name}</span>
-                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${isProduct ? "text-blue-400 bg-blue-500/10 border-blue-500/20" : "text-violet-400 bg-violet-500/10 border-violet-500/20"}`}>
-                              {isProduct ? "Produto" : "Insumo"}
-                            </span>
-                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${cfg.badge}`}>{cfg.label}</span>
-                            {isProduct && !item.is_active && (
-                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full text-red-400 bg-red-500/10 border border-red-500/20">Pausado</span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            {item.category && <span className="text-xs text-zinc-500">{item.category}</span>}
-                            {item.supplier_name && <span className="text-xs text-zinc-600">· {item.supplier_name}</span>}
-                          </div>
-                        </div>
-                        <span className="hidden sm:block text-xs text-zinc-400">{item.unit}</span>
-                        <div className="hidden sm:block">
-                          <span className={`text-sm font-bold ${status === "out" ? "text-red-400" : status === "low" ? "text-amber-400" : "text-emerald-400"}`}>
-                            {fmtQty(item.current_qty, item.unit)}
-                          </span>
-                        </div>
-                        <div className="hidden sm:block">
-                          <span className="text-xs text-zinc-500">
-                            {fmtQty(item.min_qty, item.unit)}
-                            {item.max_qty != null && ` / ${fmtQty(item.max_qty, item.unit)}`}
-                          </span>
-                        </div>
-                        <span className="hidden sm:block text-sm text-zinc-300">{fmt(item.cost_price)}</span>
-                        <div className="flex items-center gap-1 justify-end">
-                          {isProduct ? (
-                            <button onClick={() => {
-                              setMovItemType("product"); setMovItemId(item.id);
-                              setMovType("entry"); setMovQty(""); setMovCost(""); setMovNotes("");
-                              setModal("movement");
-                            }} className="p-1.5 text-zinc-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors" title="Ajustar estoque">
-                              <ArrowDownToLine className="w-3.5 h-3.5" />
-                            </button>
-                          ) : (
-                            <button onClick={() => openItemModal(stockItems.find(i => i.id === item.id))}
-                              className="p-1.5 text-zinc-500 hover:text-violet-400 hover:bg-violet-500/10 rounded-lg transition-colors">
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                          {!isProduct && (
-                            <button onClick={() => { setDeleteTarget({ id: item.id, name: item.name, table: "stock_items" }); setModal("deleteItem"); }}
-                              className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors">
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="px-5 py-3 border-t border-zinc-800 flex items-center justify-between">
-                  <span className="text-xs text-zinc-500">{filteredItems.length} de {allUnified.length} ite{allUnified.length !== 1 ? "ns" : "m"}</span>
-                  <span className="text-xs text-zinc-400">Valor filtrado: <span className="text-emerald-400 font-semibold">{fmt(filteredItems.reduce((s, i) => s + i.current_qty * i.cost_price, 0))}</span></span>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ═══ FICHA TÉCNICA ══════════════════════════════════════════════════ */}
-        {tab === "recipes" && (
-          <div className="grid grid-cols-1 sm:grid-cols-[260px_1fr] gap-5 items-start">
-            {/* Product selector */}
-            <div className="rounded-2xl overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
-              <div className="px-4 py-3 border-b border-zinc-800">
-                <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Selecione o Produto</p>
-              </div>
-              <div className="divide-y divide-zinc-800 max-h-[65vh] overflow-y-auto">
-                {products.length === 0 && (
-                  <p className="text-xs text-zinc-600 text-center py-8">Nenhum produto cadastrado</p>
-                )}
-                {products.map(p => (
-                  <button key={p.id}
-                    onClick={() => { setSelectedProduct(p); loadRecipes(p.id); }}
-                    className={`w-full text-left px-4 py-3 text-sm transition-colors flex items-center gap-2.5 ${selectedProduct?.id === p.id ? "bg-violet-600/20 text-violet-300 border-l-2 border-violet-500" : "text-zinc-300 hover:bg-zinc-800/50"}`}>
-                    <Package className="w-3.5 h-3.5 flex-shrink-0 text-zinc-500" />
-                    <span className="truncate">{p.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Recipe editor */}
-            {!selectedProduct ? (
-              <div className="text-center py-20 border border-dashed border-zinc-800 rounded-2xl">
-                <BookOpen className="w-12 h-12 text-zinc-700 mx-auto mb-4" />
-                <p className="text-zinc-400 font-semibold">Selecione um produto</p>
-                <p className="text-zinc-600 text-sm mt-1">para ver ou editar sua ficha técnica</p>
-              </div>
-            ) : (
-              <div className="rounded-2xl overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
-                <div className="flex items-center gap-3 px-5 py-4 border-b border-zinc-800">
-                  <div className="w-9 h-9 bg-violet-500/10 rounded-xl flex items-center justify-center">
-                    <BookOpen className="w-4 h-4 text-violet-400" />
-                  </div>
-                  <div>
-                    <h2 className="text-sm font-semibold">{selectedProduct.name}</h2>
-                    <p className="text-xs text-zinc-500">Ingredientes consumidos por unidade vendida</p>
-                  </div>
-                </div>
-
-                {/* Add row */}
-                <div className="px-5 py-4 border-b border-zinc-800 bg-zinc-950/40 space-y-3">
-                  <p className="text-xs font-medium text-zinc-400">Adicionar Ingrediente</p>
-                  <div className="flex gap-2 flex-wrap">
-                    <select value={recipeItemId} onChange={e => {
-                      setRecipeItemId(e.target.value);
-                      const si = stockItems.find(i => i.id === e.target.value);
-                      if (si) setRecipeUnit(si.unit);
-                    }} className={selectCls + " flex-1 min-w-40"}>
-                      <option value="">Selecionar insumo...</option>
-                      {stockItems.map(si => (
-                        <option key={si.id} value={si.id}>{si.name} ({si.unit})</option>
-                      ))}
-                    </select>
-                    <input value={recipeQty} onChange={e => setRecipeQty(e.target.value)}
-                      placeholder="Qtd" type="number" min="0.001" step="0.001"
-                      className={inputCls + " w-24"} />
-                    <select value={recipeUnit} onChange={e => setRecipeUnit(e.target.value)}
-                      className={selectCls + " w-28"}>
-                      {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                    </select>
-                    <button onClick={addRecipeItem} disabled={!recipeItemId || !recipeQty}
-                      className="flex items-center gap-1.5 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white text-sm font-semibold rounded-xl transition-colors flex-shrink-0">
-                      <Plus className="w-4 h-4" /> Adicionar
-                    </button>
-                  </div>
-                </div>
-
-                {/* Ingredient list */}
-                {recipes.length === 0 ? (
-                  <div className="text-center py-10 text-xs text-zinc-600">
-                    Nenhum ingrediente na ficha técnica. Adicione acima.
+                    <p className="text-sm font-semibold text-gray-700">
+                      {rows.length === 0 ? "Nenhum item com controle de estoque ainda" : "Nenhum item encontrado"}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1 max-w-md mx-auto">
+                      {rows.length === 0
+                        ? "Produtos com estoque controlado e insumos aparecem aqui. Cadastre um insumo ou ative o controle de um produto em \"Sem controle\"."
+                        : "Tente outro nome ou limpe os filtros."}
+                    </p>
                   </div>
                 ) : (
-                  <>
-                    <div className="divide-y divide-zinc-800/50">
-                      {recipes.map(r => {
-                        const si = r.stock_items;
-                        const hasStock = si ? si.current_qty >= r.quantity : true;
-                        return (
-                          <div key={r.id} className="flex items-center gap-4 px-5 py-3">
-                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${hasStock ? "bg-emerald-500" : "bg-red-500"}`} />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-white">{si?.name ?? "—"}</p>
-                              <p className="text-xs text-zinc-500 mt-0.5">
-                                {fmtQty(r.quantity, r.unit)} por unidade
-                                {si && <span className={`ml-2 font-medium ${hasStock ? "text-emerald-400" : "text-red-400"}`}>
-                                  · estoque: {fmtQty(si.current_qty, si.unit)}
-                                </span>}
-                              </p>
-                            </div>
-                            {!hasStock && <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />}
-                            <button onClick={() => removeRecipeItem(r.id)}
-                              className="p-1.5 text-zinc-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors flex-shrink-0">
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <div className="px-5 py-3 border-t border-zinc-800 bg-zinc-950/30 flex items-center justify-between">
-                      <span className="text-xs text-zinc-500">{recipes.length} ingrediente{recipes.length !== 1 ? "s" : ""}</span>
-                      <span className="text-xs text-zinc-400">
-                        Custo estimado:{" "}
-                        <span className="text-violet-400 font-semibold">
-                          {fmt(recipes.reduce((s, r) => {
-                            const si = stockItems.find(i => i.id === r.stock_item_id);
-                            return s + (si ? si.cost_price * r.quantity : 0);
-                          }, 0))}
-                        </span>
-                        {" "}/ unidade
-                      </span>
-                    </div>
-                  </>
+                  <StockTable rows={filteredRows} onOpen={r => setSelected({ kind: r.kind, id: r.id })} />
                 )}
-              </div>
+              </>
             )}
-          </div>
+          </>
         )}
 
-        {/* ═══ MOVEMENTS ══════════════════════════════════════════════════════ */}
-        {tab === "movements" && (
-          <div className="space-y-4">
-            <div className="flex gap-2 flex-wrap">
-              <div className="flex rounded-xl p-1 gap-1 flex-wrap" style={{ background: card.bg, border: card.border }}>
-                {(["all", "entry", "exit", "adjustment", "loss", "sale", "return"] as const).map(f => (
-                  <button key={f} onClick={() => setMovFilter(f as any)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${movFilter === f ? (isLight ? "bg-blue-600" : "bg-violet-600 text-white") : (isLight ? "text-gray-500 hover:text-gray-900" : "text-zinc-400 hover:text-white")}`}
-                    style={movFilter === f && isLight ? { color: "#ffffff" } : undefined}>
-                    {f === "all" ? "Todas" : MOV_INFO[f]?.label ?? f}
-                  </button>
-                ))}
-              </div>
-            </div>
+        {view === "history" && <HistoryView />}
 
-            {filteredMovements.length === 0 ? (
-              <div className="text-center py-20 border border-dashed border-zinc-800 rounded-2xl">
-                <ClipboardList className="w-12 h-12 text-zinc-700 mx-auto mb-4" />
-                <p className="text-zinc-400 font-semibold">Nenhuma movimentação encontrada</p>
-              </div>
-            ) : (
-              <div className="rounded-2xl overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
-                <div className="hidden sm:grid grid-cols-[150px_1fr_100px_100px_80px_1fr] gap-x-4 px-5 py-2.5 border-b border-zinc-800 text-xs text-zinc-500 font-medium uppercase tracking-wider">
-                  <span>Data/Hora</span><span>Item</span><span>Tipo</span><span>Quantidade</span><span>Custo</span><span>Obs</span>
-                </div>
-                <div className="divide-y divide-zinc-800">
-                  {filteredMovements.map(m => {
-                    const info = MOV_INFO[m.type] ?? { label: m.type, color: "text-zinc-400", sign: "?", bg: "bg-zinc-800" };
-                    return (
-                      <div key={m.id} className="grid grid-cols-[1fr_auto] sm:grid-cols-[150px_1fr_100px_100px_80px_1fr] gap-x-4 px-5 py-3 items-center">
-                        <span className="hidden sm:block text-xs text-zinc-500">
-                          {new Date(m.created_at).toLocaleString("pt-BR")}
-                        </span>
-                        <div>
-                          <span className="text-sm font-semibold text-white">{m.stock_items?.name ?? m.products?.name ?? "—"}</span>
-                          <span className="sm:hidden text-xs text-zinc-500 ml-2">
-                            {new Date(m.created_at).toLocaleDateString("pt-BR")}
-                          </span>
-                        </div>
-                        <span className={`hidden sm:inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full ${info.bg} ${info.color}`}>
-                          {info.label}
-                        </span>
-                        <span className={`text-sm font-bold ${info.color}`}>
-                          {info.sign}{fmtQty(m.quantity, m.stock_items?.unit ?? m.products?.unit ?? "")}
-                        </span>
-                        <span className="hidden sm:block text-xs text-zinc-500">
-                          {m.cost_price != null ? fmt(m.cost_price) : "—"}
-                        </span>
-                        <span className="hidden sm:block text-xs text-zinc-500 truncate">{m.notes ?? "—"}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
+        {view === "recipes" && (
+          <RecipesView products={products} stockItems={stockItems}
+            onCountsChange={loadRecipeCounts} onNewIngredient={() => setIngredientModal({ item: null })} />
         )}
-
       </div>
 
-      {/* ═══════════════════════════════════════════════════════════════════════
-          MODALS
-      ═══════════════════════════════════════════════════════════════════════ */}
+      {/* Painel do item */}
+      {selectedRow && (
+        <ItemDrawer
+          row={selectedRow}
+          product={selectedRow.kind === "product" ? products.find(p => p.id === selectedRow.id) ?? null : null}
+          ingredient={selectedRow.kind === "ingredient" ? stockItems.find(i => i.id === selectedRow.id) ?? null : null}
+          onClose={() => setSelected(null)}
+          onChanged={reloadItems}
+          onEditProduct={openEditProduct}
+          onEditIngredient={item => setIngredientModal({ item })}
+          onDeleted={() => { setSelected(null); reloadItems(); }}
+        />
+      )}
 
-      {/* Stock Item Modal */}
-      {modal === "item" && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 flex-shrink-0">
-              <div>
-                <h2 className="text-base font-semibold">{editingItem ? "Editar Item" : "Novo Item de Estoque"}</h2>
-                <p className="text-xs text-zinc-500 mt-0.5">Insumo, ingrediente ou material</p>
+      {ingredientModal && (
+        <IngredientModal item={ingredientModal.item} suppliers={suppliers}
+          onClose={() => setIngredientModal(null)}
+          onSaved={async () => { setIngredientModal(null); await loadStockItems(); }} />
+      )}
+
+      {controlTarget && (
+        <ControlDialog product={controlTarget} onClose={() => setControlTarget(null)}
+          onDone={async () => {
+            const id = controlTarget.id;
+            setControlTarget(null);
+            await loadProducts();
+            setStatusFilter("all");
+            setSelected({ kind: "product", id });
+          }} />
+      )}
+
+      {editProduct && (
+        <ProductModal product={editProduct} categories={categories}
+          onClose={() => setEditProduct(null)}
+          onSave={async () => { await reloadItems(); }} />
+      )}
+    </>
+  );
+}
+
+// ─── Peças ────────────────────────────────────────────────────────────────────
+
+function Kpi({ label, value, sub, tone, active, onClick }: {
+  label: string; value: string; sub: string; tone?: "amber" | "red"; active?: boolean; onClick?: () => void;
+}) {
+  const valueColor = tone === "red" ? "text-red-600" : tone === "amber" ? "text-amber-600" : "text-gray-900";
+  const Tag = onClick ? "button" : "div";
+  return (
+    <Tag onClick={onClick}
+      className={`${card} text-left p-4 transition-all ${onClick ? "hover:border-gray-300 cursor-pointer" : ""} ${active && onClick ? "ring-2 ring-blue-500/30 border-blue-300" : ""}`}>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{label}</p>
+      <p className={`text-2xl font-black tabular-nums tracking-tight mt-1 ${valueColor}`}>{value}</p>
+      <p className="text-xs text-gray-400 mt-0.5">{sub}</p>
+    </Tag>
+  );
+}
+
+function Segmented<T extends string>({ value, onChange, options, disabled }: {
+  value: T; onChange: (v: T) => void; options: { value: T; label: string }[]; disabled?: boolean;
+}) {
+  return (
+    <div className={`flex p-1 bg-gray-100 rounded-xl ${disabled ? "opacity-40 pointer-events-none" : ""}`}>
+      {options.map(o => (
+        <button key={o.value} onClick={() => onChange(o.value)}
+          className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${value === o.value ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-800"}`}>
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function KindBadge({ kind }: { kind: Kind }) {
+  return (
+    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${kind === "product" ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"}`}>
+      {kind === "product" ? "Produto" : "Insumo"}
+    </span>
+  );
+}
+
+function LevelBar({ qty, min, max }: { qty: number; min: number; max: number | null }) {
+  const st = statusOf(qty, min);
+  const target = max && max > 0 ? max : min > 0 ? min * 2 : Math.max(qty, 1);
+  const pct = Math.max(0, Math.min(100, (qty / target) * 100));
+  return (
+    <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+      <div className={`h-full rounded-full ${STATUS[st].bar}`} style={{ width: `${st === "out" ? 0 : Math.max(pct, 4)}%` }} />
+    </div>
+  );
+}
+
+function StockTable({ rows, onOpen }: { rows: Row[]; onOpen: (r: Row) => void }) {
+  const total = rows.reduce((s, r) => s + Math.max(r.qty, 0) * r.cost, 0);
+  return (
+    <div className={`${card} overflow-hidden`}>
+      <div className="hidden md:grid grid-cols-[minmax(0,1fr)_180px_100px_110px_120px_28px] gap-4 px-5 py-2.5 bg-gray-50 border-b border-gray-100 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+        <span>Item</span><span>Estoque</span><span className="text-right">Mínimo</span>
+        <span className="text-right">Custo un.</span><span className="text-right">Valor</span><span />
+      </div>
+      <div className="divide-y divide-gray-100">
+        {rows.map(r => {
+          const st = statusOf(r.qty, r.min);
+          return (
+            <button key={r.key} onClick={() => onOpen(r)}
+              className="w-full text-left grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_180px_100px_110px_120px_28px] gap-x-4 gap-y-1 items-center px-4 md:px-5 py-3 hover:bg-gray-50 transition-colors">
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-sm font-semibold text-gray-900 truncate max-w-full">{r.name}</span>
+                  <KindBadge kind={r.kind} />
+                  {st !== "ok" && <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${STATUS[st].badge}`}>{STATUS[st].label}</span>}
+                  {r.paused && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-600" title="Pausado nas vendas porque o estoque zerou">Pausado nas vendas</span>}
+                </div>
+                {r.subtitle && <p className="text-xs text-gray-500 truncate mt-0.5">{r.subtitle}</p>}
               </div>
-              <button onClick={() => setModal("none")} className="p-1.5 text-zinc-400 hover:text-white rounded-lg transition-colors"><X className="w-4 h-4" /></button>
+              {/* Celular: quantidade à direita */}
+              <div className="md:hidden text-right">
+                <p className={`text-sm font-bold tabular-nums ${STATUS[st].text}`}>{fmtQty(r.qty, r.unit)}</p>
+                <p className="text-[11px] text-gray-400">{r.min > 0 ? `mín ${fmtNum(r.min)}` : "sem mínimo"}</p>
+              </div>
+              <div className="hidden md:block">
+                <p className={`text-sm font-bold tabular-nums ${STATUS[st].text}`}>{fmtQty(r.qty, r.unit)}</p>
+                <div className="mt-1.5"><LevelBar qty={r.qty} min={r.min} max={r.max} /></div>
+              </div>
+              <span className="hidden md:block text-right text-sm text-gray-500 tabular-nums">{r.min > 0 ? fmtNum(r.min) : "—"}</span>
+              <span className="hidden md:block text-right text-sm text-gray-700 tabular-nums">{r.cost > 0 ? fmt(r.cost) : "—"}</span>
+              <span className="hidden md:block text-right text-sm font-semibold text-gray-900 tabular-nums">{fmt(Math.max(r.qty, 0) * r.cost)}</span>
+              <ChevronRight className="hidden md:block w-4 h-4 text-gray-300" />
+            </button>
+          );
+        })}
+      </div>
+      <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 bg-gray-50/60 text-xs text-gray-500">
+        <span>{rows.length} ite{rows.length !== 1 ? "ns" : "m"}</span>
+        <span>Valor: <span className="font-semibold text-gray-900">{fmt(total)}</span></span>
+      </div>
+    </div>
+  );
+}
+
+function UncontrolledList({ products, recipeCount, onControl, onRecipe }: {
+  products: ProductRow[]; recipeCount: Record<string, number>;
+  onControl: (p: ProductRow) => void; onRecipe: () => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-start gap-3 px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 text-sm text-gray-700">
+        <InfinityIcon className="w-4 h-4 flex-shrink-0 mt-0.5 text-gray-500" />
+        <p>
+          Estes produtos são vendidos <span className="font-semibold">sem contar estoque</span> — nunca travam no PDV.
+          Bom para o que você repõe todo dia e não quer controlar. Quer saber o que eles gastam de ingredientes?
+          Monte uma <button onClick={onRecipe} className="font-semibold text-blue-700 hover:underline">ficha técnica</button>.
+          Quer contar a quantidade? Use <span className="font-semibold">Controlar estoque</span>.
+        </p>
+      </div>
+      {products.length === 0 ? (
+        <div className={`${card} text-center py-12 text-sm text-gray-500`}>Nenhum produto sem controle encontrado.</div>
+      ) : (
+        <div className={`${card} overflow-hidden divide-y divide-gray-100`}>
+          {products.map(p => (
+            <div key={p.id} className="flex items-center gap-3 px-4 md:px-5 py-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-900 truncate">{p.name}</p>
+                <p className="text-xs text-gray-500">
+                  {recipeCount[p.id] ? `Ficha técnica com ${recipeCount[p.id]} insumo${recipeCount[p.id] !== 1 ? "s" : ""}` : "Sem ficha técnica"}
+                  {p.sale_price ? ` · venda ${fmt(Number(p.sale_price))}` : ""}
+                </p>
+              </div>
+              <button onClick={() => onControl(p)} className={btnGhost + " !py-1.5 !px-3 text-xs"}>
+                Controlar estoque
+              </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Painel lateral do item ───────────────────────────────────────────────────
+
+function ItemDrawer({ row, product, ingredient, onClose, onChanged, onEditProduct, onEditIngredient, onDeleted }: {
+  row: Row; product: ProductRow | null; ingredient: StockItemRow | null;
+  onClose: () => void; onChanged: () => Promise<unknown>;
+  onEditProduct: (id: string) => void; onEditIngredient: (i: StockItemRow) => void; onDeleted: () => void;
+}) {
+  const [moveType, setMoveType] = useState<MoveType>("entry");
+  const [moveQty, setMoveQty] = useState("");
+  const [moveCost, setMoveCost] = useState("");
+  const [moveNotes, setMoveNotes] = useState("");
+  const [moving, setMoving] = useState(false);
+  const [moveError, setMoveError] = useState<string | null>(null);
+  const [moveOk, setMoveOk] = useState<string | null>(null);
+
+  const [minStr, setMinStr] = useState(String(row.min || ""));
+  const [maxStr, setMaxStr] = useState(row.max != null ? String(row.max) : "");
+  const [savingLimits, setSavingLimits] = useState(false);
+
+  const [history, setHistory] = useState<Movement[] | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const refType = row.kind === "product" ? "product" : "ingredient";
+
+  useEffect(() => {
+    setMinStr(String(row.min || "")); setMaxStr(row.max != null ? String(row.max) : "");
+    setMoveQty(""); setMoveCost(""); setMoveNotes(""); setMoveError(null); setMoveOk(null); setMoveType("entry");
+    loadHistory();
+  }, [row.key]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function loadHistory() {
+    const col = row.kind === "product" ? "product_id" : "stock_item_id";
+    const { data } = await supabase.from("inventory_movements").select("*").eq(col, row.id)
+      .order("created_at", { ascending: false }).limit(50);
+    setHistory((data ?? []) as Movement[]);
+  }
+
+  const qtyVal = num(moveQty);
+  const preview = moveType === "entry" ? row.qty + qtyVal
+    : moveType === "count" ? qtyVal
+    : Math.max(row.qty - qtyVal, 0);
+  const canMove = moveQty.trim() !== "" && (moveType === "count" ? qtyVal >= 0 : qtyVal > 0) && !moving;
+
+  async function registerMove() {
+    if (!canMove) return;
+    setMoving(true); setMoveError(null); setMoveOk(null);
+    const { error } = await supabase.rpc("adjust_inventory", {
+      p_ref_type: refType, p_item_id: row.id, p_type: moveType, p_quantity: qtyVal,
+      p_notes: moveNotes || null, p_unit_cost: moveType === "entry" && moveCost ? num(moveCost) : null,
+    });
+    if (error) { setMoveError(error.message); setMoving(false); return; }
+    setMoveOk(`${MOVE_TYPES.find(t => t.key === moveType)?.label} registrada. Estoque agora: ${fmtQty(preview, row.unit)}.`);
+    setMoveQty(""); setMoveCost(""); setMoveNotes("");
+    await Promise.all([onChanged(), loadHistory()]);
+    setMoving(false);
+  }
+
+  const limitsChanged = num(minStr) !== (row.min || 0) || (maxStr.trim() === "" ? null : num(maxStr)) !== row.max;
+  async function saveLimits() {
+    setSavingLimits(true);
+    const min = num(minStr);
+    const max = maxStr.trim() === "" ? null : num(maxStr);
+    if (row.kind === "product") {
+      // stock_min / stock_max são inteiros no cadastro de produto
+      await supabase.from("products").update({ stock_min: Math.round(min), stock_max: max == null ? null : Math.round(max) }).eq("id", row.id);
+    } else {
+      await supabase.from("stock_items").update({ min_qty: min, max_qty: max }).eq("id", row.id);
+    }
+    await onChanged();
+    setSavingLimits(false);
+  }
+
+  async function stopControlling() {
+    if (!product || busy) return;
+    if (!confirm(`Parar de controlar o estoque de "${product.name}"?\n\nEle passa a ser vendido sem contar quantidade e nunca trava no PDV. O histórico fica guardado.`)) return;
+    setBusy(true);
+    await supabase.from("products").update({
+      stock_type: "unlimited", unlimited_stock: false,
+      is_active: (product.status ?? "active") === "active",
+    }).eq("id", product.id);
+    await onChanged();
+    setBusy(false);
+    onClose();
+  }
+
+  async function deleteIngredient() {
+    if (!ingredient || busy) return;
+    if (!confirm(`Excluir o insumo "${ingredient.name}"?\n\nEle some da lista e das fichas técnicas deixa de ser descontado.`)) return;
+    setBusy(true);
+    await supabase.from("stock_items").update({ is_active: false }).eq("id", ingredient.id);
+    await supabase.from("recipe_items").delete().eq("stock_item_id", ingredient.id);
+    setBusy(false);
+    onDeleted();
+  }
+
+  const st = statusOf(row.qty, row.min);
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="relative w-full sm:w-[460px] h-full bg-white shadow-2xl flex flex-col sm:m-3 sm:h-[calc(100%-24px)] sm:rounded-2xl overflow-hidden">
+        {/* Topo */}
+        <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 border-b border-gray-100">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 mb-1"><KindBadge kind={row.kind} />
+              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${STATUS[st].badge}`}>{STATUS[st].label}</span>
+              {row.paused && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-600">Pausado nas vendas</span>}
+            </div>
+            <h2 className="text-lg font-bold text-gray-900 leading-tight">{row.name}</h2>
+            {row.subtitle && <p className="text-xs text-gray-500 mt-0.5">{row.subtitle}</p>}
+          </div>
+          <button onClick={onClose} className="p-2 -m-1 rounded-xl text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-colors"><X className="w-5 h-5" /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          {/* Números */}
+          <div className="grid grid-cols-3 gap-px bg-gray-100 border-b border-gray-100">
+            <div className="bg-white p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Em estoque</p>
+              <p className={`text-xl font-black tabular-nums mt-0.5 ${STATUS[st].text}`}>{fmtNum(row.qty)}</p>
+              <p className="text-[11px] text-gray-400">{row.unit}</p>
+            </div>
+            <div className="bg-white p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Custo un.</p>
+              <p className="text-xl font-black tabular-nums mt-0.5 text-gray-900">{row.cost > 0 ? fmt(row.cost) : "—"}</p>
+              <p className="text-[11px] text-gray-400">última compra</p>
+            </div>
+            <div className="bg-white p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Valor</p>
+              <p className="text-xl font-black tabular-nums mt-0.5 text-gray-900">{fmt(Math.max(row.qty, 0) * row.cost)}</p>
+              <p className="text-[11px] text-gray-400">parado</p>
+            </div>
+          </div>
+
+          {row.paused && (
+            <div className="mx-5 mt-4 flex gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-xl p-3">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+              Este produto zerou e foi pausado no PDV e no cardápio. Ao dar entrada, ele volta a ser vendido.
+            </div>
+          )}
+
+          {/* Movimentar */}
+          <section className="px-5 pt-5">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">Movimentar estoque</p>
+            <div className="grid grid-cols-4 gap-1 p-1 bg-gray-100 rounded-xl">
+              {MOVE_TYPES.map(t => (
+                <button key={t.key} onClick={() => { setMoveType(t.key); setMoveError(null); setMoveOk(null); }}
+                  className={`py-1.5 rounded-lg text-xs font-semibold transition-colors ${moveType === t.key ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-800"}`}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-500 mt-2">{MOVE_TYPES.find(t => t.key === moveType)?.hint}</p>
+            <div className={`grid ${moveType === "entry" ? "grid-cols-2" : "grid-cols-1"} gap-2 mt-3`}>
               <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1.5">Nome do item *</label>
-                <input value={iName} onChange={e => setIName(e.target.value)}
-                  placeholder="Ex: Farinha de trigo, Carne bovina, Camiseta P..."
-                  className={inputCls} autoFocus />
+                <label className="block text-xs text-gray-500 mb-1">{moveType === "count" ? `Quantidade contada (${row.unit})` : `Quantidade (${row.unit})`}</label>
+                <input value={moveQty} onChange={e => setMoveQty(e.target.value)} type="number" min="0" step="0.001"
+                  onKeyDown={e => { if (e.key === "Enter") registerMove(); }}
+                  placeholder="0" className={fieldCls} />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              {moveType === "entry" && (
                 <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Unidade de medida</label>
-                  <select value={iUnit} onChange={e => setIUnit(e.target.value)} className={selectCls}>
-                    {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Categoria</label>
-                  <input value={iCategory} onChange={e => setICategory(e.target.value)}
-                    placeholder="Ex: Proteínas, Bebidas, Embalagens..." className={inputCls} />
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Qtd. Atual</label>
-                  <input value={iCurrentQty} onChange={e => setICurrentQty(e.target.value)}
-                    type="number" min="0" step="0.001" className={inputCls} />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Qtd. Mínima</label>
-                  <input value={iMinQty} onChange={e => setIMinQty(e.target.value)}
-                    type="number" min="0" step="0.001" className={inputCls} />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Qtd. Máxima</label>
-                  <input value={iMaxQty} onChange={e => setIMaxQty(e.target.value)}
-                    type="number" min="0" step="0.001" placeholder="Opcional" className={inputCls} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Custo unitário (R$)</label>
-                  <input value={iCostPrice} onChange={e => setICostPrice(e.target.value)}
-                    type="number" min="0" step="0.01" className={inputCls} />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Fornecedor</label>
-                  <select value={iSupplierId} onChange={e => setISupplierId(e.target.value)} className={selectCls}>
-                    <option value="">Nenhum</option>
-                    {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1.5">Observações</label>
-                <input value={iNotes} onChange={e => setINotes(e.target.value)} placeholder="Opcional" className={inputCls} />
-              </div>
-              {parseFloat(iCurrentQty) > 0 && parseFloat(iCostPrice) > 0 && (
-                <div className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-xs space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-zinc-500">Valor total em estoque</span>
-                    <span className="text-violet-400 font-semibold">
-                      {fmt((parseFloat(iCurrentQty) || 0) * (parseFloat(iCostPrice) || 0))}
-                    </span>
-                  </div>
-                  {parseFloat(iMinQty) > 0 && parseFloat(iCurrentQty) <= parseFloat(iMinQty) && (
-                    <p className="text-amber-400 flex items-center gap-1">
-                      <AlertTriangle className="w-3 h-3" /> Quantidade abaixo do mínimo configurado
-                    </p>
-                  )}
+                  <label className="block text-xs text-gray-500 mb-1">Custo unitário (opcional)</label>
+                  <input value={moveCost} onChange={e => setMoveCost(e.target.value)} type="number" min="0" step="0.01" placeholder="0,00" className={fieldCls} />
                 </div>
               )}
             </div>
-            <div className="flex gap-3 px-6 py-4 border-t border-zinc-800 flex-shrink-0">
-              <button onClick={() => setModal("none")} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
-              <button onClick={saveItem} disabled={!iName.trim() || saving}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
-                {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                {editingItem ? "Salvar" : "Cadastrar"}
+            <input value={moveNotes} onChange={e => setMoveNotes(e.target.value)} placeholder="Observação (opcional)" className={fieldCls + " mt-2"} />
+            <div className="flex items-center justify-between gap-3 mt-3">
+              <p className="text-xs text-gray-500">
+                {moveQty.trim() !== "" && <>Estoque: <span className="font-semibold text-gray-900">{fmtNum(row.qty)}</span> → <span className="font-semibold text-gray-900">{fmtNum(preview)} {row.unit}</span></>}
+              </p>
+              <button onClick={registerMove} disabled={!canMove} className={btnPrimary} style={WHITE}>
+                {moving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Registrar
               </button>
             </div>
+            {moveError && <p className="text-xs text-red-600 mt-2">{moveError}</p>}
+            {moveOk && <p className="text-xs text-emerald-700 mt-2">{moveOk}</p>}
+          </section>
+
+          {/* Limites */}
+          <section className="px-5 pt-6">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">Alerta de reposição</p>
+            <div className="grid grid-cols-[1fr_1fr_auto] gap-2 items-end">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Mínimo</label>
+                <input value={minStr} onChange={e => setMinStr(e.target.value)} type="number" min="0" step={row.kind === "product" ? "1" : "0.001"} placeholder="0" className={fieldCls} />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Máximo (opcional)</label>
+                <input value={maxStr} onChange={e => setMaxStr(e.target.value)} type="number" min="0" step={row.kind === "product" ? "1" : "0.001"} placeholder="—" className={fieldCls} />
+              </div>
+              <button onClick={saveLimits} disabled={!limitsChanged || savingLimits} className={btnGhost}>
+                {savingLimits ? <RefreshCw className="w-4 h-4 animate-spin" /> : "Salvar"}
+              </button>
+            </div>
+            <p className="text-xs text-gray-400 mt-1.5">Quando chegar no mínimo, o item aparece como "Baixo".</p>
+          </section>
+
+          {/* Histórico */}
+          <section className="px-5 pt-6 pb-5">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">Histórico</p>
+            {history === null ? (
+              <div className="py-6 flex justify-center"><RefreshCw className="w-4 h-4 animate-spin text-gray-300" /></div>
+            ) : history.length === 0 ? (
+              <p className="text-xs text-gray-400 py-4 text-center border border-dashed border-gray-200 rounded-xl">
+                Nenhuma movimentação registrada ainda. Compras, vendas e ajustes aparecem aqui a partir de agora.
+              </p>
+            ) : (
+              <div className="border border-gray-100 rounded-xl divide-y divide-gray-100">
+                {history.map(m => <MovementLine key={m.id} m={m} unit={row.unit} />)}
+              </div>
+            )}
+          </section>
+        </div>
+
+        {/* Rodapé */}
+        <div className="flex items-center justify-between gap-2 px-5 py-3 border-t border-gray-100 bg-gray-50/60">
+          {row.kind === "product" ? (
+            <button onClick={stopControlling} disabled={busy} className="text-xs font-semibold text-gray-500 hover:text-gray-800 disabled:opacity-40">
+              Parar de controlar estoque
+            </button>
+          ) : (
+            <button onClick={deleteIngredient} disabled={busy} className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 hover:text-red-700 disabled:opacity-40">
+              <Trash2 className="w-3.5 h-3.5" /> Excluir insumo
+            </button>
+          )}
+          <button onClick={() => row.kind === "product" ? onEditProduct(row.id) : ingredient && onEditIngredient(ingredient)} className={btnGhost}>
+            <Pencil className="w-4 h-4" /> Editar cadastro
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MovementLine({ m, unit, showItem }: { m: Movement; unit: string; showItem?: boolean }) {
+  const info = MOVE_INFO[m.type] ?? { label: m.type, icon: <Package className="w-3.5 h-3.5" />, tone: "bg-gray-100 text-gray-700" };
+  const q = Number(m.quantity);
+  const itemName = m.products?.name ?? m.stock_items?.name ?? "—";
+  return (
+    <div className="flex items-center gap-3 px-3 py-2.5">
+      <span className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${info.tone}`}>{info.icon}</span>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm text-gray-900 truncate">
+          {showItem ? <><span className="font-semibold">{itemName}</span> <span className="text-gray-500">· {info.label}</span></> : <span className="font-medium">{info.label}</span>}
+        </p>
+        <p className="text-[11px] text-gray-500 truncate">{fmtDateTime(m.created_at)}{m.notes ? ` · ${m.notes}` : ""}</p>
+      </div>
+      <div className="text-right flex-shrink-0">
+        <p className={`text-sm font-bold tabular-nums ${q > 0 ? "text-emerald-600" : q < 0 ? "text-red-600" : "text-gray-500"}`}>
+          {q > 0 ? "+" : ""}{fmtNum(q)} {unit}
+        </p>
+        {m.balance_after != null && <p className="text-[11px] text-gray-400 tabular-nums">saldo {fmtNum(Number(m.balance_after))}</p>}
+      </div>
+    </div>
+  );
+}
+
+// ─── Histórico geral ──────────────────────────────────────────────────────────
+
+function HistoryView() {
+  const [moves, setMoves] = useState<Movement[] | null>(null);
+  const [filter, setFilter] = useState<"all" | "in" | "sale" | "out" | "count">("all");
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from("inventory_movements")
+        .select("*, products(name, unit), stock_items(name, unit)")
+        .order("created_at", { ascending: false }).limit(300);
+      setMoves((data ?? []) as Movement[]);
+    })();
+  }, []);
+
+  const groups: Record<string, string[]> = {
+    in: ["entry", "purchase", "return"], sale: ["sale"], out: ["exit", "loss", "purchase_cancel"], count: ["count"],
+  };
+  const q = search.trim().toLowerCase();
+  const list = (moves ?? []).filter(m =>
+    (filter === "all" || groups[filter].includes(m.type)) &&
+    (q === "" || (m.products?.name ?? m.stock_items?.name ?? "").toLowerCase().includes(q)));
+
+  return (
+    <div className="space-y-3">
+      <div className={`${card} p-3 flex flex-col lg:flex-row gap-3 lg:items-center`}>
+        <div className="relative flex-1">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Filtrar por item..." className={fieldCls + " pl-10 bg-gray-50"} />
+        </div>
+        <Segmented value={filter} onChange={v => setFilter(v as typeof filter)} options={[
+          { value: "all", label: "Tudo" }, { value: "in", label: "Entradas" }, { value: "sale", label: "Vendas" },
+          { value: "out", label: "Saídas e perdas" }, { value: "count", label: "Contagens" },
+        ]} />
+      </div>
+      <div className={`${card} overflow-hidden`}>
+        {moves === null ? (
+          <div className="py-16 flex justify-center"><RefreshCw className="w-5 h-5 animate-spin text-gray-300" /></div>
+        ) : list.length === 0 ? (
+          <div className="text-center py-16 px-6">
+            <History className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+            <p className="text-sm font-semibold text-gray-700">Nenhuma movimentação {moves.length > 0 ? "com esse filtro" : "ainda"}</p>
+            <p className="text-xs text-gray-500 mt-1">Compras, vendas de itens controlados, fichas técnicas e ajustes aparecem aqui automaticamente.</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {list.map(m => <MovementLine key={m.id} m={m} unit={m.products?.unit ?? m.stock_items?.unit ?? ""} showItem />)}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Fichas técnicas ──────────────────────────────────────────────────────────
+
+function RecipesView({ products, stockItems, onCountsChange, onNewIngredient }: {
+  products: ProductRow[]; stockItems: StockItemRow[]; onCountsChange: () => void; onNewIngredient: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [lines, setLines] = useState<RecipeLine[]>([]);
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  const [addItemId, setAddItemId] = useState("");
+  const [addQty, setAddQty] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => { loadCounts(); }, []);
+  async function loadCounts() {
+    const { data } = await supabase.from("recipe_items").select("product_id");
+    const c: Record<string, number> = {};
+    for (const r of (data ?? []) as { product_id: string }[]) c[r.product_id] = (c[r.product_id] ?? 0) + 1;
+    setCounts(c);
+  }
+  async function loadLines(productId: string) {
+    const { data } = await supabase.from("recipe_items").select("id, product_id, stock_item_id, quantity").eq("product_id", productId);
+    setLines(((data ?? []) as any[]).map(l => ({ ...l, quantity: Number(l.quantity) })));
+  }
+
+  const q = search.trim().toLowerCase();
+  const list = products.filter(p => q === "" || p.name.toLowerCase().includes(q))
+    .sort((a, b) => (counts[b.id] ?? 0) - (counts[a.id] ?? 0) || a.name.localeCompare(b.name, "pt-BR"));
+  const selected = products.find(p => p.id === selectedId) ?? null;
+  const ingById = (id: string) => stockItems.find(s => s.id === id);
+  const addIng = ingById(addItemId);
+
+  async function addLine() {
+    if (!selected || !addItemId || num(addQty) <= 0 || saving) return;
+    setSaving(true); setError(null);
+    const { error } = await supabase.from("recipe_items").upsert(
+      { product_id: selected.id, stock_item_id: addItemId, quantity: num(addQty) },
+      { onConflict: "product_id,stock_item_id" });
+    if (error) setError(error.message);
+    setAddItemId(""); setAddQty("");
+    await Promise.all([loadLines(selected.id), loadCounts()]);
+    onCountsChange();
+    setSaving(false);
+  }
+  async function removeLine(id: string) {
+    if (!selected) return;
+    await supabase.from("recipe_items").delete().eq("id", id);
+    await Promise.all([loadLines(selected.id), loadCounts()]);
+    onCountsChange();
+  }
+
+  const recipeCost = lines.reduce((s, l) => s + (ingById(l.stock_item_id)?.cost_price ?? 0) * l.quantity, 0);
+  const salePrice = Number(selected?.sale_price) || 0;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-start gap-3 px-4 py-3 rounded-2xl bg-blue-50/60 border border-blue-100 text-sm text-blue-900">
+        <BookOpen className="w-4 h-4 flex-shrink-0 mt-0.5 text-blue-600" />
+        <p>
+          <span className="font-semibold">Ficha técnica</span> é a receita do produto: quanto de cada insumo ele gasta.
+          A cada venda no PDV ou nas Mesas, o sistema desconta os insumos sozinho e mostra o custo real do prato.
+          Funciona até para produtos vendidos sem controle de estoque.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] gap-3 items-start">
+        {/* Lista de produtos */}
+        <div className={`${card} overflow-hidden ${selected ? "hidden lg:block" : ""}`}>
+          <div className="p-3 border-b border-gray-100">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar produto..." className={fieldCls + " pl-9 bg-gray-50 !py-2"} />
+            </div>
+          </div>
+          <div className="max-h-[60vh] overflow-y-auto divide-y divide-gray-50">
+            {list.map(p => (
+              <button key={p.id} onClick={() => { setSelectedId(p.id); setLines([]); setError(null); loadLines(p.id); }}
+                className={`w-full flex items-center gap-2 px-4 py-2.5 text-left text-sm transition-colors ${selectedId === p.id ? "bg-blue-50 text-blue-800" : "text-gray-800 hover:bg-gray-50"}`}>
+                <span className="flex-1 truncate">{p.name}</span>
+                {counts[p.id] ? (
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700">{counts[p.id]} insumo{counts[p.id] !== 1 ? "s" : ""}</span>
+                ) : <span className="text-[10px] text-gray-400">vazia</span>}
+              </button>
+            ))}
+            {list.length === 0 && <p className="text-xs text-gray-400 text-center py-8">Nenhum produto encontrado.</p>}
           </div>
         </div>
-      )}
 
-      {/* Movement Modal */}
-      {modal === "movement" && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-md">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
-              <div>
-                <h2 className="text-base font-semibold">Nova Movimentação</h2>
-                <p className="text-xs text-zinc-500 mt-0.5">Entrada, saída ou ajuste manual</p>
+        {/* Editor */}
+        {!selected ? (
+          <div className={`${card} hidden lg:flex flex-col items-center justify-center text-center py-20 px-6`}>
+            <BookOpen className="w-8 h-8 text-gray-300 mb-2" />
+            <p className="text-sm font-semibold text-gray-700">Escolha um produto</p>
+            <p className="text-xs text-gray-500 mt-1">para ver ou montar a ficha técnica dele.</p>
+          </div>
+        ) : (
+          <div className={`${card} overflow-hidden`}>
+            <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100">
+              <div className="min-w-0">
+                <button onClick={() => setSelectedId(null)} className="lg:hidden text-xs font-semibold text-blue-700 mb-1">← Produtos</button>
+                <h2 className="text-base font-bold text-gray-900 truncate">{selected.name}</h2>
+                <p className="text-xs text-gray-500">Insumos gastos em 1 unidade vendida</p>
               </div>
-              <button onClick={() => setModal("none")} className="p-1.5 text-zinc-400 hover:text-white rounded-lg"><X className="w-4 h-4" /></button>
             </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-2">Tipo de item *</label>
-                <div className="flex gap-2 mb-3">
-                  {(["ingredient", "product"] as const).map(t => (
-                    <button key={t} onClick={() => { setMovItemType(t); setMovItemId(""); }}
-                      className={`flex-1 py-2 rounded-xl border text-xs font-semibold transition-all ${movItemType === t ? "bg-violet-600/20 text-violet-400 border-violet-500/40" : "border-zinc-700 text-zinc-500 hover:border-zinc-600"}`}>
-                      {t === "ingredient" ? "Insumo / Ingrediente" : "Produto com Estoque"}
+
+            {stockItems.length === 0 ? (
+              <div className="text-center py-12 px-6">
+                <p className="text-sm font-semibold text-gray-700">Você ainda não tem insumos cadastrados</p>
+                <p className="text-xs text-gray-500 mt-1">Cadastre os ingredientes (ex.: arroz, óleo, carne) para montar a ficha.</p>
+                <button onClick={onNewIngredient} className={btnPrimary + " mt-4"} style={WHITE}><Plus className="w-4 h-4" /> Novo insumo</button>
+              </div>
+            ) : (
+              <>
+                <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/60">
+                  <div className="grid grid-cols-[minmax(0,1fr)_120px_auto] gap-2 items-end">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Insumo</label>
+                      <select value={addItemId} onChange={e => setAddItemId(e.target.value)} className={fieldCls + " cursor-pointer"}>
+                        <option value="">Selecionar...</option>
+                        {stockItems.map(s => <option key={s.id} value={s.id}>{s.name} ({s.unit})</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Quantidade{addIng ? ` (${addIng.unit})` : ""}</label>
+                      <input value={addQty} onChange={e => setAddQty(e.target.value)} type="number" min="0" step="0.001" placeholder="0"
+                        onKeyDown={e => { if (e.key === "Enter") addLine(); }} className={fieldCls} />
+                    </div>
+                    <button onClick={addLine} disabled={!addItemId || num(addQty) <= 0 || saving} className={btnPrimary} style={WHITE}>
+                      <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Adicionar</span>
                     </button>
-                  ))}
+                  </div>
+                  <p className="text-[11px] text-gray-400 mt-1.5">A quantidade é na mesma unidade do insumo. Ex.: arroz em kg → 0,2 para 200 g.</p>
+                  {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
                 </div>
-                <select value={movItemId} onChange={e => setMovItemId(e.target.value)} className={selectCls}>
-                  <option value="">Selecionar...</option>
-                  {movItemType === "ingredient"
-                    ? stockItems.map(i => <option key={i.id} value={i.id}>{i.name} — {fmtQty(i.current_qty, i.unit)}</option>)
-                    : limitedProducts.map(p => <option key={p.id} value={p.id}>{p.name} — {fmtQty(p.stock, p.unit)}{!p.is_active ? " (pausado)" : ""}</option>)
-                  }
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-2">Tipo de movimentação *</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(["entry", "exit", "adjustment", "loss", "return"] as const).map(t => {
-                    const info = MOV_INFO[t];
-                    return (
-                      <button key={t} onClick={() => setMovType(t)}
-                        className={`py-2.5 px-2 rounded-xl border text-xs font-semibold transition-all text-center ${movType === t ? `${info.bg} ${info.color} border-current` : "border-zinc-700 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300"}`}>
-                        {info.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Quantidade *</label>
-                  <input value={movQty} onChange={e => setMovQty(e.target.value)}
-                    type="number" min="0.001" step="0.001" placeholder="0" className={inputCls} />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Custo unitário</label>
-                  <input value={movCost} onChange={e => setMovCost(e.target.value)}
-                    type="number" min="0" step="0.01" placeholder="0,00" className={inputCls} />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-zinc-400 mb-1.5">Observação</label>
-                <input value={movNotes} onChange={e => setMovNotes(e.target.value)} placeholder="Opcional" className={inputCls} />
-              </div>
-            </div>
-            <div className="flex gap-3 px-6 py-4 border-t border-zinc-800">
-              <button onClick={() => setModal("none")} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
-              <button onClick={saveMovement} disabled={!movItemId || !movQty || saving}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
-                {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                Registrar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Delete Confirm */}
-      {modal === "deleteItem" && deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-red-500/10 rounded-full flex items-center justify-center flex-shrink-0">
-                <AlertTriangle className="w-5 h-5 text-red-400" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold">Excluir item?</p>
-                <p className="text-xs text-zinc-500 mt-0.5">
-                  <span className="text-white font-medium">{deleteTarget.name}</span> será desativado do sistema.
-                </p>
-              </div>
+                {lines.length === 0 ? (
+                  <p className="text-xs text-gray-400 text-center py-10">Nenhum insumo nesta ficha ainda.</p>
+                ) : (
+                  <div className="divide-y divide-gray-100">
+                    {lines.map(l => {
+                      const ing = ingById(l.stock_item_id);
+                      const enough = ing ? ing.current_qty >= l.quantity : true;
+                      return (
+                        <div key={l.id} className="flex items-center gap-3 px-5 py-3">
+                          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${enough ? "bg-emerald-500" : "bg-red-500"}`} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-gray-900 truncate">{ing?.name ?? "Insumo removido"}</p>
+                            <p className="text-xs text-gray-500">
+                              {fmtQty(l.quantity, ing?.unit ?? "")} por unidade
+                              {ing && <> · estoque {fmtQty(ing.current_qty, ing.unit)}</>}
+                            </p>
+                          </div>
+                          <span className="text-sm text-gray-700 tabular-nums">{ing?.cost_price ? fmt(ing.cost_price * l.quantity) : "—"}</span>
+                          <button onClick={() => removeLine(l.id)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"><X className="w-4 h-4" /></button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-3 gap-px bg-gray-100 border-t border-gray-100">
+                  <div className="bg-white p-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Custo da ficha</p>
+                    <p className="text-lg font-black text-gray-900 tabular-nums">{fmt(recipeCost)}</p>
+                  </div>
+                  <div className="bg-white p-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Preço de venda</p>
+                    <p className="text-lg font-black text-gray-900 tabular-nums">{salePrice > 0 ? fmt(salePrice) : "—"}</p>
+                  </div>
+                  <div className="bg-white p-4">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Margem</p>
+                    <p className={`text-lg font-black tabular-nums ${salePrice > 0 && recipeCost > 0 ? ((salePrice - recipeCost) / salePrice < 0.2 ? "text-amber-600" : "text-emerald-600") : "text-gray-300"}`}>
+                      {salePrice > 0 && recipeCost > 0 ? `${(((salePrice - recipeCost) / salePrice) * 100).toFixed(0)}%` : "—"}
+                    </p>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Cadastro de insumo ───────────────────────────────────────────────────────
+
+function IngredientModal({ item, suppliers, onClose, onSaved }: {
+  item: StockItemRow | null; suppliers: { id: string; name: string }[];
+  onClose: () => void; onSaved: () => void;
+}) {
+  const [name, setName] = useState(item?.name ?? "");
+  const [unit, setUnit] = useState(item?.unit ?? "kg");
+  const [category, setCategory] = useState(item?.category ?? "");
+  const [supplierId, setSupplierId] = useState(item?.supplier_id ?? "");
+  const [cost, setCost] = useState(item ? String(item.cost_price || "") : "");
+  const [initialQty, setInitialQty] = useState("");
+  const [minQty, setMinQty] = useState(item ? String(item.min_qty || "") : "");
+  const [maxQty, setMaxQty] = useState(item?.max_qty != null ? String(item.max_qty) : "");
+  const [notes, setNotes] = useState(item?.notes ?? "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function save() {
+    if (!name.trim()) { setError("Informe o nome do insumo."); return; }
+    setSaving(true); setError(null);
+    const payload = {
+      name: name.trim(), unit, category: category.trim() || null, supplier_id: supplierId || null,
+      cost_price: num(cost), min_qty: num(minQty), max_qty: maxQty.trim() ? num(maxQty) : null, notes: notes.trim() || null,
+    };
+    if (item) {
+      const { error } = await supabase.from("stock_items").update(payload).eq("id", item.id);
+      if (error) { setError(error.message); setSaving(false); return; }
+    } else {
+      const { data, error } = await supabase.from("stock_items").insert({ ...payload, current_qty: 0 }).select("id").single();
+      if (error || !data) { setError(error?.message ?? "Erro ao salvar."); setSaving(false); return; }
+      // Estoque inicial entra pelo histórico, como qualquer entrada
+      if (num(initialQty) > 0) {
+        await supabase.rpc("adjust_inventory", {
+          p_ref_type: "ingredient", p_item_id: data.id, p_type: "entry", p_quantity: num(initialQty),
+          p_notes: "Estoque inicial", p_unit_cost: num(cost) || null,
+        });
+      }
+    }
+    setSaving(false);
+    onSaved();
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-[2px] p-0 sm:p-4">
+      <div className="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[92vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div>
+            <h2 className="text-base font-bold text-gray-900">{item ? "Editar insumo" : "Novo insumo"}</h2>
+            <p className="text-xs text-gray-500">Ingrediente ou material usado no preparo — não é vendido direto.</p>
+          </div>
+          <button onClick={onClose} className="p-2 -m-1 rounded-xl text-gray-400 hover:text-gray-900 hover:bg-gray-100"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Nome *</label>
+            <input autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="Ex.: Arroz, Óleo de soja, Carne moída" className={fieldCls} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Unidade</label>
+              <select value={unit} onChange={e => setUnit(e.target.value)} className={fieldCls + " cursor-pointer"}>
+                {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+              </select>
             </div>
-            <div className="flex gap-3">
-              <button onClick={() => { setDeleteTarget(null); setModal("none"); }}
-                className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
-              <button onClick={deleteConfirmed} disabled={saving}
-                className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
-                {saving ? "Excluindo…" : "Excluir"}
-              </button>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Custo por {unit}</label>
+              <input value={cost} onChange={e => setCost(e.target.value)} type="number" min="0" step="0.01" placeholder="0,00" className={fieldCls} />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Categoria</label>
+              <input value={category} onChange={e => setCategory(e.target.value)} placeholder="Ex.: Grãos, Carnes" className={fieldCls} />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Fornecedor</label>
+              <select value={supplierId} onChange={e => setSupplierId(e.target.value)} className={fieldCls + " cursor-pointer"}>
+                <option value="">—</option>
+                {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
             </div>
           </div>
+          <div className={`grid ${item ? "grid-cols-2" : "grid-cols-3"} gap-3`}>
+            {!item && (
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Qtd. atual</label>
+                <input value={initialQty} onChange={e => setInitialQty(e.target.value)} type="number" min="0" step="0.001" placeholder="0" className={fieldCls} />
+              </div>
+            )}
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Mínimo</label>
+              <input value={minQty} onChange={e => setMinQty(e.target.value)} type="number" min="0" step="0.001" placeholder="0" className={fieldCls} />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Máximo</label>
+              <input value={maxQty} onChange={e => setMaxQty(e.target.value)} type="number" min="0" step="0.001" placeholder="—" className={fieldCls} />
+            </div>
+          </div>
+          {item && <p className="text-xs text-gray-400 -mt-2">Para mudar a quantidade, use "Movimentar estoque" no painel do insumo.</p>}
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Observações</label>
+            <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Opcional" className={fieldCls} />
+          </div>
+          {error && <p className="text-xs text-red-600">{error}</p>}
         </div>
-      )}
-    </>
+        <div className="flex gap-2 px-6 py-4 border-t border-gray-100">
+          <button onClick={onClose} className={btnGhost + " flex-1"}>Cancelar</button>
+          <button onClick={save} disabled={saving} className={btnPrimary + " flex-1"} style={WHITE}>
+            {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Salvar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Ativar controle de estoque de um produto ─────────────────────────────────
+
+function ControlDialog({ product, onClose, onDone }: { product: ProductRow; onClose: () => void; onDone: () => void }) {
+  const [qty, setQty] = useState("");
+  const [min, setMin] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function confirmControl() {
+    if (qty.trim() === "" || num(qty) < 0) { setError("Informe quanto você tem hoje (pode ser 0)."); return; }
+    setSaving(true); setError(null);
+    const { error: upErr } = await supabase.from("products").update({
+      stock_type: "controlled", unlimited_stock: false, stock_min: Math.round(num(min)),
+    }).eq("id", product.id);
+    if (upErr) { setError(upErr.message); setSaving(false); return; }
+    // Saldo inicial entra como contagem no histórico
+    const { error: rpcErr } = await supabase.rpc("adjust_inventory", {
+      p_ref_type: "product", p_item_id: product.id, p_type: "count", p_quantity: num(qty), p_notes: "Início do controle de estoque",
+    });
+    if (rpcErr) { setError(rpcErr.message); setSaving(false); return; }
+    setSaving(false);
+    onDone();
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-[2px] p-0 sm:p-4">
+      <div className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div className="min-w-0">
+            <h2 className="text-base font-bold text-gray-900">Controlar estoque</h2>
+            <p className="text-xs text-gray-500 truncate">{product.name}</p>
+          </div>
+          <button onClick={onClose} className="p-2 -m-1 rounded-xl text-gray-400 hover:text-gray-900 hover:bg-gray-100"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Quanto tem hoje? *</label>
+              <input autoFocus value={qty} onChange={e => setQty(e.target.value)} type="number" min="0" step="1" placeholder="0" className={fieldCls} />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Estoque mínimo</label>
+              <input value={min} onChange={e => setMin(e.target.value)} type="number" min="0" step="1" placeholder="0" className={fieldCls} />
+            </div>
+          </div>
+          <div className="flex gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-xl p-3">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            <span>A partir de agora cada venda desconta do estoque. <b>Quando zerar, o produto é pausado</b> no PDV e no cardápio até você repor (por uma compra ou entrada).</span>
+          </div>
+          {error && <p className="text-xs text-red-600">{error}</p>}
+        </div>
+        <div className="flex gap-2 px-6 py-4 border-t border-gray-100">
+          <button onClick={onClose} className={btnGhost + " flex-1"}>Cancelar</button>
+          <button onClick={confirmControl} disabled={saving} className={btnPrimary + " flex-1"} style={WHITE}>
+            {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Ativar controle
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

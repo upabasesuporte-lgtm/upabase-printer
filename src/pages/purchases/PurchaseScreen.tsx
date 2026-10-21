@@ -10,6 +10,7 @@ import {
 export interface ScreenItem {
   id: string; name: string; barcode?: string | null; unit?: string | null;
   current_qty?: number; cost_price?: number; sale_price?: number;
+  controlled?: boolean;
 }
 
 export interface POLine {
@@ -190,7 +191,7 @@ export default function PurchaseScreen(p: Props) {
                       onClick={() => addItem(m)}
                       className={`w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm border-b border-gray-100 last:border-0 transition-colors ${i === highlight ? "bg-blue-50" : "bg-white"}`}>
                       <span className="flex-1 min-w-0 truncate text-gray-900 font-medium">{m.name}</span>
-                      <span className="text-xs text-gray-500 tabular-nums">Estoque: {Number(m.current_qty ?? 0).toLocaleString("pt-BR")}</span>
+                      <span className="text-xs text-gray-500 tabular-nums">{m.controlled === false ? "Sem controle de estoque" : `Estoque: ${Number(m.current_qty ?? 0).toLocaleString("pt-BR")}`}</span>
                       {m.cost_price ? <span className="text-xs text-gray-500 tabular-nums w-24 text-right">Custo {fmt(m.cost_price)}</span> : <span className="w-24" />}
                       <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${m.ref_type === "ingredient" ? "bg-amber-50 text-amber-700" : "bg-blue-50 text-blue-700"}`}>
                         {m.ref_type === "ingredient" ? "Insumo" : "Produto"}
@@ -254,7 +255,9 @@ export default function PurchaseScreen(p: Props) {
                       <p className="text-sm font-medium text-gray-900 truncate">{l.itemName}</p>
                       <p className="text-[11px] text-gray-500 truncate">
                         <span className={isProduct ? "text-blue-600" : "text-amber-600"}>{isProduct ? "Produto" : "Insumo"}</span>
-                        {ref && <> · Estoque atual {Number(ref.current_qty ?? 0).toLocaleString("pt-BR")}{ref.unit ? ` ${ref.unit}` : ""}</>}
+                        {ref && (ref.controlled === false
+                          ? <> · Sem controle de estoque</>
+                          : <> · Estoque atual {Number(ref.current_qty ?? 0).toLocaleString("pt-BR")}{ref.unit ? ` ${ref.unit}` : ""}</>)}
                       </p>
                     </div>
                     <input value={l.quantity} onChange={e => updateLine(idx, { quantity: e.target.value })}
