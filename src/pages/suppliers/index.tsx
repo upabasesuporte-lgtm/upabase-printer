@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
+import { PageHeader, btnPrimary, WHITE_TEXT } from "../../components/PageHeader";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import {
   Plus, Search, X, Edit2, Trash2, RefreshCw, AlertTriangle,
@@ -17,7 +18,7 @@ interface Supplier {
 
 type Modal = "none" | "supplier" | "delete";
 
-const inputCls = "w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/10 transition-all";
+const inputCls = "w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/10 transition-all";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -114,7 +115,7 @@ export default function SuppliersPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <RefreshCw className="w-5 h-5 animate-spin text-violet-400" />
+        <RefreshCw className="w-5 h-5 animate-spin text-brand-600" />
       </div>
     );
   }
@@ -122,38 +123,18 @@ export default function SuppliersPage() {
   return (
     <>
       <div className="space-y-5">
-        {/* Header */}
-        <div className="relative overflow-hidden rounded-2xl p-5"
-          style={{ background: card.bg, border: card.border, boxShadow: card.shadow,
-            backgroundImage:"radial-gradient(rgba(59,130,246,0.07) 1px,transparent 1px)", backgroundSize:"24px 24px" }}>
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-900/10 to-transparent pointer-events-none" />
-          <div className="relative flex items-center justify-between flex-wrap gap-3">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-1.5 h-1.5 rounded-full" style={{background:"#3b82f6",boxShadow:"0 0 6px #3b82f6"}} />
-                <span className="text-[11px] font-semibold uppercase tracking-widest" style={{color:"#3b82f6"}}>Cadastro</span>
-              </div>
-              <h1 className="text-2xl font-black g-text g-text-blue">
-                Fornecedores
-              </h1>
-              <p className="text-xs text-zinc-500 mt-0.5">
-                {suppliers.length} fornecedor{suppliers.length !== 1 ? "es" : ""} cadastrado{suppliers.length !== 1 ? "s" : ""}
-              </p>
-            </div>
-            <button onClick={() => openSupplierModal()}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${isLight ? "bg-blue-600 hover:bg-blue-700" : "bg-violet-600 hover:bg-violet-500 text-white"}`}
-              style={isLight ? { color: "#ffffff" } : undefined}>
-              <Plus className="w-4 h-4" /> Novo Fornecedor
-            </button>
-          </div>
-        </div>
+        <PageHeader title="Fornecedores" actions={
+          <button onClick={() => openSupplierModal()} className={btnPrimary} style={WHITE_TEXT}>
+            <Plus className="w-4 h-4" /> Novo Fornecedor
+          </button>
+        } />
 
         <div className="relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Buscar fornecedor..."
             style={{ background: card.bg, border: card.border, color: isLight ? "#111" : "#fff" }}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm placeholder-zinc-600 focus:outline-none focus:border-violet-500 transition-all" />
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm placeholder-zinc-600 focus:outline-none focus:border-brand-500 transition-all" />
         </div>
 
         {filteredSuppliers.length === 0 ? (
@@ -161,14 +142,14 @@ export default function SuppliersPage() {
             <Building2 className="w-12 h-12 text-zinc-700 mx-auto mb-4" />
             <p className="text-zinc-400 font-semibold">Nenhum fornecedor cadastrado</p>
             <button onClick={() => openSupplierModal()}
-              className="mt-5 text-violet-400 text-sm hover:underline">Cadastrar primeiro fornecedor</button>
+              className="mt-5 text-brand-600 text-sm hover:underline">Cadastrar primeiro fornecedor</button>
           </div>
         ) : (
           <div className="rounded-2xl overflow-hidden divide-y divide-zinc-800" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
             {filteredSuppliers.map(s => (
               <div key={s.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-zinc-800/30 transition-colors">
-                <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center flex-shrink-0">
-                  <Building2 className="w-4 h-4 text-blue-400" />
+                <div className="w-10 h-10 rounded-xl bg-brand-50 border border-brand-100 flex items-center justify-center flex-shrink-0">
+                  <Building2 className="w-4 h-4 text-brand-600" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-white">{s.name}</p>
@@ -181,7 +162,7 @@ export default function SuppliersPage() {
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
                   <button onClick={() => openSupplierModal(s)}
-                    className="p-1.5 text-zinc-500 hover:text-violet-400 hover:bg-violet-500/10 rounded-lg transition-colors">
+                    className="p-1.5 text-zinc-500 hover:text-brand-600 hover:bg-brand-500/10 rounded-lg transition-colors">
                     <Edit2 className="w-3.5 h-3.5" />
                   </button>
                   <button onClick={() => { setDeleteTarget(s); setModal("delete"); }}
@@ -241,7 +222,7 @@ export default function SuppliersPage() {
             <div className="flex gap-3 px-6 py-4 border-t border-zinc-800 flex-shrink-0">
               <button onClick={() => setModal("none")} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
               <button onClick={saveSupplier} disabled={!sName.trim() || saving}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
                 {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 {editingSupplier ? "Salvar" : "Cadastrar"}
               </button>
