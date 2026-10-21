@@ -2,6 +2,7 @@
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
 import { PageHeader, btnSecondary } from "../../components/PageHeader";
+import { StatCard } from "../../components/StatCard";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
   BarChart, Bar, CartesianGrid, PieChart, Pie, Cell, ComposedChart, Line,
@@ -338,42 +339,14 @@ function ChartTip({ active, payload, label }: any) {
   );
 }
 
-function KPICard({ label, value, sub, icon, from: gFrom, to: gTo, glow }: {
+function KPICard({ label, value, sub, icon, from: gFrom }: {
   label: string; value: string; sub?: string; icon: React.ReactNode;
   from: string; to: string; glow: string;
 }) {
-  const { theme } = useTheme();
-  const isLight = theme === "light";
-  const card = isLight ? {
-    bg: "#ffffff",
-    border: "1px solid #e5e7eb",
-    shadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.9)",
-  } : {
-    bg: "#18181b",
-    border: "1px solid rgba(39,39,42,0.8)",
-    shadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
-  };
-  return (
-    <div className="relative overflow-hidden rounded-2xl p-5 cursor-default"
-      style={{ background: card.bg, border: card.border, boxShadow: isLight ? card.shadow : `0 0 30px ${glow}` }}>
-      {isLight
-        ? <div style={{ position:"absolute", top:0, left:0, right:0, height:3, background:`linear-gradient(90deg,${gFrom},${gTo})`, borderRadius:"12px 12px 0 0" }} />
-        : <div className="absolute -top-8 -right-8 w-28 h-28 rounded-full opacity-15 blur-3xl" style={{ background:`linear-gradient(135deg,${gFrom},${gTo})` }} />
-      }
-      <div className="relative z-10">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: isLight ? "#9CA3AF" : "#71717a" }}>{label}</span>
-          <div className="p-2 rounded-xl" style={{ background:`${gFrom}18`, border:`1px solid ${isLight ? gFrom + "30" : "#3f3f46"}` }}>{icon}</div>
-        </div>
-        <div className="text-2xl font-black tabular-nums">
-          <span style={{ background:`linear-gradient(135deg,${gFrom},${gTo})`, WebkitBackgroundClip:"text", display:"inline-block", WebkitTextFillColor:"transparent", backgroundClip:"text" }}>
-            {value}
-          </span>
-        </div>
-        {sub && <p className="text-[11px] mt-1" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>{sub}</p>}
-      </div>
-    </div>
-  );
+  // Padrão calmo: número escuro; cor só quando indica algo (vermelho = negativo, verde = resultado positivo)
+  const red = ["#f43f5e", "#ef4444", "#dc2626"].includes(gFrom.toLowerCase()) && /[1-9]/.test(value);
+  const tone = red ? "negative" : (/resultado|lucro/i.test(label) && gFrom.toLowerCase() === "#10b981") ? "positive" : "default";
+  return <StatCard label={label} value={value} sub={sub} icon={icon} tone={tone} />;
 }
 
 function Card({ children, className="" }: { children: React.ReactNode; className?: string }) {

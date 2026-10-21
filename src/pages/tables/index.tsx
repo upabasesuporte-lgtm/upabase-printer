@@ -4,6 +4,7 @@ import { supabase } from "../../lib/supabase";
 import { recalcFiadoBalance } from "../../lib/fiado";
 import { useTheme } from "../../contexts/ThemeContext";
 import { PageHeader, btnPrimary, btnSecondary, WHITE_TEXT } from "../../components/PageHeader";
+import { StatCard } from "../../components/StatCard";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import {
   UtensilsCrossed, Plus, Search, X, ChevronLeft, RefreshCw,
@@ -950,36 +951,11 @@ export default function TablesPage() {
           )}
 
           {/* KPI Stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {[
-              { label: "Total de Mesas", value: tables.length,    color: "#8b5cf6", glow: "rgba(139,92,246,0.18)" },
-              { label: "Livres",         value: stats.free,        color: "#10b981", glow: "rgba(16,185,129,0.18)" },
-              { label: "Ocupadas",       value: stats.occupied,    color: "#f59e0b", glow: "rgba(245,158,11,0.18)" },
-              { label: "Reservadas",     value: stats.reserved,    color: "#06b6d4", glow: "rgba(6,182,212,0.18)" },
-            ].map(s => (
-              <div key={s.label} className="relative overflow-hidden rounded-2xl p-4"
-                style={isLight ? {
-                  background: `linear-gradient(135deg,#ffffff,${s.color}08)`,
-                  border: `1px solid ${s.color}28`,
-                  boxShadow: `0 2px 8px rgba(0,0,0,0.05), 0 4px 20px ${s.color}14, inset 0 1px 0 rgba(255,255,255,0.9)`,
-                  borderTop: `3px solid ${s.color}`,
-                } : {
-                  background: card.bg, border: card.border,
-                  boxShadow: `0 0 28px ${s.glow}`,
-                }}>
-                {isLight && (
-                  <div className="absolute -bottom-6 -right-6 w-20 h-20 rounded-full opacity-10 blur-2xl pointer-events-none"
-                    style={{ background: s.color }} />
-                )}
-                {!isLight && (
-                  <div className="absolute -top-8 -right-8 w-24 h-24 rounded-full opacity-20 blur-2xl pointer-events-none"
-                    style={{ background: s.color }} />
-                )}
-                <p className="text-[10px] font-semibold uppercase tracking-widest mb-2 relative z-10"
-                  style={{ color: isLight ? s.color : "#71717a" }}>{s.label}</p>
-                <p className="text-3xl font-black relative z-10" style={{ color: s.color }}>{s.value}</p>
-              </div>
-            ))}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <StatCard compact label="Total de Mesas" value={tables.length} />
+            <StatCard compact label="Livres" value={stats.free} tone={stats.free > 0 ? "positive" : "default"} />
+            <StatCard compact label="Ocupadas" value={stats.occupied} tone={stats.occupied > 0 ? "warning" : "default"} />
+            <StatCard compact label="Reservadas" value={stats.reserved} tone={stats.reserved > 0 ? "brand" : "default"} />
           </div>
 
           {/* Table grid */}

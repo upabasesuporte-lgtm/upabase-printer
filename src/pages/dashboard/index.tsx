@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
 import { PageHeader, btnSecondary } from "../../components/PageHeader";
+import { StatCard, type StatTone } from "../../components/StatCard";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, CartesianGrid,
@@ -100,50 +101,20 @@ function ChartTooltip({ active, payload, label }: any) {
 
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
 
-function KpiCard({ label, value, sub, icon, change, changeLabel, from: gFrom, to: gTo, glow }: {
+function KpiCard({ label, value, sub, icon, change, changeLabel, tone }: {
   label: string; value: string | number; sub?: string; icon: React.ReactNode;
-  change?: number | null; changeLabel?: string; from: string; to: string; glow: string;
+  change?: number | null; changeLabel?: string; from: string; to: string; glow: string; tone?: StatTone;
 }) {
-  const { theme } = useTheme();
-  const isLight = theme === "light";
   const hasChange = change !== null && change !== undefined;
   const positive  = hasChange && change! >= 0;
-
-  const cardStyle = isLight ? {
-    background: "#ffffff",
-    border: "1px solid #e5e7eb",
-    boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.9)",
-  } : {
-    background: "linear-gradient(135deg,#18181b 0%,#09090b 100%)",
-    border: "1px solid rgba(39,39,42,0.8)",
-    boxShadow: `0 0 30px ${glow}`,
-  };
-
   return (
-    <div className="relative overflow-hidden rounded-2xl p-5 cursor-default" style={cardStyle}>
-      {/* Faixa gradiente no topo (light) / glow blur (dark) */}
-      {isLight
-        ? <div style={{ position:"absolute", top:0, left:0, right:0, height:3, background:`linear-gradient(90deg,${gFrom},${gTo})`, borderRadius:"12px 12px 0 0" }} />
-        : <div className="absolute -top-8 -right-8 w-28 h-28 rounded-full opacity-15 blur-3xl" style={{ background:`linear-gradient(135deg,${gFrom},${gTo})` }} />
-      }
-      <div className="relative z-10">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: isLight ? "#9CA3AF" : "#71717a" }}>{label}</span>
-          <div className="p-2 rounded-xl" style={{ background:`${gFrom}18`, border:`1px solid ${gFrom}30` }}>{icon}</div>
+    <StatCard label={label} value={value} sub={sub} icon={icon} tone={tone}
+      footer={hasChange && (
+        <div className={`flex items-center gap-1 mt-2 text-xs font-semibold ${positive ? "text-emerald-600" : "text-red-600"}`}>
+          {positive ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+          {pct(change!)} {changeLabel ?? "vs período anterior"}
         </div>
-        <div className="text-xl sm:text-2xl font-black tabular-nums break-all"
-          style={{ background:`linear-gradient(135deg,${gFrom},${gTo})`, WebkitBackgroundClip:"text", display:"block",WebkitTextFillColor:"transparent", backgroundClip:"text" }}>
-          {value}
-        </div>
-        {sub && <p className="text-[11px] mt-1" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>{sub}</p>}
-        {hasChange && (
-          <div className={`flex items-center gap-1 mt-2 text-xs font-semibold ${positive ? "text-emerald-500" : "text-red-500"}`}>
-            {positive ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
-            {pct(change!)} {changeLabel ?? "vs período anterior"}
-          </div>
-        )}
-      </div>
-    </div>
+      )} />
   );
 }
 
@@ -588,7 +559,7 @@ export default function DashboardPage() {
         <KpiCard label="Ticket Médio" value={fmt(avgTicket)} sub="por pedido"
           from="#10b981" to="#059669" glow="rgba(16,185,129,0.12)" change={avgChange}
           icon={<TrendingUp className="w-4 h-4" style={{ color: "#10b981" }} />} />
-        <KpiCard label="Contas a Pagar" value={fmt(apExpenses)} sub="despesas no período"
+        <KpiCard label="Contas a Pagar" value={fmt(apExpenses)} sub="despesas no período" tone={apExpenses > 0 ? "negative" : "default"}
           from="#f43f5e" to="#f97316" glow="rgba(244,63,94,0.1)"
           icon={<Wallet className="w-4 h-4" style={{ color: "#f43f5e" }} />} />
       </div>

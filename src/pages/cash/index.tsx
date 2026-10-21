@@ -2,6 +2,7 @@
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
 import { PageHeader, btnSecondary, segWrap, segBtn, WHITE_TEXT } from "../../components/PageHeader";
+import { StatCard } from "../../components/StatCard";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import {
   Wallet, ArrowDownCircle, ArrowUpCircle, Lock, Unlock,
@@ -1204,41 +1205,14 @@ function OpenModalContent({ error, initialAmount, setInitialAmount, operatorName
 
 // ─── Sub-componentes ──────────────────────────────────────────────────────────
 
-function SummaryCard({ label, value, sub, icon, iconBg, iconColor, color }: {
+function SummaryCard({ label, value, sub, icon, color }: {
   label: string; value: string; sub: string;
   icon: React.ReactNode; iconBg: string; iconColor: string; accent?: boolean; color?: string;
 }) {
-  const { theme } = useTheme();
-  const isLight = theme === "light";
-  const card = isLight ? {
-    bg: "#ffffff",
-    border: "1px solid #e5e7eb",
-    shadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.9)",
-  } : {
-    bg: "#18181b",
-    border: "1px solid rgba(39,39,42,0.8)",
-    shadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
-  };
-  return (
-    <div className="relative overflow-hidden rounded-2xl p-5"
-      style={{ background: card.bg, border: card.border, boxShadow: isLight ? card.shadow : (color ? `0 0 28px ${color}22` : "none") }}>
-      {/* Faixa gradiente no topo — efeito moderno igual dashboard */}
-      {isLight && (
-        <div className="absolute top-0 left-0 right-0 pointer-events-none"
-          style={{ height: 3, background: color ? `linear-gradient(90deg,${color},${color}88)` : "linear-gradient(90deg,#7B2FBE,#00B4D8)" }} />
-      )}
-      {color && (
-        <div className="absolute -top-8 -right-8 w-24 h-24 rounded-full opacity-20 blur-2xl pointer-events-none"
-          style={{ background: color }} />
-      )}
-      <div className="flex items-start justify-between mb-4 relative z-10">
-        <p className="text-xs font-medium text-zinc-500">{label}</p>
-        <div className={`w-9 h-9 ${iconBg} rounded-xl flex items-center justify-center ${iconColor}`}>{icon}</div>
-      </div>
-      <p className="text-2xl font-bold mb-1 relative z-10" style={{ color: color || (isLight ? "#7B2FBE" : "#fff") }}>{value}</p>
-      <p className="text-xs text-zinc-500 relative z-10">{sub}</p>
-    </div>
-  );
+  // Padrão calmo: número escuro; vermelho só quando há sangria de fato
+  const hasValue = /[1-9]/.test(value);
+  const tone = color === "#ef4444" && hasValue ? "negative" : "default";
+  return <StatCard label={label} value={value} sub={sub} icon={icon} tone={tone} />;
 }
 
 function Row({ label, value, positive, negative }: {
