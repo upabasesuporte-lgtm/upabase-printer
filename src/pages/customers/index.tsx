@@ -3,6 +3,7 @@ import { supabase } from "../../lib/supabase";
 import { recalcFiadoBalance } from "../../lib/fiado";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
+import { PageHeader, btnPrimary, WHITE_TEXT } from "../../components/PageHeader";
 import {
   Search, Plus, Trash2, Edit2, X, User, Phone, MapPin, Mail,
   Printer, ChevronLeft, Banknote, CreditCard, Smartphone,
@@ -62,11 +63,11 @@ type ModalType = "none" | "createEdit" | "addCredit" | "payDebt" | "delete" | "e
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 const inputCls =
-  "w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/10 transition-all";
+  "w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/10 transition-all";
 
 const PAY_METHODS: { method: PayMethod; label: string; icon: React.ReactNode; color: string }[] = [
   { method: "cash",   label: "Dinheiro",  icon: <Banknote className="w-4 h-4" />,   color: "border-emerald-500 bg-emerald-500/10 text-emerald-300" },
-  { method: "pix",    label: "PIX",       icon: <Smartphone className="w-4 h-4" />, color: "border-violet-500 bg-violet-500/10 text-violet-300" },
+  { method: "pix",    label: "PIX",       icon: <Smartphone className="w-4 h-4" />, color: "border-brand-500 bg-brand-500/10 text-brand-700" },
   { method: "credit", label: "Crédito",   icon: <CreditCard className="w-4 h-4" />, color: "border-blue-500 bg-blue-500/10 text-blue-300" },
   { method: "debit",  label: "Débito",    icon: <CreditCard className="w-4 h-4" />, color: "border-indigo-400 bg-indigo-500/10 text-indigo-300" },
 ];
@@ -78,7 +79,7 @@ const PAY_LABEL: Record<string, string> = {
 // Métodos de pagamento para o modal de edição de fiado (inclui opção Fiado)
 const EDIT_PAY_METHODS: { method: PayMethod; label: string; icon: React.ReactNode; color: string }[] = [
   { method: "cash",   label: "Dinheiro",  icon: <Banknote className="w-4 h-4" />,       color: "border-emerald-500 bg-emerald-500/10 text-emerald-300" },
-  { method: "pix",    label: "PIX",       icon: <Smartphone className="w-4 h-4" />,     color: "border-violet-500 bg-violet-500/10 text-violet-300" },
+  { method: "pix",    label: "PIX",       icon: <Smartphone className="w-4 h-4" />,     color: "border-brand-500 bg-brand-500/10 text-brand-700" },
   { method: "credit", label: "Crédito",   icon: <CreditCard className="w-4 h-4" />,     color: "border-blue-500 bg-blue-500/10 text-blue-300" },
   { method: "debit",  label: "Débito",    icon: <CreditCard className="w-4 h-4" />,     color: "border-indigo-400 bg-indigo-500/10 text-indigo-300" },
   { method: "fiado",  label: "Fiado",     icon: <AlertTriangle className="w-4 h-4" />,  color: "border-red-500 bg-red-500/10 text-red-300" },
@@ -975,59 +976,38 @@ export default function CustomersPage() {
       {/* ── LIST VIEW ── */}
       {view === "list" && (
         <div className="space-y-5">
-          <div className="relative overflow-hidden rounded-2xl p-5"
-            style={{ background: card.bg, border: card.border, boxShadow: card.shadow,
-              backgroundImage: isLight ? "radial-gradient(rgba(123,47,190,0.12) 1px,transparent 1px)" : "radial-gradient(rgba(217,70,239,0.07) 1px,transparent 1px)", backgroundSize:"24px 24px" }}>
-            <div className="absolute inset-0 pointer-events-none" style={isLight ? { background: "linear-gradient(135deg, rgba(123,47,190,0.04) 0%, rgba(0,180,216,0.03) 100%)" } : undefined}>{!isLight && <div className="absolute inset-0 bg-gradient-to-r from-fuchsia-900/10 to-transparent" />}</div>
-            <div className="relative flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-1.5 h-1.5 rounded-full" style={{background: isLight ? "#3B82F6" : "#d946ef", boxShadow: isLight ? "0 0 6px #3B82F6" : "0 0 6px #d946ef"}} />
-                <span className="text-[11px] font-semibold uppercase tracking-widest" style={{color: isLight ? "#3B82F6" : "#d946ef"}}>CRM</span>
-              </div>
-              <h1 className={`text-2xl font-black ${isLight ? "" : "g-text g-text-pink"}`} style={isLight ? { color:"#3B82F6" } : undefined}>
-                Clientes
-              </h1>
-              <p className="text-xs text-zinc-500 mt-0.5">{customers.length} clientes cadastrados</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex rounded-xl p-1 gap-1" style={{ background: card.bg, border: card.border }}>
-                <button onClick={() => setListView("list")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${listView === "list" ? (isLight ? "" : "bg-violet-600 text-white") : (isLight ? "text-gray-500 hover:text-gray-900" : "text-zinc-400 hover:text-white")}`}
-                  style={listView === "list" && isLight ? { background:"#7c3aed", color: "#ffffff" } : undefined}>
-                  Lista
-                </button>
-                <button onClick={() => { setListView("ranking"); loadRanking(); }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${listView === "ranking" ? (isLight ? "" : "bg-violet-600 text-white") : (isLight ? "text-gray-500 hover:text-gray-900" : "text-zinc-400 hover:text-white")}`}
-                  style={listView === "ranking" && isLight ? { background:"#7c3aed", color: "#ffffff" } : undefined}>
-                  Ranking
-                </button>
-              </div>
-              <button onClick={openCreate}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all"
-                style={isLight ? {background:"#2563eb",color:"#fff"} : {background:"linear-gradient(135deg,#a21caf,#d946ef)",color:"#fff",boxShadow:"0 0 16px rgba(217,70,239,0.35)"}}>
-                <Plus className="w-4 h-4" /> Novo Cliente
+          <PageHeader title="Clientes" actions={<>
+            <div className="flex p-1 bg-gray-200/60 rounded-xl">
+              <button onClick={() => setListView("list")}
+                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${listView === "list" ? "bg-white text-brand-700 shadow-sm" : "text-gray-500 hover:text-gray-800"}`}>
+                Lista
+              </button>
+              <button onClick={() => { setListView("ranking"); loadRanking(); }}
+                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${listView === "ranking" ? "bg-white text-brand-700 shadow-sm" : "text-gray-500 hover:text-gray-800"}`}>
+                Ranking
               </button>
             </div>
-            </div>
-          </div>
+            <button onClick={openCreate} className={btnPrimary} style={WHITE_TEXT}>
+              <Plus className="w-4 h-4" /> Novo Cliente
+            </button>
+          </>} />
 
           <div className="relative">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
             <input value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Buscar por nome, telefone ou e-mail..."
               style={{ background: card.bg, border: card.border, color: isLight ? "#111" : "#fff" }}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm placeholder-zinc-600 focus:outline-none focus:border-violet-500 transition-all" />
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm placeholder-zinc-600 focus:outline-none focus:border-brand-500 transition-all" />
           </div>
 
           {listView === "ranking" && (
             <div className="rounded-2xl overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
               <div className="px-4 py-3 border-b border-zinc-800 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-violet-400" />
+                <TrendingUp className="w-4 h-4 text-brand-600" />
                 <h2 className="text-sm font-semibold">Ranking por Total Gasto</h2>
               </div>
               {rankingLoading ? (
-                <div className="flex justify-center py-10"><RefreshCw className="w-4 h-4 animate-spin text-violet-400" /></div>
+                <div className="flex justify-center py-10"><RefreshCw className="w-4 h-4 animate-spin text-brand-600" /></div>
               ) : rankingData.length === 0 ? (
                 <div className="text-center py-10 text-xs text-zinc-600">Nenhuma venda vinculada a clientes ainda.</div>
               ) : (
@@ -1042,7 +1022,7 @@ export default function CustomersPage() {
                         <p className="text-xs text-zinc-500">{c.purchase_count} compra{c.purchase_count !== 1 ? "s" : ""}{c.phone ? ` · ${c.phone}` : ""}</p>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <p className="text-sm font-bold text-violet-400">{fmt(c.total_spent)}</p>
+                        <p className="text-sm font-bold text-brand-600">{fmt(c.total_spent)}</p>
                         <p className="text-xs text-zinc-500">total gasto</p>
                       </div>
                     </div>
@@ -1053,14 +1033,14 @@ export default function CustomersPage() {
           )}
 
           {listView === "list" && loading && (
-            <div className="flex justify-center py-16"><RefreshCw className="w-5 h-5 animate-spin text-violet-400" /></div>
+            <div className="flex justify-center py-16"><RefreshCw className="w-5 h-5 animate-spin text-brand-600" /></div>
           )}
           {listView === "list" && !loading && filtered.length === 0 && (
             <div className="text-center py-16 border border-dashed border-zinc-800 rounded-2xl">
               <User className="w-10 h-10 text-zinc-700 mx-auto mb-3" />
               <p className="text-zinc-500 text-sm">{search ? "Nenhum cliente encontrado" : "Nenhum cliente cadastrado ainda"}</p>
               {!search && (
-                <button onClick={openCreate} className="mt-4 text-violet-400 text-sm hover:underline">
+                <button onClick={openCreate} className="mt-4 text-brand-600 text-sm hover:underline">
                   Cadastrar primeiro cliente
                 </button>
               )}
@@ -1095,7 +1075,7 @@ export default function CustomersPage() {
                           {/* Cliente */}
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-3 min-w-0">
-                              <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${hasDebt ? "bg-red-500/20 border border-red-500/30 text-red-400" : "bg-violet-600/20 border border-violet-500/20 text-violet-400"}`}>
+                              <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${hasDebt ? "bg-red-500/20 border border-red-500/30 text-red-400" : "bg-brand-600/20 border border-brand-500/20 text-brand-600"}`}>
                                 {c.name.charAt(0).toUpperCase()}
                               </div>
                               <div className="min-w-0">
@@ -1132,7 +1112,7 @@ export default function CustomersPage() {
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
                               <button onClick={e => openEdit(c, e)}
-                                className="p-1.5 text-zinc-500 hover:text-violet-400 hover:bg-violet-500/10 rounded-lg transition-colors">
+                                className="p-1.5 text-zinc-500 hover:text-brand-600 hover:bg-brand-500/10 rounded-lg transition-colors">
                                 <Edit2 className="w-3.5 h-3.5" />
                               </button>
                               <button onClick={e => { e.stopPropagation(); setDeleteTarget(c); setModal("delete"); }}
@@ -1228,11 +1208,11 @@ export default function CustomersPage() {
                 }
                 setPayEntries([]); const d = selected.fiado_balance ?? 0; setPayInput(d > 0 ? d.toFixed(2) : ""); setModal("payDebt");
               }}
-                className="flex flex-col items-center justify-center gap-2 p-4 bg-violet-500/10 border border-violet-500/20 hover:bg-violet-500/20 rounded-2xl transition-colors text-violet-400">
+                className="flex flex-col items-center justify-center gap-2 p-4 bg-brand-500/10 border border-brand-500/20 hover:bg-brand-500/20 rounded-2xl transition-colors text-brand-600">
                 <DollarSign className="w-6 h-6" />
                 <div className="text-center">
                   <p className="text-sm font-semibold">Pagar Fiado</p>
-                  <p className="text-xs text-violet-400/60">Quitar fiado</p>
+                  <p className="text-xs text-brand-600/60">Quitar fiado</p>
                 </div>
               </button>
             </div>
@@ -1242,7 +1222,7 @@ export default function CustomersPage() {
           <div className="rounded-2xl overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800 flex-wrap gap-3">
               <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-violet-400" />
+                <FileText className="w-4 h-4 text-brand-600" />
                 <h2 className="text-sm font-semibold">Histórico de Movimentações</h2>
               </div>
               <button onClick={printHistory}
@@ -1268,10 +1248,10 @@ export default function CustomersPage() {
                 <div className="flex items-center gap-2 text-xs text-zinc-400">
                   <span>De</span>
                   <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)}
-                    className="px-2 py-1 bg-zinc-950 border border-zinc-700 rounded-lg text-xs text-white focus:outline-none focus:border-violet-500" />
+                    className="px-2 py-1 bg-zinc-950 border border-zinc-700 rounded-lg text-xs text-white focus:outline-none focus:border-brand-500" />
                   <span>até</span>
                   <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)}
-                    className="px-2 py-1 bg-zinc-950 border border-zinc-700 rounded-lg text-xs text-white focus:outline-none focus:border-violet-500" />
+                    className="px-2 py-1 bg-zinc-950 border border-zinc-700 rounded-lg text-xs text-white focus:outline-none focus:border-brand-500" />
                 </div>
               </div>
             )}
@@ -1294,7 +1274,7 @@ export default function CustomersPage() {
 
             {/* Movement list */}
             {movLoading ? (
-              <div className="flex justify-center py-10"><RefreshCw className="w-4 h-4 animate-spin text-violet-400" /></div>
+              <div className="flex justify-center py-10"><RefreshCw className="w-4 h-4 animate-spin text-brand-600" /></div>
             ) : movements.length === 0 ? (
               <div className="text-center py-10 text-xs text-zinc-600">Nenhuma movimentação no período selecionado</div>
             ) : (
@@ -1306,7 +1286,7 @@ export default function CustomersPage() {
                   const typeInfo = {
                     debit:   { label: "Fiado / Débito",  color: "bg-red-500/10 text-red-400 border-red-500/20" },
                     credit:  { label: "Crédito / Saldo", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
-                    payment: { label: "Pagamento",        color: "bg-violet-500/10 text-violet-400 border-violet-500/20" },
+                    payment: { label: "Pagamento",        color: "bg-brand-500/10 text-brand-600 border-brand-500/20" },
                     saldo:   { label: "Saldo Usado",      color: "bg-teal-500/10 text-teal-400 border-teal-500/20" },
                   }[effectiveType];
                   const methods = (m.payment_methods ?? []).map(p => PAY_LABEL[p.method] ?? p.method).join(" + ");
@@ -1344,7 +1324,7 @@ export default function CustomersPage() {
                           {(m.type === "payment" || (m.type === "debit" && m.sale_id)) && (
                             <button
                               onClick={() => openEditMovement(m)}
-                              className="p-1.5 bg-zinc-800 hover:bg-violet-600 text-zinc-300 hover:text-white rounded-lg transition-all border border-zinc-700 hover:border-violet-500"
+                              className="p-1.5 bg-zinc-800 hover:bg-brand-600 text-zinc-300 hover:text-white rounded-lg transition-all border border-zinc-700 hover:border-brand-500"
                               title="Editar movimentação">
                               <Edit2 className="w-3.5 h-3.5" />
                             </button>
@@ -1433,7 +1413,7 @@ export default function CustomersPage() {
             <div className="flex items-center gap-3 px-6 py-4 border-t border-zinc-800">
               <button onClick={() => setModal("none")} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
               <button onClick={saveCustomer} disabled={!fName.trim() || saving}
-                className={`flex-1 flex items-center justify-center gap-2 py-2.5 disabled:opacity-50 rounded-xl text-sm font-semibold transition-colors ${isLight ? "bg-pink-600 hover:bg-pink-700" : "bg-violet-600 hover:bg-violet-500 text-white"}`}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 disabled:opacity-50 rounded-xl text-sm font-semibold transition-colors ${isLight ? "bg-pink-600 hover:bg-pink-700" : "bg-brand-600 hover:bg-brand-700 text-white"}`}
                 style={isLight ? { color: "#ffffff" } : undefined}>
                 {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 {editing ? "Salvar" : "Cadastrar"}
@@ -1575,7 +1555,7 @@ export default function CustomersPage() {
                   placeholder={remaining > 0 ? `Saldo: ${fmt(remaining)}` : "Valor"}
                   type="number" min="0.01" step="0.01" className={inputCls + " flex-1"} />
                 <button onClick={addPayEntry} disabled={!payInput}
-                  className="px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white rounded-xl text-sm font-semibold transition-colors flex-shrink-0">
+                  className="px-4 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-40 text-white rounded-xl text-sm font-semibold transition-colors flex-shrink-0">
                   <Plus className="w-4 h-4" />
                 </button>
               </div>
@@ -1612,7 +1592,7 @@ export default function CustomersPage() {
             <div className="flex gap-3 px-6 py-4 border-t border-zinc-800 flex-shrink-0">
               <button onClick={() => setModal("none")} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
               <button onClick={payDebt} disabled={payEntries.length === 0 || saving || (selected.fiado_balance ?? 0) <= 0}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
                 {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                 {(selected.fiado_balance ?? 0) <= 0 ? "Sem fiado" : `Confirmar ${totalPaid > 0 ? fmt(totalPaid) : ""}`}
               </button>
@@ -1694,7 +1674,7 @@ export default function CustomersPage() {
                         onKeyDown={e => e.key === "Enter" && addEditPayEntry()}
                         placeholder="Valor" type="number" min="0.01" step="0.01" className={inputCls + " flex-1"} />
                       <button onClick={addEditPayEntry} disabled={!editPayInput}
-                        className="px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white rounded-xl text-sm font-semibold transition-colors">
+                        className="px-4 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-40 text-white rounded-xl text-sm font-semibold transition-colors">
                         <Plus className="w-4 h-4" />
                       </button>
                     </div>
@@ -1755,16 +1735,16 @@ export default function CustomersPage() {
                                   value={editItemPriceVal}
                                   onChange={e => setEditItemPriceVal(e.target.value)}
                                   onKeyDown={e => { if (e.key === "Enter") editConfirmItemPrice(item); if (e.key === "Escape") { e.stopPropagation(); setEditItemPriceId(null); setEditItemPriceVal(""); } }}
-                                  className="w-24 px-2 py-1 bg-zinc-900 border border-violet-500 rounded-lg text-xs text-white focus:outline-none" />
+                                  className="w-24 px-2 py-1 bg-zinc-900 border border-brand-500 rounded-lg text-xs text-white focus:outline-none" />
                                 <button onClick={() => editConfirmItemPrice(item)}
-                                  className="px-2 py-1 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-xs font-semibold">OK</button>
+                                  className="px-2 py-1 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-semibold">OK</button>
                                 <button onClick={() => { setEditItemPriceId(null); setEditItemPriceVal(""); }}
                                   className="p-1 text-zinc-500 hover:text-white rounded-lg text-xs"><X className="w-3 h-3" /></button>
                               </div>
                             ) : (
                               <button
                                 onClick={() => { setEditItemPriceId(item.id); setEditItemPriceVal(String(item.unit_price)); }}
-                                className="text-xs text-zinc-500 hover:text-violet-400 transition-colors mt-0.5">
+                                className="text-xs text-zinc-500 hover:text-brand-600 transition-colors mt-0.5">
                                 {fmt(item.unit_price)} / un · subtotal {fmt(item.unit_price * item.quantity)}
                               </button>
                             )}
@@ -1805,7 +1785,7 @@ export default function CustomersPage() {
                           }
                         }}
                         placeholder="Digite o nome e pressione Enter para adicionar..."
-                        className="w-full pl-10 pr-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-violet-500 transition-colors"
+                        className="w-full pl-10 pr-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-brand-500 transition-colors"
                       />
                     </div>
                     {editProductSearch.length >= 1 && (
@@ -1815,12 +1795,12 @@ export default function CustomersPage() {
                           .slice(0, 6)
                           .map((p: any) => (
                             <button key={p.id} onClick={() => editAddItemToSale(p)}
-                              className="w-full flex items-center justify-between px-3 py-2 bg-zinc-950 hover:bg-violet-600/10 border border-zinc-800 hover:border-violet-500/30 rounded-xl transition-colors text-left">
+                              className="w-full flex items-center justify-between px-3 py-2 bg-zinc-950 hover:bg-brand-600/10 border border-zinc-800 hover:border-brand-500/30 rounded-xl transition-colors text-left">
                               <div>
                                 <p className="text-sm font-medium text-white">{p.name}</p>
                                 <p className="text-xs text-zinc-500">{fmt(p.sale_price ?? p.price)}</p>
                               </div>
-                              <Plus className="w-4 h-4 text-violet-400 flex-shrink-0" />
+                              <Plus className="w-4 h-4 text-brand-600 flex-shrink-0" />
                             </button>
                           ))}
                       </div>
@@ -1875,7 +1855,7 @@ export default function CustomersPage() {
                             onKeyDown={e => e.key === "Enter" && addEditPayEntry()}
                             placeholder="Valor" type="number" min="0.01" step="0.01" className={inputCls + " flex-1"} />
                           <button onClick={addEditPayEntry} disabled={!editPayInput}
-                            className="px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white rounded-xl text-sm font-semibold">
+                            className="px-4 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-40 text-white rounded-xl text-sm font-semibold">
                             <Plus className="w-4 h-4" />
                           </button>
                         </div>
@@ -1884,7 +1864,7 @@ export default function CustomersPage() {
 
                     {editPayEntries.length > 0 && (
                       <button onClick={() => { setEditPayMethod("cash"); setEditPayInput(""); }}
-                        className="text-xs text-violet-400 hover:text-violet-300 flex items-center gap-1 transition-colors">
+                        className="text-xs text-brand-600 hover:text-brand-700 flex items-center gap-1 transition-colors">
                         <Plus className="w-3 h-3" /> Adicionar outra forma (pagamento dividido)
                       </button>
                     )}
@@ -1928,7 +1908,7 @@ export default function CustomersPage() {
                   (editingMovement.type === "payment" && editPayEntries.length === 0) ||
                   (editingMovement.type === "debit" && !editSaleRecord)
                 }
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
                 {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 Salvar alterações
               </button>
