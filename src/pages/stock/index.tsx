@@ -74,10 +74,10 @@ const MOVE_INFO: Record<string, { label: string; icon: React.ReactNode; tone: st
   entry: { label: "Entrada", icon: <ArrowDownToLine className="w-3.5 h-3.5" />, tone: "bg-emerald-50 text-emerald-700" },
   purchase: { label: "Compra", icon: <Truck className="w-3.5 h-3.5" />, tone: "bg-emerald-50 text-emerald-700" },
   return: { label: "Devolução", icon: <Undo2 className="w-3.5 h-3.5" />, tone: "bg-emerald-50 text-emerald-700" },
-  sale: { label: "Venda", icon: <ShoppingCart className="w-3.5 h-3.5" />, tone: "bg-blue-50 text-blue-700" },
+  sale: { label: "Venda", icon: <ShoppingCart className="w-3.5 h-3.5" />, tone: "bg-brand-50 text-brand-700" },
   exit: { label: "Saída", icon: <ArrowUpFromLine className="w-3.5 h-3.5" />, tone: "bg-gray-100 text-gray-700" },
   loss: { label: "Perda", icon: <Flame className="w-3.5 h-3.5" />, tone: "bg-red-50 text-red-700" },
-  count: { label: "Contagem", icon: <ClipboardCheck className="w-3.5 h-3.5" />, tone: "bg-violet-50 text-violet-700" },
+  count: { label: "Contagem", icon: <ClipboardCheck className="w-3.5 h-3.5" />, tone: "bg-gray-100 text-gray-700" },
   purchase_cancel: { label: "Compra cancelada", icon: <Undo2 className="w-3.5 h-3.5" />, tone: "bg-gray-100 text-gray-700" },
 };
 
@@ -89,8 +89,8 @@ const MOVE_TYPES: { key: MoveType; label: string; hint: string }[] = [
 ];
 
 const card = "bg-white border border-gray-200 rounded-2xl shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.04)]";
-const fieldCls = "w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all";
-const btnPrimary = "inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors";
+const fieldCls = "w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 transition-all";
+const btnPrimary = "inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold bg-brand-600 hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors";
 const btnGhost = "inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold border border-gray-200 text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-40 transition-colors";
 const WHITE = { color: "#fff" };
 
@@ -200,7 +200,7 @@ export default function StockPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <RefreshCw className="w-5 h-5 animate-spin text-blue-500" />
+        <RefreshCw className="w-5 h-5 animate-spin text-brand-500" />
       </div>
     );
   }
@@ -208,33 +208,30 @@ export default function StockPage() {
   return (
     <>
       <div className="space-y-4">
-        {/* Cabeçalho */}
-        <div className={`${card} p-5`}>
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-black text-gray-900 tracking-tight">Estoque</h1>
-              <p className="text-sm text-gray-500 mt-0.5">
-                {rows.length} ite{rows.length !== 1 ? "ns" : "m"} com controle de estoque
-                {uncontrolledProducts.length > 0 && <> · {uncontrolledProducts.length} produto{uncontrolledProducts.length !== 1 ? "s" : ""} vendido{uncontrolledProducts.length !== 1 ? "s" : ""} sem controle</>}
-              </p>
+        {/* Título + ações (linha única, sem quadro) */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900 tracking-tight">Estoque</h1>
+            <button onClick={() => setIngredientModal({ item: null })} className={btnPrimary + " md:hidden !py-2"} style={WHITE}>
+              <Plus className="w-4 h-4" /> Novo insumo
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex flex-1 md:flex-none p-1 bg-gray-200/60 rounded-xl">
+              {([
+                { key: "stock", label: "Estoque", short: "Estoque", icon: <Boxes className="w-4 h-4" /> },
+                { key: "history", label: "Histórico", short: "Histórico", icon: <History className="w-4 h-4" /> },
+                { key: "recipes", label: "Fichas técnicas", short: "Fichas", icon: <BookOpen className="w-4 h-4" /> },
+              ] as const).map(t => (
+                <button key={t.key} onClick={() => setView(t.key)}
+                  className={`flex flex-1 md:flex-none items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors ${view === t.key ? "bg-white text-brand-700 shadow-sm" : "text-gray-500 hover:text-gray-800"}`}>
+                  {t.icon}<span className="sm:hidden">{t.short}</span><span className="hidden sm:inline">{t.label}</span>
+                </button>
+              ))}
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex p-1 bg-gray-100 rounded-xl">
-                {([
-                  { key: "stock", label: "Estoque", icon: <Boxes className="w-4 h-4" /> },
-                  { key: "history", label: "Histórico", icon: <History className="w-4 h-4" /> },
-                  { key: "recipes", label: "Fichas técnicas", icon: <BookOpen className="w-4 h-4" /> },
-                ] as const).map(t => (
-                  <button key={t.key} onClick={() => setView(t.key)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${view === t.key ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-800"}`}>
-                    {t.icon}<span className="hidden sm:inline">{t.label}</span>
-                  </button>
-                ))}
-              </div>
-              <button onClick={() => setIngredientModal({ item: null })} className={btnPrimary} style={WHITE}>
-                <Plus className="w-4 h-4" /> Novo insumo
-              </button>
-            </div>
+            <button onClick={() => setIngredientModal({ item: null })} className={btnPrimary + " hidden md:inline-flex"} style={WHITE}>
+              <Plus className="w-4 h-4" /> Novo insumo
+            </button>
           </div>
         </div>
 
@@ -279,13 +276,13 @@ export default function StockPage() {
             ) : (
               <>
                 {uncontrolledProducts.length > 0 && statusFilter === "all" && kindFilter !== "ingredient" && q === "" && (
-                  <div className="flex items-start sm:items-center gap-3 px-4 py-3 rounded-2xl bg-blue-50/60 border border-blue-100 text-sm text-blue-900">
-                    <Info className="w-4 h-4 flex-shrink-0 mt-0.5 sm:mt-0 text-blue-600" />
+                  <div className="flex items-start sm:items-center gap-3 px-4 py-3 rounded-2xl bg-brand-50/60 border border-brand-100 text-sm text-brand-900">
+                    <Info className="w-4 h-4 flex-shrink-0 mt-0.5 sm:mt-0 text-brand-600" />
                     <p className="flex-1">
                       <span className="font-semibold">{uncontrolledProducts.length} produto{uncontrolledProducts.length !== 1 ? "s são vendidos" : " é vendido"} sem controle de estoque</span>
                       {" "}(como pratos feitos na hora) e não aparece{uncontrolledProducts.length !== 1 ? "m" : ""} nesta lista.
                     </p>
-                    <button onClick={() => setStatusFilter("uncontrolled")} className="flex-shrink-0 text-sm font-semibold text-blue-700 hover:underline">Ver</button>
+                    <button onClick={() => setStatusFilter("uncontrolled")} className="flex-shrink-0 text-sm font-semibold text-brand-700 hover:underline">Ver</button>
                   </div>
                 )}
 
@@ -368,7 +365,7 @@ function Kpi({ label, value, sub, tone, active, onClick }: {
   const Tag = onClick ? "button" : "div";
   return (
     <Tag onClick={onClick}
-      className={`${card} text-left p-4 transition-all ${onClick ? "hover:border-gray-300 cursor-pointer" : ""} ${active && onClick ? "ring-2 ring-blue-500/30 border-blue-300" : ""}`}>
+      className={`${card} text-left p-4 transition-all ${onClick ? "hover:border-gray-300 cursor-pointer" : ""} ${active && onClick ? "ring-2 ring-brand-500/30 border-brand-300" : ""}`}>
       <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{label}</p>
       <p className={`text-2xl font-black tabular-nums tracking-tight mt-1 ${valueColor}`}>{value}</p>
       <p className="text-xs text-gray-400 mt-0.5">{sub}</p>
@@ -393,7 +390,7 @@ function Segmented<T extends string>({ value, onChange, options, disabled }: {
 
 function KindBadge({ kind }: { kind: Kind }) {
   return (
-    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${kind === "product" ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"}`}>
+    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-600">
       {kind === "product" ? "Produto" : "Insumo"}
     </span>
   );
@@ -469,7 +466,7 @@ function UncontrolledList({ products, recipeCount, onControl, onRecipe }: {
         <p>
           Estes produtos são vendidos <span className="font-semibold">sem contar estoque</span> — nunca travam no PDV.
           Bom para o que você repõe todo dia e não quer controlar. Quer saber o que eles gastam de ingredientes?
-          Monte uma <button onClick={onRecipe} className="font-semibold text-blue-700 hover:underline">ficha técnica</button>.
+          Monte uma <button onClick={onRecipe} className="font-semibold text-brand-700 hover:underline">ficha técnica</button>.
           Quer contar a quantidade? Use <span className="font-semibold">Controlar estoque</span>.
         </p>
       </div>
@@ -868,8 +865,8 @@ function RecipesView({ products, stockItems, onCountsChange, onNewIngredient }: 
 
   return (
     <div className="space-y-3">
-      <div className="flex items-start gap-3 px-4 py-3 rounded-2xl bg-blue-50/60 border border-blue-100 text-sm text-blue-900">
-        <BookOpen className="w-4 h-4 flex-shrink-0 mt-0.5 text-blue-600" />
+      <div className="flex items-start gap-3 px-4 py-3 rounded-2xl bg-brand-50/60 border border-brand-100 text-sm text-brand-900">
+        <BookOpen className="w-4 h-4 flex-shrink-0 mt-0.5 text-brand-600" />
         <p>
           <span className="font-semibold">Ficha técnica</span> é a receita do produto: quanto de cada insumo ele gasta.
           A cada venda no PDV ou nas Mesas, o sistema desconta os insumos sozinho e mostra o custo real do prato.
@@ -889,7 +886,7 @@ function RecipesView({ products, stockItems, onCountsChange, onNewIngredient }: 
           <div className="max-h-[60vh] overflow-y-auto divide-y divide-gray-50">
             {list.map(p => (
               <button key={p.id} onClick={() => { setSelectedId(p.id); setLines([]); setError(null); loadLines(p.id); }}
-                className={`w-full flex items-center gap-2 px-4 py-2.5 text-left text-sm transition-colors ${selectedId === p.id ? "bg-blue-50 text-blue-800" : "text-gray-800 hover:bg-gray-50"}`}>
+                className={`w-full flex items-center gap-2 px-4 py-2.5 text-left text-sm transition-colors ${selectedId === p.id ? "bg-brand-50 text-brand-800" : "text-gray-800 hover:bg-gray-50"}`}>
                 <span className="flex-1 truncate">{p.name}</span>
                 {counts[p.id] ? (
                   <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700">{counts[p.id]} insumo{counts[p.id] !== 1 ? "s" : ""}</span>
@@ -911,7 +908,7 @@ function RecipesView({ products, stockItems, onCountsChange, onNewIngredient }: 
           <div className={`${card} overflow-hidden`}>
             <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100">
               <div className="min-w-0">
-                <button onClick={() => setSelectedId(null)} className="lg:hidden text-xs font-semibold text-blue-700 mb-1">← Produtos</button>
+                <button onClick={() => setSelectedId(null)} className="lg:hidden text-xs font-semibold text-brand-700 mb-1">← Produtos</button>
                 <h2 className="text-base font-bold text-gray-900 truncate">{selected.name}</h2>
                 <p className="text-xs text-gray-500">Insumos gastos em 1 unidade vendida</p>
               </div>
