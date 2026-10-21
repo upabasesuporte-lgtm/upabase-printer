@@ -2,6 +2,7 @@
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
+import { PageHeader, btnPrimary, btnSecondary, WHITE_TEXT } from "../../components/PageHeader";
 import {
   Wallet, Mic, MicOff, Plus, X, Search, Send, Sparkles,
   CheckCircle2, AlertCircle, XCircle, Trash2, Edit2,
@@ -524,7 +525,7 @@ export default function AccountsPayablePage() {
   const toggleSelect = (id: string) =>
     setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
-  const inp = "w-full px-3 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500/60 transition-all";
+  const inp = "w-full px-3 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 transition-all";
   const formFinal = (parseFloat(form.amount)||0) - (parseFloat(form.discount)||0) + (parseFloat(form.interest)||0) + (parseFloat(form.fine)||0);
   const installN  = parseInt(form.installments) || 1;
 
@@ -533,41 +534,14 @@ export default function AccountsPayablePage() {
   return (
     <div className="space-y-5">
 
-      {/* ── Header ── */}
-      <div className="relative overflow-hidden rounded-2xl p-6"
-        style={{ background: card.bg, border: card.border, boxShadow: card.shadow,
-          backgroundImage: isLight ? "radial-gradient(rgba(123,47,190,0.12) 1px,transparent 1px)" : "radial-gradient(rgba(249,115,22,0.07) 1px,transparent 1px)", backgroundSize:"24px 24px" }}>
-        <div className="absolute inset-0 pointer-events-none" style={isLight ? { background: "linear-gradient(135deg, rgba(123,47,190,0.04) 0%, rgba(0,180,216,0.03) 100%)" } : undefined}>{!isLight && <div className="absolute inset-0 bg-gradient-to-r from-orange-900/10 to-transparent" />}</div>
-        <div className="relative flex items-start justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-xl border" style={isLight ? {background:"rgba(59,130,246,0.12)",borderColor:"rgba(59,130,246,0.25)"} : {background:"rgba(249,115,22,0.15)",boxShadow:"0 0 16px rgba(249,115,22,0.2)",borderColor:"#3f3f46"}}>
-              <Wallet className="w-6 h-6" style={{color: isLight ? "#3B82F6" : "#f97316"}} />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-1.5 h-1.5 rounded-full" style={{background: isLight ? "#3B82F6" : "#f97316", boxShadow: isLight ? "0 0 6px #3B82F6" : "0 0 6px #f97316"}} />
-                <span className="text-[11px] font-semibold uppercase tracking-widest" style={{color: isLight ? "#3B82F6" : "#f97316"}}>Financeiro</span>
-              </div>
-              <h1 className={`text-2xl font-black ${isLight ? "" : "g-text g-text-orange"}`} style={isLight ? { color:"#3B82F6" } : undefined}>
-                Contas a Pagar
-              </h1>
-              <p className="text-xs text-zinc-500 mt-0.5">Gerencie suas despesas com lançamento inteligente por voz ou texto</p>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={load}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${isLight ? "text-white" : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"}`}
-              style={isLight ? { background:"#7c3aed" } : undefined}>
-              <RefreshCw className="w-3.5 h-3.5" /> Atualizar
-            </button>
-            <button onClick={openNew}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all"
-              style={isLight ? {background:"#2563eb",color:"#fff"} : {background:"linear-gradient(135deg,#d97706,#f59e0b)",color:"#000",boxShadow:"0 0 14px rgba(245,158,11,0.3)"}}>
-              <Plus className="w-3.5 h-3.5" /> Lançamento Completo
-            </button>
-          </div>
-        </div>
-      </div>
+      <PageHeader title="Contas a Pagar" actions={<>
+        <button onClick={load} className={btnSecondary}>
+          <RefreshCw className="w-4 h-4" /> Atualizar
+        </button>
+        <button onClick={openNew} className={btnPrimary} style={WHITE_TEXT}>
+          <Plus className="w-4 h-4" /> Lançamento Completo
+        </button>
+      </>} />
 
       {/* ── Summary Cards ── */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
@@ -579,35 +553,15 @@ export default function AccountsPayablePage() {
             : periodF === "overdue" ? "Total Vencido"
             : "Total do Mês";
           return [
-          { label: totalLabel,       value:fmt(summary.total),      gFrom:"#f97316", gTo:"#fb923c", glow:"rgba(249,115,22,0.15)",  sub:"todas as contas"      },
-          { label:"A Pagar",         value:fmt(summary.pending),    gFrom:"#f59e0b", gTo:"#fbbf24", glow:"rgba(245,158,11,0.15)",  sub:"em aberto e vencidos" },
-          { label:"Pago no Mês",     value:fmt(summary.paid),       gFrom:"#10b981", gTo:"#34d399", glow:"rgba(16,185,129,0.15)",  sub:"liquidado"            },
-          { label:"Contas Vencidas", value:fmt(summary.overdue),    gFrom:"#f43f5e", gTo:"#fb7185", glow:"rgba(244,63,94,0.15)",   sub:"títulos em atraso"    },
+          { label: totalLabel,       value:fmt(summary.total),      tone:"#111827", sub:"todas as contas"      },
+          { label:"A Pagar",         value:fmt(summary.pending),    tone:"#d97706", sub:"em aberto e vencidos" },
+          { label:"Pago no Mês",     value:fmt(summary.paid),       tone:"#059669", sub:"liquidado"            },
+          { label:"Contas Vencidas", value:fmt(summary.overdue),    tone:"#dc2626", sub:"títulos em atraso"    },
         ].map(s => (
-          <div key={s.label} className="relative overflow-hidden rounded-2xl p-5 cursor-default"
-            style={isLight ? {
-              background: "#ffffff",
-              border: "1px solid #e5e7eb",
-              boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.9)",
-            } : {
-              background: card.bg, border: card.border,
-              boxShadow: `0 0 24px ${s.glow}`,
-            }}>
-            {isLight
-              ? <div style={{ position:"absolute", top:0, left:0, right:0, height:3, background:`linear-gradient(90deg,${s.gFrom},${s.gTo})`, borderRadius:"12px 12px 0 0" }} />
-              : <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full opacity-20 blur-2xl pointer-events-none" style={{ background: s.gFrom }} />
-            }
-            <div className="relative z-10">
-              <span className="block text-[11px] font-semibold uppercase tracking-widest" style={{ color: isLight ? "#9CA3AF" : "#71717a" }}>{s.label}</span>
-              <div className="text-xl font-black tabular-nums mt-2">
-                <span style={isLight
-                  ? { background:`linear-gradient(135deg,${s.gFrom},${s.gTo})`, WebkitBackgroundClip:"text", display:"inline-block", WebkitTextFillColor:"transparent", backgroundClip:"text" }
-                  : { color: s.gFrom }}>
-                  {s.value}
-                </span>
-              </div>
-              <p className="text-[11px] mt-1" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>{s.sub}</p>
-            </div>
+          <div key={s.label} className="rounded-2xl p-4 bg-white border border-gray-200 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.04)]">
+            <span className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500">{s.label}</span>
+            <div className="text-2xl font-black tabular-nums tracking-tight mt-1" style={{ color: s.tone }}>{s.value}</div>
+            <p className="text-xs text-gray-400 mt-0.5">{s.sub}</p>
           </div>
         ));})()}
       </div>
@@ -615,7 +569,7 @@ export default function AccountsPayablePage() {
       {/* ── Quick Input Bar ── */}
       <div className="rounded-2xl p-4 space-y-3" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
         <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4" style={{color:"#f59e0b"}} />
+          <Sparkles className="w-4 h-4" style={{color:"#315DFB"}} />
           <p className="text-sm font-bold">Lançamento Rápido com IA</p>
           <span className="text-[11px] text-zinc-500">— fale ou escreva naturalmente, pressione Enter</span>
         </div>
@@ -625,7 +579,7 @@ export default function AccountsPayablePage() {
             className={`w-11 h-11 rounded-xl flex-shrink-0 flex items-center justify-center transition-all ${listening ? "animate-pulse" : ""}`}
             style={listening
               ? {background:"rgba(244,63,94,0.2)",border:"1px solid rgba(244,63,94,0.5)",color:"#f43f5e"}
-              : {background:"rgba(245,158,11,0.15)",border:"1px solid rgba(245,158,11,0.35)",color:"#f59e0b"}}>
+              : {background:"#EFF3FF",border:"1px solid #C4D2FF",color:"#315DFB"}}>
             {listening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
           </button>
           <input
@@ -633,11 +587,11 @@ export default function AccountsPayablePage() {
             onChange={e => setQuickText(e.target.value)}
             onKeyDown={e => e.key === "Enter" && submitQuick()}
             placeholder='"mercado 250 reais"  ·  "aluguel 1500 dia 10"  ·  "conta de luz 180"  ·  "folha 8000 dia 5"'
-            className="flex-1 px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500/60 transition-all"
+            className="flex-1 px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 transition-all"
           />
           <button onClick={submitQuick} disabled={!quickText.trim() || quickSaving}
             className="w-11 h-11 rounded-xl flex-shrink-0 flex items-center justify-center transition-all disabled:opacity-40"
-            style={{background:"linear-gradient(135deg,#d97706,#f59e0b)",color:"#000",boxShadow:"0 0 12px rgba(245,158,11,0.25)"}}>
+            style={{background:"#315DFB",color:"#fff"}}>
             {quickSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </button>
         </div>
@@ -661,7 +615,7 @@ export default function AccountsPayablePage() {
           <button key={t.key} onClick={() => setTab(t.key)}
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex-1 justify-center"
             style={tab === t.key
-              ? {background:"rgba(245,158,11,0.15)",color:"#f59e0b",boxShadow:"inset 0 0 0 1px rgba(245,158,11,0.3)"}
+              ? {background:"#ffffff",color:"#2547D6",boxShadow:"0 1px 2px rgba(0,0,0,0.08)"}
               : {color:"#71717a"}}>
             {t.icon} {t.label}
           </button>
@@ -676,10 +630,10 @@ export default function AccountsPayablePage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
               <input value={search} onChange={e => setSearch(e.target.value)}
                 placeholder="Buscar descrição ou fornecedor..."
-                className="w-full pl-9 pr-3 py-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-amber-500/60" />
+                className="w-full pl-9 pr-3 py-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500" />
             </div>
             <select value={periodF} onChange={e => setPeriodF(e.target.value)}
-              className="px-3 py-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-sm text-white focus:outline-none focus:border-amber-500/60 cursor-pointer">
+              className="px-3 py-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-sm text-white focus:outline-none focus:border-brand-500 cursor-pointer">
               <option value="all">Todos os períodos</option>
               <option value="today">Hoje</option>
               <option value="week">Esta semana</option>
@@ -687,13 +641,13 @@ export default function AccountsPayablePage() {
               <option value="overdue">Vencidos</option>
             </select>
             <select value={statusF} onChange={e => setStatusF(e.target.value)}
-              className="px-3 py-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-sm text-white focus:outline-none focus:border-amber-500/60 cursor-pointer">
+              className="px-3 py-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-sm text-white focus:outline-none focus:border-brand-500 cursor-pointer">
               <option value="all">Todos os status</option>
               {(Object.entries(STATUS_CFG) as [BillStatus, typeof STATUS_CFG[BillStatus]][]).map(([k, v]) =>
                 <option key={k} value={k}>{v.label}</option>)}
             </select>
             <select value={categoryF} onChange={e => setCategoryF(e.target.value)}
-              className="px-3 py-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-sm text-white focus:outline-none focus:border-amber-500/60 cursor-pointer">
+              className="px-3 py-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-sm text-white focus:outline-none focus:border-brand-500 cursor-pointer">
               <option value="all">Todas as categorias</option>
               {CATS.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
             </select>
@@ -930,7 +884,7 @@ export default function AccountsPayablePage() {
                     <div className="flex-1 bg-zinc-800 rounded-full h-2 overflow-hidden">
                       <div className="h-2 rounded-full transition-all" style={{
                         width: `${(s.value / reportBySupplier[0].value * 100).toFixed(0)}%`,
-                        background: "linear-gradient(90deg,#d97706,#f59e0b)"
+                        background: "#315DFB"
                       }} />
                     </div>
                     <span className="text-xs text-zinc-300 flex-shrink-0 w-36 truncate">{s.name}</span>
@@ -1099,9 +1053,9 @@ export default function AccountsPayablePage() {
                   </div>
                   <div className="col-span-2">
                     <div className="flex justify-between items-center px-4 py-3 rounded-xl"
-                      style={{background:"rgba(245,158,11,0.08)",border:"1px solid rgba(245,158,11,0.2)"}}>
+                      style={{background:"#EFF3FF",border:"1px solid #DFE7FF"}}>
                       <span className="text-sm font-semibold text-zinc-300">Valor Final Calculado</span>
-                      <span className="text-xl font-black" style={{color:"#f59e0b"}}>{fmt(formFinal)}</span>
+                      <span className="text-xl font-black" style={{color:"#2547D6"}}>{fmt(formFinal)}</span>
                     </div>
                   </div>
                 </div>
@@ -1211,7 +1165,7 @@ export default function AccountsPayablePage() {
               <button onClick={saveForm}
                 disabled={!form.description || !form.amount || !form.due_date || formSaving}
                 className="flex-1 py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-40"
-                style={{background:"linear-gradient(135deg,#d97706,#f59e0b)",color:"#000",boxShadow:"0 0 14px rgba(245,158,11,0.3)"}}>
+                style={{background:"#315DFB",color:"#fff"}}>
                 {formSaving ? "Salvando..." : editBill ? "Salvar Alterações" : installN > 1 ? `Gerar ${installN} Parcelas` : "Salvar Conta"}
               </button>
             </div>
