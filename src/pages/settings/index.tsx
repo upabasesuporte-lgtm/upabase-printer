@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect } from "react";
 import { Store, Phone, CreditCard, Save, CheckCircle2, Receipt, Plus, Trash2, Users, Settings, Loader2 } from "lucide-react";
 import { supabase } from "../../lib/supabase";
+import { PageHeader } from "../../components/PageHeader";
 import { useTheme } from "../../contexts/ThemeContext";
 
 // ── Storage keys (cache local para impressão síncrona) ────────────────────────
@@ -59,7 +60,7 @@ export async function refreshStoreCache(userId: string): Promise<void> {
 
 // ── UI helpers ────────────────────────────────────────────────────────────────
 
-const inputCls = "w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20 transition-all";
+const inputCls = "w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all";
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
@@ -234,7 +235,7 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <Loader2 className="w-6 h-6 animate-spin text-violet-400" />
+        <Loader2 className="w-6 h-6 animate-spin text-brand-600" />
         <span className="ml-3 text-sm text-zinc-500">Carregando configurações...</span>
       </div>
     );
@@ -243,31 +244,10 @@ export default function SettingsPage() {
   return (
     <div className="max-w-2xl space-y-5">
 
-      {/* Header */}
-      <div className="relative overflow-hidden rounded-2xl p-6"
-        style={{ background: card.bg, border: card.border, boxShadow: card.shadow,
-          backgroundImage:"radial-gradient(rgba(139,92,246,0.07) 1px,transparent 1px)", backgroundSize:"24px 24px" }}>
-        <div className="absolute inset-0 bg-gradient-to-r from-violet-900/10 to-transparent pointer-events-none" />
-        <div className="relative flex items-center gap-3">
-          <div className="p-2.5 rounded-xl" style={{background:"rgba(139,92,246,0.15)",border:"1px solid rgba(139,92,246,0.3)"}}>
-            <Settings className="w-5 h-5" style={{color:"#8b5cf6"}} />
-          </div>
-          <div>
-            <div className="flex items-center gap-2 mb-0.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-violet-500" style={{boxShadow:"0 0 6px #8b5cf6"}} />
-              <span className="text-[11px] font-semibold text-violet-400 uppercase tracking-widest">Sistema</span>
-            </div>
-            <h1 className="text-2xl font-black"
-              className="g-text g-text-purple">
-              Configurações
-            </h1>
-            <p className="text-xs text-zinc-500 mt-0.5">Dados da sua loja usados no comprovante e no sistema</p>
-          </div>
-        </div>
-      </div>
+      <PageHeader title="Configurações" subtitle="Dados da sua loja usados no comprovante e no sistema" />
 
       {/* Dados da loja */}
-      <SectionCard icon={<Store className="w-4 h-4" />} title="Dados da Loja" color="#8b5cf6">
+      <SectionCard icon={<Store className="w-4 h-4" />} title="Dados da Loja" color="#315DFB">
         <Field label="Nome da loja *">
           <input value={form.name} onChange={e=>set("name",e.target.value)} placeholder="Ex: Restaurante Bom Sabor" className={inputCls} />
         </Field>
@@ -285,7 +265,7 @@ export default function SettingsPage() {
       </SectionCard>
 
       {/* Vendedores / Garçons */}
-      <SectionCard icon={<Users className="w-4 h-4" />} title="Vendedores / Garçons" color="#d946ef">
+      <SectionCard icon={<Users className="w-4 h-4" />} title="Vendedores / Garçons" color="#315DFB">
         <p className="text-xs text-zinc-500">Cadastre os vendedores e garçons para seleção rápida no PDV e nas Mesas.</p>
         <div className="flex gap-2">
           <input value={newSeller} onChange={e=>setNewSeller(e.target.value)}
@@ -293,7 +273,7 @@ export default function SettingsPage() {
             placeholder="Nome do vendedor ou garçom..." className={inputCls+" flex-1"} />
           <button onClick={addSeller} disabled={!newSeller.trim()}
             className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-40 flex-shrink-0"
-            style={{background:"linear-gradient(135deg,#d946ef,#8b5cf6)",color:"#fff",boxShadow:"0 0 16px rgba(217,70,239,0.3)"}}>
+            style={{background:"#315DFB",color:"#fff"}}>
             <Plus className="w-4 h-4" /> Adicionar
           </button>
         </div>
@@ -307,7 +287,7 @@ export default function SettingsPage() {
               <div key={name} className="flex items-center justify-between rounded-xl px-4 py-2.5" style={{ background: isLight ? "#f9fafb" : "#09090b", border: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" }}>
                 <div className="flex items-center gap-2.5">
                   <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0"
-                    style={{background:"linear-gradient(135deg,rgba(217,70,239,0.2),rgba(139,92,246,0.2))",border:"1px solid rgba(217,70,239,0.3)",color:"#d946ef"}}>
+                    style={{background:"#EFF3FF",border:"1px solid #C4D2FF",color:"#2547D6"}}>
                     {name.charAt(0).toUpperCase()}
                   </div>
                   <span className="text-sm font-medium text-white">{name}</span>
@@ -323,14 +303,14 @@ export default function SettingsPage() {
       </SectionCard>
 
       {/* Chave PIX */}
-      <SectionCard icon={<CreditCard className="w-4 h-4" />} title="Chave PIX" color="#10b981">
+      <SectionCard icon={<CreditCard className="w-4 h-4" />} title="Chave PIX" color="#315DFB">
         <Field label="Chave PIX" hint="Aparece no comprovante quando o pagamento for via PIX">
           <input value={form.pix} onChange={e=>set("pix",e.target.value)} placeholder="CPF, e-mail, telefone ou chave aleatória" className={inputCls} />
         </Field>
       </SectionCard>
 
       {/* Comprovante */}
-      <SectionCard icon={<Receipt className="w-4 h-4" />} title="Comprovante" color="#f59e0b">
+      <SectionCard icon={<Receipt className="w-4 h-4" />} title="Comprovante" color="#315DFB">
         <Field label="Mensagem de rodapé">
           <input value={form.footer_message} onChange={e=>set("footer_message",e.target.value)} placeholder="Ex: Obrigado pela preferência!" className={inputCls} />
         </Field>
@@ -342,7 +322,7 @@ export default function SettingsPage() {
           </div>
           <button type="button" onClick={()=>set("show_cnpj",!form.show_cnpj)}
             className="w-11 h-6 rounded-full transition-all flex-shrink-0 relative"
-            style={{background:form.show_cnpj?"linear-gradient(135deg,#7c3aed,#4f46e5)":"#27272a",boxShadow:form.show_cnpj?"0 0 10px rgba(124,58,237,0.4)":"none"}}>
+            style={{background:form.show_cnpj?"#315DFB":"#d1d5db",boxShadow:"none"}}>
             <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${form.show_cnpj?"left-6":"left-1"}`} />
           </button>
         </div>
@@ -365,7 +345,7 @@ export default function SettingsPage() {
       <div className="flex items-center gap-3 pb-4">
         <button onClick={handleSave} disabled={saving}
           className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-60"
-          style={{background:"linear-gradient(135deg,#7c3aed,#4f46e5)",color:"#fff",boxShadow:"0 0 20px rgba(124,58,237,0.4)"}}>
+          style={{background:"#315DFB",color:"#fff"}}>
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           {saving ? "Salvando..." : "Salvar configurações"}
         </button>
