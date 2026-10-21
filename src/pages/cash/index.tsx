@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
+import { PageHeader, btnSecondary, segWrap, segBtn, WHITE_TEXT } from "../../components/PageHeader";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import {
   Wallet, ArrowDownCircle, ArrowUpCircle, Lock, Unlock,
@@ -56,7 +57,7 @@ const PAYMENT_INFO: Record<PaymentMethod, { label: string; icon: React.ReactNode
   cash:         { label: "Dinheiro",       icon: <Banknote className="w-4 h-4" />,    color: "text-emerald-400", bar: "bg-emerald-500" },
   credit:       { label: "Crédito",        icon: <CreditCard className="w-4 h-4" />,  color: "text-blue-400",    bar: "bg-blue-500" },
   debit:        { label: "Débito",         icon: <CreditCard className="w-4 h-4" />,  color: "text-indigo-400",  bar: "bg-indigo-500" },
-  pix:          { label: "PIX",            icon: <Smartphone className="w-4 h-4" />,  color: "text-violet-400",  bar: "bg-violet-500" },
+  pix:          { label: "PIX",            icon: <Smartphone className="w-4 h-4" />,  color: "text-brand-600",  bar: "bg-brand-500" },
   voucher:      { label: "Vale Refeição",  icon: <Ticket className="w-4 h-4" />,      color: "text-amber-400",   bar: "bg-amber-500" },
   fiado:            { label: "Fiado (A Rec.)",    icon: <TrendingUp className="w-4 h-4" />,  color: "text-orange-400", bar: "bg-orange-500" },
   house_credit:     { label: "Saldo Cliente",    icon: <Wallet className="w-4 h-4" />,      color: "text-teal-400",   bar: "bg-teal-500" },
@@ -64,7 +65,7 @@ const PAYMENT_INFO: Record<PaymentMethod, { label: string; icon: React.ReactNode
 };
 
 const CHANNEL_INFO: Record<SaleChannel, { label: string; icon: React.ReactNode; bar: string }> = {
-  pdv:          { label: "PDV",             icon: <Monitor className="w-4 h-4" />,   bar: "bg-violet-500" },
+  pdv:          { label: "PDV",             icon: <Monitor className="w-4 h-4" />,   bar: "bg-brand-500" },
   digital_menu: { label: "Cardápio Digital",icon: <ShoppingBag className="w-4 h-4" />, bar: "bg-blue-500" },
   tables:       { label: "Mesas",           icon: <Utensils className="w-4 h-4" />, bar: "bg-emerald-500" },
   ifood:        { label: "iFood",           icon: <ShoppingBag className="w-4 h-4" />, bar: "bg-red-500" },
@@ -115,7 +116,7 @@ function AmountInput({ value, onChange, label, placeholder = "0,00" }: {
           placeholder={placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full pl-9 pr-3.5 py-2.5 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20 transition-all"
+          className="w-full pl-9 pr-3.5 py-2.5 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all"
         />
       </div>
     </div>
@@ -447,32 +448,20 @@ export default function CashPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full min-h-[400px]">
-        <RefreshCw className="w-6 h-6 text-violet-400 animate-spin" />
+        <RefreshCw className="w-6 h-6 text-brand-600 animate-spin" />
       </div>
     );
   }
 
   // ── Sub-abas (sempre visíveis) ──
   const tabs = (
-    <div className="flex gap-1 rounded-xl p-1 w-fit" style={{ background: card.bg, border: card.border }}>
-      <button onClick={() => setSubTab("current")}
-        className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all"
-        style={subTab === "current" && isLight
-          ? { background: "#2563eb", color: "#fff", border: "1px solid #2563eb" }
-          : subTab === "current"
-          ? { background: "rgba(139,92,246,0.2)", color: "#c4b5fd", border: "1px solid rgba(139,92,246,0.4)" }
-          : { color: "#71717a", border: "1px solid transparent" }}>
-        <BookOpen className="w-3.5 h-3.5" />
+    <div className={segWrap}>
+      <button onClick={() => setSubTab("current")} className={segBtn(subTab === "current")}>
+        <BookOpen className="w-4 h-4" />
         Caixa Atual
       </button>
-      <button onClick={() => setSubTab("history")}
-        className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-all"
-        style={subTab === "history" && isLight
-          ? { background: "#2563eb", color: "#fff", border: "1px solid #2563eb" }
-          : subTab === "history"
-          ? { background: "rgba(139,92,246,0.2)", color: "#c4b5fd", border: "1px solid rgba(139,92,246,0.4)" }
-          : { color: "#71717a", border: "1px solid transparent" }}>
-        <History className="w-3.5 h-3.5" />
+      <button onClick={() => setSubTab("history")} className={segBtn(subTab === "history")}>
+        <History className="w-4 h-4" />
         Histórico de Caixas
       </button>
     </div>
@@ -483,7 +472,7 @@ export default function CashPage() {
     return (
       <>
         <div className="space-y-4">
-          {tabs}
+          <PageHeader title="Caixa" subtitle={<span className="inline-flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-gray-400" />Caixa fechado</span>} actions={tabs} />
 
           {subTab === "current" && (
             <div className="flex items-center justify-center min-h-[400px] p-6">
@@ -492,7 +481,7 @@ export default function CashPage() {
                   style={{background:"linear-gradient(135deg,rgba(16,185,129,0.1),rgba(16,185,129,0.05))",boxShadow:"0 0 30px rgba(16,185,129,0.15)"}}>
                   <Lock className="w-9 h-9" style={{color:"#10b981"}} />
                 </div>
-                <h2 className="text-2xl font-black mb-2 g-text g-text-green">
+                <h2 className="text-2xl font-bold mb-2 text-gray-900">
                   Caixa Fechado
                 </h2>
                 <p className="text-zinc-500 text-sm mb-8 leading-relaxed">
@@ -533,43 +522,23 @@ export default function CashPage() {
   return (
     <div className="space-y-5">
 
-      {/* ── Cabeçalho status ── */}
-      <div className="relative overflow-hidden rounded-2xl p-5"
-        style={{ background: card.bg, border: card.border, boxShadow: card.shadow,
-          backgroundImage: `radial-gradient(rgba(123,47,190,0.08) 1px, transparent 1px)`, backgroundSize:"24px 24px" }}>
-        <div className="absolute inset-0 pointer-events-none" style={{ background: isLight ? "linear-gradient(135deg,rgba(123,47,190,0.04) 0%,rgba(0,180,216,0.03) 100%)" : "linear-gradient(135deg,rgba(123,47,190,0.08) 0%,transparent 100%)" }} />
-        <div className="relative flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-2 h-2 rounded-full animate-pulse" style={{background:"#10b981",boxShadow:"0 0 6px #10b981"}} />
-              <span className="text-[11px] font-semibold uppercase tracking-widest" style={{color:"#10b981"}}>Caixa Aberto</span>
-            </div>
-            <h1 className="text-2xl font-black"
-              style={isLight ? {color: "#2563eb"} : {background: "linear-gradient(135deg,#7B2FBE,#00B4D8)", WebkitBackgroundClip:"text", display:"inline-block",WebkitTextFillColor:"transparent", backgroundClip:"text"}}>
-              Controle de Caixa
-            </h1>
-            <p className="text-xs text-zinc-500 mt-0.5">
-              Aberto em {fmtDateTime(register.opened_at)}
-              {register.operator_name && ` · Operador: ${register.operator_name}`}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={loadData}
-              className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors" title="Atualizar">
-              <RefreshCw className="w-4 h-4" />
-            </button>
-            <button onClick={() => { setShowClose(true); setClosingOperator(""); setCountedAmount(""); }}
-              className="flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl transition-all"
-              style={isLight ? {background: "#dc2626", color: "#fff", border: "1px solid #dc2626"} : {border: "1px solid rgba(239,68,68,0.3)", color: "#f87171"}}>
-              <Lock className="w-4 h-4" />
-              Fechar Caixa
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Sub-abas */}
-      {tabs}
+      <PageHeader title="Caixa"
+        subtitle={<span className="inline-flex items-center gap-1.5 flex-wrap">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="font-semibold text-emerald-700">Caixa aberto</span>
+          <span>· desde {fmtDateTime(register.opened_at)}{register.operator_name && ` · Operador: ${register.operator_name}`}</span>
+        </span>}
+        actions={<>
+          {tabs}
+          <button onClick={loadData} className={btnSecondary + " !px-2.5"} title="Atualizar">
+            <RefreshCw className="w-4 h-4" />
+          </button>
+          <button onClick={() => { setShowClose(true); setClosingOperator(""); setCountedAmount(""); }}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold bg-red-600 hover:bg-red-700 transition-colors" style={WHITE_TEXT}>
+            <Lock className="w-4 h-4" />
+            Fechar Caixa
+          </button>
+        </>} />
 
       {subTab === "current" && (
         <>
@@ -580,7 +549,7 @@ export default function CashPage() {
               icon={<TrendingUp className="w-5 h-5" />} iconBg="bg-emerald-500/15" iconColor="text-emerald-400" accent color="#10b981" />
             <SummaryCard label="Saldo em Dinheiro" value={fmt(currentBalance)}
               sub={`Fundo inicial: ${fmt(register.opening_amount)}`}
-              icon={<Wallet className="w-5 h-5" />} iconBg="bg-violet-500/15" iconColor="text-violet-400" color="#7c3aed" />
+              icon={<Wallet className="w-5 h-5" />} iconBg="bg-brand-500/15" iconColor="text-brand-600" color="#315DFB" />
             <SummaryCard label="Sangrias" value={fmt(totalSangria)} sub="Retiradas do caixa"
               icon={<TrendingDown className="w-5 h-5" />} iconBg="bg-red-500/15" iconColor="text-red-400" color="#ef4444" />
             <SummaryCard label="Aportes" value={fmt(totalAporte)} sub="Entradas extras"
@@ -766,7 +735,7 @@ export default function CashPage() {
               <label className="block text-xs font-medium text-zinc-400 mb-1.5">Motivo</label>
               <input placeholder="Ex: Pagamento de fornecedor" value={movDescription}
                 onChange={(e) => setMovDescription(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20 transition-all" />
+                className="w-full px-3.5 py-2.5 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all" />
             </div>
             <button onClick={handleSangria} disabled={actionLoading}
               className="w-full bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg transition-colors">
@@ -790,7 +759,7 @@ export default function CashPage() {
               <label className="block text-xs font-medium text-zinc-400 mb-1.5">Motivo</label>
               <input placeholder="Ex: Troco adicional" value={movDescription}
                 onChange={(e) => setMovDescription(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20 transition-all" />
+                className="w-full px-3.5 py-2.5 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all" />
             </div>
             <button onClick={handleAporte} disabled={actionLoading}
               className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg transition-colors">
@@ -841,7 +810,7 @@ export default function CashPage() {
               <label className="block text-xs font-medium text-zinc-400 mb-1.5">Operador que está fechando (opcional)</label>
               <input placeholder="Nome do operador" value={closingOperator}
                 onChange={(e) => setClosingOperator(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20 transition-all" />
+                className="w-full px-3.5 py-2.5 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all" />
             </div>
 
             {/* Valor contado */}
@@ -966,7 +935,7 @@ function HistoryTab({
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <RefreshCw className="w-5 h-5 text-violet-400 animate-spin mr-2" />
+        <RefreshCw className="w-5 h-5 text-brand-600 animate-spin mr-2" />
         <span className="text-sm text-zinc-500">Carregando histórico...</span>
       </div>
     );
@@ -1093,7 +1062,7 @@ function HistoryTab({
                   <button
                     onClick={() => reopenRegister(reg)}
                     disabled={reopening === reg.id}
-                    className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white"
+                    className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white"
                   >
                     {reopening === reg.id
                       ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /></>
@@ -1219,14 +1188,14 @@ function OpenModalContent({ error, initialAmount, setInitialAmount, operatorName
         <label className="block text-xs font-medium text-zinc-400 mb-1.5">Operador (opcional)</label>
         <input placeholder="Nome do operador" value={operatorName}
           onChange={(e) => setOperatorName(e.target.value)}
-          className="w-full px-3.5 py-2.5 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20 transition-all" />
+          className="w-full px-3.5 py-2.5 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all" />
       </div>
       <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-xs text-zinc-400 leading-relaxed">
         <p className="font-medium text-zinc-300 mb-1">Abertura em:</p>
         <p>{new Date().toLocaleString("pt-BR", { dateStyle: "full", timeStyle: "short" })}</p>
       </div>
       <button onClick={onConfirm} disabled={actionLoading}
-        className="w-full bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg transition-colors">
+        className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg transition-colors">
         {actionLoading ? "Abrindo..." : "Confirmar Abertura"}
       </button>
     </div>
