@@ -3,6 +3,7 @@ import { createPortal, flushSync } from "react-dom";
 import { supabase } from "../../lib/supabase";
 import { recalcFiadoBalance } from "../../lib/fiado";
 import { useTheme } from "../../contexts/ThemeContext";
+import { PageHeader, btnPrimary, btnSecondary, WHITE_TEXT } from "../../components/PageHeader";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import {
   UtensilsCrossed, Plus, Search, X, ChevronLeft, RefreshCw,
@@ -70,11 +71,11 @@ interface PaymentEntry { method: PayMethod; amount: number; }
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-const inputCls = "w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/10 transition-all";
+const inputCls = "w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/10 transition-all";
 const selectCls = inputCls + " cursor-pointer";
 
 const STATUS_CFG: Record<string, { label: string; hex: string; glow: string; badge: string; dot: string }> = {
-  free:     { label: "Livre",     hex: "#2563eb", glow: "rgba(37,99,235,0.18)",    badge: "text-blue-400 bg-blue-500/10 border-blue-500/20",           dot: "bg-blue-500"    },
+  free:     { label: "Livre",     hex: "#315DFB", glow: "rgba(37,99,235,0.18)",    badge: "text-blue-400 bg-blue-500/10 border-blue-500/20",           dot: "bg-blue-500"    },
   occupied: { label: "Ocupada",   hex: "#f59e0b", glow: "rgba(245,158,11,0.18)",   badge: "text-amber-400 bg-amber-500/10 border-amber-500/20",       dot: "bg-amber-500"   },
   reserved: { label: "Reservada", hex: "#3b82f6", glow: "rgba(59,130,246,0.18)",   badge: "text-blue-400 bg-blue-500/10 border-blue-500/20",           dot: "bg-blue-500"    },
   cleaning: { label: "Limpeza",   hex: "#71717a", glow: "rgba(113,113,122,0.12)", badge: "text-zinc-400 bg-zinc-500/10 border-zinc-500/20",           dot: "bg-zinc-500"    },
@@ -83,7 +84,7 @@ const fallbackCfg = STATUS_CFG.free;
 
 const PAY_INFO: Record<PayMethod, { label: string; icon: React.ReactNode; color: string }> = {
   cash:         { label: "Dinheiro",   icon: <Banknote className="w-4 h-4" />,   color: "border-emerald-500 bg-emerald-500/10 text-emerald-300" },
-  pix:          { label: "PIX",        icon: <Smartphone className="w-4 h-4" />, color: "border-violet-500 bg-violet-500/10 text-violet-300"   },
+  pix:          { label: "PIX",        icon: <Smartphone className="w-4 h-4" />, color: "border-brand-500 bg-brand-500/10 text-brand-700"   },
   credit:       { label: "Crédito",    icon: <CreditCard className="w-4 h-4" />, color: "border-blue-500 bg-blue-500/10 text-blue-300"         },
   debit:        { label: "Débito",     icon: <CreditCard className="w-4 h-4" />, color: "border-indigo-500 bg-indigo-500/10 text-indigo-300"   },
   fiado:        { label: "Fiado",      icon: <Receipt className="w-4 h-4" />,    color: "border-amber-500 bg-amber-500/10 text-amber-300"      },
@@ -912,58 +913,36 @@ export default function TablesPage() {
     <div>
       {/* ═══ MAIN VIEW — dois divs sempre montados; visibilidade por CSS ════════ */}
       <div className={view === "grid" ? "space-y-5" : "hidden"}>
-          {/* Header */}
-          <div className="relative overflow-hidden rounded-2xl p-5"
-            style={{ background: card.bg, border: card.border, boxShadow: card.shadow,
-              backgroundImage:"radial-gradient(rgba(37,99,235,0.07) 1px,transparent 1px)", backgroundSize:"24px 24px" }}>
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-900/10 to-transparent pointer-events-none" />
-            <div className="relative flex items-center justify-between flex-wrap gap-3">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="w-1.5 h-1.5 rounded-full" style={{background: isLight ? "#2563eb" : "#f43f5e", boxShadow: isLight ? "0 0 6px #2563eb" : "0 0 6px #f43f5e"}} />
-                  <span className="text-[11px] font-semibold uppercase tracking-widest" style={{color: isLight ? "#2563eb" : "#f43f5e"}}>Salão</span>
-                </div>
-                <h1 className={`text-2xl font-black ${isLight ? "" : "g-text g-text-red"}`}
-                  style={isLight ? { color:"#2563eb" } : undefined}>
-                  Mesas
-                </h1>
-                <p className="text-xs text-zinc-500 mt-0.5">
-                  <span style={{color:"#2563eb"}}>{stats.free} livre{stats.free !== 1 ? "s" : ""}</span>
-                  {stats.occupied > 0 && <span style={{color:"#f59e0b"}} className="ml-2">· {stats.occupied} ocupada{stats.occupied !== 1 ? "s" : ""}</span>}
-                  {stats.reserved > 0 && <span style={{color:"#3b82f6"}} className="ml-2">· {stats.reserved} reservada{stats.reserved !== 1 ? "s" : ""}</span>}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button onClick={loadAll}
-                  className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-xl transition-colors border border-zinc-800">
-                  <RefreshCw className="w-4 h-4" />
-                </button>
-                <button onClick={() => setModal("manage")}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all"
-                  style={{background:"#2563eb",color:"#fff"}}>
-                  <Settings className="w-4 h-4" /> Gerenciar
-                </button>
-                <button onClick={() => openManage()}
-                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold transition-all"
-                  style={{background:"#2563eb",color:"#fff",boxShadow:"0 0 16px rgba(37,99,235,0.35)"}}>
-                  <Plus className="w-4 h-4" /> Nova Mesa
-                </button>
-              </div>
-            </div>
-          </div>
+          <PageHeader title="Mesas"
+            subtitle={<>
+              <span className="text-emerald-700 font-semibold">{stats.free} livre{stats.free !== 1 ? "s" : ""}</span>
+              {stats.occupied > 0 && <span className="text-amber-700 font-semibold ml-1">· {stats.occupied} ocupada{stats.occupied !== 1 ? "s" : ""}</span>}
+              {stats.reserved > 0 && <span className="text-brand-700 font-semibold ml-1">· {stats.reserved} reservada{stats.reserved !== 1 ? "s" : ""}</span>}
+            </>}
+            actions={<>
+              <button onClick={loadAll} className={btnSecondary + " !px-2.5"} title="Atualizar">
+                <RefreshCw className="w-4 h-4" />
+              </button>
+              <button onClick={() => setModal("manage")} className={btnSecondary}>
+                <Settings className="w-4 h-4" /> Gerenciar
+              </button>
+              <button onClick={() => openManage()} className={btnPrimary} style={WHITE_TEXT}>
+                <Plus className="w-4 h-4" /> Nova Mesa
+              </button>
+            </>} />
 
           {/* Area filter */}
           {areas.length > 1 && (
             <div className="flex gap-2 flex-wrap">
               <button onClick={() => setAreaFilter(null)}
-                style={areaFilter !== null ? { background: card.bg, border: card.border } : undefined}
-                className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${areaFilter === null ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-white"}`}>
+                style={areaFilter !== null ? { background: card.bg, border: card.border } : { color: "#fff" }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${areaFilter === null ? "bg-brand-600" : "text-zinc-400 hover:text-white"}`}>
                 Todas
               </button>
               {areas.map(area => (
                 <button key={area} onClick={() => setAreaFilter(area)}
-                  style={areaFilter !== area ? { background: card.bg, border: card.border } : undefined}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${areaFilter === area ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-white"}`}>
+                  style={areaFilter !== area ? { background: card.bg, border: card.border } : { color: "#fff" }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${areaFilter === area ? "bg-brand-600" : "text-zinc-400 hover:text-white"}`}>
                   {area}
                 </button>
               ))}
@@ -1010,7 +989,7 @@ export default function TablesPage() {
               <p className="text-zinc-400 font-semibold">Nenhuma mesa cadastrada</p>
               <p className="text-zinc-600 text-sm mt-1">Crie mesas clicando em "Nova Mesa"</p>
               <button onClick={() => openManage()}
-                className="mt-5 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-sm font-semibold transition-colors">
+                className="mt-5 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-semibold transition-colors">
                 Criar primeira mesa
               </button>
             </div>
@@ -1139,7 +1118,7 @@ export default function TablesPage() {
             {(["catalog", "order"] as const).map(t => (
               <button key={t} onClick={() => setComandaTab(t)}
                 style={comandaTab !== t ? { background: card.bg, border: card.border } : { color: "#fff" }}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-medium transition-colors ${comandaTab === t ? "bg-violet-600" : "text-zinc-400"}`}>
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-medium transition-colors ${comandaTab === t ? "bg-brand-600" : "text-zinc-400"}`}>
                 {t === "catalog" ? <><Coffee className="w-3.5 h-3.5" />Cardápio</> : <><ShoppingCart className="w-3.5 h-3.5" />Comanda {orderItems.length > 0 && `(${orderItems.reduce((s,i)=>s+i.quantity,0)})`}</>}
               </button>
             ))}
@@ -1155,7 +1134,7 @@ export default function TablesPage() {
                 <input value={search} onChange={e => setSearch(e.target.value)}
                   placeholder="Buscar produto..."
                   style={{ background: card.bg, border: card.border, color: isLight ? "#111" : "#fff" }}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm placeholder-zinc-600 focus:outline-none focus:border-violet-500 transition-all" />
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm placeholder-zinc-600 focus:outline-none focus:border-brand-500 transition-all" />
               </div>
 
               {/* Category tabs + botão ordenar */}
@@ -1164,13 +1143,13 @@ export default function TablesPage() {
                   <div className="flex gap-1.5 mb-1 overflow-x-auto pb-1 flex-shrink-0 scrollbar-none items-center">
                     <button onClick={() => setCatFilter(null)}
                       style={catFilter !== null ? { background: card.bg, border: card.border } : { color: "#fff" }}
-                      className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors ${catFilter === null ? "bg-violet-600" : "text-zinc-400 hover:text-white"}`}>
+                      className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors ${catFilter === null ? "bg-brand-600" : "text-zinc-400 hover:text-white"}`}>
                       Todos
                     </button>
                     {visibleCatNames.map(name => (
                       <button key={name} onClick={() => setCatFilter(name)}
                         style={catFilter !== name ? { background: card.bg, border: card.border } : { color: "#fff" }}
-                        className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors ${catFilter === name ? "bg-violet-600" : "text-zinc-400 hover:text-white"}`}>
+                        className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors ${catFilter === name ? "bg-brand-600" : "text-zinc-400 hover:text-white"}`}>
                         {name.charAt(0) + name.slice(1).toLowerCase()}
                       </button>
                     ))}
@@ -1203,11 +1182,11 @@ export default function TablesPage() {
                               {name.charAt(0) + name.slice(1).toLowerCase()}
                             </span>
                             <button onClick={() => moveCat(idx, -1)} disabled={idx === 0}
-                              className="p-0.5 rounded disabled:opacity-30 text-zinc-500 hover:text-violet-400 transition-colors">
+                              className="p-0.5 rounded disabled:opacity-30 text-zinc-500 hover:text-brand-600 transition-colors">
                               <ChevronUp className="w-3.5 h-3.5" />
                             </button>
                             <button onClick={() => moveCat(idx, 1)} disabled={idx === visibleCatNames.length - 1}
-                              className="p-0.5 rounded disabled:opacity-30 text-zinc-500 hover:text-violet-400 transition-colors">
+                              className="p-0.5 rounded disabled:opacity-30 text-zinc-500 hover:text-brand-600 transition-colors">
                               <ChevronDown className="w-3.5 h-3.5" />
                             </button>
                           </div>
@@ -1232,7 +1211,7 @@ export default function TablesPage() {
                       return (
                         <div key={name} className="mb-4">
                           <div className="flex items-center gap-2 py-1.5 mb-2">
-                            <span className="text-[11px] font-bold text-violet-400 uppercase tracking-wider whitespace-nowrap">
+                            <span className="text-[11px] font-bold text-brand-600 uppercase tracking-wider whitespace-nowrap">
                               {name.charAt(0) + name.slice(1).toLowerCase()}
                             </span>
                             <div className="flex-1 h-px bg-zinc-800/60" />
@@ -1241,9 +1220,9 @@ export default function TablesPage() {
                             {catProds.map(p => (
                               <button key={p.id} onClick={() => addProduct(p)}
                                 style={{ background: card.bg, border: card.border }}
-                                className="flex flex-col items-start gap-1.5 p-3 hover:border-violet-500/50 rounded-xl text-left transition-all active:scale-95">
+                                className="flex flex-col items-start gap-1.5 p-3 hover:border-brand-500/50 rounded-xl text-left transition-all active:scale-95">
                                 <span className="text-sm font-semibold leading-tight line-clamp-2" style={{ color: isLight ? "#111" : "#fff" }}>{p.name}</span>
-                                <span className="text-sm font-bold text-violet-400">{fmt(p.sale_price)}</span>
+                                <span className="text-sm font-bold text-brand-600">{fmt(p.sale_price)}</span>
                                 {!isUnlimited(p) && p.stock <= 5 && (
                                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${p.stock === 0 ? "bg-red-500/10 text-red-400" : "bg-amber-500/10 text-amber-400"}`}>
                                     {p.stock === 0 ? "Esgotado" : `${p.stock} rest.`}
@@ -1269,9 +1248,9 @@ export default function TablesPage() {
                             {uncategorized.map(p => (
                               <button key={p.id} onClick={() => addProduct(p)}
                                 style={{ background: card.bg, border: card.border }}
-                                className="flex flex-col items-start gap-1.5 p-3 hover:border-violet-500/50 rounded-xl text-left transition-all active:scale-95">
+                                className="flex flex-col items-start gap-1.5 p-3 hover:border-brand-500/50 rounded-xl text-left transition-all active:scale-95">
                                 <span className="text-sm font-semibold leading-tight line-clamp-2" style={{ color: isLight ? "#111" : "#fff" }}>{p.name}</span>
-                                <span className="text-sm font-bold text-violet-400">{fmt(p.sale_price)}</span>
+                                <span className="text-sm font-bold text-brand-600">{fmt(p.sale_price)}</span>
                               </button>
                             ))}
                           </div>
@@ -1291,9 +1270,9 @@ export default function TablesPage() {
                         {listProds.map(p => (
                           <button key={p.id} onClick={() => addProduct(p)}
                             style={{ background: card.bg, border: card.border }}
-                            className="flex flex-col items-start gap-1.5 p-3 hover:border-violet-500/50 rounded-xl text-left transition-all active:scale-95">
+                            className="flex flex-col items-start gap-1.5 p-3 hover:border-brand-500/50 rounded-xl text-left transition-all active:scale-95">
                             <span className="text-sm font-semibold leading-tight line-clamp-2" style={{ color: isLight ? "#111" : "#fff" }}>{p.name}</span>
-                            <span className="text-sm font-bold text-violet-400">{fmt(p.sale_price)}</span>
+                            <span className="text-sm font-bold text-brand-600">{fmt(p.sale_price)}</span>
                             {!isUnlimited(p) && p.stock <= 5 && (
                               <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${p.stock === 0 ? "bg-red-500/10 text-red-400" : "bg-amber-500/10 text-amber-400"}`}>
                                 {p.stock === 0 ? "Esgotado" : `${p.stock} rest.`}
@@ -1312,7 +1291,7 @@ export default function TablesPage() {
             <div className={`flex flex-col w-full sm:w-80 flex-shrink-0 rounded-2xl overflow-hidden ${comandaTab === "catalog" ? "hidden sm:flex" : "flex"}`}
               style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
               <div className="flex items-center gap-2 px-4 py-3 border-b border-zinc-800 flex-shrink-0">
-                <ShoppingCart className="w-4 h-4 text-violet-400" />
+                <ShoppingCart className="w-4 h-4 text-brand-600" />
                 <h2 className="text-sm font-semibold">Comanda</h2>
                 {orderItems.length > 0 && (
                   <span className="ml-auto text-xs text-zinc-500">{orderItems.reduce((s,i)=>s+i.quantity,0)} item{orderItems.reduce((s,i)=>s+i.quantity,0)!==1?"s":""}</span>
@@ -1321,7 +1300,7 @@ export default function TablesPage() {
 
               {/* Items */}
               {orderLoading ? (
-                <div className="flex justify-center py-8"><RefreshCw className="w-4 h-4 animate-spin text-violet-400" /></div>
+                <div className="flex justify-center py-8"><RefreshCw className="w-4 h-4 animate-spin text-brand-600" /></div>
               ) : orderItems.length === 0 ? (
                 <div className="flex flex-col items-center justify-center flex-1 text-center px-4 py-8">
                   <Coffee className="w-10 h-10 text-zinc-700 mb-3" />
@@ -1359,7 +1338,7 @@ export default function TablesPage() {
                         <p className="text-sm font-bold text-white">{fmt(item.unit_price * item.quantity)}</p>
                         <button onClick={() => { setNoteTarget(item); setNoteText(item.notes ?? ""); setModal("itemNote"); }}
                           title="Observação do item"
-                          className={`flex items-center gap-1 mt-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-medium transition-colors ${item.notes ? "bg-violet-600/20 text-violet-300" : "text-zinc-500 hover:text-violet-400 hover:bg-zinc-800"}`}>
+                          className={`flex items-center gap-1 mt-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-medium transition-colors ${item.notes ? "bg-brand-600/20 text-brand-700" : "text-zinc-500 hover:text-brand-600 hover:bg-zinc-800"}`}>
                           <MessageSquare className="w-3 h-3" /> {item.notes ? "editar obs" : "obs"}
                         </button>
                       </div>
@@ -1392,8 +1371,8 @@ export default function TablesPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-5">
             <div className="text-center">
-              <div className="w-14 h-14 bg-violet-500/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                <UtensilsCrossed className="w-7 h-7 text-violet-400" />
+              <div className="w-14 h-14 bg-brand-500/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                <UtensilsCrossed className="w-7 h-7 text-brand-600" />
               </div>
               <p className="text-base font-bold">{selectedTable.name}</p>
               <p className="text-sm text-zinc-500 mt-1">{selectedTable.capacity} lugares · {selectedTable.area}</p>
@@ -1405,7 +1384,7 @@ export default function TablesPage() {
               <button onClick={() => { setSelectedTable(null); setModal("none"); }}
                 className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
               <button onClick={() => openTable(selectedTable!)} disabled={saving}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 rounded-xl text-sm font-bold transition-colors"
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 rounded-xl text-sm font-bold transition-colors"
                 style={{ color: "#fff" }}>
                 {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                 Abrir Mesa
@@ -1462,7 +1441,7 @@ export default function TablesPage() {
               <button onClick={() => { setNoteTarget(null); setNoteText(""); setModal("none"); }}
                 className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
               <button onClick={saveItemNote}
-                className="flex-1 py-2.5 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-sm font-bold transition-colors">Salvar</button>
+                className="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-bold transition-colors">Salvar</button>
             </div>
           </div>
         </div>
@@ -1474,7 +1453,7 @@ export default function TablesPage() {
               <div className="flex items-center gap-2">
                 <button onClick={() => { setModal("none"); openManage(); }}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-white rounded-xl text-xs font-semibold transition-colors"
-                  style={{background:"#2563eb"}}>
+                  style={{background:"#315DFB"}}>
                   <Plus className="w-3.5 h-3.5" /> Nova Mesa
                 </button>
                 <button onClick={() => setModal("none")} className="p-1.5 text-zinc-400 hover:text-white rounded-lg"><X className="w-4 h-4" /></button>
@@ -1498,7 +1477,7 @@ export default function TablesPage() {
                         </button>
                       )}
                       <button onClick={() => { setModal("none"); openManage(t); }}
-                        className="p-1.5 text-zinc-500 hover:text-violet-400 hover:bg-violet-500/10 rounded-lg transition-colors">
+                        className="p-1.5 text-zinc-500 hover:text-brand-600 hover:bg-brand-500/10 rounded-lg transition-colors">
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
                       <button onClick={() => deleteTable(t)}
@@ -1528,7 +1507,7 @@ export default function TablesPage() {
                 {(["single", "bulk"] as const).map(key => (
                   <button key={key} onClick={() => { setTableFormTab(key); setSaveError(null); }}
                     className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${tableFormTab === key ? "text-white" : "text-zinc-400 hover:text-white"}`}
-                    style={tableFormTab === key ? {background:"#2563eb"} : undefined}>
+                    style={tableFormTab === key ? {background:"#315DFB"} : undefined}>
                     {key === "single" ? "Mesa Individual" : "Criar em Massa"}
                   </button>
                 ))}
@@ -1570,7 +1549,7 @@ export default function TablesPage() {
                       {[5, 10, 15, 20].map(n => (
                         <button key={n} onClick={() => setBulkCount(String(n))}
                           className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all border ${bulkCount === String(n) ? "text-white" : "border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-white"}`}
-                          style={bulkCount === String(n) ? {background:"#2563eb", borderColor:"#2563eb"} : undefined}>
+                          style={bulkCount === String(n) ? {background:"#315DFB", borderColor:"#315DFB"} : undefined}>
                           {n}
                         </button>
                       ))}
@@ -1615,14 +1594,14 @@ export default function TablesPage() {
               {tableFormTab === "single" || editingTable ? (
                 <button onClick={saveTable} disabled={!fName.trim() || saving}
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-colors"
-                  style={{background:"#2563eb"}}>
+                  style={{background:"#315DFB"}}>
                   {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   {editingTable ? "Salvar" : "Criar Mesa"}
                 </button>
               ) : (
                 <button onClick={bulkCreate} disabled={!(parseInt(bulkCount) > 0) || saving}
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-colors"
-                  style={{background:"#2563eb"}}>
+                  style={{background:"#315DFB"}}>
                   {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                   Criar {bulkCount || "?"} Mesas
                 </button>
@@ -1717,7 +1696,7 @@ export default function TablesPage() {
                   placeholder={`Valor (restante: ${fmt(Math.max(0, finalTotal - totalPaid))})`}
                   className={inputCls + " flex-1"} />
                 <button onClick={addPayment}
-                  className="px-4 py-2.5 bg-violet-600 hover:bg-violet-500 rounded-xl text-sm font-semibold transition-colors flex-shrink-0"
+                  className="px-4 py-2.5 bg-brand-600 hover:bg-brand-700 rounded-xl text-sm font-semibold transition-colors flex-shrink-0"
                   style={{ color: "#fff" }}>
                   <Plus className="w-4 h-4" />
                 </button>
@@ -1796,12 +1775,12 @@ export default function TablesPage() {
                     {Object.keys(catNameMap).sort().map(name => (
                       <div key={name} className="flex items-center gap-1">
                         <button onClick={() => setCurateActiveCat(name)}
-                          className={`flex-1 min-w-0 px-3 py-2 rounded-xl text-sm font-medium transition-colors flex items-center justify-between gap-2 ${curateActiveCat === name ? "bg-violet-600/20 border border-violet-500/40 text-violet-300" : "bg-zinc-800/50 border border-transparent text-zinc-300 hover:bg-zinc-800"}`}>
+                          className={`flex-1 min-w-0 px-3 py-2 rounded-xl text-sm font-medium transition-colors flex items-center justify-between gap-2 ${curateActiveCat === name ? "bg-brand-600/20 border border-brand-500/40 text-brand-700" : "bg-zinc-800/50 border border-transparent text-zinc-300 hover:bg-zinc-800"}`}>
                           <span className="truncate">{name.charAt(0) + name.slice(1).toLowerCase()}</span>
                           <span className="text-xs text-zinc-500 flex-shrink-0">{curatedProducts[name]?.length ?? 0}</span>
                         </button>
                         <button onClick={() => renameCategory(name)} title="Renomear categoria"
-                          className="p-1.5 text-zinc-600 hover:text-violet-400 hover:bg-zinc-800 rounded-lg transition-colors flex-shrink-0">
+                          className="p-1.5 text-zinc-600 hover:text-brand-600 hover:bg-zinc-800 rounded-lg transition-colors flex-shrink-0">
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button onClick={() => deleteCategory(name)} title="Excluir categoria"
@@ -1814,9 +1793,9 @@ export default function TablesPage() {
                   <div className="flex items-center gap-1 pt-1">
                     <input value={newCatName} onChange={e => setNewCatName(e.target.value)}
                       onKeyDown={e => e.key === "Enter" && createCategory()}
-                      placeholder="Nova categoria..." className="flex-1 min-w-0 px-2.5 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500" />
+                      placeholder="Nova categoria..." className="flex-1 min-w-0 px-2.5 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500" />
                     <button onClick={createCategory} disabled={!newCatName.trim()}
-                      className="flex-shrink-0 p-2 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 rounded-xl transition-colors"
+                      className="flex-shrink-0 p-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-40 rounded-xl transition-colors"
                       style={{ color: "#fff" }}>
                       <Plus className="w-3.5 h-3.5" />
                     </button>
@@ -1840,7 +1819,7 @@ export default function TablesPage() {
                       <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                         <input placeholder="Buscar em todo o estoque..." value={curateSearch} onChange={e => setCurateSearch(e.target.value)}
-                          className="w-full pl-10 pr-4 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-violet-500" />
+                          className="w-full pl-10 pr-4 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-brand-500" />
                       </div>
                       <div className="flex-1 space-y-1 overflow-y-auto max-h-80">
                         {products
@@ -1849,10 +1828,10 @@ export default function TablesPage() {
                             const inCat = (curatedProducts[curateActiveCat!] ?? []).includes(p.id);
                             return (
                               <button key={p.id} onClick={() => toggleCuratedProduct(curateActiveCat!, p.id)}
-                                className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-colors text-left ${inCat ? "bg-violet-600/15 border border-violet-500/30" : "hover:bg-zinc-800 border border-transparent"}`}>
+                                className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-colors text-left ${inCat ? "bg-brand-600/15 border border-brand-500/30" : "hover:bg-zinc-800 border border-transparent"}`}>
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-medium text-white truncate">{p.name}</p>
-                                  <p className="text-xs text-violet-400">{fmt(p.sale_price)}</p>
+                                  <p className="text-xs text-brand-600">{fmt(p.sale_price)}</p>
                                 </div>
                                 {inCat ? <Star className="w-4 h-4 fill-amber-400 text-amber-400 flex-shrink-0" /> : <StarOff className="w-4 h-4 text-zinc-600 flex-shrink-0" />}
                               </button>
