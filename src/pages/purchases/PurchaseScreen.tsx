@@ -55,8 +55,8 @@ export const PURCHASE_PAY_METHODS = [
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const num = (v: string | undefined) => parseFloat((v ?? "").replace(",", ".")) || 0;
 
-const fieldCls = "w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all";
-const cellInputCls = "w-full px-2 py-1.5 bg-white border border-gray-200 rounded-md text-sm text-gray-900 text-right tabular-nums focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/15 transition-all";
+const fieldCls = "w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 transition-all";
+const cellInputCls = "w-full px-2 py-1.5 bg-white border border-gray-200 rounded-md text-sm text-gray-900 text-right tabular-nums focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 transition-all";
 
 export default function PurchaseScreen(p: Props) {
   const [search, setSearch] = useState("");
@@ -140,7 +140,7 @@ export default function PurchaseScreen(p: Props) {
             </div>
             <div className="flex items-center gap-2">
             <button onClick={() => p.onCreateProduct(search.trim())}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-700 transition-colors"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold bg-brand-600 hover:bg-brand-700 transition-colors"
               style={{ color: "#fff" }}>
               <Plus className="w-4 h-4" /> Cadastrar produto novo
             </button>
@@ -171,7 +171,7 @@ export default function PurchaseScreen(p: Props) {
 
           {/* Busca */}
           <div className="relative px-6 pb-4">
-            <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/15 focus-within:bg-white transition-all">
+            <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/15 focus-within:bg-white transition-all">
               <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
               <input ref={searchRef} value={search}
                 onChange={e => { setSearch(e.target.value); setHighlight(0); }}
@@ -189,11 +189,11 @@ export default function PurchaseScreen(p: Props) {
                     <button key={`${m.ref_type}-${m.id}`} type="button"
                       onMouseEnter={() => setHighlight(i)}
                       onClick={() => addItem(m)}
-                      className={`w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm border-b border-gray-100 last:border-0 transition-colors ${i === highlight ? "bg-blue-50" : "bg-white"}`}>
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm border-b border-gray-100 last:border-0 transition-colors ${i === highlight ? "bg-brand-50" : "bg-white"}`}>
                       <span className="flex-1 min-w-0 truncate text-gray-900 font-medium">{m.name}</span>
                       <span className="text-xs text-gray-500 tabular-nums">{m.controlled === false ? "Sem controle de estoque" : `Estoque: ${Number(m.current_qty ?? 0).toLocaleString("pt-BR")}`}</span>
                       {m.cost_price ? <span className="text-xs text-gray-500 tabular-nums w-24 text-right">Custo {fmt(m.cost_price)}</span> : <span className="w-24" />}
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${m.ref_type === "ingredient" ? "bg-amber-50 text-amber-700" : "bg-blue-50 text-blue-700"}`}>
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600`}>
                         {m.ref_type === "ingredient" ? "Insumo" : "Produto"}
                       </span>
                     </button>
@@ -204,7 +204,7 @@ export default function PurchaseScreen(p: Props) {
                 </div>
                 <div className="flex items-center gap-2 p-2 border-t border-gray-100 bg-gray-50">
                   <button type="button" onClick={() => { p.onCreateProduct(search.trim()); setSearch(""); }}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold text-blue-700 hover:bg-blue-100 transition-colors">
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold text-brand-700 hover:bg-brand-100 transition-colors">
                     <Plus className="w-4 h-4" /> Cadastrar produto "{search.trim()}"
                   </button>
                   <button type="button" onClick={() => { p.onCreateIngredient(search.trim()); setSearch(""); }}
@@ -235,7 +235,7 @@ export default function PurchaseScreen(p: Props) {
                   <p className="text-sm font-semibold text-gray-700">Nenhum item na compra</p>
                   <p className="text-xs text-gray-500 mt-1">Use a busca acima para adicionar produtos que já existem, ou cadastre um produto novo.</p>
                   <button onClick={() => p.onCreateProduct("")}
-                    className="mt-4 flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold border border-blue-200 text-blue-700 hover:bg-blue-50 transition-colors">
+                    className="mt-4 flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold border border-brand-200 text-brand-700 hover:bg-brand-50 transition-colors">
                     <Plus className="w-4 h-4" /> Cadastrar produto novo
                   </button>
                 </div>
@@ -254,7 +254,7 @@ export default function PurchaseScreen(p: Props) {
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{l.itemName}</p>
                       <p className="text-[11px] text-gray-500 truncate">
-                        <span className={isProduct ? "text-blue-600" : "text-amber-600"}>{isProduct ? "Produto" : "Insumo"}</span>
+                        <span className="text-gray-600">{isProduct ? "Produto" : "Insumo"}</span>
                         {ref && (ref.controlled === false
                           ? <> · Sem controle de estoque</>
                           : <> · Estoque atual {Number(ref.current_qty ?? 0).toLocaleString("pt-BR")}{ref.unit ? ` ${ref.unit}` : ""}</>)}
@@ -276,7 +276,7 @@ export default function PurchaseScreen(p: Props) {
                       <div>
                         <input value={saleStr} onChange={e => p.setSalePrices(prev => ({ ...prev, [l.item_id]: e.target.value }))}
                           type="number" min="0" step="0.01" placeholder="0,00" title="Alterar o preço de venda do produto"
-                          className={cellInputCls + (p.salePrices[l.item_id] !== undefined && num(p.salePrices[l.item_id]) !== (ref?.sale_price ?? 0) ? " border-blue-400 bg-blue-50/40" : "")} />
+                          className={cellInputCls + (p.salePrices[l.item_id] !== undefined && num(p.salePrices[l.item_id]) !== (ref?.sale_price ?? 0) ? " border-brand-400 bg-brand-50/40" : "")} />
                         <p className={`mt-0.5 text-right text-[11px] font-semibold tabular-nums ${margin === null ? "text-gray-400" : margin < 0 ? "text-red-600" : margin < 20 ? "text-amber-600" : "text-emerald-600"}`}>
                           {margin === null ? "margem —" : `margem ${margin.toFixed(0)}%`}
                         </p>
@@ -286,7 +286,7 @@ export default function PurchaseScreen(p: Props) {
                     <div className="flex items-center justify-end gap-0.5 pt-0.5">
                       {isProduct && (
                         <button type="button" onClick={() => p.onEditProduct(idx, l.item_id)} title="Editar cadastro do produto"
-                          className="p-1.5 rounded-md text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+                          className="p-1.5 rounded-md text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-colors">
                           <Pencil className="w-4 h-4" />
                         </button>
                       )}
@@ -327,7 +327,7 @@ export default function PurchaseScreen(p: Props) {
                       <button key={m.key} type="button"
                         onClick={() => { p.setPayMethod(m.key); p.setPaid(m.paidByDefault); setPayWarn(false); }}
                         className={`px-1 py-2 rounded-lg text-xs font-semibold border transition-colors ${p.payMethod === m.key
-                          ? "bg-blue-600 border-blue-600"
+                          ? "bg-brand-600 border-brand-600"
                           : payWarn ? "bg-white border-red-300 text-gray-700 hover:bg-red-50" : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"}`}
                         style={p.payMethod === m.key ? { color: "#fff" } : undefined}>
                         {m.label}

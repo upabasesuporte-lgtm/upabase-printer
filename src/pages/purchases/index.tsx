@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { ProductModal, type Category, type Product } from "../products";
 import PurchaseScreen, { PURCHASE_PAY_METHODS } from "./PurchaseScreen";
+import { PageHeader, btnPrimary, btnSecondary, WHITE_TEXT } from "../../components/PageHeader";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -63,7 +64,7 @@ const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", curren
 const fmtQty = (v: number, unit: string) =>
   `${Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 3 })} ${unit}`;
 
-const inputCls = "w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/10 transition-all";
+const inputCls = "w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/10 transition-all";
 const selectCls = inputCls + " cursor-pointer";
 // Data de hoje no fuso do navegador (toISOString usa UTC e vira o dia a partir das 21h)
 const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
@@ -601,7 +602,7 @@ export default function PurchasesPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <RefreshCw className="w-5 h-5 animate-spin text-violet-400" />
+        <RefreshCw className="w-5 h-5 animate-spin text-brand-600" />
       </div>
     );
   }
@@ -609,39 +610,16 @@ export default function PurchasesPage() {
   return (
     <>
       <div className="space-y-5">
-        {/* Header */}
-        <div className="relative overflow-hidden rounded-2xl p-5"
-          style={{ background: card.bg, border: card.border, boxShadow: card.shadow,
-            backgroundImage:"radial-gradient(rgba(59,130,246,0.07) 1px,transparent 1px)", backgroundSize:"24px 24px" }}>
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-900/10 to-transparent pointer-events-none" />
-          <div className="relative flex items-center justify-between flex-wrap gap-3">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-1.5 h-1.5 rounded-full" style={{background:"#3b82f6",boxShadow:"0 0 6px #3b82f6"}} />
-                <span className="text-[11px] font-semibold uppercase tracking-widest" style={{color:"#3b82f6"}}>Fornecedores</span>
-              </div>
-              <h1 className="text-2xl font-black g-text g-text-blue">
-                Compras
-              </h1>
-              <p className="text-xs text-zinc-500 mt-0.5">
-                {purchases.length} compra{purchases.length !== 1 ? "s" : ""} registrada{purchases.length !== 1 ? "s" : ""}
-              </p>
-            </div>
-            <div className="flex items-center flex-wrap gap-2">
-              <input ref={xmlInputRef} type="file" accept=".xml,text/xml" className="hidden" onChange={handleXmlFile} />
-              <button onClick={() => xmlInputRef.current?.click()} disabled={xmlParsing}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold border border-zinc-700 text-zinc-300 hover:border-zinc-600 hover:text-white transition-colors disabled:opacity-50">
-                {xmlParsing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
-                Importar XML da NFe
-              </button>
-              <button onClick={openPurchaseModal}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${isLight ? "bg-blue-600 hover:bg-blue-700" : "bg-violet-600 hover:bg-violet-500 text-white"}`}
-                style={isLight ? { color: "#ffffff" } : undefined}>
-                <Plus className="w-4 h-4" /> Registrar Compra
-              </button>
-            </div>
-          </div>
-        </div>
+        <PageHeader title="Compras" actions={<>
+          <input ref={xmlInputRef} type="file" accept=".xml,text/xml" className="hidden" onChange={handleXmlFile} />
+          <button onClick={() => xmlInputRef.current?.click()} disabled={xmlParsing} className={btnSecondary}>
+            {xmlParsing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
+            Importar XML da NFe
+          </button>
+          <button onClick={openPurchaseModal} className={btnPrimary} style={WHITE_TEXT}>
+            <Plus className="w-4 h-4" /> Registrar Compra
+          </button>
+        </>} />
 
         {xmlError && !xmlItems && (
           <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm p-3 rounded-xl flex items-center gap-2">
@@ -653,7 +631,7 @@ export default function PurchasesPage() {
           <div className="text-center py-20 border border-dashed border-zinc-800 rounded-2xl">
             <Truck className="w-12 h-12 text-zinc-700 mx-auto mb-4" />
             <p className="text-zinc-400 font-semibold">Nenhuma compra registrada</p>
-            <button onClick={openPurchaseModal} className="mt-5 text-violet-400 text-sm hover:underline">
+            <button onClick={openPurchaseModal} className="mt-5 text-brand-700 text-sm font-semibold hover:underline">
               Registrar primeira compra
             </button>
           </div>
@@ -669,8 +647,8 @@ export default function PurchasesPage() {
                     style={{ WebkitTapHighlightColor: "transparent" }}
                     className="w-full flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 px-5 py-4 text-left transition-colors">
                     <div className="flex items-center gap-4 min-w-0 sm:flex-1">
-                      <div className="w-10 h-10 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <Truck className="w-4 h-4 text-blue-400" />
+                      <div className="w-10 h-10 bg-brand-50 border border-brand-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <Truck className="w-4 h-4 text-brand-600" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 min-w-0 flex-wrap">
@@ -682,7 +660,7 @@ export default function PurchasesPage() {
                               Cancelada
                             </span>
                           ) : po.status === "pending" ? (
-                            <span className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                            <span className="flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-100">
                               Aguardando entrega
                             </span>
                           ) : (
@@ -717,7 +695,7 @@ export default function PurchasesPage() {
                             <div key={idx} className="grid grid-cols-[1fr_auto] sm:grid-cols-[1fr_100px_100px_100px] gap-x-4 px-5 py-2.5 items-center">
                               <span className="text-sm text-zinc-200 flex items-center gap-1.5">
                                 {itemName}
-                                {isProduct && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">Revenda</span>}
+                                {isProduct && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600 border border-gray-200">Revenda</span>}
                               </span>
                               <span className="hidden sm:block text-sm text-zinc-400">{fmtQty(item.quantity, itemUnit)}</span>
                               <span className="hidden sm:block text-sm text-zinc-400">{fmt(item.unit_cost)}</span>
@@ -905,7 +883,7 @@ export default function PurchasesPage() {
                 <div className="flex items-center justify-between mb-3">
                   <label className="text-xs font-medium text-zinc-400">Itens da compra *</label>
                   <button onClick={() => setPOItems(prev => [...prev, { ref_type: "ingredient", item_id: "", itemName: "", quantity: "", unit_cost: "" }])}
-                    className="flex items-center gap-1 text-xs text-violet-400 hover:text-violet-300 transition-colors">
+                    className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 transition-colors">
                     <Plus className="w-3 h-3" /> Adicionar linha
                   </button>
                 </div>
@@ -923,7 +901,7 @@ export default function PurchasesPage() {
                           <div className="space-y-1.5">
                             <div className="flex gap-2">
                               <button type="button" onClick={() => openQuickCreate(idx, "product", "")}
-                                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold transition-colors">
+                                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold transition-colors">
                                 <Plus className="w-3.5 h-3.5 flex-shrink-0" /> Criar Produto Novo
                               </button>
                               <button type="button" onClick={() => { setItemSearchText(""); setOpenSearchIdx(idx); }}
@@ -947,13 +925,13 @@ export default function PurchasesPage() {
                             <button type="button" onClick={() => { setItemSearchText(""); setOpenSearchIdx(idx); }}
                               className="flex-1 flex items-center justify-between gap-2 px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 hover:border-zinc-700 rounded-xl text-sm text-left transition-colors">
                               <span className="text-white truncate">{item.itemName}</span>
-                              <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${item.ref_type === "ingredient" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" : "bg-blue-500/10 text-blue-400 border border-blue-500/20"}`}>
+                              <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${item.ref_type === "ingredient" ? "bg-gray-100 text-gray-600 border border-gray-200" : "bg-gray-100 text-gray-600 border border-gray-200"}`}>
                                 {item.ref_type === "ingredient" ? "Insumo" : "Produto"}
                               </span>
                             </button>
                             {item.ref_type === "product" && item.item_id && (
                               <button type="button" onClick={() => openEditProductFromRow(idx, item.item_id!)}
-                                title="Editar produto" className="p-1.5 text-zinc-500 hover:text-violet-400 rounded-lg flex-shrink-0 transition-colors">
+                                title="Editar produto" className="p-1.5 text-zinc-500 hover:text-brand-600 rounded-lg flex-shrink-0 transition-colors">
                                 <Pencil className="w-4 h-4" />
                               </button>
                             )}
@@ -971,7 +949,7 @@ export default function PurchasesPage() {
                             )}
                           </div>
                         ) : (
-                          <div className="bg-zinc-900 border border-violet-500/40 rounded-xl overflow-hidden">
+                          <div className="bg-zinc-900 border border-brand-500/40 rounded-xl overflow-hidden">
                             <div className="flex items-center gap-2 px-3 py-2 border-b border-zinc-800">
                               <Search className="w-4 h-4 text-zinc-500 flex-shrink-0" />
                               <input autoFocus value={itemSearchText} onChange={e => setItemSearchText(e.target.value)}
@@ -990,7 +968,7 @@ export default function PurchasesPage() {
                                   }}
                                   className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-zinc-800 transition-colors text-sm border-b border-zinc-800/50 last:border-0">
                                   <span className="text-white truncate">{m.name}</span>
-                                  <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${m.ref_type === "ingredient" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" : "bg-blue-500/10 text-blue-400 border border-blue-500/20"}`}>
+                                  <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${m.ref_type === "ingredient" ? "bg-gray-100 text-gray-600 border border-gray-200" : "bg-gray-100 text-gray-600 border border-gray-200"}`}>
                                     {m.ref_type === "ingredient" ? "Insumo" : "Produto"}
                                   </span>
                                 </button>
@@ -1001,7 +979,7 @@ export default function PurchasesPage() {
                             </div>
                             <div className="border-t border-zinc-800 p-2">
                               <button type="button" onClick={() => openQuickCreate(idx, "product", itemSearchText.trim())}
-                                className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-xs font-bold transition-colors">
+                                className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold transition-colors">
                                 <Plus className="w-3.5 h-3.5 flex-shrink-0" /> Cadastrar {itemSearchText ? `"${itemSearchText}"` : "produto novo"}
                               </button>
                             </div>
@@ -1024,7 +1002,7 @@ export default function PurchasesPage() {
               <button onClick={() => setModal("none")} className="w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
               <button onClick={savePurchase}
                 disabled={poItems.every(i => !i.item_id || !i.quantity) || saving}
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 rounded-xl text-sm font-semibold transition-colors"
+                className="w-full flex items-center justify-center gap-2 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 rounded-xl text-sm font-semibold transition-colors"
                 style={{ color: "#fff" }}>
                 {saving ? <RefreshCw className="w-4 h-4 animate-spin flex-shrink-0" /> : <Truck className="w-4 h-4 flex-shrink-0" />}
                 <span className="truncate">Dar entrada no estoque</span>
@@ -1073,7 +1051,7 @@ export default function PurchasesPage() {
             <div className="flex gap-3 px-6 py-4 border-t border-zinc-800">
               <button onClick={() => setQuickCreateIdx(null)} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
               <button onClick={saveQuickCreateIngredient} disabled={qcSaving}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
                 {qcSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                 Cadastrar e usar
               </button>
@@ -1137,18 +1115,18 @@ export default function PurchasesPage() {
                         Vai atualizar {it.refType === "ingredient" ? "insumo" : "produto"} já cadastrado
                       </span>
                       <button type="button" onClick={() => updateXmlItem(idx, { matchType: "new", matchedId: null })}
-                        className="text-zinc-500 hover:text-violet-400 transition-colors">Não é esse, criar novo</button>
+                        className="text-zinc-500 hover:text-brand-600 transition-colors">Não é esse, criar novo</button>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs text-amber-400 flex-shrink-0">Será cadastrado como novo:</span>
                       <div className="flex bg-zinc-800 rounded-lg p-0.5 gap-0.5">
                         <button type="button" onClick={() => updateXmlItem(idx, { refType: "ingredient" })}
-                          className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition-all ${it.refType === "ingredient" ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-white"}`}>
+                          className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition-all ${it.refType === "ingredient" ? "bg-brand-600 text-white" : "text-zinc-400 hover:text-white"}`}>
                           Insumo
                         </button>
                         <button type="button" onClick={() => updateXmlItem(idx, { refType: "product" })}
-                          className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition-all ${it.refType === "product" ? "bg-violet-600 text-white" : "text-zinc-400 hover:text-white"}`}>
+                          className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition-all ${it.refType === "product" ? "bg-brand-600 text-white" : "text-zinc-400 hover:text-white"}`}>
                           Produto
                         </button>
                       </div>
@@ -1165,7 +1143,7 @@ export default function PurchasesPage() {
             <div className="flex gap-3 px-6 py-4 border-t border-zinc-800 flex-shrink-0">
               <button onClick={() => setXmlItems(null)} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
               <button onClick={confirmXmlImport} disabled={xmlImporting}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
                 {xmlImporting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
                 Usar {xmlItems.length} ite{xmlItems.length !== 1 ? "ns" : "m"} na compra
               </button>
