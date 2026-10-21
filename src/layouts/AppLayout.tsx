@@ -436,7 +436,7 @@ export function AppLayout() {
       <div className="min-h-screen flex items-center justify-center"
         style={{ background: T.pageBg }}>
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
           <p className="text-xs text-zinc-600 uppercase tracking-widest">Carregando...</p>
         </div>
       </div>
@@ -515,15 +515,16 @@ export function AppLayout() {
                   transition: "all 0.15s",
                   whiteSpace: "nowrap",
                   overflow: "hidden",
-                  color: isActive ? item.color : "#71717a",
-                  background: isActive ? `${item.color}15` : "transparent",
-                  boxShadow: isActive ? `inset 0 0 0 1px ${item.color}30` : "none",
+                  // Item ativo com o degradê do logo (momento de marca)
+                  color: isActive ? "#ffffff" : "#71717a",
+                  background: isActive ? "linear-gradient(135deg, #7C3FFA 0%, #315DFB 55%, #00B8C8 100%)" : "transparent",
+                  boxShadow: isActive ? "0 4px 12px rgba(49,93,251,0.25)" : "none",
                 })}
                 title={item.label}
               >
                 {({ isActive }) => (
                   <>
-                    <span className="relative flex-shrink-0" style={isActive ? { filter:`drop-shadow(0 0 4px ${item.color})` } : {}}>
+                    <span className="relative flex-shrink-0">
                       <Icon size={16} />
                       {/* Ponto de alerta no ícone quando a sidebar está recolhida (desktop) */}
                       {item.path === "/digital-menu" && digitalPending > 0 && (
@@ -541,7 +542,7 @@ export function AppLayout() {
                     )}
                     {isActive && digitalPending === 0 && (
                       <span className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0 md:opacity-0 md:group-hover:opacity-100"
-                        style={{ background: item.color, boxShadow:`0 0 6px ${item.color}` }} />
+                        style={{ background: "#ffffff" }} />
                     )}
                   </>
                 )}
@@ -673,7 +674,7 @@ export function AppLayout() {
               icon={cashOpenedAt ? <LockOpen size={15} /> : <Lock size={15} />}
               label="Caixa"
               value={cashOpenedAt ? `Aberto · ${timeSince(cashOpenedAt)}` : "Fechado"}
-              color={cashOpenedAt ? "#8b5cf6" : "#f43f5e"}
+              color={cashOpenedAt ? "#315DFB" : "#f43f5e"}
             />
 
             {/* Mesas */}
@@ -696,7 +697,7 @@ export function AppLayout() {
                 <span className="text-[9px] text-zinc-600 uppercase tracking-widest mb-1">Estabelecimento</span>
                 <span className="font-black leading-none"
                   style={isLight
-                    ? { fontSize: 15, color: "#7B2FBE", WebkitTextFillColor: "#7B2FBE", backgroundClip: "unset", WebkitBackgroundClip: "unset", background: "none" }
+                    ? { fontSize: 15, color: "#111827", WebkitTextFillColor: "#111827", backgroundClip: "unset", WebkitBackgroundClip: "unset", background: "none" }
                     : { fontSize: 15, background: "linear-gradient(135deg,#c4b5fd,#a78bfa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
                   {companyName}
                 </span>
@@ -714,13 +715,13 @@ export function AppLayout() {
               onClick={() => avatarInputRef.current?.click()}
               title="Clique para alterar foto de perfil"
               className="relative w-9 h-9 rounded-full overflow-hidden flex-shrink-0 group cursor-pointer"
-              style={{ boxShadow: "0 0 12px rgba(124,58,237,0.4)" }}
+              style={{ boxShadow: "0 2px 8px rgba(49,93,251,0.25)" }}
             >
               {avatarUrl ? (
                 <img src={avatarUrl} alt="Perfil" className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center font-black text-xs text-white"
-                  style={{ background: "linear-gradient(135deg,#7c3aed,#4f46e5)" }}>
+                  style={{ background: "linear-gradient(135deg, #7C3FFA 0%, #315DFB 55%, #00B8C8 100%)" }}>
                   {userEmail ? userEmail.charAt(0).toUpperCase() : "U"}
                 </div>
               )}
