@@ -6,7 +6,7 @@ import {
   Plus, X, RefreshCw, Truck, ChevronDown, Ban, Search, FileUp, Check, AlertCircle, Trash2, Clock, Pencil,
 } from "lucide-react";
 import { ProductModal, type Category, type Product } from "../products";
-import PurchaseScreen from "./PurchaseScreen";
+import PurchaseScreen, { PURCHASE_PAY_METHODS } from "./PurchaseScreen";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -64,6 +64,8 @@ const fmtQty = (v: number, unit: string) =>
 
 const inputCls = "w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/10 transition-all";
 const selectCls = inputCls + " cursor-pointer";
+// Data de hoje no fuso do navegador (toISOString usa UTC e vira o dia a partir das 21h)
+const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const UNITS = ["unidade","kg","g","litro","ml","metro","cm","caixa","dúzia","pacote","porção"];
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -98,8 +100,12 @@ export default function PurchasesPage() {
   // Purchase form
   const [poSupplierId, setPOSupplierId] = useState("");
   const [poNotes, setPONotes] = useState("");
-  const [poDueDate, setPODueDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [poDueDate, setPODueDate] = useState(() => localToday());
   const [poInstallments, setPOInstallments] = useState("1");
+  // Forma de pagamento / situação — vão completos para Contas a Pagar
+  const [poPayMethod, setPOPayMethod] = useState("");
+  const [poPaid, setPOPaid] = useState(false);
+  const [poPaidDate, setPOPaidDate] = useState(() => localToday());
   const [poItems, setPOItems] = useState<{ ref_type: "ingredient" | "product"; item_id: string; itemName: string; quantity: string; unit_cost: string }[]>([]);
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
 
@@ -110,7 +116,7 @@ export default function PurchasesPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [receivingId, setReceivingId] = useState<string | null>(null);
   const [receiveTarget, setReceiveTarget] = useState<PurchaseOrder | null>(null);
-  const [receiveDueDate, setReceiveDueDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [receiveDueDate, setReceiveDueDate] = useState(() => localToday());
   const [receiveInstallments, setReceiveInstallments] = useState("1");
   const [openSearchIdx, setOpenSearchIdx] = useState<number | null>(null);
   const [itemSearchText, setItemSearchText] = useState("");
@@ -302,7 +308,8 @@ export default function PurchasesPage() {
       await Promise.all([loadStockItems(), loadLimitedProducts()]);
       setPOSupplierId(xmlSupplierId ?? "");
       setPONotes(xmlInvoiceRef);
-      setPODueDate(new Date().toISOString().split("T")[0]); setPOInstallments("1");
+      setPODueDate(localToday()); setPOInstallments("1");
+      setPOPayMethod(""); setPOPaid(false); setPOPaidDate(localToday());
       setPurchaseError(null);
       setPOItems(finalItems); setSalePrices({});
       setXmlItems(null);
@@ -316,7 +323,8 @@ export default function PurchasesPage() {
 
   function openPurchaseModal() {
     setPOSupplierId(""); setPONotes(""); setPurchaseError(null);
-    setPODueDate(new Date().toISOString().split("T")[0]); setPOInstallments("1");
+    setPODueDate(localToday()); setPOInstallments("1");
+    setPOPayMethod(""); setPOPaid(false); setPOPaidDate(localToday());
     setPOItems([{ ref_type: "ingredient", item_id: "", itemName: "", quantity: "", unit_cost: "" }]);
     setSalePrices({});
     setModal("purchase");
@@ -441,6 +449,7 @@ export default function PurchasesPage() {
   async function savePurchase() {
     const validItems = poItems.filter(i => i.item_id && i.quantity);
     if (validItems.length === 0 || saving) return;
+    if (!poPayMethod) { setPurchaseError("Escolha a forma de pagamento."); return; }
     setSaving(true);
     setPurchaseError(null);
     // Compra + itens + estoque + conta a pagar rodam numa unica transacao
@@ -448,11 +457,11 @@ export default function PurchasesPage() {
     // desfeito automaticamente, nao fica compra sem financeiro nem
     // financeiro sem compra. A propria RPC valida os dados (quantidade,
     // custo, fornecedor, itens) antes de gravar qualquer coisa.
-    const { error } = await supabase.rpc("register_purchase", {
+    const { data: poId, error } = await supabase.rpc("register_purchase", {
       p_supplier_id: poSupplierId || null,
       p_notes: poNotes || null,
-      p_due_date: poDueDate,
-      p_installments: parseInt(poInstallments) || 1,
+      p_due_date: poPaid ? poPaidDate : poDueDate,
+      p_installments: poPaid ? 1 : (parseInt(poInstallments) || 1),
       p_items: validItems.map(i => ({
         ref_type: i.ref_type,
         item_id: i.item_id,
@@ -464,37 +473,23 @@ export default function PurchasesPage() {
       setPurchaseError(error.message);
       setSaving(false);
       return;
+    }
+    // Completa a conta a pagar criada pela compra com a forma de pagamento
+    // e, se ja foi paga, marca como paga (mesmos campos que Contas a Pagar usa).
+    if (poId) {
+      const { data: bills, error: billsErr } = await supabase.from("accounts_payable")
+        .select("id, amount").eq("purchase_order_id", poId as string);
+      let payErr = billsErr;
+      for (const b of bills ?? []) {
+        const { error: upErr } = await supabase.from("accounts_payable").update(poPaid
+          ? { payment_method: poPayMethod, status: "paid", paid_date: poPaidDate, paid_amount: b.amount, updated_at: new Date().toISOString() }
+          : { payment_method: poPayMethod, updated_at: new Date().toISOString() }).eq("id", b.id);
+        if (upErr) payErr = upErr;
+      }
+      if (payErr) alert("A compra foi lançada e o estoque atualizado, mas não foi possível registrar a forma de pagamento em Contas a Pagar. Ajuste por lá. (" + payErr.message + ")");
     }
     await applySalePrices(validItems);
     await Promise.all([loadPurchases(), loadStockItems(), loadLimitedProducts()]);
-    setSaving(false);
-    setModal("none");
-  }
-
-  // Registra o pedido sem mexer em estoque/financeiro — só quando a mercadoria
-  // chegar de fato é que isso acontece (confirmReceivePurchase).
-  async function savePendingPurchase() {
-    const validItems = poItems.filter(i => i.item_id && i.quantity);
-    if (validItems.length === 0 || saving) return;
-    setSaving(true);
-    setPurchaseError(null);
-    const { error } = await supabase.rpc("create_pending_purchase", {
-      p_supplier_id: poSupplierId || null,
-      p_notes: poNotes || null,
-      p_items: validItems.map(i => ({
-        ref_type: i.ref_type,
-        item_id: i.item_id,
-        quantity: parseFloat(i.quantity),
-        unit_cost: parseFloat(i.unit_cost) || 0,
-      })),
-    });
-    if (error) {
-      setPurchaseError(error.message);
-      setSaving(false);
-      return;
-    }
-    await applySalePrices(validItems);
-    await Promise.all([loadPurchases(), loadLimitedProducts()]);
     setSaving(false);
     setModal("none");
   }
@@ -690,7 +685,7 @@ export default function PurchasesPage() {
                         </div>
                         {po.status === "pending" ? (
                           <div className="px-5 py-3 flex flex-wrap items-center gap-4">
-                            <button onClick={() => { setReceiveTarget(po); setReceiveDueDate(new Date().toISOString().split("T")[0]); setReceiveInstallments("1"); setModal("receive"); }}
+                            <button onClick={() => { setReceiveTarget(po); setReceiveDueDate(localToday()); setReceiveInstallments("1"); setModal("receive"); }}
                               disabled={receivingId === po.id}
                               className="flex items-center gap-1.5 text-xs font-bold text-emerald-400 hover:text-emerald-300 disabled:opacity-50 transition-colors">
                               {receivingId === po.id ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Truck className="w-3.5 h-3.5" />}
@@ -778,6 +773,9 @@ export default function PurchasesPage() {
           notes={poNotes} setNotes={setPONotes}
           dueDate={poDueDate} setDueDate={setPODueDate}
           installments={poInstallments} setInstallments={setPOInstallments}
+          payMethod={poPayMethod} setPayMethod={setPOPayMethod}
+          paid={poPaid} setPaid={setPOPaid}
+          paidDate={poPaidDate} setPaidDate={setPOPaidDate}
           items={poItems} setItems={setPOItems}
           salePrices={salePrices} setSalePrices={setSalePrices}
           error={purchaseError ?? (!xmlItems ? xmlError : null)}
@@ -785,7 +783,6 @@ export default function PurchasesPage() {
           xmlParsing={xmlParsing}
           onImportXml={() => xmlInputRef.current?.click()}
           onClose={closePurchaseScreen}
-          onSavePending={savePendingPurchase}
           onSaveReceive={savePurchase}
           onCreateProduct={name => createFromScreen("product", name)}
           onCreateIngredient={name => createFromScreen("ingredient", name)}
@@ -818,14 +815,38 @@ export default function PurchasesPage() {
                   <input value={poNotes} onChange={e => setPONotes(e.target.value)} placeholder="Número da nota, pedido..." className={inputCls} />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Vencimento (Contas a Pagar)</label>
-                  <input type="date" value={poDueDate} onChange={e => setPODueDate(e.target.value)} className={inputCls} />
+                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Forma de pagamento *</label>
+                  <select value={poPayMethod}
+                    onChange={e => { const m = PURCHASE_PAY_METHODS.find(x => x.key === e.target.value); setPOPayMethod(e.target.value); if (m) setPOPaid(m.paidByDefault); }}
+                    className={selectCls}>
+                    <option value="">Selecionar...</option>
+                    {PURCHASE_PAY_METHODS.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
+                  </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Número de parcelas</label>
-                  <input type="number" min="1" max="60" value={poInstallments} onChange={e => setPOInstallments(e.target.value)} className={inputCls} />
-                  <p className="text-[10px] text-zinc-600 mt-1">Só vale pra "Confirmar Recebimento" — "Só Fazer Pedido" não cria conta a pagar ainda.</p>
+                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Situação</label>
+                  <select value={poPaid ? "paid" : "pending"} onChange={e => setPOPaid(e.target.value === "paid")} className={selectCls}>
+                    <option value="paid">Já está paga</option>
+                    <option value="pending">A pagar</option>
+                  </select>
                 </div>
+                {poPaid ? (
+                  <div className="col-span-2">
+                    <label className="block text-xs font-medium text-zinc-400 mb-1.5">Data do pagamento</label>
+                    <input type="date" value={poPaidDate} onChange={e => setPOPaidDate(e.target.value)} className={inputCls} />
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-400 mb-1.5">Vencimento (Contas a Pagar)</label>
+                      <input type="date" value={poDueDate} onChange={e => setPODueDate(e.target.value)} className={inputCls} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-400 mb-1.5">Número de parcelas</label>
+                      <input type="number" min="1" max="60" value={poInstallments} onChange={e => setPOInstallments(e.target.value)} className={inputCls} />
+                    </div>
+                  </>
+                )}
               </div>
 
               {purchaseError && (
@@ -955,20 +976,12 @@ export default function PurchasesPage() {
             </div>
             <div className="flex flex-col gap-3 px-6 py-4 border-t border-zinc-800 flex-shrink-0">
               <button onClick={() => setModal("none")} className="w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
-              <button onClick={savePendingPurchase}
-                disabled={poItems.every(i => !i.item_id || !i.quantity) || saving}
-                title="Registra o pedido sem mexer no estoque — confirme o recebimento quando a mercadoria chegar"
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-xl text-sm font-semibold transition-colors"
-                style={{ color: "#fff" }}>
-                {saving ? <RefreshCw className="w-4 h-4 animate-spin flex-shrink-0" /> : <Clock className="w-4 h-4 flex-shrink-0" />}
-                <span className="truncate">Só Fazer Pedido</span>
-              </button>
               <button onClick={savePurchase}
                 disabled={poItems.every(i => !i.item_id || !i.quantity) || saving}
                 className="w-full flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 rounded-xl text-sm font-semibold transition-colors"
                 style={{ color: "#fff" }}>
                 {saving ? <RefreshCw className="w-4 h-4 animate-spin flex-shrink-0" /> : <Truck className="w-4 h-4 flex-shrink-0" />}
-                <span className="truncate">Confirmar Recebimento</span>
+                <span className="truncate">Dar entrada no estoque</span>
               </button>
             </div>
           </div>

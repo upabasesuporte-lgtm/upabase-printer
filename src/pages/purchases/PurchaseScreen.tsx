@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from "react";
 import {
-  ArrowLeft, Search, Plus, Pencil, X, FileUp, RefreshCw, Clock, Check, AlertCircle, TrendingUp, TrendingDown, Package,
+  ArrowLeft, Search, Plus, Pencil, X, FileUp, RefreshCw, Check, AlertCircle, TrendingUp, TrendingDown, Package,
 } from "lucide-react";
 
 // Tela cheia de lançamento de compra — usada só no computador. O celular
 // continua com o modal antigo. Não grava nada sozinha: tudo passa pelas
-// mesmas funções de salvar da página (register_purchase / create_pending_purchase).
+// mesmas funções de salvar da página (register_purchase).
 
 export interface ScreenItem {
   id: string; name: string; barcode?: string | null; unit?: string | null;
@@ -24,6 +24,9 @@ interface Props {
   notes: string; setNotes: (v: string) => void;
   dueDate: string; setDueDate: (v: string) => void;
   installments: string; setInstallments: (v: string) => void;
+  payMethod: string; setPayMethod: (v: string) => void;
+  paid: boolean; setPaid: (v: boolean) => void;
+  paidDate: string; setPaidDate: (v: string) => void;
   items: POLine[]; setItems: React.Dispatch<React.SetStateAction<POLine[]>>;
   salePrices: Record<string, string>; setSalePrices: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   error: string | null;
@@ -31,12 +34,22 @@ interface Props {
   xmlParsing: boolean;
   onImportXml: () => void;
   onClose: () => void;
-  onSavePending: () => void;
   onSaveReceive: () => void;
   onCreateProduct: (name: string) => void;
   onCreateIngredient: (name: string) => void;
   onEditProduct: (idx: number, id: string) => void;
 }
+
+// Mesmas chaves usadas em Contas a Pagar
+export const PURCHASE_PAY_METHODS = [
+  { key: "pix", label: "Pix", paidByDefault: true },
+  { key: "cash", label: "Dinheiro", paidByDefault: true },
+  { key: "debit_card", label: "Débito", paidByDefault: true },
+  { key: "credit_card", label: "Crédito", paidByDefault: false },
+  { key: "boleto", label: "Boleto", paidByDefault: false },
+  { key: "transfer", label: "Transferência", paidByDefault: true },
+  { key: "check", label: "Cheque", paidByDefault: false },
+];
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const num = (v: string | undefined) => parseFloat((v ?? "").replace(",", ".")) || 0;
@@ -48,6 +61,7 @@ export default function PurchaseScreen(p: Props) {
   const [search, setSearch] = useState("");
   const [highlight, setHighlight] = useState(0);
   const [supplierWarn, setSupplierWarn] = useState(false);
+  const [payWarn, setPayWarn] = useState(false);
   const supplierRef = useRef<HTMLSelectElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -102,6 +116,7 @@ export default function PurchaseScreen(p: Props) {
   // O fornecedor é obrigatório para gravar a compra — avisa antes de enviar
   function guardSave(save: () => void) {
     if (!p.supplierId) { setSupplierWarn(true); supplierRef.current?.focus(); return; }
+    if (!p.payMethod) { setPayWarn(true); return; }
     save();
   }
 
@@ -303,16 +318,59 @@ export default function PurchaseScreen(p: Props) {
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Pagamento</p>
               <div className="mt-3 space-y-3">
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Vencimento</label>
-                  <input type="date" value={p.dueDate} onChange={e => p.setDueDate(e.target.value)} className={fieldCls} />
+                  <label className="block text-xs text-gray-500 mb-1.5">Forma de pagamento *</label>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {PURCHASE_PAY_METHODS.map(m => (
+                      <button key={m.key} type="button"
+                        onClick={() => { p.setPayMethod(m.key); p.setPaid(m.paidByDefault); setPayWarn(false); }}
+                        className={`px-1 py-2 rounded-lg text-xs font-semibold border transition-colors ${p.payMethod === m.key
+                          ? "bg-blue-600 border-blue-600"
+                          : payWarn ? "bg-white border-red-300 text-gray-700 hover:bg-red-50" : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"}`}
+                        style={p.payMethod === m.key ? { color: "#fff" } : undefined}>
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+                  {payWarn && <p className="text-xs text-red-600 mt-1">Escolha a forma de pagamento.</p>}
                 </div>
+
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Parcelas</label>
-                  <input type="number" min="1" max="60" value={p.installments} onChange={e => p.setInstallments(e.target.value)} className={fieldCls} />
+                  <label className="block text-xs text-gray-500 mb-1.5">Situação</label>
+                  <div className="grid grid-cols-2 gap-1 p-1 bg-gray-100 rounded-lg">
+                    <button type="button" onClick={() => p.setPaid(true)}
+                      className={`py-1.5 rounded-md text-xs font-semibold transition-colors ${p.paid ? "bg-white text-emerald-700 shadow-sm" : "text-gray-500 hover:text-gray-800"}`}>
+                      Já está paga
+                    </button>
+                    <button type="button" onClick={() => p.setPaid(false)}
+                      className={`py-1.5 rounded-md text-xs font-semibold transition-colors ${!p.paid ? "bg-white text-amber-700 shadow-sm" : "text-gray-500 hover:text-gray-800"}`}>
+                      A pagar
+                    </button>
+                  </div>
                 </div>
+
+                {p.paid ? (
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Data do pagamento</label>
+                    <input type="date" value={p.paidDate} onChange={e => p.setPaidDate(e.target.value)} className={fieldCls} />
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-[1fr_72px] gap-2">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">{inst > 1 ? "1º vencimento" : "Vencimento"}</label>
+                      <input type="date" value={p.dueDate} onChange={e => p.setDueDate(e.target.value)} className={fieldCls} />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Parcelas</label>
+                      <input type="number" min="1" max="60" value={p.installments} onChange={e => p.setInstallments(e.target.value)} className={fieldCls} />
+                    </div>
+                  </div>
+                )}
+
                 {total > 0 && (
-                  <p className="text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
-                    {inst}x de <span className="font-semibold text-gray-900">{fmt(total / inst)}</span> em Contas a Pagar
+                  <p className={`text-xs rounded-lg px-3 py-2 border ${p.paid ? "text-emerald-800 bg-emerald-50 border-emerald-100" : "text-gray-600 bg-gray-50 border-gray-100"}`}>
+                    {p.paid
+                      ? <>Vai para Contas a Pagar como <span className="font-semibold">paga</span>{p.payMethod ? ` via ${PURCHASE_PAY_METHODS.find(m => m.key === p.payMethod)?.label}` : ""}.</>
+                      : <>{inst}x de <span className="font-semibold text-gray-900">{fmt(total / inst)}</span> pendente{inst > 1 ? "s" : ""} em Contas a Pagar{inst > 1 ? ", uma por mês" : ""}.</>}
                   </p>
                 )}
               </div>
@@ -325,21 +383,13 @@ export default function PurchaseScreen(p: Props) {
             )}
           </div>
 
-          <div className="p-4 border-t border-gray-100 space-y-2">
+          <div className="p-4 border-t border-gray-100">
             <button onClick={() => guardSave(p.onSaveReceive)} disabled={!canSave}
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               style={{ color: "#fff" }}>
               {p.saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
               Dar entrada no estoque
             </button>
-            <button onClick={() => guardSave(p.onSavePending)} disabled={!canSave}
-              title="Registra o pedido sem mexer no estoque nem no financeiro — confirme o recebimento quando a mercadoria chegar"
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-              <Clock className="w-4 h-4" /> Salvar como pedido
-            </button>
-            <p className="text-[11px] text-gray-400 text-center leading-snug pt-1">
-              "Salvar como pedido" não mexe no estoque nem cria conta a pagar até a mercadoria chegar.
-            </p>
           </div>
         </div>
       </div>
