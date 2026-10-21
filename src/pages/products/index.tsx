@@ -2,6 +2,7 @@
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
+import { PageHeader, btnPrimary, btnSecondary, WHITE_TEXT } from "../../components/PageHeader";
 import {
   Plus, Search, X, Edit2, Copy, Trash2, ChevronDown, ChevronUp,
   Package, Tag, Boxes, Monitor, UtensilsCrossed,
@@ -117,7 +118,7 @@ function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
   return (
     <button type="button" onClick={() => onChange(!value)} className="flex-shrink-0">
       {value
-        ? <ToggleRight className="w-8 h-8 text-violet-500" />
+        ? <ToggleRight className="w-8 h-8 text-brand-500" />
         : <ToggleLeft className="w-8 h-8 text-zinc-600" />}
     </button>
   );
@@ -135,8 +136,8 @@ function Field({ label, children, hint }: { label: string; children: React.React
   );
 }
 
-const inputCls = "w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500/10 transition-all";
-const selectCls = "w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white focus:outline-none focus:border-violet-500 transition-all";
+const inputCls = "w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/10 transition-all";
+const selectCls = "w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white focus:outline-none focus:border-brand-500 transition-all";
 
 // ─── Modal de categorias ──────────────────────────────────────────────────────
 
@@ -194,7 +195,7 @@ function CategoryModal({ categories, onClose, onRefresh }: {
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-zinc-800 flex-shrink-0">
           <div className="flex items-center gap-2">
-            <FolderOpen className="w-5 h-5 text-violet-400" />
+            <FolderOpen className="w-5 h-5 text-brand-600" />
             <h3 className="font-semibold">Gerenciar Categorias</h3>
           </div>
           <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
@@ -202,7 +203,7 @@ function CategoryModal({ categories, onClose, onRefresh }: {
 
         {/* Formulário de criação */}
         <div className="p-5 border-b border-zinc-800 flex-shrink-0">
-          <p className="text-xs font-semibold text-violet-400 uppercase tracking-wider mb-3">+ Nova Categoria</p>
+          <p className="text-xs font-semibold text-brand-600 uppercase tracking-wider mb-3">+ Nova Categoria</p>
           {error && (
             <div className="mb-3 bg-red-500/10 border border-red-500/20 text-red-400 text-xs p-2.5 rounded-lg flex gap-2 items-center">
               <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" /> {error}
@@ -223,7 +224,7 @@ function CategoryModal({ categories, onClose, onRefresh }: {
               autoFocus
             />
             <button onClick={save} disabled={loading || !name.trim()}
-              className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 rounded-xl text-sm font-semibold transition-colors whitespace-nowrap"
+              className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 rounded-xl text-sm font-semibold transition-colors whitespace-nowrap"
               style={{ color: "#fff" }}>
               <Plus className="w-4 h-4" />
               {loading ? "Criando..." : "Criar"}
@@ -464,7 +465,7 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
         <div className="flex gap-0.5 px-6 pt-3 border-b border-zinc-800 flex-shrink-0">
           {TABS.map(t => (
             <button key={t} onClick={() => setTab(t)}
-              className={`px-3 py-2 text-xs font-medium rounded-t-lg border-b-2 transition-colors ${tab === t ? "border-violet-500 text-violet-400" : "border-transparent text-zinc-500 hover:text-zinc-300"}`}>
+              className={`px-3 py-2 text-xs font-medium rounded-t-lg border-b-2 transition-colors ${tab === t ? "border-brand-500 text-brand-600" : "border-transparent text-zinc-500 hover:text-zinc-300"}`}>
               {t}
             </button>
           ))}
@@ -534,22 +535,22 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
                       {/* Preview ou placeholder */}
                       <div
                         onClick={() => fileInputRef.current?.click()}
-                        className="w-24 h-24 rounded-xl border-2 border-dashed border-zinc-700 hover:border-violet-500 bg-zinc-950 flex flex-col items-center justify-center cursor-pointer transition-colors flex-shrink-0 overflow-hidden group"
+                        className="w-24 h-24 rounded-xl border-2 border-dashed border-zinc-700 hover:border-brand-500 bg-zinc-950 flex flex-col items-center justify-center cursor-pointer transition-colors flex-shrink-0 overflow-hidden group"
                       >
                         {uploading ? (
-                          <RefreshCw className="w-5 h-5 text-violet-400 animate-spin" />
+                          <RefreshCw className="w-5 h-5 text-brand-600 animate-spin" />
                         ) : form.image_url ? (
                           <img src={form.image_url} alt="" className="w-full h-full object-cover" onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
                         ) : (
                           <>
-                            <Camera className="w-6 h-6 text-zinc-600 group-hover:text-violet-400 transition-colors" />
-                            <span className="text-xs text-zinc-600 group-hover:text-violet-400 mt-1 transition-colors">Adicionar</span>
+                            <Camera className="w-6 h-6 text-zinc-600 group-hover:text-brand-600 transition-colors" />
+                            <span className="text-xs text-zinc-600 group-hover:text-brand-600 mt-1 transition-colors">Adicionar</span>
                           </>
                         )}
                       </div>
                       <div className="flex-1 space-y-2">
                         <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}
-                          className="flex items-center gap-2 px-4 py-2.5 border border-zinc-700 hover:border-violet-500 hover:text-violet-400 rounded-xl text-sm font-medium transition-colors w-full justify-center disabled:opacity-50">
+                          className="flex items-center gap-2 px-4 py-2.5 border border-zinc-700 hover:border-brand-500 hover:text-brand-600 rounded-xl text-sm font-medium transition-colors w-full justify-center disabled:opacity-50">
                           <Upload className="w-4 h-4" />
                           {uploading ? "Enviando..." : form.image_url ? "Trocar foto" : "Selecionar do dispositivo"}
                         </button>
@@ -623,9 +624,9 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
               {/* Tipo de estoque */}
               <div className="grid grid-cols-2 gap-3">
                 <button type="button" onClick={() => set("stock_type", "controlled")}
-                  className={`p-4 rounded-xl border-2 text-left transition-all ${form.stock_type === "controlled" ? "border-violet-500 bg-violet-500/10" : "border-zinc-800 hover:border-zinc-700"}`}>
+                  className={`p-4 rounded-xl border-2 text-left transition-all ${form.stock_type === "controlled" ? "border-brand-500 bg-brand-500/10" : "border-zinc-800 hover:border-zinc-700"}`}>
                   <div className="flex items-center gap-2 mb-1">
-                    <Boxes className="w-4 h-4 text-violet-400" />
+                    <Boxes className="w-4 h-4 text-brand-600" />
                     <span className="text-sm font-semibold">Estoque Controlado</span>
                   </div>
                   <p className="text-xs text-zinc-500">Controla quantidade, bloqueia venda quando zerado. Ideal para produtos físicos.</p>
@@ -689,7 +690,7 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
                       placeholder="0,00" className={`${inputCls} w-24`} />
                   </Field>
                   <button type="button" onClick={addVariation} disabled={!newVar.name.trim()}
-                    className="h-10 px-3 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-xl text-sm font-medium transition-colors self-end">
+                    className="h-10 px-3 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white rounded-xl text-sm font-medium transition-colors self-end">
                     <Plus className="w-4 h-4" />
                   </button>
                 </div>
@@ -736,7 +737,7 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
 
               <div className="space-y-3">
                 {[
-                  { key: "visible_pdv" as const, icon: Monitor, label: "PDV (Ponto de Venda)", desc: "Aparece na tela de vendas do operador", color: "text-violet-400" },
+                  { key: "visible_pdv" as const, icon: Monitor, label: "PDV (Ponto de Venda)", desc: "Aparece na tela de vendas do operador", color: "text-brand-600" },
                   { key: "visible_tables" as const, icon: UtensilsCrossed, label: "Mesas", desc: "Disponível para pedidos em mesa pelo garçom", color: "text-emerald-400" },
                   { key: "visible_digital_menu" as const, icon: ShoppingBag, label: "Cardápio Digital", desc: "Visível no cardápio online para clientes", color: "text-blue-400" },
                 ].map(({ key, icon: Icon, label, desc, color }) => (
@@ -775,7 +776,7 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
             Cancelar
           </button>
           <button onClick={handleSave} disabled={saving}
-            className="px-6 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors shadow-lg shadow-violet-900/20">
+            className="px-6 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors shadow-lg shadow-brand-900/10">
             {saving ? "Salvando..." : isEdit ? "Salvar Alterações" : "Criar Produto"}
           </button>
         </div>
@@ -935,60 +936,38 @@ export default function ProductsPage() {
           <AlertCircle className="w-4 h-4 flex-shrink-0" /> {actionError}
         </div>
       )}
-      {/* Header */}
-      <div className="relative overflow-hidden rounded-2xl p-5"
-        style={{ background: card.bg, border: card.border, boxShadow: card.shadow,
-          backgroundImage: isLight ? "radial-gradient(rgba(123,47,190,0.12) 1px,transparent 1px)" : "radial-gradient(rgba(16,185,129,0.07) 1px,transparent 1px)", backgroundSize:"24px 24px" }}>
-        <div className="absolute inset-0 pointer-events-none" style={isLight ? { background: "linear-gradient(135deg, rgba(123,47,190,0.04) 0%, rgba(0,180,216,0.03) 100%)" } : undefined}>{!isLight && <div className="absolute inset-0 bg-gradient-to-r from-emerald-900/10 to-transparent" />}</div>
-        <div className="relative flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-1.5 h-1.5 rounded-full" style={{background: isLight ? "#3B82F6" : "#10b981", boxShadow: isLight ? "0 0 6px #3B82F6" : "0 0 6px #10b981"}} />
-              <span className="text-[11px] font-semibold uppercase tracking-widest" style={{color: isLight ? "#3B82F6" : "#10b981"}}>Catálogo</span>
-            </div>
-            <h1 className={`text-2xl font-black ${isLight ? "" : "g-text g-text-green"}`} style={isLight ? { color:"#3B82F6" } : undefined}>
-              Produtos
-            </h1>
-            <p className="text-xs text-zinc-500 mt-0.5">{total} produto{total !== 1 ? "s" : ""} cadastrado{total !== 1 ? "s" : ""}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setShowCatModal(true)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all ${isLight ? "" : "border border-zinc-700 hover:border-zinc-600 bg-zinc-900 hover:bg-zinc-800"}`}
-              style={isLight ? { background:"#7c3aed", color:"#fff" } : undefined}>
-              <FolderOpen className="w-4 h-4" /> Categorias
-            </button>
-            <button onClick={openCreate}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all"
-              style={isLight ? {background:"#2563eb",color:"#fff"} : {background:"linear-gradient(135deg,#059669,#10b981)",color:"#fff",boxShadow:"0 0 16px rgba(16,185,129,0.35)"}}>
-              <Plus className="w-4 h-4" /> Novo Produto
-            </button>
-          </div>
-        </div>
-      </div>
+      <PageHeader title="Produtos" actions={<>
+        <button onClick={() => setShowCatModal(true)} className={btnSecondary}>
+          <FolderOpen className="w-4 h-4" /> Categorias
+        </button>
+        <button onClick={openCreate} className={btnPrimary} style={WHITE_TEXT}>
+          <Plus className="w-4 h-4" /> Novo Produto
+        </button>
+      </>} />
 
       {/* Filtros */}
       <div className="flex flex-wrap gap-2">
         <div className="relative flex-1 min-w-48">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
           <input placeholder="Buscar por nome, SKU ou código..." value={search} onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-xl text-sm placeholder-zinc-500 focus:outline-none focus:border-violet-500 transition-colors"
+            className="w-full pl-9 pr-4 py-2 rounded-xl text-sm placeholder-zinc-500 focus:outline-none focus:border-brand-500 transition-colors"
           style={{ background: card.bg, border: card.border, color: isLight ? "#111" : "#fff" }} />
           {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white"><X className="w-4 h-4" /></button>}
         </div>
         <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
-          className="px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-violet-500 transition-colors"
+          className="px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-brand-500 transition-colors"
           style={{ background: card.bg, border: card.border, color: isLight ? "#111" : "#fff" }}>
           <option value="">Todas categorias</option>
           {rootCats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
         <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-          className="px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-violet-500 transition-colors"
+          className="px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-brand-500 transition-colors"
           style={{ background: card.bg, border: card.border, color: isLight ? "#111" : "#fff" }}>
           <option value="">Todos status</option>
           {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         <select value={filterStock} onChange={e => setFilterStock(e.target.value)}
-          className="px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-violet-500 transition-colors"
+          className="px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-brand-500 transition-colors"
           style={{ background: card.bg, border: card.border, color: isLight ? "#111" : "#fff" }}>
           <option value="">Todo estoque</option>
           <option value="empty">Zerado</option>
@@ -1002,12 +981,12 @@ export default function ProductsPage() {
       {/* Tabela */}
       <div className="rounded-2xl overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
         {loading ? (
-          <div className="flex justify-center py-16"><RefreshCw className="w-5 h-5 animate-spin text-violet-400" /></div>
+          <div className="flex justify-center py-16"><RefreshCw className="w-5 h-5 animate-spin text-brand-600" /></div>
         ) : products.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3 text-zinc-500">
             <Package className="w-10 h-10" />
             <p className="text-sm font-medium">Nenhum produto encontrado</p>
-            <button onClick={openCreate} className="text-xs text-violet-400 hover:text-violet-300 transition-colors">
+            <button onClick={openCreate} className="text-xs text-brand-600 hover:text-brand-700 transition-colors">
               + Criar primeiro produto
             </button>
           </div>
@@ -1085,7 +1064,7 @@ export default function ProductsPage() {
                     {/* Canais */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
-                        {p.visible_pdv !== false && <span title="PDV"><Monitor className="w-3.5 h-3.5 text-violet-400" /></span>}
+                        {p.visible_pdv !== false && <span title="PDV"><Monitor className="w-3.5 h-3.5 text-brand-600" /></span>}
                         {p.visible_tables !== false && <span title="Mesas"><UtensilsCrossed className="w-3.5 h-3.5 text-emerald-400" /></span>}
                         {p.visible_digital_menu !== false && <span title="Cardápio Digital"><ShoppingBag className="w-3.5 h-3.5 text-blue-400" /></span>}
                         {p.printer_destination && p.printer_destination !== "nenhuma" && (
@@ -1139,7 +1118,7 @@ export default function ProductsPage() {
                 if (pg >= totalPages) return null;
                 return (
                   <button key={pg} onClick={() => setPage(pg)}
-                    className={`w-8 h-7 text-xs rounded-lg transition-colors ${pg === page ? "bg-violet-600 text-white" : "border border-zinc-700 hover:border-zinc-600 text-zinc-400"}`}>
+                    className={`w-8 h-7 text-xs rounded-lg transition-colors ${pg === page ? "bg-brand-600 text-white" : "border border-zinc-700 hover:border-zinc-600 text-zinc-400"}`}>
                     {pg + 1}
                   </button>
                 );
