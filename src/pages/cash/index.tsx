@@ -2,7 +2,7 @@
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
 import { PageHeader, btnSecondary, segWrap, segBtn, WHITE_TEXT } from "../../components/PageHeader";
-import { StatCard } from "../../components/StatCard";
+import { StatCard, toneFor } from "../../components/StatCard";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import {
   Wallet, ArrowDownCircle, ArrowUpCircle, Lock, Unlock,
@@ -1205,14 +1205,12 @@ function OpenModalContent({ error, initialAmount, setInitialAmount, operatorName
 
 // ─── Sub-componentes ──────────────────────────────────────────────────────────
 
-function SummaryCard({ label, value, sub, icon, color }: {
+function SummaryCard({ label, value, sub, icon }: {
   label: string; value: string; sub: string;
   icon: React.ReactNode; iconBg: string; iconColor: string; accent?: boolean; color?: string;
 }) {
-  // Padrão calmo: número escuro; vermelho só quando há sangria de fato
-  const hasValue = /[1-9]/.test(value);
-  const tone = color === "#ef4444" && hasValue ? "negative" : "default";
-  return <StatCard label={label} value={value} sub={sub} icon={icon} tone={tone} />;
+  // Cor do número pela regra única do sistema (verde entra, vermelho sai, azul informativo)
+  return <StatCard label={label} value={value} sub={sub} icon={icon} tone={toneFor(label, value)} />;
 }
 
 function Row({ label, value, positive, negative }: {

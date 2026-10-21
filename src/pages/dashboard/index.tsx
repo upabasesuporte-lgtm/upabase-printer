@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
 import { PageHeader, btnSecondary } from "../../components/PageHeader";
-import { StatCard, type StatTone } from "../../components/StatCard";
+import { StatCard, toneFor, type StatTone } from "../../components/StatCard";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, CartesianGrid,
@@ -108,7 +108,7 @@ function KpiCard({ label, value, sub, icon, change, changeLabel, tone }: {
   const hasChange = change !== null && change !== undefined;
   const positive  = hasChange && change! >= 0;
   return (
-    <StatCard label={label} value={value} sub={sub} icon={icon} tone={tone}
+    <StatCard label={label} value={value} sub={sub} icon={icon} tone={tone ?? toneFor(label, value)}
       footer={hasChange && (
         <div className={`flex items-center gap-1 mt-2 text-xs font-semibold ${positive ? "text-emerald-600" : "text-red-600"}`}>
           {positive ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
@@ -559,7 +559,7 @@ export default function DashboardPage() {
         <KpiCard label="Ticket Médio" value={fmt(avgTicket)} sub="por pedido"
           from="#10b981" to="#059669" glow="rgba(16,185,129,0.12)" change={avgChange}
           icon={<TrendingUp className="w-4 h-4" style={{ color: "#10b981" }} />} />
-        <KpiCard label="Contas a Pagar" value={fmt(apExpenses)} sub="despesas no período" tone={apExpenses > 0 ? "negative" : "default"}
+        <KpiCard label="Contas a Pagar" value={fmt(apExpenses)} sub="despesas no período"
           from="#f43f5e" to="#f97316" glow="rgba(244,63,94,0.1)"
           icon={<Wallet className="w-4 h-4" style={{ color: "#f43f5e" }} />} />
       </div>

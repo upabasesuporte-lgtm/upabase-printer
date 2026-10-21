@@ -553,14 +553,14 @@ export default function AccountsPayablePage() {
             : periodF === "overdue" ? "Total Vencido"
             : "Total do Mês";
           return [
-          { label: totalLabel,       value:fmt(summary.total),      tone:"#111827", sub:"todas as contas"      },
+          { label: totalLabel,       value:fmt(summary.total),      tone:"#2547D6", sub:"todas as contas"      },
           { label:"A Pagar",         value:fmt(summary.pending),    tone:"#d97706", sub:"em aberto e vencidos" },
           { label:"Pago no Mês",     value:fmt(summary.paid),       tone:"#059669", sub:"liquidado"            },
           { label:"Contas Vencidas", value:fmt(summary.overdue),    tone:"#dc2626", sub:"títulos em atraso"    },
         ].map(s => (
           <div key={s.label} className="rounded-2xl p-4 bg-white border border-gray-200 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.04)]">
             <span className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500">{s.label}</span>
-            <div className="text-2xl font-black tabular-nums tracking-tight mt-1" style={{ color: s.tone }}>{s.value}</div>
+            <div className="text-2xl font-black tabular-nums tracking-tight mt-1" style={{ color: /[1-9]/.test(s.value) ? s.tone : "#111827" }}>{s.value}</div>
             <p className="text-xs text-gray-400 mt-0.5">{s.sub}</p>
           </div>
         ));})()}

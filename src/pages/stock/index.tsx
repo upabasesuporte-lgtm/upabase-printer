@@ -239,8 +239,8 @@ export default function StockPage() {
           <>
             {/* Indicadores */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <Kpi label="Valor em estoque" value={fmt(totalValue)} sub="pelo custo de compra" />
-              <Kpi label="Itens controlados" value={String(rows.length)}
+              <Kpi label="Valor em estoque" value={fmt(totalValue)} sub="pelo custo de compra" tone="brand" />
+              <Kpi label="Itens controlados" value={String(rows.length)} tone="brand"
                 sub={`${controlledProducts.length} produto${controlledProducts.length !== 1 ? "s" : ""} · ${stockItems.length} insumo${stockItems.length !== 1 ? "s" : ""}`}
                 active={statusFilter === "all"} onClick={() => setStatusFilter("all")} />
               <Kpi label="Abaixo do mínimo" value={String(lowCount)} sub="precisam de reposição" tone={lowCount > 0 ? "amber" : undefined}
@@ -359,9 +359,9 @@ export default function StockPage() {
 // ─── Peças ────────────────────────────────────────────────────────────────────
 
 function Kpi({ label, value, sub, tone, active, onClick }: {
-  label: string; value: string; sub: string; tone?: "amber" | "red"; active?: boolean; onClick?: () => void;
+  label: string; value: string; sub: string; tone?: "amber" | "red" | "brand"; active?: boolean; onClick?: () => void;
 }) {
-  const valueColor = tone === "red" ? "text-red-600" : tone === "amber" ? "text-amber-600" : "text-gray-900";
+  const valueColor = !/[1-9]/.test(value) ? "text-gray-900" : tone === "red" ? "text-red-600" : tone === "amber" ? "text-amber-600" : tone === "brand" ? "text-brand-700" : "text-gray-900";
   const Tag = onClick ? "button" : "div";
   return (
     <Tag onClick={onClick}

@@ -2,7 +2,7 @@
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
 import { PageHeader, btnSecondary } from "../../components/PageHeader";
-import { StatCard } from "../../components/StatCard";
+import { StatCard, toneFor } from "../../components/StatCard";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
   BarChart, Bar, CartesianGrid, PieChart, Pie, Cell, ComposedChart, Line,
@@ -339,14 +339,12 @@ function ChartTip({ active, payload, label }: any) {
   );
 }
 
-function KPICard({ label, value, sub, icon, from: gFrom }: {
+function KPICard({ label, value, sub, icon }: {
   label: string; value: string; sub?: string; icon: React.ReactNode;
   from: string; to: string; glow: string;
 }) {
-  // Padrão calmo: número escuro; cor só quando indica algo (vermelho = negativo, verde = resultado positivo)
-  const red = ["#f43f5e", "#ef4444", "#dc2626"].includes(gFrom.toLowerCase()) && /[1-9]/.test(value);
-  const tone = red ? "negative" : (/resultado|lucro/i.test(label) && gFrom.toLowerCase() === "#10b981") ? "positive" : "default";
-  return <StatCard label={label} value={value} sub={sub} icon={icon} tone={tone} />;
+  // Cor do número pela regra única do sistema (verde entra, vermelho sai, âmbar atenção, azul informativo)
+  return <StatCard label={label} value={value} sub={sub} icon={icon} tone={toneFor(label, value)} />;
 }
 
 function Card({ children, className="" }: { children: React.ReactNode; className?: string }) {

@@ -952,7 +952,7 @@ export default function TablesPage() {
 
           {/* KPI Stats */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <StatCard compact label="Total de Mesas" value={tables.length} />
+            <StatCard compact label="Total de Mesas" value={tables.length} tone="brand" />
             <StatCard compact label="Livres" value={stats.free} tone={stats.free > 0 ? "positive" : "default"} />
             <StatCard compact label="Ocupadas" value={stats.occupied} tone={stats.occupied > 0 ? "warning" : "default"} />
             <StatCard compact label="Reservadas" value={stats.reserved} tone={stats.reserved > 0 ? "brand" : "default"} />
