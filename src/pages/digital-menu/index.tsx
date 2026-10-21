@@ -2,6 +2,7 @@
 import { flushSync } from "react-dom";
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
+import { PageHeader, btnSecondary } from "../../components/PageHeader";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import { getStoreSettings, refreshStoreCache } from "../settings";
 import { unlockAudio, playOrderAlarm } from "../../lib/audio";
@@ -389,7 +390,7 @@ export default function DigitalMenuPage() {
   const [neighborhoodInput, setNeighborhoodInput] = useState("");
 
   const menuUrl  = userId ? (settings.slug ? `${window.location.origin}/loja/${settings.slug}` : `${window.location.origin}/menu/${userId}`) : "";
-  const inputCls = "w-full px-3 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500/60 transition-all";
+  const inputCls = "w-full px-3 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500/60 transition-all";
 
   // ── Sync ordersRef so Realtime callbacks never have stale closures
   useEffect(() => { ordersRef.current = orders; }, [orders]);
@@ -956,48 +957,31 @@ export default function DigitalMenuPage() {
       {/* ── Main ── */}
       <div className="flex-1 flex flex-col gap-4 overflow-hidden min-w-0">
 
-        {/* Header */}
-        <div className="relative overflow-hidden rounded-2xl p-5 flex-shrink-0"
-          style={{ background: card.bg, border: card.border, boxShadow: card.shadow, backgroundImage:"radial-gradient(rgba(123,47,190,0.08) 1px,transparent 1px)", backgroundSize:"24px 24px" }}>
-          <div className="absolute inset-0 pointer-events-none" style={{ background: isLight ? "linear-gradient(135deg,rgba(123,47,190,0.04) 0%,rgba(0,180,216,0.03) 100%)" : "linear-gradient(135deg,rgba(123,47,190,0.08) 0%,transparent 100%)" }} />
-          <div className="relative flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-1.5 h-1.5 rounded-full animate-pulse flex-shrink-0" style={{ background:"#7B2FBE", boxShadow:"0 0 6px #7B2FBE" }} />
-                <span className="text-[11px] font-semibold uppercase tracking-widest"
-                  style={isLight ? { color:"#2563eb" } : { color:"#7B2FBE", WebkitTextFillColor:"#7B2FBE", backgroundClip:"unset", WebkitBackgroundClip:"unset", background:"none" }}>Cardápio Digital</span>
-              </div>
-              <h1 className={`text-2xl font-black truncate ${isLight ? "" : "g-text g-text-purple"}`}
-                style={isLight ? { color:"#2563eb" } : undefined}>
-                {settings.store_name || "Meu Cardápio"}
-              </h1>
-              <p className="text-xs text-zinc-500 mt-0.5">
-                {isStoreOpenNow(settings) ? "🟢 Loja aberta agora" : "🔴 Loja fechada agora"} · {products.filter(p => p.visible_digital_menu).length} produtos visíveis
-              </p>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <button onClick={() => { loadOrders(); loadProducts(); if (userId) loadSettings(userId); }} disabled={loading}
-                className="flex items-center gap-1.5 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs rounded-xl transition-all border border-zinc-700 whitespace-nowrap">
-                <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Atualizar
+        <div className="flex-shrink-0">
+          <PageHeader title="Cardápio Digital"
+            subtitle={<>
+              <span className="font-semibold text-gray-700">{settings.store_name || "Meu Cardápio"}</span>
+              {" · "}{isStoreOpenNow(settings) ? "🟢 Loja aberta agora" : "🔴 Loja fechada agora"} · {products.filter(p => p.visible_digital_menu).length} produtos visíveis
+            </>}
+            actions={<>
+              <button onClick={() => { loadOrders(); loadProducts(); if (userId) loadSettings(userId); }} disabled={loading} className={btnSecondary}>
+                <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Atualizar
               </button>
               {/* Toggle rápido abrir/fechar loja — salva imediatamente */}
               <button onClick={toggleStoreOpen} disabled={settingsSaving}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs rounded-xl border font-bold transition-all whitespace-nowrap"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm rounded-xl border font-semibold transition-all whitespace-nowrap"
                 style={isStoreOpenNow(settings)
-                  ? { background:"rgba(16,185,129,0.12)", color:"#10b981", borderColor:"rgba(16,185,129,0.4)" }
-                  : { background:"rgba(244,63,94,0.1)",  color:"#f43f5e", borderColor:"rgba(244,63,94,0.35)" }}>
-                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isStoreOpenNow(settings) ? "bg-emerald-400 animate-pulse" : "bg-red-400"}`} />
+                  ? { background:"#ecfdf5", color:"#047857", borderColor:"#a7f3d0" }
+                  : { background:"#fef2f2", color:"#b91c1c", borderColor:"#fecaca" }}>
+                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isStoreOpenNow(settings) ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`} />
                 {settingsSaving ? "Salvando..." : isStoreOpenNow(settings) ? "Aberta" : "Fechada"}
               </button>
               {menuUrl && (
-                <button onClick={() => window.open(menuUrl, "_blank")}
-                  className="flex items-center gap-1.5 px-3 py-2 text-xs rounded-xl border transition-all whitespace-nowrap"
-                  style={isLight ? { color:"#7B2FBE", background:"rgba(123,47,190,0.08)", borderColor:"rgba(123,47,190,0.3)" } : { color:"#f59e0b", background:"rgba(245,158,11,0.08)", borderColor:"rgba(245,158,11,0.3)" }}>
-                  <ExternalLink className="w-3.5 h-3.5" /> Ver Cardápio
+                <button onClick={() => window.open(menuUrl, "_blank")} className={btnSecondary}>
+                  <ExternalLink className="w-4 h-4" /> Ver Cardápio
                 </button>
               )}
-            </div>
-          </div>
+            </>} />
         </div>
 
         {/* New order alert */}
@@ -1020,14 +1004,14 @@ export default function DigitalMenuPage() {
         {/* New message alert */}
         {newMsgNotif && (
           <div className="flex items-center gap-3 px-4 py-3 rounded-2xl border flex-shrink-0"
-            style={isLight ? { background:"rgba(123,47,190,0.08)", borderColor:"rgba(123,47,190,0.4)", boxShadow:"0 0 20px rgba(123,47,190,0.15)" } : { background:"rgba(245,158,11,0.08)", borderColor:"rgba(245,158,11,0.4)", boxShadow:"0 0 20px rgba(245,158,11,0.15)" }}>
-            <MessageSquare className="w-5 h-5 flex-shrink-0 animate-bounce" style={{ color: isLight ? "#7B2FBE" : "#f59e0b" }} />
+            style={isLight ? { background:"rgba(49,93,251,0.08)", borderColor:"rgba(49,93,251,0.4)", boxShadow:"0 0 20px rgba(49,93,251,0.15)" } : { background:"rgba(245,158,11,0.08)", borderColor:"rgba(245,158,11,0.4)", boxShadow:"0 0 20px rgba(245,158,11,0.15)" }}>
+            <MessageSquare className="w-5 h-5 flex-shrink-0 animate-bounce" style={{ color: isLight ? "#315DFB" : "#f59e0b" }} />
             <div className="flex-1">
-              <p className="text-sm font-bold" style={{ color: isLight ? "#7B2FBE" : "#f59e0b" }}>💬 NOVA MENSAGEM — #{newMsgNotif.num}</p>
+              <p className="text-sm font-bold" style={{ color: isLight ? "#315DFB" : "#f59e0b" }}>💬 NOVA MENSAGEM — #{newMsgNotif.num}</p>
               <p className="text-xs text-zinc-400">{newMsgNotif.name}</p>
             </div>
             <button onClick={() => { const o = orders.find(x => x.id === newMsgNotif.orderId); if (o) { setSelectedOrder(o); setTab("orders"); setUnreadMsgOrders(prev => { const n = new Set(prev); n.delete(o.id); return n; }); } setNewMsgNotif(null); }}
-              className="text-xs font-bold px-3 py-1.5 rounded-lg" style={isLight ? { background:"rgba(123,47,190,0.2)", color:"#7B2FBE" } : { background:"rgba(245,158,11,0.2)", color:"#f59e0b" }}>
+              className="text-xs font-bold px-3 py-1.5 rounded-lg" style={isLight ? { background:"rgba(49,93,251,0.2)", color:"#315DFB" } : { background:"rgba(245,158,11,0.2)", color:"#f59e0b" }}>
               Ver Mensagem
             </button>
             <button onClick={() => setNewMsgNotif(null)} className="text-zinc-500 hover:text-white"><X className="w-4 h-4" /></button>
@@ -1045,8 +1029,8 @@ export default function DigitalMenuPage() {
               className="relative flex items-center gap-2 px-5 py-2.5 text-xs font-bold transition-all flex-1 justify-center overflow-hidden"
               style={tab === t.key
                 ? (isLight
-                    ? { color:"#ffffff", background:"#2563eb", borderRadius:"10px 10px 0 0" }
-                    : { color:"#c4b5fd", background:"rgba(123,47,190,0.10)" })
+                    ? { color:"#ffffff", background:"#315DFB", borderRadius:"10px 10px 0 0" }
+                    : { color:"#c4b5fd", background:"rgba(49,93,251,0.10)" })
                 : { color:"#71717a" }}>
               {/* Gradient underline on active tab (só no tema escuro — no claro o fundo já é azul sólido) */}
               {tab === t.key && !isLight && (
@@ -1068,7 +1052,7 @@ export default function DigitalMenuPage() {
           <div className="flex-1 overflow-y-auto space-y-3 pr-1">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { label:"Novos",        value: pendingCount,                                         color: isLight ? "#7B2FBE" : "#f59e0b", glow: isLight ? "rgba(123,47,190,0.15)" : "rgba(245,158,11,0.15)"  },
+                { label:"Novos",        value: pendingCount,                                         color: isLight ? "#315DFB" : "#f59e0b", glow: isLight ? "rgba(49,93,251,0.15)" : "rgba(245,158,11,0.15)"  },
                 { label:"Aceitos",      value: orders.filter(o=>o.status==="accepted").length,        color:"#06b6d4", glow:"rgba(6,182,212,0.15)"   },
                 { label:"Despachados",  value: orders.filter(o=>o.status==="dispatched").length,      color:"#10b981", glow:"rgba(16,185,129,0.15)"  },
                 { label:"Faturado Hoje",value: fmt(todayRevenue),                                    color:"#d946ef", glow:"rgba(217,70,239,0.15)"   },
@@ -1088,7 +1072,7 @@ export default function DigitalMenuPage() {
                 onClick={() => setOrdersDate(todayStr)}
                 className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
                 style={ordersDate === todayStr
-                  ? { background: isLight ? "#2563eb" : "#27272a", color:"#fff", border:"1px solid transparent" }
+                  ? { background: isLight ? "#315DFB" : "#27272a", color:"#fff", border:"1px solid transparent" }
                   : { background: isLight ? "#F3F4F6" : "#18181b", color:"#71717a", border: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" }}>
                 Hoje
               </button>
@@ -1110,7 +1094,7 @@ export default function DigitalMenuPage() {
                     className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
                     style={statusFilter === s
                       ? isLight
-                        ? { background:"#2563eb", color:"#fff", border:"1px solid transparent", boxShadow:"0 2px 10px rgba(37,99,235,0.35)" }
+                        ? { background:"#315DFB", color:"#fff", border:"1px solid transparent", boxShadow:"0 2px 10px rgba(37,99,235,0.35)" }
                         : (s === "all" ? { background:"#27272a", color:"#fff", border:"1px solid #3f3f46" } : { background: sc?.bg, color: sc?.color, border:`1px solid ${sc?.border}` })
                       : { background: isLight ? "#F3F4F6" : "#18181b", color:"#71717a", border: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" }}>
                     {s === "all" ? "Todos" : sc?.label}{s === "pending" && pendingCount > 0 ? ` (${pendingCount})` : ""}
@@ -1145,9 +1129,9 @@ export default function DigitalMenuPage() {
                       </div>
                       <div className="flex items-center gap-2.5 flex-shrink-0">
                         <span className="text-[10px] text-zinc-600">{fmtT(order.created_at)}</span>
-                        <span className="font-bold text-sm" style={{ color: isLight ? "#7B2FBE" : "#f59e0b" }}>{fmt(order.total_amount)}</span>
+                        <span className="font-bold text-sm" style={{ color: isLight ? "#315DFB" : "#f59e0b" }}>{fmt(order.total_amount)}</span>
                         {unreadMsgOrders.has(order.id) && (
-                          <MessageSquare className="w-3.5 h-3.5 animate-pulse flex-shrink-0" style={{ color: isLight ? "#7B2FBE" : "#f59e0b" }} />
+                          <MessageSquare className="w-3.5 h-3.5 animate-pulse flex-shrink-0" style={{ color: isLight ? "#315DFB" : "#f59e0b" }} />
                         )}
                         <ChevronRight className="w-4 h-4 text-zinc-600" />
                       </div>
@@ -1239,7 +1223,7 @@ export default function DigitalMenuPage() {
               </div>
               <button onClick={() => openEditor()}
                 className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex-shrink-0"
-                style={isLight ? { background:"linear-gradient(135deg,#7B2FBE,#00B4D8)", color:"#fff", boxShadow:"0 0 12px rgba(123,47,190,0.3)" } : { background:"linear-gradient(135deg,#d97706,#f59e0b)", color:"#fff", boxShadow:"0 0 12px rgba(245,158,11,0.3)" }}>
+                style={isLight ? { background:"linear-gradient(135deg,#7B2FBE,#00B4D8)", color:"#fff", boxShadow:"0 0 12px rgba(49,93,251,0.3)" } : { background:"linear-gradient(135deg,#d97706,#f59e0b)", color:"#fff", boxShadow:"0 0 12px rgba(245,158,11,0.3)" }}>
                 <Plus className="w-4 h-4" /> Novo Produto
               </button>
             </div>
@@ -1253,7 +1237,7 @@ export default function DigitalMenuPage() {
               {groupedProducts.map(group => (
                 <div key={group.id} className="space-y-2">
                   <div className="flex items-center gap-2 px-1">
-                    <span className="text-xs font-bold uppercase tracking-widest" style={{ color: isLight ? "#7B2FBE" : "#a78bfa" }}>{group.name}</span>
+                    <span className="text-xs font-bold uppercase tracking-widest" style={{ color: isLight ? "#315DFB" : "#a78bfa" }}>{group.name}</span>
                     <span className="text-[10px] text-zinc-600">({group.items.length})</span>
                     <div className="flex-1 h-px" style={{ background: isLight ? "#e5e7eb" : "#27272a" }} />
                   </div>
@@ -1274,7 +1258,7 @@ export default function DigitalMenuPage() {
                           )}
                         </div>
                         {product.description && <p className="text-xs text-zinc-600 truncate">{product.description}</p>}
-                        <p className="text-sm font-bold mt-0.5" style={{ color: isLight ? "#7B2FBE" : "#f59e0b" }}>{fmt(product.sale_price)}</p>
+                        <p className="text-sm font-bold mt-0.5" style={{ color: isLight ? "#315DFB" : "#f59e0b" }}>{fmt(product.sale_price)}</p>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <button onClick={() => toggleVisible(product)}
@@ -1343,7 +1327,7 @@ export default function DigitalMenuPage() {
                   </div>
                   <button onClick={saveSlug} disabled={slugSaving || !slugInput || slugInput === (settings.slug ?? "")}
                     className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all flex-shrink-0 disabled:opacity-40"
-                    style={{ background:"#2563eb", color:"#fff" }}>
+                    style={{ background:"#315DFB", color:"#fff" }}>
                     {slugSaving ? "Salvando..." : "Salvar link"}
                   </button>
                 </div>
@@ -1402,7 +1386,7 @@ export default function DigitalMenuPage() {
                       ? <img src={settings.logo_url} className="w-full h-full object-cover object-center" alt="logo" />
                       : <ImageIcon className="w-6 h-6 text-zinc-600" />}
                   </div>
-                  <label className="flex-1 flex flex-col items-center gap-1.5 py-3 px-4 border border-dashed border-zinc-700 rounded-xl cursor-pointer hover:border-violet-500/50 hover:bg-zinc-800/40 transition-all">
+                  <label className="flex-1 flex flex-col items-center gap-1.5 py-3 px-4 border border-dashed border-zinc-700 rounded-xl cursor-pointer hover:border-brand-500/50 hover:bg-zinc-800/40 transition-all">
                     <Upload className="w-5 h-5 text-zinc-500" />
                     <span className="text-xs text-zinc-400 font-medium">{logoUploading ? "Enviando..." : "Clique para enviar"}</span>
                     <span className="text-[10px] text-zinc-600">JPG, PNG, WEBP · máx 5MB</span>
@@ -1418,7 +1402,7 @@ export default function DigitalMenuPage() {
                   {settings.banner_url && (
                     <img src={settings.banner_url} className="w-full h-24 rounded-xl object-cover border border-zinc-700" alt="banner" />
                   )}
-                  <label className="flex items-center gap-3 py-3 px-4 border border-dashed border-zinc-700 rounded-xl cursor-pointer hover:border-violet-500/50 hover:bg-zinc-800/40 transition-all">
+                  <label className="flex items-center gap-3 py-3 px-4 border border-dashed border-zinc-700 rounded-xl cursor-pointer hover:border-brand-500/50 hover:bg-zinc-800/40 transition-all">
                     <Upload className="w-5 h-5 text-zinc-500 flex-shrink-0" />
                     <div>
                       <p className="text-xs text-zinc-400 font-medium">{bannerUploading ? "Enviando..." : "Clique para enviar o banner"}</p>
@@ -1453,7 +1437,7 @@ export default function DigitalMenuPage() {
                     return (
                       <button key={key} onClick={() => setSettings(s => ({ ...s, payment_methods: active ? s.payment_methods.filter(m => m !== key) : [...s.payment_methods, key] }))}
                         className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border"
-                        style={active ? (isLight ? { background:"rgba(123,47,190,0.15)", color:"#7B2FBE", borderColor:"rgba(123,47,190,0.4)" } : { background:"rgba(245,158,11,0.15)", color:"#f59e0b", borderColor:"rgba(245,158,11,0.4)" }) : { background:"transparent", color:"#71717a", borderColor:"#27272a" }}>
+                        style={active ? (isLight ? { background:"rgba(49,93,251,0.15)", color:"#315DFB", borderColor:"rgba(49,93,251,0.4)" } : { background:"rgba(245,158,11,0.15)", color:"#f59e0b", borderColor:"rgba(245,158,11,0.4)" }) : { background:"transparent", color:"#71717a", borderColor:"#27272a" }}>
                         {label}
                       </button>
                     );
@@ -1503,17 +1487,17 @@ export default function DigitalMenuPage() {
                   <div key={day.key} className="flex items-center gap-3">
                     <button onClick={() => setSettings(s => ({ ...s, hours: { ...s.hours, [day.key]: { ...h, active: !h.active } } }))}
                       className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 transition-all"
-                      style={h.active ? (isLight ? { background:"rgba(123,47,190,0.2)", border:"1px solid rgba(123,47,190,0.5)" } : { background:"rgba(245,158,11,0.2)", border:"1px solid rgba(245,158,11,0.5)" }) : (isLight ? { background:"transparent", border:"1px solid #3f3f46" } : { background:"#27272a", border:"1px solid #3f3f46" })}>
-                      {h.active && <span style={{ color: isLight ? "#7B2FBE" : "#f59e0b", fontSize:9, fontWeight:"bold" }}>✓</span>}
+                      style={h.active ? (isLight ? { background:"rgba(49,93,251,0.2)", border:"1px solid rgba(49,93,251,0.5)" } : { background:"rgba(245,158,11,0.2)", border:"1px solid rgba(245,158,11,0.5)" }) : (isLight ? { background:"transparent", border:"1px solid #3f3f46" } : { background:"#27272a", border:"1px solid #3f3f46" })}>
+                      {h.active && <span style={{ color: isLight ? "#315DFB" : "#f59e0b", fontSize:9, fontWeight:"bold" }}>✓</span>}
                     </button>
                     <span className="text-xs w-16 font-medium flex-shrink-0" style={{ color: h.active ? "#e4e4e7" : "#52525b" }}>{day.label}</span>
                     <input type="time" value={h.open} disabled={!h.active}
                       onChange={e => setSettings(s => ({ ...s, hours: { ...s.hours, [day.key]: { ...h, open: e.target.value } } }))}
-                      className="flex-1 px-2 py-1.5 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-white disabled:opacity-30 focus:outline-none focus:border-violet-500/50" />
+                      className="flex-1 px-2 py-1.5 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-white disabled:opacity-30 focus:outline-none focus:border-brand-500/50" />
                     <span className="text-zinc-600 text-xs flex-shrink-0">até</span>
                     <input type="time" value={h.close} disabled={!h.active}
                       onChange={e => setSettings(s => ({ ...s, hours: { ...s.hours, [day.key]: { ...h, close: e.target.value } } }))}
-                      className="flex-1 px-2 py-1.5 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-white disabled:opacity-30 focus:outline-none focus:border-violet-500/50" />
+                      className="flex-1 px-2 py-1.5 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-white disabled:opacity-30 focus:outline-none focus:border-brand-500/50" />
                   </div>
                 );
               })}
@@ -1523,7 +1507,7 @@ export default function DigitalMenuPage() {
               className="w-full py-3 rounded-2xl text-sm font-bold transition-all flex-shrink-0"
               style={settingsSaved
                 ? { background:"rgba(16,185,129,0.15)", color:"#10b981", border:"1px solid rgba(16,185,129,0.3)" }
-                : (isLight ? { background:"linear-gradient(135deg,#7B2FBE,#00B4D8)", color:"#fff", boxShadow:"0 0 16px rgba(123,47,190,0.3)" } : { background:"linear-gradient(135deg,#d97706,#f59e0b)", color:"#fff", boxShadow:"0 0 16px rgba(245,158,11,0.3)" })}>
+                : (isLight ? { background:"linear-gradient(135deg,#7B2FBE,#00B4D8)", color:"#fff", boxShadow:"0 0 16px rgba(49,93,251,0.3)" } : { background:"linear-gradient(135deg,#d97706,#f59e0b)", color:"#fff", boxShadow:"0 0 16px rgba(245,158,11,0.3)" })}>
               {settingsSaving ? "Salvando..." : settingsSaved ? "✓ Salvo!" : <span className="flex items-center justify-center gap-2"><Save className="w-4 h-4" /> Salvar Configurações</span>}
             </button>
           </div>
@@ -1563,7 +1547,7 @@ export default function DigitalMenuPage() {
                   <div key={i} className="bg-zinc-950 rounded-xl p-3">
                     <div className="flex justify-between text-sm font-semibold">
                       <span>{item.quantity}x {item.product_name}</span>
-                      <span style={{ color: isLight ? "#7B2FBE" : "#f59e0b" }}>{fmt(item.total_price ?? item.unit_price * item.quantity)}</span>
+                      <span style={{ color: isLight ? "#315DFB" : "#f59e0b" }}>{fmt(item.total_price ?? item.unit_price * item.quantity)}</span>
                     </div>
                     {(item.options ?? []).map((o, j) => (
                       <p key={j} className="text-xs text-zinc-500 mt-0.5">↳ {o.group_name}: <span className="text-zinc-400">{o.option_name}</span>{o.additional_price > 0 ? <span className="text-zinc-600"> (+{fmt(o.additional_price)})</span> : ""}</p>
@@ -1573,8 +1557,8 @@ export default function DigitalMenuPage() {
                 ))}
               </div>
               {selectedOrder.notes && (
-                <div className="mt-2 p-2.5 rounded-xl" style={isLight ? { background:"rgba(123,47,190,0.05)", border:"1px solid rgba(123,47,190,0.2)" } : { background:"rgba(245,158,11,0.05)", border:"1px solid rgba(245,158,11,0.2)" }}>
-                  <p className="text-[11px] font-bold mb-0.5" style={{ color: isLight ? "#7B2FBE" : "#f59e0b" }}>Observação</p>
+                <div className="mt-2 p-2.5 rounded-xl" style={isLight ? { background:"rgba(49,93,251,0.05)", border:"1px solid rgba(49,93,251,0.2)" } : { background:"rgba(245,158,11,0.05)", border:"1px solid rgba(245,158,11,0.2)" }}>
+                  <p className="text-[11px] font-bold mb-0.5" style={{ color: isLight ? "#315DFB" : "#f59e0b" }}>Observação</p>
                   <p className="text-xs text-zinc-400">{selectedOrder.notes}</p>
                 </div>
               )}
@@ -1586,7 +1570,7 @@ export default function DigitalMenuPage() {
               <div className="space-y-2">
                 <div className="flex justify-between text-sm"><span className="text-zinc-400">Forma</span><span className="font-semibold">{PAY_LABELS[selectedOrder.payment_method ?? ""] ?? selectedOrder.payment_method ?? "—"}</span></div>
                 {selectedOrder.change_for && <div className="flex justify-between text-sm"><span className="text-zinc-400">Troco para</span><span className="font-semibold">{fmt(selectedOrder.change_for)}</span></div>}
-                <div className="flex justify-between text-sm border-t border-zinc-800 pt-2"><span className="font-bold">Total</span><span className="font-black text-base" style={{ color: isLight ? "#7B2FBE" : "#f59e0b" }}>{fmt(selectedOrder.total_amount)}</span></div>
+                <div className="flex justify-between text-sm border-t border-zinc-800 pt-2"><span className="font-bold">Total</span><span className="font-black text-base" style={{ color: isLight ? "#315DFB" : "#f59e0b" }}>{fmt(selectedOrder.total_amount)}</span></div>
               </div>
             </div>
 
@@ -1633,7 +1617,7 @@ export default function DigitalMenuPage() {
                 <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">Chat com o Cliente</p>
                 {unreadMsgOrders.has(selectedOrder.id) && (
                   <span className="flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full animate-pulse"
-                    style={isLight ? { background:"rgba(123,47,190,0.15)", color:"#7B2FBE", border:"1px solid rgba(123,47,190,0.4)" } : { background:"rgba(245,158,11,0.15)", color:"#f59e0b", border:"1px solid rgba(245,158,11,0.4)" }}>
+                    style={isLight ? { background:"rgba(49,93,251,0.15)", color:"#315DFB", border:"1px solid rgba(49,93,251,0.4)" } : { background:"rgba(245,158,11,0.15)", color:"#f59e0b", border:"1px solid rgba(245,158,11,0.4)" }}>
                     <MessageSquare className="w-3 h-3" /> Nova mensagem!
                   </span>
                 )}
@@ -1644,7 +1628,7 @@ export default function DigitalMenuPage() {
                   <div key={msg.id} className={`flex ${msg.sender === "store" ? "justify-end" : "justify-start"}`}>
                     <div className="max-w-[85%] px-3 py-2 text-xs"
                       style={msg.sender === "store"
-                        ? (isLight ? { background:"rgba(123,47,190,0.2)", color:"#c4b5fd", borderRadius:"14px 14px 2px 14px" } : { background:"rgba(245,158,11,0.2)", color:"#fde68a", borderRadius:"14px 14px 2px 14px" })
+                        ? (isLight ? { background:"rgba(49,93,251,0.2)", color:"#c4b5fd", borderRadius:"14px 14px 2px 14px" } : { background:"rgba(245,158,11,0.2)", color:"#fde68a", borderRadius:"14px 14px 2px 14px" })
                         : { background:"#27272a", color:"#e4e4e7", borderRadius:"14px 14px 14px 2px" }}>
                       <p>{msg.message}</p>
                       <p className="text-[10px] opacity-50 mt-0.5 text-right">{fmtT(msg.created_at)}</p>
@@ -1659,7 +1643,7 @@ export default function DigitalMenuPage() {
                   placeholder="Mensagem para o cliente..." className={inputCls + " flex-1"} />
                 <button onClick={sendStoreMessage} disabled={!newMsg.trim()}
                   className="p-2.5 rounded-xl transition-all disabled:opacity-40"
-                  style={isLight ? { background:"rgba(123,47,190,0.15)", color:"#7B2FBE", border:"1px solid rgba(123,47,190,0.3)" } : { background:"rgba(245,158,11,0.15)", color:"#f59e0b", border:"1px solid rgba(245,158,11,0.3)" }}>
+                  style={isLight ? { background:"rgba(49,93,251,0.15)", color:"#315DFB", border:"1px solid rgba(49,93,251,0.3)" } : { background:"rgba(245,158,11,0.15)", color:"#f59e0b", border:"1px solid rgba(245,158,11,0.3)" }}>
                   <Send className="w-4 h-4" />
                 </button>
               </div>
@@ -1697,7 +1681,7 @@ export default function DigitalMenuPage() {
                         ? <img src={editProduct.image_url} className="w-full h-full object-cover" alt="" />
                         : <ImageIcon className="w-5 h-5 text-zinc-600" />}
                     </div>
-                    <label className="flex-1 flex flex-col items-center gap-1 py-2.5 px-3 border border-dashed border-zinc-700 rounded-xl cursor-pointer hover:border-violet-500/50 hover:bg-zinc-800/40 transition-all">
+                    <label className="flex-1 flex flex-col items-center gap-1 py-2.5 px-3 border border-dashed border-zinc-700 rounded-xl cursor-pointer hover:border-brand-500/50 hover:bg-zinc-800/40 transition-all">
                       <Upload className="w-4 h-4 text-zinc-500" />
                       <span className="text-[11px] text-zinc-400">{productImgUploading ? "Enviando..." : "Importar foto"}</span>
                       <input type="file" accept="image/*" className="hidden" disabled={productImgUploading} onChange={e => e.target.files?.[0] && handleUploadProductImage(e.target.files[0])} />
@@ -1714,7 +1698,7 @@ export default function DigitalMenuPage() {
                 </button>
                 <button onClick={() => { setEditProduct(p => ({ ...p!, is_configurable: !p?.is_configurable })); if (!editProduct.is_configurable) setEditGroups([]); }}
                   className="flex-1 py-2 rounded-xl text-xs font-bold transition-all border"
-                  style={editProduct.is_configurable ? (isLight ? { background:"rgba(123,47,190,0.1)", color:"#7B2FBE", borderColor:"rgba(123,47,190,0.3)" } : { background:"rgba(139,92,246,0.1)", color:"#8b5cf6", borderColor:"rgba(139,92,246,0.3)" }) : { background:"transparent", color:"#71717a", borderColor:"#3f3f46" }}>
+                  style={editProduct.is_configurable ? (isLight ? { background:"rgba(49,93,251,0.1)", color:"#315DFB", borderColor:"rgba(49,93,251,0.3)" } : { background:"rgba(139,92,246,0.1)", color:"#8b5cf6", borderColor:"rgba(139,92,246,0.3)" }) : { background:"transparent", color:"#71717a", borderColor:"#3f3f46" }}>
                   {editProduct.is_configurable ? "✓ Produto Montável" : "Produto Fixo"}
                 </button>
               </div>
@@ -1735,7 +1719,7 @@ export default function DigitalMenuPage() {
                     <div key={group.id} className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 space-y-3">
                       <div className="flex items-center gap-2">
                         <input value={group.name} onChange={e => updateGroup(group.id, "name", e.target.value)}
-                          className="flex-1 px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-xl text-sm font-bold text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500"
+                          className="flex-1 px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-xl text-sm font-bold text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500"
                           placeholder="Nome do grupo (ex: Misturas, Acompanhamentos)" />
                         <button onClick={() => removeGroup(group.id)} className="p-2 rounded-lg hover:bg-red-500/10 text-zinc-600 hover:text-red-400 transition-all"><Trash2 className="w-4 h-4" /></button>
                       </div>
@@ -1743,11 +1727,11 @@ export default function DigitalMenuPage() {
                       <div className="flex gap-3 items-center flex-wrap">
                         <div className="flex items-center gap-2">
                           <label className="text-xs text-zinc-500">Mín:</label>
-                          <input type="number" min={0} value={group.min_choices} onChange={e => updateGroup(group.id, "min_choices", Number(e.target.value))} className="w-14 px-2 py-1.5 bg-zinc-900 border border-zinc-700 rounded-lg text-xs text-white text-center focus:outline-none focus:border-violet-500" />
+                          <input type="number" min={0} value={group.min_choices} onChange={e => updateGroup(group.id, "min_choices", Number(e.target.value))} className="w-14 px-2 py-1.5 bg-zinc-900 border border-zinc-700 rounded-lg text-xs text-white text-center focus:outline-none focus:border-brand-500" />
                         </div>
                         <div className="flex items-center gap-2">
                           <label className="text-xs text-zinc-500">Máx:</label>
-                          <input type="number" min={1} value={group.max_choices} onChange={e => updateGroup(group.id, "max_choices", Number(e.target.value))} className="w-14 px-2 py-1.5 bg-zinc-900 border border-zinc-700 rounded-lg text-xs text-white text-center focus:outline-none focus:border-violet-500" />
+                          <input type="number" min={1} value={group.max_choices} onChange={e => updateGroup(group.id, "max_choices", Number(e.target.value))} className="w-14 px-2 py-1.5 bg-zinc-900 border border-zinc-700 rounded-lg text-xs text-white text-center focus:outline-none focus:border-brand-500" />
                         </div>
                         <button onClick={() => updateGroup(group.id, "required", !group.required)}
                           className="text-xs px-3 py-1.5 rounded-xl font-semibold transition-all border"
@@ -1767,11 +1751,11 @@ export default function DigitalMenuPage() {
                               </button>
                               <input value={opt.name} onChange={e => updateOption(group.id, opt.id, "name", e.target.value)}
                                 placeholder="Nome da opção (ex: Bife, Frango)"
-                                className="flex-1 px-2.5 py-1.5 bg-zinc-900 border border-zinc-700 rounded-lg text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500/50" />
+                                className="flex-1 px-2.5 py-1.5 bg-zinc-900 border border-zinc-700 rounded-lg text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500/50" />
                               <div className="flex items-center gap-1 flex-shrink-0">
                                 <span className="text-xs text-zinc-600">+R$</span>
                                 <input type="number" step="0.50" min={0} value={opt.additional_price} onChange={e => updateOption(group.id, opt.id, "additional_price", Number(e.target.value))}
-                                  className="w-16 px-2 py-1.5 bg-zinc-900 border border-zinc-700 rounded-lg text-xs text-white text-center focus:outline-none focus:border-violet-500/50" />
+                                  className="w-16 px-2 py-1.5 bg-zinc-900 border border-zinc-700 rounded-lg text-xs text-white text-center focus:outline-none focus:border-brand-500/50" />
                               </div>
                               <button onClick={() => removeOption(group.id, opt.id)} className="text-zinc-700 hover:text-red-400 transition-all flex-shrink-0"><X className="w-3.5 h-3.5" /></button>
                             </div>
@@ -1785,7 +1769,7 @@ export default function DigitalMenuPage() {
                                   onChange={e => setLinkSearch(e.target.value)}
                                   onBlur={() => setLinkPickerOpenId(prev => prev === opt.id ? null : prev)}
                                   placeholder="Sem vínculo — sem métricas · buscar produto..."
-                                  className="w-full px-2 py-1 bg-zinc-900 border border-zinc-700 rounded-lg text-[11px] text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-violet-500/50"
+                                  className="w-full px-2 py-1 bg-zinc-900 border border-zinc-700 rounded-lg text-[11px] text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-brand-500/50"
                                 />
                                 {linkPickerOpenId === opt.id && (
                                   <div className="absolute z-20 top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl">
@@ -1805,7 +1789,7 @@ export default function DigitalMenuPage() {
                                             if (!opt.name.trim()) updateOption(group.id, opt.id, "name", p.name);
                                             setLinkPickerOpenId(null);
                                           }}
-                                          className={`w-full text-left px-2.5 py-1.5 text-[11px] hover:bg-zinc-800 transition-colors ${opt.linked_product_id === p.id ? "text-violet-400 font-semibold" : "text-zinc-300"}`}>
+                                          className={`w-full text-left px-2.5 py-1.5 text-[11px] hover:bg-zinc-800 transition-colors ${opt.linked_product_id === p.id ? "text-brand-600 font-semibold" : "text-zinc-300"}`}>
                                           {p.name}
                                         </button>
                                       ))}
@@ -1816,7 +1800,7 @@ export default function DigitalMenuPage() {
                                 )}
                               </div>
                               {opt.linked_product_id && (
-                                <span className="text-[10px] font-bold text-violet-400 whitespace-nowrap flex-shrink-0">✓ métricas</span>
+                                <span className="text-[10px] font-bold text-brand-600 whitespace-nowrap flex-shrink-0">✓ métricas</span>
                               )}
                             </div>
                           </div>
@@ -1843,7 +1827,7 @@ export default function DigitalMenuPage() {
                 className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${isLight ? "bg-gray-100 hover:bg-gray-200 text-gray-600" : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"}`}>Cancelar</button>
               <button onClick={saveProduct} disabled={productSaving || !editProduct.name}
                 className="flex-1 py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-40"
-                style={isLight ? { background:"#2563eb", color:"#fff" } : { background:"linear-gradient(135deg,#d97706,#f59e0b)", color:"#fff", boxShadow:"0 0 12px rgba(245,158,11,0.3)" }}>
+                style={isLight ? { background:"#315DFB", color:"#fff" } : { background:"linear-gradient(135deg,#d97706,#f59e0b)", color:"#fff", boxShadow:"0 0 12px rgba(245,158,11,0.3)" }}>
                 {productSaving ? "Salvando..." : "Salvar Produto"}
               </button>
             </div>
