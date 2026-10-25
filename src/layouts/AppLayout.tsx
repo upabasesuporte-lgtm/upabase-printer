@@ -683,8 +683,8 @@ export function AppLayout() {
           {/* Esquerda — métricas operacionais (apenas desktop) */}
           <div className="hidden lg:flex items-center gap-2.5 flex-1">
 
-            {/* Vendas do dia (com funcionários: só dono/gerente veem) */}
-            {(!opsOn || ops.current?.role === "owner" || ops.current?.role === "manager") && (
+            {/* Vendas do dia (com funcionários: só quem tem a aba Dashboard) */}
+            {canAccessRoute("/", ops) && (
               <HeaderStat
                 icon={<TrendingUp size={15} />}
                 label="Vendas hoje"

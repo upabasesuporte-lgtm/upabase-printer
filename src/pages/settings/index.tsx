@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect } from "react";
 import { Store, Phone, CreditCard, Save, CheckCircle2, Receipt, Plus, Trash2, Users, Settings, Loader2, KeyRound } from "lucide-react";
 import { supabase } from "../../lib/supabase";
-import { loadOperators, setCurrentOperator, ROLE_LABEL, ROLE_DESC, type Operator, type OperatorRole } from "../../lib/operators";
+import { loadOperators, setCurrentOperator, TAB_OPTIONS, PRESETS, describeOperator, operatorRoutes, operatorCanApprove, type Operator } from "../../lib/operators";
 import { PageHeader } from "../../components/PageHeader";
 import { useTheme } from "../../contexts/ThemeContext";
 
@@ -367,24 +367,82 @@ export default function SettingsPage() {
 // ── Funcionários com PIN ──────────────────────────────────────────────────────
 // Sem nenhum operador a conta funciona como sempre. O primeiro passo é o PIN do
 // dono; depois disso o sistema passa a pedir "Quem está operando?" neste e nos
-// outros aparelhos da loja.
+// outros aparelhos da loja. Cada funcionário tem as abas marcadas uma a uma.
 
-const STAFF_ROLES: OperatorRole[] = ["manager", "cashier", "waiter", "stock"];
+// Campos sem type="password" e com autocomplete desligado: com um campo de senha
+// na tela o navegador achava que era login e preenchia nome/PIN com o e-mail e a
+// senha salvos. O PIN fica mascarado só visualmente.
+const noAutofill = { autoComplete: "off", autoCorrect: "off", spellCheck: false, "data-lpignore": "true", "data-1p-ignore": "true" } as const;
+const pinMask = { WebkitTextSecurity: "disc" } as React.CSSProperties;
+const onlyDigits = (v: string) => v.replace(/\D/g, "").slice(0, 6);
+
+interface OpDraft { id: string | null; name: string; pin: string; routes: string[]; canApprove: boolean }
+const emptyDraft = (): OpDraft => ({ id: null, name: "", pin: "", routes: [], canApprove: false });
+
+function PermissionPicker({ draft, setDraft, isLight }: { draft: OpDraft; setDraft: (d: OpDraft) => void; isLight: boolean }) {
+  const toggle = (path: string) => setDraft({
+    ...draft,
+    routes: draft.routes.includes(path) ? draft.routes.filter(r => r !== path) : [...draft.routes, path],
+  });
+  const chip = (on: boolean) => on
+    ? { background: "rgba(49,93,251,0.12)", border: "1px solid #315DFB", color: isLight ? "#1d3fd1" : "#93a8ff" }
+    : { background: isLight ? "#fff" : "#09090b", border: isLight ? "1px solid #e5e7eb" : "1px solid #27272a", color: isLight ? "#374151" : "#d4d4d8" };
+  return (
+    <div className="space-y-2.5">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="text-[11px] text-zinc-500 mr-1">Atalhos:</span>
+        {PRESETS.map(p => (
+          <button key={p.label} type="button" onClick={() => setDraft({ ...draft, routes: [...p.routes], canApprove: p.canApprove })}
+            className="text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-colors" style={chip(false)}>
+            {p.label}
+          </button>
+        ))}
+        <button type="button" onClick={() => setDraft({ ...draft, routes: TAB_OPTIONS.map(t => t.path) })}
+          className="text-[11px] font-semibold px-2.5 py-1 rounded-lg" style={chip(false)}>Marcar todas</button>
+        <button type="button" onClick={() => setDraft({ ...draft, routes: [] })}
+          className="text-[11px] font-semibold px-2.5 py-1 rounded-lg" style={chip(false)}>Limpar</button>
+      </div>
+      <p className="text-xs font-semibold text-zinc-500">Abas que pode acessar</p>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+        {TAB_OPTIONS.map(t => {
+          const on = draft.routes.includes(t.path);
+          return (
+            <label key={t.path} className="flex items-center gap-2 px-3 py-2 rounded-xl cursor-pointer select-none text-sm transition-colors" style={chip(on)}>
+              <input type="checkbox" checked={on} onChange={() => toggle(t.path)} className="accent-[#315DFB] w-4 h-4" />
+              {t.label}
+            </label>
+          );
+        })}
+      </div>
+      <label className="flex items-start gap-2 px-3 py-2.5 rounded-xl cursor-pointer select-none text-sm" style={chip(draft.canApprove)}>
+        <input type="checkbox" checked={draft.canApprove} onChange={() => setDraft({ ...draft, canApprove: !draft.canApprove })}
+          className="accent-[#315DFB] w-4 h-4 mt-0.5" />
+        <span>
+          <span className="font-semibold">Pode autorizar</span>
+          <span className="block text-[11px] text-zinc-500">Excluir venda, cancelar pagamento de fiado, sangria, fechar caixa e cancelar pedido de mesa — e o PIN dele libera essas ações para os outros.</span>
+        </span>
+      </label>
+    </div>
+  );
+}
 
 function OperatorsSection({ userId, isLight }: { userId: string; isLight: boolean }) {
   const [ops, setOps] = useState<Operator[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [name, setName] = useState("");
-  const [role, setRole] = useState<OperatorRole>("cashier");
-  const [pin, setPin] = useState("");
-  const [pinEdit, setPinEdit] = useState<{ id: string; pin: string } | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
+  const [ownerName, setOwnerName] = useState("");
+  const [ownerPin, setOwnerPin] = useState("");
+  // Formulário aberto: novo (id null) ou edição de um cadastrado
+  const [draft, setDraft] = useState<OpDraft | null>(null);
+  const [ownerEdit, setOwnerEdit] = useState<{ id: string; name: string; pin: string } | null>(null);
 
   const owner = ops.find(o => o.role === "owner") ?? null;
+  const staff = ops.filter(o => o.role !== "owner");
   const rowStyle = { background: isLight ? "#f9fafb" : "#09090b", border: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" };
 
   async function refresh() {
-    const { data, error } = await supabase.from("operators").select("id,name,role,active").eq("active", true).order("created_at");
+    const { data, error } = await supabase.from("operators").select("id,name,role,active,allowed_routes,can_approve").eq("active", true).order("created_at");
     if (error) { setErr(error.message); return; }
     setOps((data ?? []) as Operator[]);
     await loadOperators(userId);
@@ -392,35 +450,59 @@ function OperatorsSection({ userId, isLight }: { userId: string; isLight: boolea
   useEffect(() => { refresh(); }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pinOk = (p: string) => /^[0-9]{4,6}$/.test(p);
+  const flash = (m: string) => { setOk(m); setTimeout(() => setOk(null), 2500); };
+  const badName = (n: string) => !n ? "Informe o nome." : n.includes("@") ? "Use o nome da pessoa, não o e-mail." : null;
 
-  async function add() {
-    const r: OperatorRole = owner ? role : "owner";
-    const n = name.trim() || (owner ? "" : "Dono");
-    if (!n) { setErr("Informe o nome."); return; }
-    if (!pinOk(pin)) { setErr("O PIN deve ter de 4 a 6 números."); return; }
+  async function createOwner() {
+    const n = ownerName.trim() || "Dono";
+    const bad = badName(n); if (bad) { setErr(bad); return; }
+    if (!pinOk(ownerPin)) { setErr("O PIN deve ter de 4 a 6 números."); return; }
     setBusy(true); setErr(null);
-    const { data: id, error } = await supabase.rpc("save_operator", { p_id: null, p_name: n, p_role: r, p_pin: pin });
+    const { data: id, error } = await supabase.rpc("save_operator", { p_id: null, p_name: n, p_role: "owner", p_pin: ownerPin });
     if (error) { setErr(error.message); setBusy(false); return; }
-    // Ao criar o dono, quem está configurando já fica como dono neste aparelho
-    if (r === "owner" && id) setCurrentOperator({ id: id as string, name: n, role: "owner", active: true });
-    setName(""); setPin(""); setRole("cashier");
+    // Quem está configurando já fica como dono neste aparelho
+    if (id) setCurrentOperator({ id: id as string, name: n, role: "owner", active: true, allowed_routes: null, can_approve: true });
+    setOwnerName(""); setOwnerPin("");
     await refresh();
+    flash("PIN do dono ativado.");
     setBusy(false);
   }
 
-  async function savePin() {
-    if (!pinEdit) return;
-    const op = ops.find(o => o.id === pinEdit.id);
-    if (!op) return;
-    if (!pinOk(pinEdit.pin)) { setErr("O PIN deve ter de 4 a 6 números."); return; }
+  async function saveOwner() {
+    if (!ownerEdit) return;
+    const n = ownerEdit.name.trim();
+    const bad = badName(n); if (bad) { setErr(bad); return; }
+    if (ownerEdit.pin && !pinOk(ownerEdit.pin)) { setErr("O PIN deve ter de 4 a 6 números (ou deixe vazio para manter)."); return; }
     setBusy(true); setErr(null);
-    const { error } = await supabase.rpc("save_operator", { p_id: op.id, p_name: op.name, p_role: op.role, p_pin: pinEdit.pin });
-    if (error) setErr(error.message); else setPinEdit(null);
+    const { error } = await supabase.rpc("save_operator", { p_id: ownerEdit.id, p_name: n, p_role: "owner", p_pin: ownerEdit.pin || null });
+    if (error) { setErr(error.message); setBusy(false); return; }
+    setOwnerEdit(null);
+    await refresh();
+    flash("Alterações salvas.");
+    setBusy(false);
+  }
+
+  async function saveDraft() {
+    if (!draft) return;
+    const n = draft.name.trim();
+    const bad = badName(n); if (bad) { setErr(bad); return; }
+    if (draft.id === null && !pinOk(draft.pin)) { setErr("O PIN deve ter de 4 a 6 números."); return; }
+    if (draft.id !== null && draft.pin && !pinOk(draft.pin)) { setErr("O PIN deve ter de 4 a 6 números (ou deixe vazio para manter)."); return; }
+    if (draft.routes.length === 0) { setErr("Marque pelo menos uma aba."); return; }
+    setBusy(true); setErr(null);
+    const { error } = await supabase.rpc("save_operator", {
+      p_id: draft.id, p_name: n, p_role: "staff", p_pin: draft.pin || null,
+      p_routes: TAB_OPTIONS.map(t => t.path).filter(p => draft.routes.includes(p)), p_can_approve: draft.canApprove,
+    });
+    if (error) { setErr(error.message); setBusy(false); return; }
+    setDraft(null);
+    await refresh();
+    flash(draft.id ? "Alterações salvas." : `${n} cadastrado(a).`);
     setBusy(false);
   }
 
   async function remove(op: Operator) {
-    if (op.role === "owner" && ops.length > 1) { setErr("Remova os funcionários antes de remover o PIN do dono."); return; }
+    if (op.role === "owner" && staff.length > 0) { setErr("Remova os funcionários antes de remover o PIN do dono."); return; }
     const msg = op.role === "owner"
       ? "Remover o PIN do dono? O sistema volta a funcionar sem tela de PIN."
       : `Remover ${op.name}?`;
@@ -432,22 +514,47 @@ function OperatorsSection({ userId, isLight }: { userId: string; isLight: boolea
     setBusy(false);
   }
 
+  const avatar = (n: string) => (
+    <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0"
+      style={{ background: "#EFF3FF", border: "1px solid #C4D2FF", color: "#2547D6" }}>{n.charAt(0).toUpperCase()}</div>
+  );
+
+  const draftForm = draft && (
+    <div className="rounded-xl p-4 space-y-3" style={rowStyle}>
+      <p className="text-sm font-semibold">{draft.id ? "Editar funcionário" : "Novo funcionário"}</p>
+      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
+        <input autoFocus value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })}
+          placeholder="Nome do funcionário" name="op-draft-name" {...noAutofill} className={inputCls} />
+        <input value={draft.pin} onChange={e => setDraft({ ...draft, pin: onlyDigits(e.target.value) })} inputMode="numeric"
+          name="op-draft-code" placeholder={draft.id ? "Novo PIN (opcional)" : "PIN (4 a 6 números)"} {...noAutofill} style={pinMask}
+          className={inputCls + " sm:w-48"} />
+      </div>
+      <PermissionPicker draft={draft} setDraft={setDraft} isLight={isLight} />
+      <div className="flex gap-2 pt-1">
+        <button onClick={saveDraft} disabled={busy} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold disabled:opacity-40"
+          style={{ background: "#315DFB", color: "#fff" }}>
+          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Salvar
+        </button>
+        <button onClick={() => { setDraft(null); setErr(null); }} className="px-3 rounded-xl text-sm text-zinc-500">Cancelar</button>
+      </div>
+    </div>
+  );
+
   return (
     <SectionCard icon={<KeyRound className="w-4 h-4" />} title="Funcionários e PIN" color="#315DFB">
       <p className="text-xs text-zinc-500">
-        Cada funcionário entra com o próprio PIN e vê só as abas da função dele. Cancelar venda, cancelar pagamento de fiado,
-        sangria e fechar caixa pedem o PIN do dono ou gerente. Sem nenhum PIN cadastrado, o sistema funciona como hoje.
+        Cada funcionário entra com o próprio PIN e vê só as abas que você marcar. Sem nenhum PIN cadastrado, o sistema funciona como hoje.
       </p>
 
       {!owner ? (
         <div className="rounded-xl p-4 space-y-3" style={rowStyle}>
           <p className="text-sm font-semibold">1º passo: crie o seu PIN de dono</p>
           <div className="grid grid-cols-2 gap-3">
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="Seu nome" className={inputCls} />
-            <input value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric"
-              type="password" placeholder="PIN (4 a 6 números)" className={inputCls} />
+            <input value={ownerName} onChange={e => setOwnerName(e.target.value)} placeholder="Seu nome" name="op-owner-name" {...noAutofill} className={inputCls} />
+            <input value={ownerPin} onChange={e => setOwnerPin(onlyDigits(e.target.value))} inputMode="numeric" name="op-owner-code"
+              placeholder="PIN (4 a 6 números)" {...noAutofill} style={pinMask} className={inputCls} />
           </div>
-          <button onClick={add} disabled={busy}
+          <button onClick={createOwner} disabled={busy}
             className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold disabled:opacity-40"
             style={{ background: "#315DFB", color: "#fff" }}>
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />} Ativar PIN do dono
@@ -455,57 +562,64 @@ function OperatorsSection({ userId, isLight }: { userId: string; isLight: boolea
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] gap-2">
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="Nome do funcionário" className={inputCls} />
-            <select value={role} onChange={e => setRole(e.target.value as OperatorRole)} className={inputCls + " sm:w-36"}>
-              {STAFF_ROLES.map(r => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
-            </select>
-            <input value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric"
-              type="password" placeholder="PIN" className={inputCls + " sm:w-28"} />
-            <button onClick={add} disabled={busy || !name.trim()}
-              className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold disabled:opacity-40"
-              style={{ background: "#315DFB", color: "#fff" }}>
-              <Plus className="w-4 h-4" /> Adicionar
-            </button>
-          </div>
-          <p className="text-[11px] text-zinc-500">{ROLE_LABEL[role]}: {ROLE_DESC[role]}</p>
-
-          <div className="space-y-1.5">
-            {ops.map(o => (
-              <div key={o.id} className="rounded-xl px-4 py-2.5" style={rowStyle}>
-                <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0"
-                    style={{ background: "#EFF3FF", border: "1px solid #C4D2FF", color: "#2547D6" }}>
-                    {o.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold truncate">{o.name}</p>
-                    <p className="text-[11px] text-zinc-500">{ROLE_LABEL[o.role]} · {ROLE_DESC[o.role]}</p>
-                  </div>
-                  <button onClick={() => setPinEdit({ id: o.id, pin: "" })}
-                    className="text-xs font-semibold px-2.5 py-1.5 rounded-lg text-blue-500 hover:bg-blue-500/10">Trocar PIN</button>
-                  <button onClick={() => remove(o)} title="Remover"
-                    className="p-1.5 text-zinc-500 hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/10">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+          {/* Dono */}
+          <div className="rounded-xl px-4 py-2.5" style={rowStyle}>
+            {ownerEdit ? (
+              <div className="space-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
+                  <input autoFocus value={ownerEdit.name} onChange={e => setOwnerEdit({ ...ownerEdit, name: e.target.value })}
+                    placeholder="Seu nome" name="op-owner-edit-name" {...noAutofill} className={inputCls} />
+                  <input value={ownerEdit.pin} onChange={e => setOwnerEdit({ ...ownerEdit, pin: onlyDigits(e.target.value) })}
+                    inputMode="numeric" name="op-owner-edit-code" placeholder="Novo PIN (opcional)" {...noAutofill} style={pinMask}
+                    className={inputCls + " sm:w-48"} />
                 </div>
-                {pinEdit?.id === o.id && (
-                  <div className="flex gap-2 mt-2.5">
-                    <input autoFocus value={pinEdit.pin} type="password" inputMode="numeric" placeholder="Novo PIN (4 a 6 números)"
-                      onChange={e => setPinEdit({ id: o.id, pin: e.target.value.replace(/\D/g, "").slice(0, 6) })}
-                      onKeyDown={e => { if (e.key === "Enter") savePin(); }}
-                      className={inputCls + " flex-1"} />
-                    <button onClick={savePin} disabled={busy} className="px-3.5 rounded-xl text-sm font-bold disabled:opacity-40"
-                      style={{ background: "#315DFB", color: "#fff" }}>Salvar</button>
-                    <button onClick={() => setPinEdit(null)} className="px-3 rounded-xl text-sm text-zinc-500">Cancelar</button>
-                  </div>
-                )}
+                <div className="flex gap-2">
+                  <button onClick={saveOwner} disabled={busy} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold disabled:opacity-40"
+                    style={{ background: "#315DFB", color: "#fff" }}><Save className="w-4 h-4" /> Salvar</button>
+                  <button onClick={() => { setOwnerEdit(null); setErr(null); }} className="px-3 rounded-xl text-sm text-zinc-500">Cancelar</button>
+                </div>
               </div>
-            ))}
+            ) : (
+              <div className="flex items-center gap-3">
+                {avatar(owner.name)}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate">{owner.name}</p>
+                  <p className="text-[11px] text-zinc-500">Dono · acesso total</p>
+                </div>
+                <button onClick={() => { setErr(null); setDraft(null); setOwnerEdit({ id: owner.id, name: owner.name, pin: "" }); }}
+                  className="text-xs font-semibold px-2.5 py-1.5 rounded-lg text-blue-500 hover:bg-blue-500/10">Editar</button>
+                <button onClick={() => remove(owner)} title="Remover"
+                  className="p-1.5 text-zinc-500 hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/10"><Trash2 className="w-3.5 h-3.5" /></button>
+              </div>
+            )}
           </div>
+
+          {/* Funcionários */}
+          {staff.map(o => draft?.id === o.id ? <div key={o.id}>{draftForm}</div> : (
+            <div key={o.id} className="rounded-xl px-4 py-2.5 flex items-center gap-3" style={rowStyle}>
+              {avatar(o.name)}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold truncate">{o.name}</p>
+                <p className="text-[11px] text-zinc-500">{describeOperator(o)}</p>
+              </div>
+              <button onClick={() => { setErr(null); setOwnerEdit(null); setDraft({ id: o.id, name: o.name, pin: "", routes: operatorRoutes(o) ?? TAB_OPTIONS.map(t => t.path), canApprove: operatorCanApprove(o) }); }}
+                className="text-xs font-semibold px-2.5 py-1.5 rounded-lg text-blue-500 hover:bg-blue-500/10">Editar</button>
+              <button onClick={() => remove(o)} title="Remover"
+                className="p-1.5 text-zinc-500 hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/10"><Trash2 className="w-3.5 h-3.5" /></button>
+            </div>
+          ))}
+
+          {draft?.id === null ? draftForm : (
+            <button onClick={() => { setErr(null); setOwnerEdit(null); setDraft(emptyDraft()); }}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold"
+              style={{ background: "#315DFB", color: "#fff" }}>
+              <Plus className="w-4 h-4" /> Novo funcionário
+            </button>
+          )}
         </>
       )}
       {err && <p className="text-xs text-red-500 font-semibold">{err}</p>}
+      {ok && <p className="text-xs text-emerald-500 font-semibold">{ok}</p>}
     </SectionCard>
   );
 }

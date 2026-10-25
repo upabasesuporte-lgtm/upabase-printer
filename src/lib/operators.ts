@@ -7,39 +7,78 @@
 import { useSyncExternalStore } from "react";
 import { supabase } from "./supabase";
 
-export type OperatorRole = "owner" | "manager" | "cashier" | "waiter" | "stock";
+// "staff" = funcionário com abas escolhidas uma a uma (allowed_routes).
+// manager/cashier/waiter/stock ficam como atalhos (modelos) e compatibilidade.
+export type OperatorRole = "owner" | "staff" | "manager" | "cashier" | "waiter" | "stock";
 
 export interface Operator {
   id: string;
   name: string;
   role: OperatorRole;
   active: boolean;
+  allowed_routes?: string[] | null;
+  can_approve?: boolean;
 }
 
 export const ROLE_LABEL: Record<OperatorRole, string> = {
   owner: "Dono",
+  staff: "Funcionário",
   manager: "Gerente",
   cashier: "Caixa",
   waiter: "Garçom",
   stock: "Estoquista",
 };
 
-export const ROLE_DESC: Record<OperatorRole, string> = {
-  owner: "Acesso total",
-  manager: "Tudo, menos Configurações e Contas a Pagar",
-  cashier: "Vendas, Mesas, Clientes e Caixa",
-  waiter: "Mesas e Catálogo Digital",
-  stock: "Produtos, Estoque, Compras e Fornecedores",
-};
+// Abas que podem ser liberadas (mesmos caminhos do menu)
+export const TAB_OPTIONS: { path: string; label: string }[] = [
+  { path: "/",                 label: "Dashboard" },
+  { path: "/cash",             label: "Caixa" },
+  { path: "/pdv",              label: "Vendas (PDV)" },
+  { path: "/customers",        label: "Clientes" },
+  { path: "/digital-menu",     label: "Catálogo Digital" },
+  { path: "/tables",           label: "Mesas" },
+  { path: "/products",         label: "Produtos" },
+  { path: "/stock",            label: "Estoque" },
+  { path: "/purchases",        label: "Compras" },
+  { path: "/suppliers",        label: "Fornecedores" },
+  { path: "/accounts-payable", label: "Contas a Pagar" },
+  { path: "/reports",          label: "Relatórios" },
+  { path: "/settings",         label: "Configurações" },
+];
 
-// Abas liberadas por função (null = todas)
+// Atalhos que já marcam as abas mais comuns de cada função
+export const PRESETS: { label: string; routes: string[]; canApprove: boolean }[] = [
+  { label: "Caixa",      routes: ["/pdv", "/tables", "/customers", "/cash"], canApprove: false },
+  { label: "Garçom",     routes: ["/tables", "/digital-menu"], canApprove: false },
+  { label: "Estoquista", routes: ["/products", "/stock", "/purchases", "/suppliers"], canApprove: false },
+  { label: "Gerente",    routes: ["/", "/cash", "/pdv", "/customers", "/digital-menu", "/tables", "/products", "/stock", "/purchases", "/suppliers", "/reports"], canApprove: true },
+];
+
+// Abas das funções antigas/fixas (null = todas)
 const ROLE_ROUTES: Record<OperatorRole, string[] | null> = {
   owner: null,
-  manager: ["/", "/cash", "/pdv", "/customers", "/digital-menu", "/tables", "/products", "/stock", "/purchases", "/suppliers", "/reports"],
-  cashier: ["/pdv", "/tables", "/customers", "/cash"],
-  waiter: ["/tables", "/digital-menu"],
-  stock: ["/products", "/stock", "/purchases", "/suppliers"],
+  staff: [],
+  manager: PRESETS[3].routes,
+  cashier: PRESETS[0].routes,
+  waiter: PRESETS[1].routes,
+  stock: PRESETS[2].routes,
 };
+
+export function operatorRoutes(op: Operator): string[] | null {
+  if (op.role === "owner") return null;
+  return op.allowed_routes ?? ROLE_ROUTES[op.role];
+}
+
+export function operatorCanApprove(op: Operator | null): boolean {
+  return !!op && (op.role === "owner" || op.role === "manager" || !!op.can_approve);
+}
+
+export function describeOperator(op: Operator): string {
+  const routes = operatorRoutes(op);
+  if (routes === null) return "Acesso total";
+  const labels = TAB_OPTIONS.filter(t => routes.includes(t.path)).map(t => t.label);
+  return (labels.length ? labels.join(", ") : "Nenhuma aba") + (operatorCanApprove(op) ? " · pode autorizar" : "");
+}
 
 interface State {
   ownerId: string | null;       // usuário logado (dono da conta)
@@ -80,7 +119,7 @@ export async function loadOperators(ownerId: string) {
     setState({ ownerId, operators: cachedOps, current: readJSON<Operator>(curKey(ownerId)) });
   }
   const { data, error } = await supabase.from("operators")
-    .select("id,name,role,active").eq("active", true).order("name");
+    .select("id,name,role,active,allowed_routes,can_approve").eq("active", true).order("name");
   if (error) { console.warn("operators:", error.message); return; }
   const ops = (data ?? []) as Operator[];
   writeJSON(enabledKey(ownerId), ops);
@@ -98,7 +137,7 @@ export function setCurrentOperator(op: Operator | null) {
 export function canAccessRoute(path: string, s: State = state): boolean {
   if (!operatorsEnabled(s)) return true;
   if (!s.current) return false;
-  const allowed = ROLE_ROUTES[s.current.role];
+  const allowed = operatorRoutes(s.current);
   return allowed === null || allowed.includes(path);
 }
 
@@ -106,8 +145,7 @@ export function canAccessRoute(path: string, s: State = state): boolean {
 // Libera direto se a conta não usa PIN ou se quem opera já é dono/gerente.
 export function requireApproval(reason: string): Promise<boolean> {
   if (!operatorsEnabled()) return Promise.resolve(true);
-  const role = state.current?.role;
-  if (role === "owner" || role === "manager") return Promise.resolve(true);
+  if (operatorCanApprove(state.current)) return Promise.resolve(true);
   return new Promise(resolve => {
     state.approval?.resolve(false);
     setState({ approval: { reason, resolve } });
