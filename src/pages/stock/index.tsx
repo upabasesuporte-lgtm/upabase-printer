@@ -238,7 +238,7 @@ export default function StockPage() {
         {view === "stock" && (
           <>
             {/* Indicadores */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <Kpi label="Valor em estoque" value={fmt(totalValue)} sub="pelo custo de compra" tone="brand" />
               <Kpi label="Itens controlados" value={String(rows.length)} tone="brand"
                 sub={`${controlledProducts.length} produto${controlledProducts.length !== 1 ? "s" : ""} · ${stockItems.length} insumo${stockItems.length !== 1 ? "s" : ""}`}
@@ -367,7 +367,7 @@ function Kpi({ label, value, sub, tone, active, onClick }: {
     <Tag onClick={onClick}
       className={`${card} text-left p-3 sm:p-4 min-w-0 transition-all ${onClick ? "hover:border-gray-300 cursor-pointer" : ""} ${active && onClick ? "ring-2 ring-brand-500/30 border-brand-300" : ""}`}>
       <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{label}</p>
-      <p className={`text-lg sm:text-2xl font-black tabular-nums tracking-tight mt-1 break-words ${valueColor}`}>{value}</p>
+      <p className={`text-2xl font-black tabular-nums tracking-tight mt-1 whitespace-nowrap ${valueColor}`}>{value}</p>
       <p className="text-xs text-gray-400 mt-0.5">{sub}</p>
     </Tag>
   );
