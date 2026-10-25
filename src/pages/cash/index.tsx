@@ -188,6 +188,9 @@ export default function CashPage() {
   const totalAporte  = movements.filter(m => m.movement_type === "aporte").reduce((s, m) => s + m.amount, 0);
   const cashSales    = sales.filter(m => m.payment_method === "cash").reduce((s, m) => s + m.amount, 0);
   const currentBalance = (register?.opening_amount ?? 0) + cashSales + totalAporte - cashSangria;
+  // Líquido do turno: vendas menos todas as saídas (dinheiro e PIX). O fundo de
+  // abertura e os aportes não entram — são dinheiro do próprio dono, não venda.
+  const netShift = salesTotal - totalSangria;
 
   const countedVal   = parseFloat(countedAmount.replace(",", ".")) || 0;
   const difference   = countedAmount ? countedVal - currentBalance : null;
@@ -552,7 +555,10 @@ export default function CashPage() {
       {subTab === "current" && (
         <>
           {/* ── Cards de resumo ── */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+            <SummaryCard label="Líquido do Turno" value={fmt(netShift)}
+              sub={`Vendas ${fmt(salesTotal)} − saídas ${fmt(totalSangria)}`}
+              icon={<TrendingUp className="w-5 h-5" />} iconBg="bg-emerald-500/15" iconColor="text-emerald-400" accent color={netShift >= 0 ? "#10b981" : "#ef4444"} />
             <SummaryCard label="Total de Vendas" value={fmt(salesTotal)}
               sub={`${sales.length} venda${sales.length !== 1 ? "s" : ""}`}
               icon={<TrendingUp className="w-5 h-5" />} iconBg="bg-emerald-500/15" iconColor="text-emerald-400" accent color="#10b981" />
@@ -793,6 +799,10 @@ export default function CashPage() {
               <Row label={otherSangria > 0 ? "Sangrias em dinheiro" : "Sangrias"} value={fmt(cashSangria)} negative />
               {otherSangria > 0 && <Row label="Saídas por PIX/cartão (não saem da gaveta)" value={fmt(otherSangria)} negative />}
               {courierOut > 0 && <Row label="↳ inclui pagamentos a motoboys" value={fmt(courierOut)} />}
+              <div className="pt-2 border-t border-zinc-800 flex items-center justify-between">
+                <span className="font-semibold">Líquido do turno <span className="text-xs font-normal text-zinc-500">(vendas − saídas)</span></span>
+                <span className={`text-base font-bold ${netShift >= 0 ? "text-emerald-400" : "text-red-400"}`}>{fmt(netShift)}</span>
+              </div>
               <div className="pt-2 border-t border-zinc-800 flex items-center justify-between">
                 <span className="font-semibold text-white">Saldo Esperado em Dinheiro</span>
                 <span className="text-lg font-bold text-emerald-400">{fmt(currentBalance)}</span>

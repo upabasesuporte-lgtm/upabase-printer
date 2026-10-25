@@ -24,7 +24,7 @@ const isZero = (v: ReactNode) =>
 export function toneFor(label: string, value: string | number): StatTone {
   const l = label.toLowerCase();
   const negativeValue = String(value).trim().startsWith("-");
-  if (/resultado|saldo estimado|lucro/.test(l)) return negativeValue ? "negative" : "positive";
+  if (/resultado|saldo estimado|lucro|líquido do turno/.test(l)) return negativeValue ? "negative" : "positive";
   if (/sangria|fiado|saldo usado|zerad|vencid|despesa|contas a pagar|gasto/.test(l)) return "negative";
   if (/alerta|desconto|a pagar|baixo|abaixo/.test(l)) return "warning";
   if (/faturamento|receita|vendas|recebid|pago|aporte|crédito|credito/.test(l)) return "positive";
