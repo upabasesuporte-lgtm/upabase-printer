@@ -117,7 +117,7 @@ function SetupWarning({ card, onGo }: { card: React.CSSProperties; onGo: () => v
         <p className="text-sm font-bold">Nenhum pedido vai chegar aqui ainda</p>
         <p className="text-xs text-zinc-500">Escolha para qual setor (Cozinha, Bar ou Balcão) vai cada categoria de produto.</p>
       </div>
-      <button onClick={onGo} className="px-4 py-2 rounded-xl text-sm font-bold text-white" style={{ color: "#fff", background: "#f59e0b" }}>Configurar setores</button>
+      <button onClick={onGo} className="px-4 py-2 rounded-xl text-sm font-bold" style={{ color: "#fff", background: "#f59e0b" }}>Configurar setores</button>
     </div>
   );
 }
@@ -338,16 +338,16 @@ function OrdersBoard({ isLight, card }: { isLight: boolean; card: React.CSSPrope
                     )}
                     <div className="flex flex-wrap gap-2">
                       {col.key === "new" && (
-                        <button onClick={() => setState(ids, "preparing")} className="flex-1 h-10 rounded-xl text-sm font-semibold text-white shadow-sm" style={{ color: "#fff", background: "#315DFB" }}>Iniciar preparo</button>
+                        <button onClick={() => setState(ids, "preparing")} className="flex-1 h-10 rounded-xl text-sm font-semibold shadow-sm" style={{ color: "#fff", background: "#315DFB" }}>Iniciar preparo</button>
                       )}
                       {col.key !== "ready" && (
-                        <button onClick={() => setState(ids, "ready")} className="flex-1 h-10 rounded-xl text-sm font-semibold text-white shadow-sm" style={{ color: "#fff", background: "#10b981" }}>Pronto</button>
+                        <button onClick={() => setState(ids, "ready")} className="flex-1 h-10 rounded-xl text-sm font-semibold shadow-sm" style={{ color: "#fff", background: "#10b981" }}>Pronto</button>
                       )}
                       {col.key === "ready" && (o.kind === "table" ? (
-                        <button onClick={() => dispatch(saleId, ids, "table")} className="flex-1 h-10 rounded-xl text-sm font-semibold text-white shadow-sm" style={{ color: "#fff", background: "#10b981" }}>Entregue na mesa</button>
+                        <button onClick={() => dispatch(saleId, ids, "table")} className="flex-1 h-10 rounded-xl text-sm font-semibold shadow-sm" style={{ color: "#fff", background: "#10b981" }}>Entregue na mesa</button>
                       ) : (
                         <>
-                          <button onClick={() => dispatch(saleId, ids, "counter")} className="flex-1 h-10 rounded-xl text-sm font-semibold text-white shadow-sm" style={{ color: "#fff", background: "#10b981" }}>Balcão</button>
+                          <button onClick={() => dispatch(saleId, ids, "counter")} className="flex-1 h-10 rounded-xl text-sm font-semibold shadow-sm" style={{ color: "#fff", background: "#10b981" }}>Balcão</button>
                           <select defaultValue="" onChange={e => { if (e.target.value) dispatch(saleId, ids, "delivery", e.target.value); }}
                             className="flex-1 h-10 rounded-xl text-sm font-bold px-2" style={{ background: "#f59e0b", color: "#fff", border: "none" }}>
                             <option value="" disabled>{couriers.length ? "Motoboy…" : "Cadastre motoboys"}</option>
@@ -564,7 +564,7 @@ function CouriersTab({ isLight, card }: { isLight: boolean; card: React.CSSPrope
             </div>
             {canPay && pendingIds.length > 0 && (
               <button onClick={() => openPay(c, pendingIds)}
-                className="w-full h-9 rounded-xl text-sm font-bold text-white" style={{ color: "#fff", background: "#10b981" }}>
+                className="w-full h-9 rounded-xl text-sm font-bold" style={{ color: "#fff", background: "#10b981" }}>
                 Pagar {fmt(toPay)} ({pendingIds.length} entrega{pendingIds.length === 1 ? "" : "s"})
               </button>
             )}
@@ -578,7 +578,7 @@ function CouriersTab({ isLight, card }: { isLight: boolean; card: React.CSSPrope
             {oldByCourier.map(({ c, pendingIds, toPay }) => (
               <div key={c.id} className="flex items-center gap-2">
                 <p className="text-sm font-semibold flex-1">{c.name} · {pendingIds.length} entrega{pendingIds.length === 1 ? "" : "s"}</p>
-                <button onClick={() => openPay(c, pendingIds)} className="px-3 h-8 rounded-lg text-xs font-bold text-white" style={{ color: "#fff", background: "#f59e0b" }}>
+                <button onClick={() => openPay(c, pendingIds)} className="px-3 h-8 rounded-lg text-xs font-bold" style={{ color: "#fff", background: "#f59e0b" }}>
                   Pagar {fmt(toPay)}
                 </button>
               </div>
@@ -625,7 +625,7 @@ function CouriersTab({ isLight, card }: { isLight: boolean; card: React.CSSPrope
               <p className={`text-[11px] ${muted}`}>Fica lançado como saída no caixa aberto, com a forma de pagamento escolhida.</p>
             </div>
             <div className="flex gap-2">
-              <button onClick={confirmPay} disabled={busy} className="flex-1 h-11 rounded-xl text-sm font-bold text-white disabled:opacity-40" style={{ color: "#fff", background: "#10b981" }}>
+              <button onClick={confirmPay} disabled={busy} className="flex-1 h-11 rounded-xl text-sm font-bold disabled:opacity-40" style={{ color: "#fff", background: "#10b981" }}>
                 {busy ? "Pagando..." : "Confirmar pagamento"}
               </button>
               <button onClick={() => setPayFor(null)} className={`px-4 rounded-xl text-sm ${muted}`}>Cancelar</button>
