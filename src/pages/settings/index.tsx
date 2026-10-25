@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect } from "react";
 import { Store, Phone, CreditCard, Save, CheckCircle2, Receipt, Plus, Trash2, Users, Settings, Loader2, KeyRound } from "lucide-react";
 import { supabase } from "../../lib/supabase";
-import { loadOperators, setCurrentOperator, TAB_OPTIONS, PRESETS, describeOperator, operatorRoutes, operatorCanApprove, type Operator } from "../../lib/operators";
+import { loadOperators, setCurrentOperator, saveLockMinutes, useOperators, TAB_OPTIONS, PRESETS, describeOperator, operatorRoutes, operatorCanApprove, type Operator } from "../../lib/operators";
 import { PageHeader } from "../../components/PageHeader";
 import { useTheme } from "../../contexts/ThemeContext";
 
@@ -427,6 +427,7 @@ function PermissionPicker({ draft, setDraft, isLight }: { draft: OpDraft; setDra
 }
 
 function OperatorsSection({ userId, isLight }: { userId: string; isLight: boolean }) {
+  const opState = useOperators();
   const [ops, setOps] = useState<Operator[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -574,6 +575,25 @@ function OperatorsSection({ userId, isLight }: { userId: string; isLight: boolea
         </div>
       ) : (
         <>
+          {/* Trava automática */}
+          <div className="rounded-xl px-4 py-3 flex flex-wrap items-center gap-3" style={rowStyle}>
+            <div className="flex-1 min-w-[180px]">
+              <p className="text-sm font-semibold">Travar automaticamente</p>
+              <p className="text-[11px] text-zinc-500">Depois desse tempo sem uso, o aparelho volta para "Digite seu PIN". Vale para todos os aparelhos.</p>
+            </div>
+            <select value={opState.lockMinutes} disabled={busy}
+              onChange={async e => {
+                const m = Number(e.target.value);
+                setBusy(true); setErr(null);
+                try { await saveLockMinutes(userId, m); flash("Trava automática salva."); }
+                catch (ex: any) { setErr(ex?.message ?? String(ex)); }
+                setBusy(false);
+              }}
+              className={inputCls + " w-40"}>
+              {[0, 2, 5, 10, 15, 30, 60].map(m => <option key={m} value={m}>{m === 0 ? "Nunca" : `${m} minutos`}</option>)}
+            </select>
+          </div>
+
           {/* Dono */}
           <div className="rounded-xl px-4 py-2.5" style={rowStyle}>
             {ownerEdit ? (

@@ -85,9 +85,10 @@ interface State {
   operators: Operator[];        // operadores ativos
   current: Operator | null;     // quem está operando neste aparelho
   approval: { reason: string; resolve: (ok: boolean) => void } | null;
+  lockMinutes: number;          // trava automática por inatividade (0 = nunca)
 }
 
-let state: State = { ownerId: null, operators: [], current: null, approval: null };
+let state: State = { ownerId: null, operators: [], current: null, approval: null, lockMinutes: 10 };
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach(l => l());
 const setState = (patch: Partial<State>) => { state = { ...state, ...patch }; emit(); };
@@ -118,15 +119,29 @@ export async function loadOperators(ownerId: string) {
     const cachedOps = readJSON<Operator[]>(enabledKey(ownerId)) ?? [];
     setState({ ownerId, operators: cachedOps, current: readJSON<Operator>(curKey(ownerId)) });
   }
-  const { data, error } = await supabase.from("operators")
-    .select("id,name,role,active,allowed_routes,can_approve").eq("active", true).order("name");
+  const [{ data, error }, { data: us }] = await Promise.all([
+    supabase.from("operators")
+      .select("id,name,role,active,allowed_routes,can_approve").eq("active", true).order("name"),
+    supabase.from("user_settings").select("operator_lock_minutes").eq("user_id", ownerId).maybeSingle(),
+  ]);
   if (error) { console.warn("operators:", error.message); return; }
+  const lock = (us as any)?.operator_lock_minutes;
+  if (typeof lock === "number") setState({ lockMinutes: lock });
   const ops = (data ?? []) as Operator[];
   writeJSON(enabledKey(ownerId), ops);
   // Se o operador atual foi removido/alterado, atualiza ou desloga
   const cur = state.current ? ops.find(o => o.id === state.current!.id) ?? null : null;
   writeJSON(curKey(ownerId), cur);
   setState({ operators: ops, current: cur });
+}
+
+export async function saveLockMinutes(ownerId: string, minutes: number) {
+  const { error } = await supabase.from("user_settings").upsert(
+    { user_id: ownerId, operator_lock_minutes: minutes, updated_at: new Date().toISOString() },
+    { onConflict: "user_id" },
+  );
+  if (error) throw error;
+  setState({ lockMinutes: minutes });
 }
 
 export function setCurrentOperator(op: Operator | null) {

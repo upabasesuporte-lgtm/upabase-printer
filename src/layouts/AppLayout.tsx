@@ -37,7 +37,7 @@ import {
   Repeat,
 } from "lucide-react";
 import { OperatorGate } from "../components/OperatorGate";
-import { useOperators, loadOperators, canAccessRoute, setCurrentOperator, operatorsEnabled } from "../lib/operators";
+import { useOperators, loadOperators, canAccessRoute, setCurrentOperator, operatorsEnabled, requireApproval } from "../lib/operators";
 import { AvaliacaoModal } from "../components/AvaliacaoModal";
 import { prefetchReports, clearReportsCache } from "../pages/reports";
 import { clearDashboardCache } from "../pages/dashboard";
@@ -430,6 +430,9 @@ export function AppLayout() {
   }
 
   async function handleLogout() {
+    // Com funcionários: sair desconecta o aparelho da loja (só volta com e-mail
+    // e senha do dono), então pede PIN de quem pode autorizar
+    if (!(await requireApproval("Sair e desconectar este aparelho"))) return;
     clearReportsCache();
     clearDashboardCache();
     setCurrentOperator(null);
@@ -765,9 +768,7 @@ export function AppLayout() {
 
         <div className="flex-1 overflow-auto min-h-0">
           <div className="p-6 min-h-full">
-            {opLocked
-              ? null
-              : opBlocked
+            {opBlocked
                 ? (!planReady ? null : firstAllowedPath && firstAllowedPath !== currentPath
                     ? <Navigate to={firstAllowedPath} replace />
                     : <p className="text-sm text-zinc-500">Nenhuma aba liberada para a sua função. Peça ao dono para revisar em Configurações → Funcionários.</p>)

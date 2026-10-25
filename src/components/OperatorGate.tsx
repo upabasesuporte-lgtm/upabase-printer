@@ -67,6 +67,24 @@ export function OperatorGate() {
 
   const locked = operatorsEnabled(s) && !s.current;
   useEffect(() => { if (!locked) { setPin(""); setErr(null); } }, [locked]);
+
+  // Trava automática: sem toque/tecla/rolagem por X minutos, volta para o PIN.
+  // A página por baixo continua montada (carrinho e pedidos não se perdem).
+  const lockMs = (s.lockMinutes ?? 0) * 60_000;
+  useEffect(() => {
+    if (!operatorsEnabled(s) || !s.current || lockMs <= 0) return;
+    let last = Date.now();
+    const touch = () => { last = Date.now(); };
+    const evs = ["pointerdown", "keydown", "wheel", "touchstart"] as const;
+    evs.forEach(e => window.addEventListener(e, touch, { capture: true, passive: true }));
+    const t = window.setInterval(() => {
+      if (Date.now() - last >= lockMs) setCurrentOperator(null);
+    }, 15_000);
+    return () => {
+      window.clearInterval(t);
+      evs.forEach(e => window.removeEventListener(e, touch, { capture: true } as any));
+    };
+  }, [s.current?.id, s.operators.length, lockMs]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setPin(""); setErr(null); }, [s.approval]);
 
   const panel = isLight ? "bg-white border border-gray-200" : "bg-zinc-900 border border-zinc-800";
@@ -99,7 +117,7 @@ export function OperatorGate() {
   if (locked) {
     return createPortal(
       <div className="fixed inset-0 z-[200] flex items-center justify-center p-4"
-        style={{ background: isLight ? "rgba(243,244,246,0.97)" : "rgba(9,9,11,0.97)" }}>
+        style={{ background: isLight ? "#f3f4f6" : "#09090b" }}>
         <div className={`w-full max-w-sm rounded-3xl p-6 shadow-2xl ${panel}`}>
           <div className="flex items-center gap-2 mb-1">
             <Lock className="w-4 h-4" style={{ color: "#315DFB" }} />
