@@ -516,7 +516,12 @@ export default function DashboardPage() {
       {/* ── Resultado do Período (Receita - Despesas) ── */}
       {(() => {
         const positive = netResult >= 0;
-        const accent = positive ? "#10b981" : "#f43f5e";
+        // Cores da marca (mesmo degradê do logo/menu); vermelho só quando é prejuízo
+        const BRAND_GRAD = "linear-gradient(135deg, #7C3FFA 0%, #315DFB 55%, #00B8C8 100%)";
+        const brandPurple = isLight ? "#7C3FFA" : "#a78bfa";
+        const brandBlue = isLight ? "#315DFB" : "#818cf8";
+        const accent = positive ? brandPurple : "#f43f5e";
+        const strong = isLight ? "#111827" : "#fff";
         // Quanto da receita as despesas consumiram (barra de proporção)
         const expensePct = totalRev > 0 ? Math.min(100, (apExpenses / totalRev) * 100) : (apExpenses > 0 ? 100 : 0);
         const margin = totalRev > 0 ? (netResult / totalRev) * 100 : null;
@@ -527,17 +532,17 @@ export default function DashboardPage() {
         return (
           <div className="relative overflow-hidden rounded-2xl" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
             {/* Faixa de cor no topo indicando lucro/prejuízo */}
-            <div className="h-1 w-full" style={{ background: positive ? "linear-gradient(90deg,#10b981,#06b6d4)" : "linear-gradient(90deg,#f43f5e,#f97316)" }} />
+            <div className="h-1 w-full" style={{ background: BRAND_GRAD }} />
             {/* Brilho suave atrás do número */}
             <div className="pointer-events-none absolute -top-16 -right-16 w-56 h-56 rounded-full blur-3xl"
-              style={{ background: accent, opacity: isLight ? 0.08 : 0.12 }} />
+              style={{ background: "#315DFB", opacity: isLight ? 0.07 : 0.14 }} />
 
             <div className="relative p-5 sm:p-6 grid gap-5 lg:grid-cols-[1.1fr_1fr] lg:items-center">
               {/* Resultado */}
               <div>
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: `${accent}1a` }}>
-                    {positive ? <TrendingUp className="w-4 h-4" style={{ color: accent }} /> : <TrendingDown className="w-4 h-4" style={{ color: accent }} />}
+                  <span className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: BRAND_GRAD, boxShadow: "0 4px 12px rgba(49,93,251,0.3)" }}>
+                    {positive ? <TrendingUp className="w-4 h-4 text-white" /> : <TrendingDown className="w-4 h-4 text-white" />}
                   </span>
                   <p className="text-xs font-semibold" style={{ color: muted }}>Resultado · {PERIOD_LABELS[period]}</p>
                   <span className="ml-auto lg:ml-2 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
@@ -545,7 +550,7 @@ export default function DashboardPage() {
                     {positive ? "Lucro" : "Prejuízo"}
                   </span>
                 </div>
-                <p className="text-4xl sm:text-5xl font-black tabular-nums tracking-tight leading-none" style={{ color: isLight ? "#111827" : "#fff" }}>
+                <p className="text-4xl sm:text-5xl font-black tabular-nums tracking-tight leading-none" style={{ color: strong }}>
                   <span style={{ color: accent }}>{positive ? "+" : "−"}</span>{fmt(Math.abs(netResult))}
                 </p>
                 {margin !== null && (
@@ -556,9 +561,10 @@ export default function DashboardPage() {
 
                 {/* Barra: receitas vs. despesas */}
                 <div className="mt-4">
-                  <div className="h-2.5 rounded-full overflow-hidden flex" style={{ background: isLight ? "#ECFDF5" : "rgba(16,185,129,0.15)" }}>
+                  <div className="h-2.5 rounded-full overflow-hidden flex" style={{ background: isLight ? "#E5E7EB" : "rgba(255,255,255,0.08)" }}>
+                    {/* parte que ficou (marca); o resto, em cinza, é o que as despesas consumiram */}
                     <div className="h-full rounded-full transition-all duration-700"
-                      style={{ width: `${expensePct}%`, background: "linear-gradient(90deg,#f43f5e,#fb7185)" }} />
+                      style={{ width: `${totalRev > 0 ? Math.max(0, 100 - expensePct) : 0}%`, background: BRAND_GRAD }} />
                   </div>
                   <div className="flex justify-between mt-1.5 text-[10px]" style={{ color: faint }}>
                     <span>Despesas consumiram {expensePct.toFixed(0)}% da receita</span>
@@ -570,22 +576,22 @@ export default function DashboardPage() {
               {/* Receitas e Despesas */}
               <div className="grid grid-cols-2 lg:grid-cols-1 gap-3">
                 <div className="rounded-xl p-3.5 flex items-center gap-3" style={{ background: tileBg, border: tileBorder }}>
-                  <span className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center" style={{ background: "rgba(16,185,129,0.12)" }}>
-                    <Banknote className="w-4 h-4" style={{ color: "#10b981" }} />
+                  <span className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center" style={{ background: isLight ? "rgba(49,93,251,0.1)" : "rgba(129,140,248,0.15)" }}>
+                    <Banknote className="w-4 h-4" style={{ color: brandBlue }} />
                   </span>
                   <div className="min-w-0">
                     <p className="text-[11px] font-medium" style={{ color: faint }}>Receitas</p>
-                    <p className="text-base sm:text-lg font-extrabold tabular-nums leading-tight truncate" style={{ color: "#10b981" }}>{fmt(totalRev)}</p>
+                    <p className="text-base sm:text-lg font-extrabold tabular-nums leading-tight truncate" style={{ color: brandBlue }}>{fmt(totalRev)}</p>
                     <p className="text-[10px]" style={{ color: faint }}>{totalCount} {totalCount === 1 ? "venda" : "vendas"}</p>
                   </div>
                 </div>
                 <Link to="/accounts-payable" className="group rounded-xl p-3.5 flex items-center gap-3 transition-colors" style={{ background: tileBg, border: tileBorder }}>
-                  <span className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center" style={{ background: "rgba(244,63,94,0.12)" }}>
-                    <Wallet className="w-4 h-4" style={{ color: "#f43f5e" }} />
+                  <span className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center" style={{ background: isLight ? "#F1F5F9" : "rgba(255,255,255,0.06)" }}>
+                    <Wallet className="w-4 h-4" style={{ color: muted }} />
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="text-[11px] font-medium" style={{ color: faint }}>Despesas</p>
-                    <p className="text-base sm:text-lg font-extrabold tabular-nums leading-tight truncate" style={{ color: "#f43f5e" }}>{fmt(apExpenses)}</p>
+                    <p className="text-base sm:text-lg font-extrabold tabular-nums leading-tight truncate" style={{ color: strong }}>{fmt(apExpenses)}</p>
                     <p className="text-[10px] inline-flex items-center gap-1" style={{ color: faint }}>
                       ver contas <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
                     </p>
