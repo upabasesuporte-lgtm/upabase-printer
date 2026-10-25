@@ -1131,21 +1131,21 @@ export default function PdvPage() {
 
   // Abas Nova Venda / Histórico compactas — usadas no desktop ao lado da busca (no celular fica a barra de abas)
   const tabSwitch = (
-    <div className="hidden md:flex items-center gap-1 p-1 rounded-xl flex-shrink-0" style={{ background: card.bg, border: card.border }}>
+    <div className="flex items-center gap-1 p-1 rounded-xl flex-shrink-0" style={{ background: card.bg, border: card.border }}>
       {(["venda", "historico"] as const).map(t => (
         <button key={t} onClick={() => setTab(t)}
-          className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg transition-all"
+          className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 text-xs font-semibold rounded-lg transition-all"
           style={tab === t
             ? { color: "#fff", background: isLight ? "#315DFB" : "#7B2FBE" }
             : { color: "#9ca3af", background: "transparent" }}>
-          {t === "venda" ? <><ShoppingCart className="w-3.5 h-3.5" />Nova Venda</> : <><History className="w-3.5 h-3.5" />Histórico</>}
+          {t === "venda" ? <><ShoppingCart className="w-3.5 h-3.5" /><span className="hidden sm:inline">Nova Venda</span></> : <><History className="w-3.5 h-3.5" /><span className="hidden sm:inline">Histórico</span></>}
         </button>
       ))}
     </div>
   );
 
   return (
-    <div className="flex flex-col overflow-hidden -m-6 h-[calc(100vh-64px)] md:h-screen">
+    <div className="flex flex-col overflow-hidden -m-3 sm:-m-6 h-[calc(100vh-64px)] md:h-screen">
 
       {/* Toast de erro global */}
       {toastError && (
@@ -1170,7 +1170,7 @@ export default function PdvPage() {
       )}
 
       {/* Tabs */}
-      <div className="flex md:hidden items-center gap-1 px-6 pt-3 border-b border-zinc-800/80 flex-shrink-0"
+      <div className="hidden items-center gap-1 px-6 pt-3 border-b border-zinc-800/80 flex-shrink-0"
         style={{ background: isLight ? "#f9fafb" : "linear-gradient(135deg,#0f0f13 0%,#09090b 100%)" }}>
         {(["venda", "historico"] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
@@ -1208,7 +1208,7 @@ export default function PdvPage() {
           <div className="flex flex-col flex-1 overflow-hidden border-r border-zinc-800">
 
             {/* Busca */}
-            <div className="p-4 border-b border-zinc-800 flex-shrink-0">
+            <div className="p-3 sm:p-4 border-b border-zinc-800 flex-shrink-0">
               <div className="flex items-center gap-2">
                 {tabSwitch}
                 <button className="flex-shrink-0 p-2 rounded-lg" style={{ background: "rgba(59,182,243,0.2)", color: "#3bb6f3", minWidth: "44px", minHeight: "44px", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -1496,14 +1496,14 @@ export default function PdvPage() {
               </div>
 
               {/* Botões — sempre visíveis (fixos embaixo no desktop), Finalizar desabilitado sem itens */}
-              <div className="grid grid-cols-2 gap-2 px-3 pb-3 md:flex-shrink-0 md:grid-cols-[auto_auto_1fr]">
+              <div className="grid grid-cols-[auto_auto_1fr] gap-2 px-3 pb-3 md:flex-shrink-0">
                 {/* Desktop: vendas em pausa ficam aqui, ao lado do Pausar */}
                 <button onClick={() => { loadPending(); setShowPending(true); }}
                   title="Vendas em pausa"
-                  className="hidden md:flex items-center justify-center gap-1.5 px-3 py-3 text-xs font-semibold rounded-xl transition-all"
+                  className="flex items-center justify-center gap-1.5 px-3 py-2.5 md:py-3 text-xs font-semibold rounded-xl transition-all"
                   style={{ background: card.bg, border: card.border, color: isLight ? "#315DFB" : "#10b981" }}>
                   <History className="w-3.5 h-3.5" />
-                  Pausadas
+                  <span className="hidden sm:inline">Pausadas</span>
                   {pendingSales.length > 0 && (
                     <span className="min-w-[18px] h-[18px] px-1 text-[10px] font-black rounded-full flex items-center justify-center"
                       style={{ background: "#10b981", color: "#fff" }}>
@@ -1512,21 +1512,21 @@ export default function PdvPage() {
                   )}
                 </button>
                 <button onClick={savePending} disabled={cart.length === 0}
-                  className="flex items-center justify-center gap-1.5 py-2.5 md:py-3 md:px-3 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold rounded-xl transition-all"
+                  className="flex items-center justify-center gap-1.5 px-3 py-2.5 md:py-3 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold rounded-xl transition-all"
                   style={isLight ? { border:"1px solid #2563eb", color:"#fff", background:"#315DFB" } : { border:"1px solid rgba(16,185,129,0.4)", color:"#10b981", background:"rgba(16,185,129,0.07)" }}>
                   <Clock className="w-3.5 h-3.5" />
                   Pausar
-                  <kbd className="text-[10px] px-1 py-0.5 rounded font-bold" style={isLight ? { background:"rgba(255,255,255,0.2)", border:"1px solid rgba(255,255,255,0.3)", color:"#fff" } : { background:"rgba(16,185,129,0.15)", border:"1px solid rgba(16,185,129,0.3)", color:"#10b981" }}>F2</kbd>
+                  <kbd className="hidden md:inline text-[10px] px-1 py-0.5 rounded font-bold" style={isLight ? { background:"rgba(255,255,255,0.2)", border:"1px solid rgba(255,255,255,0.3)", color:"#fff" } : { background:"rgba(16,185,129,0.15)", border:"1px solid rgba(16,185,129,0.3)", color:"#10b981" }}>F2</kbd>
                 </button>
                 <button onClick={openCheckout} disabled={cart.length === 0 || !cashRegisterId}
                   className="flex items-center justify-center gap-1.5 py-2.5 md:py-3 md:text-sm bg-brand-600 hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold rounded-xl transition-colors shadow-lg shadow-brand-900/10"
                   style={{ color: "#fff" }}>
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   Finalizar
-                  <kbd className="text-[10px] bg-white/10 border border-white/20 px-1 py-0.5 rounded font-bold" style={{ color: "#fff" }}>F1</kbd>
+                  <kbd className="hidden md:inline text-[10px] bg-white/10 border border-white/20 px-1 py-0.5 rounded font-bold" style={{ color: "#fff" }}>F1</kbd>
                 </button>
                 {!cashRegisterId && !loadingProducts && (
-                  <p className="text-[10px] text-amber-400 text-center flex items-center justify-center gap-1 mt-0.5 md:col-span-3">
+                  <p className="text-[10px] text-amber-400 text-center flex items-center justify-center gap-1 mt-0.5 col-span-3">
                     <AlertCircle className="w-3 h-3 flex-shrink-0" /> Caixa fechado — abra o caixa para vender
                   </p>
                 )}
@@ -1539,8 +1539,8 @@ export default function PdvPage() {
 
       {/* ── ABA HISTÓRICO ── */}
       {tab === "historico" && (
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="flex items-center gap-3 mb-5">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-6">
+          <div className="flex items-center gap-2 sm:gap-3 mb-5">
             {tabSwitch}
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />

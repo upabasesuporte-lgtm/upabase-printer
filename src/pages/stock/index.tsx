@@ -365,9 +365,9 @@ function Kpi({ label, value, sub, tone, active, onClick }: {
   const Tag = onClick ? "button" : "div";
   return (
     <Tag onClick={onClick}
-      className={`${card} text-left p-4 transition-all ${onClick ? "hover:border-gray-300 cursor-pointer" : ""} ${active && onClick ? "ring-2 ring-brand-500/30 border-brand-300" : ""}`}>
+      className={`${card} text-left p-3 sm:p-4 min-w-0 transition-all ${onClick ? "hover:border-gray-300 cursor-pointer" : ""} ${active && onClick ? "ring-2 ring-brand-500/30 border-brand-300" : ""}`}>
       <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{label}</p>
-      <p className={`text-2xl font-black tabular-nums tracking-tight mt-1 ${valueColor}`}>{value}</p>
+      <p className={`text-lg sm:text-2xl font-black tabular-nums tracking-tight mt-1 break-words ${valueColor}`}>{value}</p>
       <p className="text-xs text-gray-400 mt-0.5">{sub}</p>
     </Tag>
   );
@@ -377,7 +377,7 @@ function Segmented<T extends string>({ value, onChange, options, disabled }: {
   value: T; onChange: (v: T) => void; options: { value: T; label: string }[]; disabled?: boolean;
 }) {
   return (
-    <div className={`flex p-1 bg-gray-100 rounded-xl ${disabled ? "opacity-40 pointer-events-none" : ""}`}>
+    <div className={`flex p-1 bg-gray-100 rounded-xl max-w-full overflow-x-auto ${disabled ? "opacity-40 pointer-events-none" : ""}`}>
       {options.map(o => (
         <button key={o.value} onClick={() => onChange(o.value)}
           className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${value === o.value ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-800"}`}>
@@ -434,6 +434,7 @@ function StockTable({ rows, onOpen }: { rows: Row[]; onOpen: (r: Row) => void })
               <div className="md:hidden text-right">
                 <p className={`text-sm font-bold tabular-nums ${STATUS[st].text}`}>{fmtQty(r.qty, r.unit)}</p>
                 <p className="text-[11px] text-gray-400">{r.min > 0 ? `mín ${fmtNum(r.min)}` : "sem mínimo"}</p>
+                {r.cost > 0 && <p className="text-[11px] text-gray-600 tabular-nums">{fmt(r.cost)}/un · <span className="font-semibold">{fmt(Math.max(r.qty, 0) * r.cost)}</span></p>}
               </div>
               <div className="hidden md:block">
                 <p className={`text-sm font-bold tabular-nums ${STATUS[st].text}`}>{fmtQty(r.qty, r.unit)}</p>
@@ -447,7 +448,7 @@ function StockTable({ rows, onOpen }: { rows: Row[]; onOpen: (r: Row) => void })
           );
         })}
       </div>
-      <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 bg-gray-50/60 text-xs text-gray-500">
+      <div className="flex items-center justify-between px-4 md:px-5 py-3 border-t border-gray-100 bg-gray-50/60 text-xs text-gray-500">
         <span>{rows.length} ite{rows.length !== 1 ? "ns" : "m"}</span>
         <span>Valor: <span className="font-semibold text-gray-900">{fmt(total)}</span></span>
       </div>

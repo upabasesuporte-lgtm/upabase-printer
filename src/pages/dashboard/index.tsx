@@ -550,10 +550,10 @@ export default function DashboardPage() {
                 WebkitMaskImage: "radial-gradient(ellipse at top right, #000 0%, transparent 70%)",
               }} />
 
-            <div className="relative p-5 sm:p-7 grid gap-6 lg:grid-cols-[1.15fr_1fr] lg:items-center">
+            <div className="relative p-4 sm:p-7 grid gap-5 sm:gap-6 lg:grid-cols-[1.15fr_1fr] lg:items-center">
               {/* Resultado */}
               <div>
-                <div className="flex items-center gap-2 mb-4">
+                <div className="flex flex-wrap items-center gap-2 mb-4">
                   <span className="w-8 h-8 rounded-xl flex items-center justify-center"
                     style={{ background: isLight ? "#fff" : "rgba(255,255,255,0.05)", border: `1px solid ${hairline}`, boxShadow: isLight ? "0 1px 2px rgba(17,24,39,0.06)" : "none" }}>
                     {positive ? <TrendingUp className="w-4 h-4" style={{ color: accent }} /> : <TrendingDown className="w-4 h-4" style={{ color: accent }} />}
@@ -565,7 +565,7 @@ export default function DashboardPage() {
                     {positive ? "Lucro" : "Prejuízo"}
                   </span>
                 </div>
-                <p className="text-4xl sm:text-5xl font-black tabular-nums tracking-tight leading-none" style={{ color: accent }}>
+                <p className="text-[28px] leading-tight sm:text-5xl sm:leading-none font-black tabular-nums tracking-tight break-words" style={{ color: accent }}>
                   {positive ? "+" : "−"}{fmt(Math.abs(netResult))}
                 </p>
                 {margin !== null && (
@@ -580,7 +580,7 @@ export default function DashboardPage() {
                     {keptPct > 0 && <div className="h-full rounded-full transition-all duration-700" style={{ width: `${keptPct}%`, background: POS }} />}
                     {expensePct > 0 && <div className="h-full rounded-full transition-all duration-700" style={{ width: `${expensePct}%`, background: NEG, opacity: 0.85 }} />}
                   </div>
-                  <div className="flex justify-between mt-2 text-[10px]" style={{ color: faint }}>
+                  <div className="flex flex-wrap justify-between gap-x-3 gap-y-1 mt-2 text-[10px]" style={{ color: faint }}>
                     <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ background: POS }} />{totalRev > 0 ? `${keptPct.toFixed(0)}% ficou` : "Sem receitas"}</span>
                     <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ background: NEG }} />{expensePct.toFixed(0)}% em despesas</span>
                   </div>
@@ -588,7 +588,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Receitas e Despesas */}
-              <div className="grid grid-cols-2 lg:grid-cols-1 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
                 <div className="rounded-2xl p-4 flex items-center gap-3"
                   style={{ background: isLight ? "#fff" : "rgba(255,255,255,0.03)", border: `1px solid ${hairline}`, boxShadow: isLight ? "0 1px 2px rgba(17,24,39,0.04)" : "none" }}>
                   <span className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center" style={{ background: isLight ? "#F3F4F6" : "rgba(255,255,255,0.05)" }}>
@@ -596,7 +596,7 @@ export default function DashboardPage() {
                   </span>
                   <div className="min-w-0">
                     <p className="text-[11px] font-medium" style={{ color: faint }}>Receitas</p>
-                    <p className="text-base sm:text-lg font-extrabold tabular-nums leading-tight truncate" style={{ color: POS }}>{fmt(totalRev)}</p>
+                    <p className="text-base sm:text-lg font-extrabold tabular-nums leading-tight break-words" style={{ color: POS }}>{fmt(totalRev)}</p>
                     <p className="text-[10px]" style={{ color: faint }}>{totalCount} {totalCount === 1 ? "venda" : "vendas"}</p>
                   </div>
                 </div>
@@ -607,7 +607,7 @@ export default function DashboardPage() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="text-[11px] font-medium" style={{ color: faint }}>Despesas</p>
-                    <p className="text-base sm:text-lg font-extrabold tabular-nums leading-tight truncate" style={{ color: NEG }}>{fmt(apExpenses)}</p>
+                    <p className="text-base sm:text-lg font-extrabold tabular-nums leading-tight break-words" style={{ color: NEG }}>{fmt(apExpenses)}</p>
                     <p className="text-[10px] inline-flex items-center gap-1" style={{ color: faint }}>
                       ver contas <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
                     </p>
