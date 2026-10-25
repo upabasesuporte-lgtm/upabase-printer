@@ -18,6 +18,7 @@ export interface Operator {
   active: boolean;
   allowed_routes?: string[] | null;
   can_approve?: boolean;
+  lock_minutes?: number | null; // trava desta pessoa (null = padrão da loja; 0 = nunca)
 }
 
 export const ROLE_LABEL: Record<OperatorRole, string> = {
@@ -128,7 +129,7 @@ export async function loadOperators(ownerId: string) {
   }
   const [{ data, error }, { data: us }] = await Promise.all([
     supabase.from("operators")
-      .select("id,name,role,active,allowed_routes,can_approve").eq("active", true).order("name"),
+      .select("id,name,role,active,allowed_routes,can_approve,lock_minutes").eq("active", true).order("name"),
     supabase.from("user_settings").select("operator_lock_minutes").eq("user_id", ownerId).maybeSingle(),
   ]);
   if (error) { console.warn("operators:", error.message); return; }
@@ -156,10 +157,16 @@ export function setDeviceNoLock(v: boolean) {
   setState({ deviceNoLock: v });
 }
 
-// A trava automática só vale para funcionários comuns: dono e quem pode
-// autorizar não travam sozinhos, e um aparelho marcado como "não travar" também não.
+// Minutos de trava de quem está operando: o da pessoa, se definido; senão o padrão
+// da loja para funcionários comuns, e "nunca" para dono/quem pode autorizar.
+export function effectiveLockMinutes(s: State = state): number {
+  if (!s.current) return 0;
+  if (s.current.lock_minutes != null) return s.current.lock_minutes;
+  return operatorCanApprove(s.current) ? 0 : s.lockMinutes;
+}
+
 export function shouldAutoLock(s: State = state): boolean {
-  return operatorsEnabled(s) && !!s.current && s.lockMinutes > 0 && !s.deviceNoLock && !operatorCanApprove(s.current);
+  return operatorsEnabled(s) && !!s.current && !s.deviceNoLock && effectiveLockMinutes(s) > 0;
 }
 
 export function setCurrentOperator(op: Operator | null) {

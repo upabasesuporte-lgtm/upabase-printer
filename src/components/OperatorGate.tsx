@@ -6,7 +6,7 @@ import { Lock, ShieldCheck, X, Delete } from "lucide-react";
 import { useTheme } from "../contexts/ThemeContext";
 import {
   useOperators, operatorsEnabled, setCurrentOperator, finishApproval,
-  verifyPinLogin, verifyManagerPin, shouldAutoLock,
+  verifyPinLogin, verifyManagerPin, shouldAutoLock, effectiveLockMinutes,
 } from "../lib/operators";
 
 function PinPad({ value, onChange, onSubmit, isLight }: {
@@ -70,7 +70,7 @@ export function OperatorGate() {
 
   // Trava automática: sem toque/tecla/rolagem por X minutos, volta para o PIN.
   // A página por baixo continua montada (carrinho e pedidos não se perdem).
-  const lockMs = (s.lockMinutes ?? 0) * 60_000;
+  const lockMs = effectiveLockMinutes(s) * 60_000; // tempo da pessoa ou padrão da loja
   useEffect(() => {
     if (!shouldAutoLock(s)) return; // só funcionários comuns; dono/autorizador e "não travar este aparelho" ficam livres
     let last = Date.now();
@@ -84,7 +84,7 @@ export function OperatorGate() {
       window.clearInterval(t);
       evs.forEach(e => window.removeEventListener(e, touch, { capture: true } as any));
     };
-  }, [s.current?.id, s.current?.role, s.current?.can_approve, s.operators.length, lockMs, s.deviceNoLock]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [s.current?.id, s.current?.role, s.current?.can_approve, s.current?.lock_minutes, s.operators.length, lockMs, s.deviceNoLock]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setPin(""); setErr(null); }, [s.approval]);
 
   const panel = isLight ? "bg-white border border-gray-200" : "bg-zinc-900 border border-zinc-800";

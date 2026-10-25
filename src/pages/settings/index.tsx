@@ -376,8 +376,8 @@ const noAutofill = { autoComplete: "off", autoCorrect: "off", spellCheck: false,
 const pinMask = { WebkitTextSecurity: "disc" } as React.CSSProperties;
 const onlyDigits = (v: string) => v.replace(/\D/g, "").slice(0, 6);
 
-interface OpDraft { id: string | null; name: string; pin: string; routes: string[]; canApprove: boolean }
-const emptyDraft = (): OpDraft => ({ id: null, name: "", pin: "", routes: [], canApprove: false });
+interface OpDraft { id: string | null; name: string; pin: string; routes: string[]; canApprove: boolean; lockMinutes: number | null }
+const emptyDraft = (): OpDraft => ({ id: null, name: "", pin: "", routes: [], canApprove: false, lockMinutes: null });
 
 function PermissionPicker({ draft, setDraft, isLight }: { draft: OpDraft; setDraft: (d: OpDraft) => void; isLight: boolean }) {
   const toggle = (path: string) => setDraft({
@@ -454,7 +454,7 @@ function OperatorsSection({ userId, isLight }: { userId: string; isLight: boolea
   const rowStyle = { background: isLight ? "#f9fafb" : "#09090b", border: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" };
 
   async function refresh() {
-    const { data, error } = await supabase.from("operators").select("id,name,role,active,allowed_routes,can_approve").eq("active", true).order("created_at");
+    const { data, error } = await supabase.from("operators").select("id,name,role,active,allowed_routes,can_approve,lock_minutes").eq("active", true).order("created_at");
     if (error) { setErr(error.message); return; }
     setOps((data ?? []) as Operator[]);
     await loadOperators(userId);
@@ -486,7 +486,7 @@ function OperatorsSection({ userId, isLight }: { userId: string; isLight: boolea
     const bad = badName(n); if (bad) { setErr(bad); return; }
     if (ownerEdit.pin && !pinOk(ownerEdit.pin)) { setErr("O PIN deve ter de 4 a 6 números (ou deixe vazio para manter)."); return; }
     setBusy(true); setErr(null);
-    const { error } = await supabase.rpc("save_operator", { p_id: ownerEdit.id, p_name: n, p_role: "owner", p_pin: ownerEdit.pin || null });
+    const { error } = await supabase.rpc("save_operator", { p_id: ownerEdit.id, p_name: n, p_role: "owner", p_pin: ownerEdit.pin || null, p_lock_minutes: owner?.lock_minutes ?? null });
     if (error) { setErr(error.message); setBusy(false); return; }
     setOwnerEdit(null);
     await refresh();
@@ -504,7 +504,7 @@ function OperatorsSection({ userId, isLight }: { userId: string; isLight: boolea
     setBusy(true); setErr(null);
     const { error } = await supabase.rpc("save_operator", {
       p_id: draft.id, p_name: n, p_role: "staff", p_pin: draft.pin || null,
-      p_routes: TAB_OPTIONS.map(t => t.path).filter(p => draft.routes.includes(p)), p_can_approve: draft.canApprove,
+      p_routes: TAB_OPTIONS.map(t => t.path).filter(p => draft.routes.includes(p)), p_can_approve: draft.canApprove, p_lock_minutes: draft.lockMinutes,
     });
     if (error) { setErr(error.message); setBusy(false); return; }
     setDraft(null);
@@ -543,6 +543,15 @@ function OperatorsSection({ userId, isLight }: { userId: string; isLight: boolea
           className={inputCls + " sm:w-48"} />
       </div>
       <PermissionPicker draft={draft} setDraft={setDraft} isLight={isLight} />
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-semibold text-zinc-500">Travar a tela desta pessoa após:</span>
+        <select value={draft.lockMinutes == null ? "" : String(draft.lockMinutes)}
+          onChange={e => setDraft({ ...draft, lockMinutes: e.target.value === "" ? null : Number(e.target.value) })}
+          className={inputCls.replace("w-full ", "") + " w-44 py-1.5"}>
+          <option value="">Padrão da loja</option>
+          {[0, 2, 5, 10, 15, 30, 60].map(m => <option key={m} value={m}>{m === 0 ? "Nunca" : `${m} minutos`}</option>)}
+        </select>
+      </div>
       <div className="flex gap-2 pt-1">
         <button onClick={saveDraft} disabled={busy} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold disabled:opacity-40"
           style={{ background: "#315DFB", color: "#fff" }}>
@@ -583,7 +592,7 @@ function OperatorsSection({ userId, isLight }: { userId: string; isLight: boolea
           {/* Trava automática */}
           <div className="rounded-xl px-4 py-3 flex flex-wrap items-center gap-3" style={rowStyle}>
             <div className="flex-1 min-w-[180px]">
-              <p className="text-sm font-semibold">Travar automaticamente</p>
+              <p className="text-sm font-semibold">Travar automaticamente (padrão da loja)</p>
               <p className="text-[11px] text-zinc-500">Depois desse tempo sem uso, o aparelho volta para "Digite seu PIN". Vale só para funcionários: o dono e quem pode autorizar não são travados.</p>
             </div>
             <select value={opState.lockMinutes} disabled={busy}
@@ -655,7 +664,7 @@ function OperatorsSection({ userId, isLight }: { userId: string; isLight: boolea
               </div>
               <button onClick={() => regenerate(o)} disabled={busy}
                 className="text-xs font-semibold px-2.5 py-1.5 rounded-lg text-blue-500 hover:bg-blue-500/10 disabled:opacity-40">Gerar novo PIN</button>
-              <button onClick={() => { setErr(null); setOwnerEdit(null); setDraft({ id: o.id, name: o.name, pin: "", routes: operatorRoutes(o) ?? TAB_OPTIONS.map(t => t.path), canApprove: operatorCanApprove(o) }); }}
+              <button onClick={() => { setErr(null); setOwnerEdit(null); setDraft({ id: o.id, name: o.name, pin: "", routes: operatorRoutes(o) ?? TAB_OPTIONS.map(t => t.path), canApprove: operatorCanApprove(o), lockMinutes: o.lock_minutes ?? null }); }}
                 className="text-xs font-semibold px-2.5 py-1.5 rounded-lg text-blue-500 hover:bg-blue-500/10">Editar</button>
               <button onClick={() => remove(o)} title="Remover"
                 className="p-1.5 text-zinc-500 hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/10"><Trash2 className="w-3.5 h-3.5" /></button>
