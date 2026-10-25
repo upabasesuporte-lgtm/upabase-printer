@@ -436,6 +436,17 @@ function OperatorsSection({ userId, isLight }: { userId: string; isLight: boolea
   // Formulário aberto: novo (id null) ou edição de um cadastrado
   const [draft, setDraft] = useState<OpDraft | null>(null);
   const [ownerEdit, setOwnerEdit] = useState<{ id: string; name: string; pin: string } | null>(null);
+  // PIN recém-gerado: mostrado uma única vez para o dono passar à pessoa
+  const [revealed, setRevealed] = useState<{ name: string; pin: string } | null>(null);
+
+  async function regenerate(op: Operator) {
+    if (!confirm(`Gerar um PIN novo para ${op.name}? O PIN atual deixa de funcionar na hora.`)) return;
+    setBusy(true); setErr(null);
+    const { data, error } = await supabase.rpc("regenerate_operator_pin", { p_id: op.id });
+    setBusy(false);
+    if (error || !data) { setErr(error?.message ?? "Não foi possível gerar o PIN."); return; }
+    setRevealed({ name: op.name, pin: data as string });
+  }
 
   const owner = ops.find(o => o.role === "owner") ?? null;
   const staff = ops.filter(o => o.role !== "owner");
@@ -586,7 +597,10 @@ function OperatorsSection({ userId, isLight }: { userId: string; isLight: boolea
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold truncate">{owner.name}</p>
                   <p className="text-[11px] text-zinc-500">Dono · acesso total</p>
+                  <p className="text-[11px] text-emerald-600 font-semibold">PIN cadastrado ••••</p>
                 </div>
+                <button onClick={() => regenerate(owner)} disabled={busy}
+                  className="text-xs font-semibold px-2.5 py-1.5 rounded-lg text-blue-500 hover:bg-blue-500/10 disabled:opacity-40">Gerar novo PIN</button>
                 <button onClick={() => { setErr(null); setDraft(null); setOwnerEdit({ id: owner.id, name: owner.name, pin: "" }); }}
                   className="text-xs font-semibold px-2.5 py-1.5 rounded-lg text-blue-500 hover:bg-blue-500/10">Editar</button>
                 <button onClick={() => remove(owner)} title="Remover"
@@ -602,7 +616,10 @@ function OperatorsSection({ userId, isLight }: { userId: string; isLight: boolea
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold truncate">{o.name}</p>
                 <p className="text-[11px] text-zinc-500">{describeOperator(o)}</p>
+                <p className="text-[11px] text-emerald-600 font-semibold">PIN cadastrado ••••</p>
               </div>
+              <button onClick={() => regenerate(o)} disabled={busy}
+                className="text-xs font-semibold px-2.5 py-1.5 rounded-lg text-blue-500 hover:bg-blue-500/10 disabled:opacity-40">Gerar novo PIN</button>
               <button onClick={() => { setErr(null); setOwnerEdit(null); setDraft({ id: o.id, name: o.name, pin: "", routes: operatorRoutes(o) ?? TAB_OPTIONS.map(t => t.path), canApprove: operatorCanApprove(o) }); }}
                 className="text-xs font-semibold px-2.5 py-1.5 rounded-lg text-blue-500 hover:bg-blue-500/10">Editar</button>
               <button onClick={() => remove(o)} title="Remover"
@@ -621,6 +638,21 @@ function OperatorsSection({ userId, isLight }: { userId: string; isLight: boolea
       )}
       {err && <p className="text-xs text-red-500 font-semibold">{err}</p>}
       {ok && <p className="text-xs text-emerald-500 font-semibold">{ok}</p>}
+
+      {revealed && (
+        <div className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-black/60">
+          <div className="w-full max-w-sm rounded-3xl p-6 text-center shadow-2xl"
+            style={{ background: isLight ? "#fff" : "#18181b", border: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" }}>
+            <KeyRound className="w-6 h-6 mx-auto mb-2" style={{ color: "#315DFB" }} />
+            <p className="text-sm text-zinc-500">Novo PIN de</p>
+            <p className="text-lg font-black">{revealed.name}</p>
+            <p className="my-4 text-5xl font-black tracking-[0.3em] tabular-nums" style={{ color: "#315DFB" }}>{revealed.pin}</p>
+            <p className="text-xs text-zinc-500 mb-5">Anote ou passe agora para a pessoa. <b>Este número não aparece de novo</b> — se esquecer, é só gerar outro.</p>
+            <button onClick={() => setRevealed(null)} className="w-full h-11 rounded-xl text-sm font-bold text-white"
+              style={{ background: "#315DFB" }}>Já anotei</button>
+          </div>
+        </div>
+      )}
     </SectionCard>
   );
 }
