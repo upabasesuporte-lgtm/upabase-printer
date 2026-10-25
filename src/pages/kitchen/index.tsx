@@ -133,6 +133,7 @@ function OrdersBoard({ isLight, card }: { isLight: boolean; card: React.CSSPrope
   const [err, setErr] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
   const [showHelp, setShowHelp] = useState(false);
+  const [courierPick, setCourierPick] = useState<string | null>(null); // pedido com a lista de motoboys aberta
   const seen = useRef<Set<string> | null>(null);
   const printing = useRef(false);
 
@@ -348,16 +349,31 @@ function OrdersBoard({ isLight, card }: { isLight: boolean; card: React.CSSPrope
                       ) : (
                         <>
                           <button onClick={() => dispatch(saleId, ids, "counter")} className="flex-1 h-10 rounded-xl text-sm font-semibold shadow-sm" style={{ color: "#fff", background: "#10b981" }}>Balcão</button>
-                          <select defaultValue="" onChange={e => { if (e.target.value) dispatch(saleId, ids, "delivery", e.target.value); }}
-                            className="flex-1 h-10 rounded-xl text-sm font-bold px-2" style={{ background: "#f59e0b", color: "#fff", border: "none" }}>
-                            <option value="" disabled>{couriers.length ? "Motoboy…" : "Cadastre motoboys"}</option>
-                            {couriers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                          </select>
+                          <button onClick={() => setCourierPick(courierPick === saleId ? null : saleId)}
+                            className="flex-1 h-10 rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5"
+                            style={courierPick === saleId
+                              ? { background: "#315DFB", color: "#fff" }
+                              : { ...card, color: isLight ? "#111827" : "#f4f4f5" }}>
+                            <Bike className="w-4 h-4" /> Motoboy
+                          </button>
                         </>
                       ))}
                       <button onClick={() => reprint(saleId, its)} title="Imprimir de novo"
                         className={`h-10 w-10 rounded-xl flex items-center justify-center ${muted}`} style={card}><Printer className="w-4 h-4" /></button>
                     </div>
+                    {/* Escolha do motoboy: nomes em botões grandes e legíveis */}
+                    {courierPick === saleId && (
+                      <div className="grid grid-cols-2 gap-2">
+                        {couriers.length === 0 && <p className={`col-span-2 text-xs ${muted}`}>Cadastre motoboys na aba Motoboys.</p>}
+                        {couriers.map(c => (
+                          <button key={c.id} onClick={() => { setCourierPick(null); dispatch(saleId, ids, "delivery", c.id); }}
+                            className="h-10 rounded-xl text-sm font-semibold truncate px-2"
+                            style={{ ...card, color: isLight ? "#111827" : "#f4f4f5" }}>
+                            {c.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}
