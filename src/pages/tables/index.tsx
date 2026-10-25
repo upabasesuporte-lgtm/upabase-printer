@@ -997,58 +997,62 @@ export default function TablesPage() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-3 gap-y-5">
               {filteredTables.map(table => {
-                const cfg = STATUS_CFG[table.status] ?? fallbackCfg;
                 const info = table.status === "occupied" && table.current_sale_id ? openInfo[table.current_sale_id] : undefined;
                 const mins = info ? Math.max(0, Math.floor((Date.now() - new Date(info.since).getTime()) / 60000)) : 0;
-                // Cores da marca: ocupada em destaque com o degradê do logo; livre neutra
-                const busy = table.status === "occupied";
-                const reserved = table.status === "reserved";
-                const BRAND_GRAD = "linear-gradient(135deg, #7C3FFA 0%, #315DFB 55%, #00B8C8 100%)";
-                const txt = busy ? "#ffffff" : isLight ? "#111827" : "#f4f4f5";
-                const sub = busy ? "rgba(255,255,255,0.85)" : isLight ? "#9ca3af" : "#71717a";
+                // Cor de cada status: a aba (marcador de fichário) leva a cor cheia;
+                // o corpo do cartão só um leve tom dela.
+                const TONE: Record<string, { tab: string; tint: string; ink: string; label: string }> = {
+                  free:     { tab: "linear-gradient(135deg,#34d399,#10b981)", tint: "#10b981", ink: "#059669", label: "Livre" },
+                  occupied: { tab: "linear-gradient(135deg,#7C3FFA 0%,#315DFB 60%,#00B8C8 100%)", tint: "#315DFB", ink: "#315DFB", label: "Ocupada" },
+                  reserved: { tab: "linear-gradient(135deg,#818cf8,#6366f1)", tint: "#6366f1", ink: "#4f46e5", label: "Reservada" },
+                  cleaning: { tab: "linear-gradient(135deg,#cbd5e1,#94a3b8)", tint: "#94a3b8", ink: "#64748b", label: "Em limpeza" },
+                };
+                const t = TONE[table.status] ?? TONE.free;
+                const late = mins >= 90;
+                const muted = isLight ? "#9ca3af" : "#71717a";
                 return (
                   <button key={table.id} onClick={() => enterTable(table)}
-                    className="relative text-left rounded-2xl p-4 transition-all hover:-translate-y-0.5 active:scale-[0.98] cursor-pointer flex flex-col gap-3 min-h-[124px]"
-                    style={busy ? {
-                      background: BRAND_GRAD,
-                      border: "1px solid transparent",
-                      boxShadow: "0 8px 20px -8px rgba(49,93,251,0.55)",
-                    } : {
-                      background: isLight ? "#f9fafb" : "#18181b",
-                      border: reserved ? "1.5px solid #315DFB" : isLight ? "1px solid #e5e7eb" : "1px solid rgba(63,63,70,0.7)",
-                      boxShadow: isLight ? "0 1px 2px rgba(17,24,39,0.04)" : "none",
-                    }}>
-                    <div className="flex items-start gap-2">
-                      <p className="flex-1 min-w-0 text-base font-bold leading-tight truncate" style={{ color: txt }}>{table.name}</p>
-                      <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
-                        style={busy
-                          ? { color: "#ffffff", background: "rgba(255,255,255,0.22)" }
-                          : reserved
-                            ? { color: "#315DFB", background: "rgba(49,93,251,0.10)" }
-                            : { color: isLight ? "#6b7280" : "#a1a1aa", background: isLight ? "#eef0f3" : "rgba(255,255,255,0.06)" }}>
-                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: busy ? "#ffffff" : reserved ? "#315DFB" : table.status === "free" ? "#9ca3af" : cfg.hex }} />
-                        {cfg.label}
-                      </span>
+                    className="group relative text-left pt-6 transition-transform hover:-translate-y-0.5 active:scale-[0.98] cursor-pointer">
+                    {/* Aba de fichário com o nome da mesa, em relevo */}
+                    <span className="absolute top-0 left-3 max-w-[78%] h-7 px-3 rounded-t-xl flex items-center text-[12px] font-extrabold uppercase tracking-wide truncate"
+                      style={{
+                        background: t.tab, color: "#ffffff",
+                        textShadow: "0 1px 0 rgba(0,0,0,0.22)",
+                        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.45), inset 0 -1px 0 rgba(0,0,0,0.08), 0 -2px 8px -2px rgba(17,24,39,0.18)",
+                      }}>
+                      {table.name}
+                    </span>
+                    {/* Corpo */}
+                    <div className="relative rounded-2xl rounded-tl-md px-4 pt-4 pb-3 min-h-[118px] flex flex-col"
+                      style={{
+                        background: isLight ? `linear-gradient(180deg, ${t.tint}12 0%, #ffffff 70%)` : `linear-gradient(180deg, ${t.tint}22 0%, #18181b 75%)`,
+                        border: `1px solid ${t.tint}${isLight ? "33" : "55"}`,
+                        boxShadow: isLight ? `0 1px 2px rgba(17,24,39,0.04), 0 10px 24px -14px ${t.tint}88` : "none",
+                      }}>
+                      <div className="flex-1 flex flex-col items-center justify-center text-center gap-1">
+                        {info ? (
+                          <>
+                            <p className="text-xl font-black tabular-nums leading-none" style={{ color: isLight ? "#111827" : "#f4f4f5" }}>{fmt(info.total)}</p>
+                            <p className="text-[11px] flex items-center gap-1 font-semibold" style={{ color: late ? "#ef4444" : t.ink }}>
+                              <Clock className="w-3 h-3" /> {timeAgo(info.since)} · {info.items} ite{info.items === 1 ? "m" : "ns"}
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <span className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: `${t.tint}1f` }}>
+                              <UtensilsCrossed className="w-4 h-4" style={{ color: t.ink }} />
+                            </span>
+                            <p className="text-sm font-bold" style={{ color: t.ink }}>{t.label}</p>
+                            {table.status === "free" && <p className="text-[10px]" style={{ color: muted }}>toque para abrir</p>}
+                          </>
+                        )}
+                      </div>
+                      <p className="mt-2 text-[10px] flex items-center justify-center gap-1" style={{ color: muted }}>
+                        <Users className="w-3 h-3" /> {table.capacity} lugares{table.area ? ` · ${table.area}` : ""}
+                      </p>
                     </div>
-                    <div className="flex-1 flex flex-col justify-end">
-                      {info ? (
-                        <>
-                          <p className="text-lg font-black tabular-nums leading-none" style={{ color: txt }}>{fmt(info.total)}</p>
-                          <p className="text-[11px] mt-1 flex items-center gap-1" style={{ color: sub, fontWeight: mins >= 90 ? 700 : 400 }}>
-                            <Clock className="w-3 h-3" /> {timeAgo(info.since)}{mins >= 90 ? " ⚠" : ""} · {info.items} ite{info.items === 1 ? "m" : "ns"}
-                          </p>
-                        </>
-                      ) : (
-                        <p className="text-xs" style={{ color: sub }}>
-                          {table.status === "free" ? "Toque para abrir" : reserved ? "Reservada" : cfg.label}
-                        </p>
-                      )}
-                    </div>
-                    <p className="text-[11px] flex items-center gap-1" style={{ color: sub }}>
-                      <Users className="w-3 h-3" /> {table.capacity} lugares{table.area ? ` · ${table.area}` : ""}
-                    </p>
                   </button>
                 );
               })}
