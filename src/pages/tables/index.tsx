@@ -2,7 +2,6 @@
 import { createPortal, flushSync } from "react-dom";
 import { supabase } from "../../lib/supabase";
 import { matchesSearch } from "../../lib/search";
-import { recalcFiadoBalance } from "../../lib/fiado";
 import { useTheme } from "../../contexts/ThemeContext";
 import { PageHeader, btnPrimary, btnSecondary, WHITE_TEXT } from "../../components/PageHeader";
 import { StatCard } from "../../components/StatCard";
@@ -482,115 +481,59 @@ export default function TablesPage() {
     setCheckoutError(null);
 
     try {
-      // Update sale to paid
-      const { error } = await supabase.from("sales").update({
-        status: "paid", payments: checkoutPayments, discount: discountVal,
-        total_amount: finalTotal,
-        customer_id: checkoutCustomer?.id ?? null,
-        seller_name: checkoutSeller || null,
-        notes: checkoutNotes || null,
-      }).eq("id", currentSaleId);
-      if (error) { setCheckoutError("Erro ao fechar conta: " + error.message); setCheckoutLoading(false); return; }
-
       const orderNum = currentSaleId.slice(-6).toUpperCase();
       const saleId   = currentSaleId;
       const tableName = selectedTable?.name ?? "";
       const tableId   = selectedTable?.id ?? "";
 
-      // Stock deduction for limited products (soma as linhas do mesmo produto
-      // antes de baixar — o mesmo item pode ter sido pedido mais de uma vez)
+      // Tudo numa única transação no banco (finalize_sale): marca a venda como
+      // paga, baixa estoque (atômico, sem sobrescrever outro caixa), lança
+      // caixa, fiado, saldo e libera a mesa. Se algo falhar, nada é gravado e a
+      // mesa continua aberta. Repetir não duplica (a venda já paga é reconhecida).
+      // Soma as linhas do mesmo produto antes de baixar — o mesmo item pode ter
+      // sido pedido mais de uma vez.
       const saleQtyByProduct: Record<string, number> = {};
       for (const item of orderItems) {
         saleQtyByProduct[item.product_id] = (saleQtyByProduct[item.product_id] ?? 0) + item.quantity;
       }
-      const saleMovements: Record<string, unknown>[] = [];
-      for (const [productId, soldQty] of Object.entries(saleQtyByProduct)) {
-        const prod = products.find(p => p.id === productId);
-        if (prod && !isUnlimited(prod)) {
-          const newStock = Math.max(0, prod.stock - soldQty);
-          await supabase.from("products").update({
-            stock: newStock, ...(newStock === 0 ? { is_active: false } : {}),
-          }).eq("id", prod.id);
-          saleMovements.push({
-            product_id: prod.id, type: "sale", quantity: newStock - prod.stock, balance_after: newStock,
-            reference_type: "sale", reference_id: saleId, notes: `Mesa ${tableName} - Venda #${orderNum}`,
-          });
-        }
-      }
+      const stock = Object.entries(saleQtyByProduct)
+        .filter(([productId]) => { const prod = products.find(p => p.id === productId); return !!prod && !isUnlimited(prod); })
+        .map(([product_id, qty]) => ({ product_id, qty }));
 
-      // Ficha técnica deduction
-      const productIds = [...new Set(orderItems.map(i => i.product_id))];
-      if (productIds.length > 0) {
-        const { data: recipes } = await supabase.from("recipe_items")
-          .select("product_id, stock_item_id, quantity").in("product_id", productIds);
-        if (recipes && recipes.length > 0) {
-          const deductions: Record<string, number> = {};
-          for (const oi of orderItems) {
-            for (const r of recipes.filter(r => r.product_id === oi.product_id)) {
-              deductions[r.stock_item_id] = (deductions[r.stock_item_id] ?? 0) + r.quantity * oi.quantity;
-            }
-          }
-          const { data: sis } = await supabase.from("stock_items").select("id, current_qty").in("id", Object.keys(deductions));
-          for (const si of sis ?? []) {
-            const qty = deductions[si.id] ?? 0;
-            if (qty > 0) {
-              const newQty = Math.max(0, si.current_qty - qty);
-              await supabase.from("stock_items").update({ current_qty: newQty }).eq("id", si.id);
-              saleMovements.push({
-                stock_item_id: si.id, type: "sale", quantity: newQty - si.current_qty, balance_after: newQty,
-                reference_type: "sale", reference_id: saleId,
-                notes: `Mesa ${tableName} - Venda #${orderNum} (ficha técnica)`,
-              });
-            }
-          }
-        }
-      }
-      // Histórico de estoque (se falhar, o fechamento segue normalmente)
-      if (saleMovements.length > 0) await supabase.from("inventory_movements").insert(saleMovements);
+      const fiadoAmt = checkoutCustomer ? checkoutPayments.find(p => p.method === "fiado")?.amount ?? 0 : 0;
+      const houseAmt = checkoutCustomer ? checkoutPayments.find(p => p.method === "house_credit")?.amount ?? 0 : 0;
 
-      // Cash movements
-      if (cashRegisterId) {
-        for (const p of checkoutPayments) {
-          await supabase.from("cash_movements").insert({
-            register_id: cashRegisterId, user_id: userId,
-            movement_type: "sale", amount: p.amount,
-            payment_method: p.method as any, channel: "tables",
-            description: `Mesa ${tableName} - #${orderNum}`,
-          });
-        }
+      const { data: result, error } = await supabase.rpc("finalize_sale", { p: {
+        mode: "update", sale_id: saleId,
+        sale: {
+          payments: checkoutPayments, discount: discountVal,
+          total_amount: finalTotal,
+          customer_id: checkoutCustomer?.id ?? null,
+          seller_name: checkoutSeller || null,
+          notes: checkoutNotes || null,
+        },
+        stock,
+        recipe_lines: orderItems.map(oi => ({ product_id: oi.product_id, qty: oi.quantity })),
+        stock_note: `Mesa ${tableName} - Venda #${orderNum}`,
+        cash: cashRegisterId
+          ? checkoutPayments.map(p => ({
+              register_id: cashRegisterId, amount: p.amount, payment_method: p.method,
+              channel: "tables", description: `Mesa ${tableName} - #${orderNum}`,
+            }))
+          : [],
+        customer_movements: [
+          ...(fiadoAmt > 0 ? [{ customer_id: checkoutCustomer!.id, type: "debit", amount: fiadoAmt, description: `Fiado - Mesa ${tableName} #${orderNum}` }] : []),
+          ...(houseAmt > 0 ? [{ customer_id: checkoutCustomer!.id, type: "saldo", amount: houseAmt, description: `Saldo usado - Mesa ${tableName} #${orderNum}` }] : []),
+        ],
+        house_amount: houseAmt, house_customer_id: houseAmt > 0 ? checkoutCustomer!.id : null,
+        free_table_id: tableId || null,
+      } });
+      if (error || !(result as any)?.sale) {
+        setCheckoutError("Erro ao fechar conta" + (error?.message ? `: ${error.message}` : ".") + " Nada foi gravado — pode tentar de novo.");
+        setCheckoutLoading(false);
+        return;
       }
-
-      // Customer movements
-      if (checkoutCustomer) {
-        const fiadoAmt = checkoutPayments.find(p => p.method === "fiado")?.amount ?? 0;
-        const houseAmt = checkoutPayments.find(p => p.method === "house_credit")?.amount ?? 0;
-        if (fiadoAmt > 0 || houseAmt > 0) {
-          const { data: curr } = await supabase.from("customers").select("balance").eq("id", checkoutCustomer.id).single();
-          if (fiadoAmt > 0) {
-            await supabase.from("customer_movements").insert({
-              customer_id: checkoutCustomer.id, user_id: userId, type: "debit",
-              amount: fiadoAmt, description: `Fiado - Mesa ${tableName} #${orderNum}`,
-              sale_id: saleId, payment_methods: [],
-            });
-            await recalcFiadoBalance(checkoutCustomer.id);
-          }
-          if (houseAmt > 0) {
-            await supabase.from("customer_movements").insert({
-              customer_id: checkoutCustomer.id, user_id: userId, type: "saldo",
-              amount: houseAmt, description: `Saldo usado - Mesa ${tableName} #${orderNum}`,
-              sale_id: saleId, payment_methods: [],
-            });
-            await supabase.from("customers")
-              .update({ balance: Math.max(0, (curr?.balance ?? 0) - houseAmt) })
-              .eq("id", checkoutCustomer.id);
-          }
-        }
-      }
-
-      // Free the table
-      if (tableId) {
-        await supabase.from("tables").update({ status: "free", current_sale_id: null }).eq("id", tableId);
-      }
+      for (const w of ((result as any)?.warnings ?? []) as string[]) console.warn("finalize_sale:", w);
 
       // Print receipt (safe wrapper)
       try { printReceipt(saleId, orderNum); } catch (_) { /* popup blocked — ignore */ }

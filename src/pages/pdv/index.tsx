@@ -198,6 +198,10 @@ export default function PdvPage() {
   const [showPending, setShowPending] = useState(false);
   const [showEditSale, setShowEditSale] = useState<Sale | null>(null);
   const editSaveInFlight = useRef(false);
+  // Id da venda em finalização: reaproveitado se o operador tentar de novo
+  // (evita venda duplicada quando a resposta se perde); zera ao mudar o carrinho.
+  const pendingSaleIdRef = useRef<string | null>(null);
+  const confirmInFlight = useRef(false);
   const [showEditItems, setShowEditItems] = useState<SaleItem[]>([]);
   const [pendingSales, setPendingSales] = useState<Sale[]>([]);
 
@@ -362,6 +366,7 @@ export default function PdvPage() {
   }, []);
 
   useEffect(() => { if (tab === "historico") loadHistory(); }, [tab]);
+  useEffect(() => { pendingSaleIdRef.current = null; }, [cart]);
 
   // ── Atalhos de teclado globais ──
   useEffect(() => {
@@ -556,6 +561,12 @@ export default function PdvPage() {
   }
 
   async function confirmSale() {
+    if (confirmInFlight.current) return;
+    confirmInFlight.current = true;
+    try { await confirmSaleInner(); } finally { confirmInFlight.current = false; }
+  }
+
+  async function confirmSaleInner() {
     if (!userId) return;
     if (payments.length === 0) { setCheckoutError("Selecione pelo menos uma forma de pagamento."); return; }
     if (totalPaid < total - 0.01 && !payments.some(p => p.method === "fiado" || p.method === "ifood_receivable")) { setCheckoutError("Valor pago insuficiente."); return; }
@@ -578,133 +589,73 @@ export default function PdvPage() {
       )
       .filter(p => p.amount > 0);
 
-    const { data: sale, error } = await supabase.from("sales").insert({
-      user_id: userId, discount: discountVal, status: "paid",
-      total_amount: total,
-      customer_id: selectedCustomer?.id ?? null, origin: saleChannel,
-      seller_name: sellerName || null, notes: orderNotes || null,
-      delivery_address: deliveryAddress || null, payments: normalizedPayments,
-    }).select().single();
+    // Tudo numa única transação no banco (finalize_sale): venda, itens, baixa de
+    // estoque (atômica, sem sobrescrever outro caixa), caixa, fiado e saldo.
+    // Se algo falhar, nada é gravado e o carrinho continua na tela.
+    // O id é gerado aqui e mantido até dar certo: se a resposta se perder na
+    // rede e o operador tentar de novo, o banco reconhece e não duplica a venda.
+    if (!pendingSaleIdRef.current) pendingSaleIdRef.current = crypto.randomUUID();
+    const saleId = pendingSaleIdRef.current;
+    const orderNum = saleId.slice(-6).toUpperCase();
 
-    if (error || !sale) { setCheckoutError("Erro ao salvar venda."); setCheckoutLoading(false); return; }
-
-    const { error: itemsInsertErr } = await supabase.from("sale_items").insert(cart.map(i => ({
-      sale_id: sale.id, product_id: i.product.id,
-      quantity: i.quantity, unit_price: i.customPrice ?? i.product.sale_price,
-      total_price: (i.customPrice ?? i.product.sale_price) * i.quantity,
-      notes: i.notes || null,
-    })));
-    if (itemsInsertErr) showError("Venda salva mas itens falharam: " + itemsInsertErr.message);
-
-    // Agrupa por produto para somar quantidades antes de atualizar estoque
-    const stockMap: Record<string, { product: Product; totalQty: number }> = {};
+    const stockQty: Record<string, number> = {};
     for (const item of cart) {
-      if (!isUnlimited(item.product)) {
-        if (!stockMap[item.product.id]) stockMap[item.product.id] = { product: item.product, totalQty: 0 };
-        stockMap[item.product.id].totalQty += item.quantity;
-      }
-    }
-    const saleMovements: Record<string, unknown>[] = [];
-    for (const { product, totalQty } of Object.values(stockMap)) {
-      const newStock = Math.max(0, product.stock - totalQty);
-      await supabase.from("products").update({
-        stock: newStock,
-        ...(newStock === 0 ? { is_active: false } : {}),
-      }).eq("id", product.id);
-      saleMovements.push({
-        product_id: product.id, type: "sale", quantity: newStock - product.stock,
-        balance_after: newStock, reference_type: "sale", reference_id: sale.id,
-        notes: `Venda #${sale.id.slice(-6).toUpperCase()}`,
-      });
+      if (!isUnlimited(item.product)) stockQty[item.product.id] = (stockQty[item.product.id] ?? 0) + item.quantity;
     }
 
-    // Baixa automática de estoque via ficha técnica
-    const productIds = cart.map(i => i.product.id);
-    const { data: recipes } = await supabase
-      .from("recipe_items")
-      .select("product_id, stock_item_id, quantity")
-      .in("product_id", productIds);
-    if (recipes && recipes.length > 0) {
-      const deductions: Record<string, number> = {};
-      for (const cartItem of cart) {
-        for (const r of recipes.filter(r => r.product_id === cartItem.product.id)) {
-          deductions[r.stock_item_id] = (deductions[r.stock_item_id] ?? 0) + r.quantity * cartItem.quantity;
-        }
-      }
-      const { data: stockItems } = await supabase
-        .from("stock_items").select("id, current_qty").in("id", Object.keys(deductions));
-      const orderNum = sale.id.slice(-6).toUpperCase();
-      for (const si of stockItems ?? []) {
-        const qty = deductions[si.id] ?? 0;
-        if (qty > 0) {
-          const newQty = Math.max(0, si.current_qty - qty);
-          await supabase.from("stock_items").update({ current_qty: newQty }).eq("id", si.id);
-          saleMovements.push({
-            stock_item_id: si.id,
-            type: "sale", quantity: newQty - si.current_qty, balance_after: newQty,
-            reference_type: "sale", reference_id: sale.id,
-            notes: `Venda #${orderNum} (ficha técnica)`,
-          });
-        }
-      }
+    const validMethods = ["cash", "credit", "debit", "pix", "voucher", "fiado", "house_credit", "ifood_receivable"] as const;
+    const cashEntries = cashRegisterId
+      ? normalizedPayments.filter(p => validMethods.includes(p.method as any)).map(p => ({
+          register_id: cashRegisterId,
+          amount: p.method === "ifood_receivable" ? subtotal : p.amount,
+          payment_method: p.method, channel: saleChannel,
+          description: p.method === "fiado"
+            ? `Fiado - Venda #${orderNum}${selectedCustomer ? ` · ${selectedCustomer.name}` : ""}`
+            : p.method === "house_credit"
+            ? `Saldo Cliente - Venda #${orderNum}${selectedCustomer ? ` · ${selectedCustomer.name}` : ""}`
+            : p.method === "ifood_receivable"
+            ? `iFood - Venda #${orderNum}`
+            : `Venda #${orderNum}`,
+        }))
+      : [];
+
+    const fiadoAmt = selectedCustomer ? payments.find(p => p.method === "fiado")?.amount ?? 0 : 0;
+    const houseAmt = selectedCustomer ? payments.find(p => p.method === "house_credit")?.amount ?? 0 : 0;
+    const customerMovs = [
+      ...(fiadoAmt > 0 ? [{ customer_id: selectedCustomer!.id, type: "debit", amount: fiadoAmt, description: `Fiado - Venda #${orderNum}` }] : []),
+      ...(houseAmt > 0 ? [{ customer_id: selectedCustomer!.id, type: "saldo", amount: houseAmt, description: `Saldo usado - Venda #${orderNum}` }] : []),
+    ];
+
+    const { data: result, error } = await supabase.rpc("finalize_sale", { p: {
+      mode: "insert", sale_id: saleId,
+      sale: {
+        discount: discountVal, total_amount: total,
+        customer_id: selectedCustomer?.id ?? null, origin: saleChannel,
+        seller_name: sellerName || null, notes: orderNotes || null,
+        delivery_address: deliveryAddress || null, payments: normalizedPayments,
+      },
+      items: cart.map(i => ({
+        product_id: i.product.id, quantity: i.quantity,
+        unit_price: i.customPrice ?? i.product.sale_price,
+        total_price: (i.customPrice ?? i.product.sale_price) * i.quantity,
+        notes: i.notes || null,
+      })),
+      stock: Object.entries(stockQty).map(([product_id, qty]) => ({ product_id, qty })),
+      recipe_lines: cart.map(i => ({ product_id: i.product.id, qty: i.quantity })),
+      stock_note: `Venda #${orderNum}`,
+      cash: cashEntries,
+      customer_movements: customerMovs,
+      house_amount: houseAmt, house_customer_id: houseAmt > 0 ? selectedCustomer!.id : null,
+    } });
+
+    const sale = (result as any)?.sale as Sale | undefined;
+    if (error || !sale) {
+      setCheckoutError("Erro ao salvar venda" + (error?.message ? `: ${error.message}` : ".") + " Nada foi gravado — pode tentar de novo.");
+      setCheckoutLoading(false);
+      return;
     }
-    // Histórico de estoque (se falhar, a venda segue normalmente)
-    if (saleMovements.length > 0) await supabase.from("inventory_movements").insert(saleMovements);
-
-    // Registrar no caixa (se houver caixa aberto)
-    if (cashRegisterId && userId) {
-      const orderNum = sale.id.slice(-6).toUpperCase();
-      const validMethods = ["cash", "credit", "debit", "pix", "voucher", "fiado", "house_credit", "ifood_receivable"] as const;
-      for (const p of normalizedPayments) {
-        if (validMethods.includes(p.method as any)) {
-          await supabase.from("cash_movements").insert({
-            register_id: cashRegisterId, user_id: userId,
-            movement_type: "sale", amount: p.method === "ifood_receivable" ? subtotal : p.amount,
-            payment_method: p.method as any, channel: saleChannel,
-            description: p.method === "fiado"
-              ? `Fiado - Venda #${orderNum}${selectedCustomer ? ` · ${selectedCustomer.name}` : ""}`
-              : p.method === "house_credit"
-              ? `Saldo Cliente - Venda #${orderNum}${selectedCustomer ? ` · ${selectedCustomer.name}` : ""}`
-              : p.method === "ifood_receivable"
-              ? `iFood - Venda #${orderNum}`
-              : `Venda #${orderNum}`,
-          });
-        }
-      }
-    }
-
-    // Sincronizar movimentos do cliente (fiado e house_credit)
-    if (selectedCustomer) {
-      const orderNum = sale.id.slice(-6).toUpperCase();
-      const fiadoAmt = payments.find(p => p.method === "fiado")?.amount ?? 0;
-      const houseAmt = payments.find(p => p.method === "house_credit")?.amount ?? 0;
-
-      if (fiadoAmt > 0 || houseAmt > 0) {
-        const { data: curr } = await supabase.from("customers")
-          .select("balance").eq("id", selectedCustomer.id).single();
-
-        if (fiadoAmt > 0) {
-          await supabase.from("customer_movements").insert({
-            customer_id: selectedCustomer.id, user_id: userId,
-            type: "debit", amount: fiadoAmt,
-            description: `Fiado - Venda #${orderNum}`,
-            sale_id: sale.id, payment_methods: [],
-          });
-          await recalcFiadoBalance(selectedCustomer.id);
-        }
-        if (houseAmt > 0) {
-          await supabase.from("customer_movements").insert({
-            customer_id: selectedCustomer.id, user_id: userId,
-            type: "saldo", amount: houseAmt,
-            description: `Saldo usado - Venda #${orderNum}`,
-            sale_id: sale.id, payment_methods: [],
-          });
-          await supabase.from("customers")
-            .update({ balance: Math.max(0, (curr?.balance ?? 0) - houseAmt) })
-            .eq("id", selectedCustomer.id);
-        }
-      }
-    }
+    pendingSaleIdRef.current = null;
+    for (const w of ((result as any)?.warnings ?? []) as string[]) console.warn("finalize_sale:", w);
 
     // Captura cart antes de limpar para impressão
     const cartSnapshot = [...cart];
