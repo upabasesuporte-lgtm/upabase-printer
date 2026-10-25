@@ -543,6 +543,9 @@ export default function DigitalMenuPage() {
         user_id: userId, total_amount: order.total_amount, discount: 0, status: "paid",
         origin: "cardapio_digital", seller_name: null, notes: order.notes,
         payments: [{ method: order.payment_method ?? "cash", amount: order.total_amount }],
+        // Para a Cozinha saber de quem é e se vai para entrega
+        customer_name: order.customer_name || null,
+        delivery_address: order.order_type === "delivery" ? (order.delivery_address || null) : null,
       }).select("id").single();
 
       if (saleErr) {
@@ -561,6 +564,7 @@ export default function DigitalMenuPage() {
             unit_price: it.unit_price,
             total_price: it.total_price ?? (it.unit_price * it.quantity),
             notes: [...(it.options ?? []).map(o => `${o.group_name}: ${o.option_name}`), it.notes].filter(Boolean).join(" | ") || null,
+            kds_state: "new", // vai para a estação do setor da categoria (se tiver)
           })));
           if (itemsErr) console.warn("sale_items insert:", itemsErr.message);
 

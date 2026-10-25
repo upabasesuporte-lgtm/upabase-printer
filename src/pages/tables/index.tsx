@@ -54,6 +54,7 @@ interface OrderItem {
   quantity: number;
   unit_price: number;
   notes: string | null;
+  kds_state?: string | null;
   products?: { name: string; item_type?: string | null } | null;
 }
 
@@ -409,7 +410,9 @@ export default function TablesPage() {
 
   async function addProduct(product: Product) {
     if (!currentSaleId) return;
-    const existing = orderItems.find(i => i.product_id === product.id && !i.notes);
+    // Item que já foi para a cozinha não é somado: vira uma linha nova, para a
+    // cozinha receber o acréscimo. Sem setor de impressão, soma como antes.
+    const existing = orderItems.find(i => i.product_id === product.id && !i.notes && !i.kds_state);
     if (existing) {
       const newQty = existing.quantity + 1;
       await supabase.from("sale_items").update({
@@ -423,6 +426,7 @@ export default function TablesPage() {
         sale_id: currentSaleId, product_id: product.id,
         quantity: 1, unit_price: product.sale_price,
         total_price: product.sale_price, notes: null,
+        kds_state: "new", // vai para a estação do setor da categoria (se tiver)
       }).select("*").single();
       if (insertErr) { alert("Erro ao adicionar item: " + insertErr.message); return; }
       if (data) setOrderItems(prev => [...prev, { ...data, products: { name: product.name } } as OrderItem]);

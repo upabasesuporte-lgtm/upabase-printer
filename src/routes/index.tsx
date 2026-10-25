@@ -31,6 +31,7 @@ import SuppliersPage from "../pages/suppliers";
 import CustomersPage from "../pages/customers";
 import CashPage from "../pages/cash";
 import TablesPage from "../pages/tables";
+import KitchenPage from "../pages/kitchen";
 import ReportsPage from "../pages/reports";
 import SettingsPage from "../pages/settings";
 import DigitalMenuPage from "../pages/digital-menu";
@@ -79,6 +80,10 @@ export const router = createBrowserRouter([
       {
         path: "cash",
         element: <CashPage />,
+      },
+      {
+        path: "kitchen",
+        element: <KitchenPage />,
       },
       {
         path: "tables",

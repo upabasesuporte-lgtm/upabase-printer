@@ -629,6 +629,7 @@ export default function PdvPage() {
 
     const { data: result, error } = await supabase.rpc("finalize_sale", { p: {
       mode: "insert", sale_id: saleId,
+      send_kitchen: true, // itens vão para a estação do setor da categoria (se tiver)
       sale: {
         discount: discountVal, total_amount: total,
         customer_id: selectedCustomer?.id ?? null, origin: saleChannel,

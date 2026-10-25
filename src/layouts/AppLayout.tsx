@@ -35,6 +35,7 @@ import {
   Truck,
   Building2,
   Repeat,
+  ChefHat,
 } from "lucide-react";
 import { OperatorGate } from "../components/OperatorGate";
 import { useOperators, loadOperators, canAccessRoute, setCurrentOperator, operatorsEnabled, requireApproval } from "../lib/operators";
@@ -51,6 +52,7 @@ const menuItems = [
   { label: "Clientes",        icon: Users,           path: "/customers",       color: "#3b82f6" },
   { label: "Catálogo Digital",icon: Store,           path: "/digital-menu",    color: "#3b82f6" },
   { label: "Mesas",           icon: UtensilsCrossed, path: "/tables",          color: "#3b82f6" },
+  { label: "Cozinha",         icon: ChefHat,         path: "/kitchen",         color: "#3b82f6" },
   { label: "Produtos",        icon: Package,         path: "/products",        color: "#3b82f6" },
   { label: "Estoque",         icon: Boxes,           path: "/stock",           color: "#3b82f6" },
   { label: "Compras",         icon: Truck,           path: "/purchases",       color: "#3b82f6" },

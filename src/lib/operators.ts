@@ -37,6 +37,7 @@ export const TAB_OPTIONS: { path: string; label: string }[] = [
   { path: "/customers",        label: "Clientes" },
   { path: "/digital-menu",     label: "Catálogo Digital" },
   { path: "/tables",           label: "Mesas" },
+  { path: "/kitchen",          label: "Cozinha" },
   { path: "/products",         label: "Produtos" },
   { path: "/stock",            label: "Estoque" },
   { path: "/purchases",        label: "Compras" },
@@ -51,7 +52,7 @@ export const PRESETS: { label: string; routes: string[]; canApprove: boolean }[]
   { label: "Caixa",      routes: ["/pdv", "/tables", "/customers", "/cash"], canApprove: false },
   { label: "Garçom",     routes: ["/tables", "/digital-menu"], canApprove: false },
   { label: "Estoquista", routes: ["/products", "/stock", "/purchases", "/suppliers"], canApprove: false },
-  { label: "Gerente",    routes: ["/", "/cash", "/pdv", "/customers", "/digital-menu", "/tables", "/products", "/stock", "/purchases", "/suppliers", "/reports"], canApprove: true },
+  { label: "Gerente",    routes: ["/", "/cash", "/pdv", "/customers", "/digital-menu", "/tables", "/kitchen", "/products", "/stock", "/purchases", "/suppliers", "/reports"], canApprove: true },
 ];
 
 // Abas das funções antigas/fixas (null = todas)
