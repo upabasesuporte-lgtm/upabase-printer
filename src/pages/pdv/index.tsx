@@ -1422,8 +1422,8 @@ export default function PdvPage() {
                 </>
               )}
 
-              {/* Desktop: cliente, entrega, obs e vendedor recolhidos em botões — coloridos quando preenchidos */}
-              <div className="hidden md:grid grid-cols-4 gap-1.5">
+              {/* Cliente, entrega, obs e vendedor recolhidos em botões (celular e computador) — coloridos quando preenchidos */}
+              <div className="grid grid-cols-4 gap-1.5">
                 {([
                   { key: "customer", label: "Cliente",  icon: User,     filled: !!selectedCustomer },
                   { key: "address",  label: "Entrega",  icon: MapPin,   filled: !!deliveryAddress.trim() },
@@ -1451,9 +1451,9 @@ export default function PdvPage() {
                 })}
               </div>
 
-              {/* Cliente — sempre visível (no desktop só aparece quando há cliente selecionado) */}
+              {/* Cliente — aparece quando há cliente selecionado */}
               <button onClick={() => setShowCustomer(true)}
-                className={`w-full flex items-center gap-2 hover:border-zinc-700 rounded-xl px-3 py-2.5 transition-colors text-left ${selectedCustomer ? "" : "md:hidden"}`}
+                className={`w-full flex items-center gap-2 hover:border-zinc-700 rounded-xl px-3 py-2.5 transition-colors text-left ${selectedCustomer ? "" : "hidden"}`}
                 style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
                 <User className="w-4 h-4 text-zinc-500 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
@@ -1468,29 +1468,29 @@ export default function PdvPage() {
                 <ChevronRight className="w-3.5 h-3.5 text-zinc-600 flex-shrink-0" />
               </button>
 
-              {/* Endereço + Obs + Vendedor — sempre visíveis no celular; no desktop abrem pelo botão */}
+              {/* Endereço + Obs + Vendedor — abrem pelo botão correspondente */}
               <input placeholder="Endereço de entrega (opcional)..." value={deliveryAddress} onChange={e => setDeliveryAddress(e.target.value)}
-                className={`w-full text-xs px-3 py-2 rounded-xl placeholder-zinc-500 focus:outline-none focus:border-brand-500 ${extraOpen === "address" ? "" : "md:hidden"}`}
+                className={`w-full text-xs px-3 py-2 rounded-xl placeholder-zinc-500 focus:outline-none focus:border-brand-500 ${extraOpen === "address" ? "" : "hidden"}`}
                 style={{ background: card.bg, border: card.border, color: isLight ? "#374151" : "#d4d4d8" }} />
               {deliveryAddress.trim() && saleChannel === "pdv" && (
                 <input placeholder="Taxa de entrega (R$) — opcional" value={deliveryFee} inputMode="decimal"
                   onChange={e => setDeliveryFee(e.target.value.replace(/[^0-9.,]/g, ""))}
-                  className={`w-full text-xs px-3 py-2 rounded-xl placeholder-zinc-500 focus:outline-none focus:border-brand-500 ${extraOpen === "address" ? "" : "md:hidden"}`}
+                  className={`w-full text-xs px-3 py-2 rounded-xl placeholder-zinc-500 focus:outline-none focus:border-brand-500 ${extraOpen === "address" ? "" : "hidden"}`}
                   style={{ background: card.bg, border: card.border, color: isLight ? "#374151" : "#d4d4d8" }} />
               )}
               <input placeholder="Observações do pedido..." value={orderNotes} onChange={e => setOrderNotes(e.target.value)}
-                className={`w-full text-xs px-3 py-2 rounded-xl placeholder-zinc-500 focus:outline-none focus:border-brand-500 ${extraOpen === "notes" ? "" : "md:hidden"}`}
+                className={`w-full text-xs px-3 py-2 rounded-xl placeholder-zinc-500 focus:outline-none focus:border-brand-500 ${extraOpen === "notes" ? "" : "hidden"}`}
                 style={{ background: card.bg, border: card.border, color: isLight ? "#374151" : "#d4d4d8" }} />
               {sellers.length > 0 ? (
                 <select value={sellerName} onChange={e => setSellerName(e.target.value)}
-                  className={`w-full text-xs px-3 py-2 rounded-xl focus:outline-none focus:border-brand-500 appearance-none ${extraOpen === "seller" ? "" : "md:hidden"}`}
+                  className={`w-full text-xs px-3 py-2 rounded-xl focus:outline-none focus:border-brand-500 appearance-none ${extraOpen === "seller" ? "" : "hidden"}`}
                   style={{ background: card.bg, border: card.border, color: isLight ? "#374151" : "#d4d4d8" }}>
                   <option value="">— Vendedor / Garçom —</option>
                   {sellers.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               ) : (
                 <input placeholder="Vendedor / Garçom responsável..." value={sellerName} onChange={e => setSellerName(e.target.value)}
-                  className={`w-full text-xs px-3 py-2 rounded-xl placeholder-zinc-500 focus:outline-none focus:border-brand-500 ${extraOpen === "seller" ? "" : "md:hidden"}`}
+                  className={`w-full text-xs px-3 py-2 rounded-xl placeholder-zinc-500 focus:outline-none focus:border-brand-500 ${extraOpen === "seller" ? "" : "hidden"}`}
                   style={{ background: card.bg, border: card.border, color: isLight ? "#374151" : "#d4d4d8" }} />
               )}
               </div>
@@ -1513,10 +1513,10 @@ export default function PdvPage() {
                 </button>
                 <button onClick={savePending} disabled={cart.length === 0}
                   className="flex items-center justify-center gap-1.5 px-3 py-2.5 md:py-3 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold rounded-xl transition-all"
-                  style={isLight ? { border:"1px solid #2563eb", color:"#fff", background:"#315DFB" } : { border:"1px solid rgba(16,185,129,0.4)", color:"#10b981", background:"rgba(16,185,129,0.07)" }}>
+                  style={{ border: "1px solid #ea8a0c", color: "#fff", background: "#f59e0b" }}>
                   <Clock className="w-3.5 h-3.5" />
                   Pausar
-                  <kbd className="hidden md:inline text-[10px] px-1 py-0.5 rounded font-bold" style={isLight ? { background:"rgba(255,255,255,0.2)", border:"1px solid rgba(255,255,255,0.3)", color:"#fff" } : { background:"rgba(16,185,129,0.15)", border:"1px solid rgba(16,185,129,0.3)", color:"#10b981" }}>F2</kbd>
+                  <kbd className="hidden md:inline text-[10px] px-1 py-0.5 rounded font-bold" style={{ background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.3)", color: "#fff" }}>F2</kbd>
                 </button>
                 <button onClick={openCheckout} disabled={cart.length === 0 || !cashRegisterId}
                   className="flex items-center justify-center gap-1.5 py-2.5 md:py-3 md:text-sm bg-brand-600 hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold rounded-xl transition-colors shadow-lg shadow-brand-900/10"
