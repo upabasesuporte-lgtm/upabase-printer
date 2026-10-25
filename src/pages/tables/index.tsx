@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect, useCallback } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { supabase } from "../../lib/supabase";
+import { requireApproval } from "../../lib/operators";
 import { matchesSearch } from "../../lib/search";
 import { useTheme } from "../../contexts/ThemeContext";
 import { PageHeader, btnPrimary, btnSecondary, WHITE_TEXT } from "../../components/PageHeader";
@@ -783,6 +784,7 @@ export default function TablesPage() {
 
   async function cancelOrder() {
     if (!currentSaleId || !selectedTable) return;
+    if (!(await requireApproval("Cancelar pedido da mesa"))) return;
     setSaving(true);
     await supabase.from("sale_items").delete().eq("sale_id", currentSaleId);
     // Delete the sale entirely (no items = nothing to keep for history)

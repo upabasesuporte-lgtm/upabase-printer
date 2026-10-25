@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../../lib/supabase";
+import { requireApproval } from "../../lib/operators";
 import { matchesSearch } from "../../lib/search";
 import { recalcFiadoBalance } from "../../lib/fiado";
 import { getStoreSettings, getSellers, refreshStoreCache } from "../settings";
@@ -1070,6 +1071,7 @@ export default function PdvPage() {
   }
 
   async function deleteSale(saleId: string) {
+    if (!(await requireApproval("Excluir venda"))) return;
     if (!confirm("Excluir esta venda definitivamente?")) return;
     const orderNum = saleId.slice(-6).toUpperCase();
     let sale = sales.find(s => s.id === saleId) ?? showEditSale;

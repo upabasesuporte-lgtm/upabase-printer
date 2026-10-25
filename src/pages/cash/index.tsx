@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
+import { requireApproval } from "../../lib/operators";
 import { fetchAll } from "../../lib/fetchAll";
 import { useTheme } from "../../contexts/ThemeContext";
 import { PageHeader, btnSecondary, segWrap, segBtn, WHITE_TEXT } from "../../components/PageHeader";
@@ -390,6 +391,7 @@ export default function CashPage() {
   // ── Sangria ──
   async function handleSangria() {
     if (!register || !userId) return;
+    if (!(await requireApproval("Sangria do caixa"))) return;
     setActionLoading(true);
     setError(null);
     const amount = parseFloat(movAmount.replace(",", "."));
@@ -427,6 +429,7 @@ export default function CashPage() {
   // ── Fechar caixa ──
   async function handleCloseRegister() {
     if (!register || !userId) return;
+    if (!(await requireApproval("Fechar o caixa"))) return;
     setActionLoading(true);
 
     const closingDesc = `Fechamento de caixa${closingOperator ? ` — ${closingOperator}` : ""}${difference !== null ? ` | Contado: ${fmt(countedVal)} | Diferença: ${fmt(difference)}` : ""}`;

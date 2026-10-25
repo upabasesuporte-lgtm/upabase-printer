@@ -34,7 +34,10 @@ import {
   X,
   Truck,
   Building2,
+  Repeat,
 } from "lucide-react";
+import { OperatorGate } from "../components/OperatorGate";
+import { useOperators, loadOperators, canAccessRoute, setCurrentOperator, operatorsEnabled, ROLE_LABEL } from "../lib/operators";
 import { AvaliacaoModal } from "../components/AvaliacaoModal";
 import { prefetchReports, clearReportsCache } from "../pages/reports";
 import { clearDashboardCache } from "../pages/dashboard";
@@ -169,6 +172,7 @@ export function AppLayout() {
   const [planReady,       setPlanReady]       = useState(false); // evita flash do PlanBlock antes dos dados carregarem
   const [userEmail,       setUserEmail]       = useState<string | null>(null);
   const [userId,          setUserId]          = useState<string | null>(null);
+  const ops = useOperators();
   const [showReview,      setShowReview]      = useState(false);
   const [userPlan,        setUserPlan]        = useState<UserPlanRecord | null>(null);
   const [companyName,     setCompanyName]     = useState<string | null>(null);
@@ -236,6 +240,7 @@ export function AppLayout() {
       setAvatarUrl(data.user.user_metadata?.avatar_url ?? null);
       const uid = data.user.id;
       setUserId(uid);
+      loadOperators(uid);
 
       // Handle pending invite from sessionStorage (expires on session end)
       const pendingInvite = sessionStorage.getItem("pending_invite");
@@ -427,6 +432,7 @@ export function AppLayout() {
   async function handleLogout() {
     clearReportsCache();
     clearDashboardCache();
+    setCurrentOperator(null);
     await supabase.auth.signOut();
     navigate("/auth");
   }
@@ -459,7 +465,14 @@ export function AppLayout() {
     if (userPlan.is_lifetime || userPlan.plan === "trial") return true;
     if (!userPlan.plan_type) return true;
     return PLAN_ROUTES[userPlan.plan_type as PlanType]?.includes(item.path) ?? false;
-  });
+  }).filter(item => canAccessRoute(item.path, ops)); // abas da função do operador (sem operadores = todas)
+
+  // Funcionários com PIN: sem operador escolhido a tela fica travada; aba fora
+  // da função manda para a primeira aba liberada.
+  const opsOn = operatorsEnabled(ops);
+  const opLocked = opsOn && !ops.current;
+  const opBlocked = opsOn && !opLocked && !canAccessRoute(currentPath, ops);
+  const firstAllowedPath = visibleMenuItems[0]?.path ?? null;
 
   // O plano está inválido (expirado ou suspenso)?
   const planBlocked = !isAdmin && !isPlanValid(userPlan);
@@ -625,6 +638,15 @@ export function AppLayout() {
               </button>
             )}
 
+            {opsOn && ops.current && (
+              <button onClick={() => setCurrentOperator(null)}
+                title={`Trocar operador (${ops.current.name} · ${ROLE_LABEL[ops.current.role]})`}
+                className="flex items-center justify-center w-8 h-8 rounded-lg transition-all text-blue-500 hover:text-blue-400 hover:bg-blue-500/10 flex-shrink-0"
+                style={{ border: "1px solid transparent" }}>
+                <Repeat size={14} />
+              </button>
+            )}
+
             <button onClick={handleLogout}
               title="Sair"
               className="flex items-center justify-center w-8 h-8 rounded-lg transition-all text-zinc-500 hover:text-red-400 hover:bg-red-500/10 flex-shrink-0"
@@ -661,13 +683,15 @@ export function AppLayout() {
           {/* Esquerda — métricas operacionais (apenas desktop) */}
           <div className="hidden lg:flex items-center gap-2.5 flex-1">
 
-            {/* Vendas do dia */}
-            <HeaderStat
-              icon={<TrendingUp size={15} />}
-              label="Vendas hoje"
-              value={fmt(todaySales)}
-              color="#10b981"
-            />
+            {/* Vendas do dia (com funcionários: só dono/gerente veem) */}
+            {(!opsOn || ops.current?.role === "owner" || ops.current?.role === "manager") && (
+              <HeaderStat
+                icon={<TrendingUp size={15} />}
+                label="Vendas hoje"
+                value={fmt(todaySales)}
+                color="#10b981"
+              />
+            )}
 
             {/* Caixa */}
             <HeaderStat
@@ -690,6 +714,18 @@ export function AppLayout() {
           <div className="flex-shrink-0 flex items-center gap-2 md:gap-3">
             {userEmail !== ADMIN_EMAIL && userPlan && (
               <PlanBadge plan={userPlan} />
+            )}
+
+            {opsOn && ops.current && (
+              <button onClick={() => setCurrentOperator(null)} title="Trocar operador"
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl transition-colors hover:opacity-80"
+                style={{ border: `1px solid ${T.border}` }}>
+                <Repeat size={13} style={{ color: "#315DFB" }} />
+                <span className="flex flex-col items-start leading-none">
+                  <span className="text-[12px] font-bold" style={{ color: T.text }}>{ops.current.name}</span>
+                  <span className="text-[9px] uppercase tracking-wider text-zinc-500 mt-0.5">{ROLE_LABEL[ops.current.role]}</span>
+                </span>
+              </button>
             )}
 
             {companyName && (
@@ -739,7 +775,13 @@ export function AppLayout() {
 
         <div className="flex-1 overflow-auto min-h-0">
           <div className="p-6 min-h-full">
-            {!planReady
+            {opLocked
+              ? null
+              : opBlocked
+                ? (!planReady ? null : firstAllowedPath && firstAllowedPath !== currentPath
+                    ? <Navigate to={firstAllowedPath} replace />
+                    : <p className="text-sm text-zinc-500">Nenhuma aba liberada para a sua função. Peça ao dono para revisar em Configurações → Funcionários.</p>)
+              : !planReady
               ? <Outlet />
               : planBlocked
                 ? <PlanBlock plan={userPlan} userEmail={userEmail} onLogout={handleLogout} />
@@ -750,6 +792,9 @@ export function AppLayout() {
           </div>
         </div>
       </main>
+
+      {/* Funcionários: tela de PIN e autorização (só aparece se houver operadores) */}
+      <OperatorGate />
 
       {/* Modal de avaliação — disponível em qualquer página */}
       {userId && (

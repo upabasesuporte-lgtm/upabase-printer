@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect } from "react";
-import { Store, Phone, CreditCard, Save, CheckCircle2, Receipt, Plus, Trash2, Users, Settings, Loader2 } from "lucide-react";
+import { Store, Phone, CreditCard, Save, CheckCircle2, Receipt, Plus, Trash2, Users, Settings, Loader2, KeyRound } from "lucide-react";
 import { supabase } from "../../lib/supabase";
+import { loadOperators, setCurrentOperator, ROLE_LABEL, ROLE_DESC, type Operator, type OperatorRole } from "../../lib/operators";
 import { PageHeader } from "../../components/PageHeader";
 import { useTheme } from "../../contexts/ThemeContext";
 
@@ -302,6 +303,9 @@ export default function SettingsPage() {
         )}
       </SectionCard>
 
+      {/* Funcionários com PIN */}
+      {userId && <OperatorsSection userId={userId} isLight={isLight} />}
+
       {/* Chave PIX */}
       <SectionCard icon={<CreditCard className="w-4 h-4" />} title="Chave PIX" color="#315DFB">
         <Field label="Chave PIX" hint="Aparece no comprovante quando o pagamento for via PIX">
@@ -357,5 +361,151 @@ export default function SettingsPage() {
         )}
       </div>
     </div>
+  );
+}
+
+// ── Funcionários com PIN ──────────────────────────────────────────────────────
+// Sem nenhum operador a conta funciona como sempre. O primeiro passo é o PIN do
+// dono; depois disso o sistema passa a pedir "Quem está operando?" neste e nos
+// outros aparelhos da loja.
+
+const STAFF_ROLES: OperatorRole[] = ["manager", "cashier", "waiter", "stock"];
+
+function OperatorsSection({ userId, isLight }: { userId: string; isLight: boolean }) {
+  const [ops, setOps] = useState<Operator[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [role, setRole] = useState<OperatorRole>("cashier");
+  const [pin, setPin] = useState("");
+  const [pinEdit, setPinEdit] = useState<{ id: string; pin: string } | null>(null);
+
+  const owner = ops.find(o => o.role === "owner") ?? null;
+  const rowStyle = { background: isLight ? "#f9fafb" : "#09090b", border: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" };
+
+  async function refresh() {
+    const { data, error } = await supabase.from("operators").select("id,name,role,active").eq("active", true).order("created_at");
+    if (error) { setErr(error.message); return; }
+    setOps((data ?? []) as Operator[]);
+    await loadOperators(userId);
+  }
+  useEffect(() => { refresh(); }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const pinOk = (p: string) => /^[0-9]{4,6}$/.test(p);
+
+  async function add() {
+    const r: OperatorRole = owner ? role : "owner";
+    const n = name.trim() || (owner ? "" : "Dono");
+    if (!n) { setErr("Informe o nome."); return; }
+    if (!pinOk(pin)) { setErr("O PIN deve ter de 4 a 6 números."); return; }
+    setBusy(true); setErr(null);
+    const { data: id, error } = await supabase.rpc("save_operator", { p_id: null, p_name: n, p_role: r, p_pin: pin });
+    if (error) { setErr(error.message); setBusy(false); return; }
+    // Ao criar o dono, quem está configurando já fica como dono neste aparelho
+    if (r === "owner" && id) setCurrentOperator({ id: id as string, name: n, role: "owner", active: true });
+    setName(""); setPin(""); setRole("cashier");
+    await refresh();
+    setBusy(false);
+  }
+
+  async function savePin() {
+    if (!pinEdit) return;
+    const op = ops.find(o => o.id === pinEdit.id);
+    if (!op) return;
+    if (!pinOk(pinEdit.pin)) { setErr("O PIN deve ter de 4 a 6 números."); return; }
+    setBusy(true); setErr(null);
+    const { error } = await supabase.rpc("save_operator", { p_id: op.id, p_name: op.name, p_role: op.role, p_pin: pinEdit.pin });
+    if (error) setErr(error.message); else setPinEdit(null);
+    setBusy(false);
+  }
+
+  async function remove(op: Operator) {
+    if (op.role === "owner" && ops.length > 1) { setErr("Remova os funcionários antes de remover o PIN do dono."); return; }
+    const msg = op.role === "owner"
+      ? "Remover o PIN do dono? O sistema volta a funcionar sem tela de PIN."
+      : `Remover ${op.name}?`;
+    if (!confirm(msg)) return;
+    setBusy(true); setErr(null);
+    const { error } = await supabase.from("operators").delete().eq("id", op.id);
+    if (error) setErr(error.message);
+    await refresh();
+    setBusy(false);
+  }
+
+  return (
+    <SectionCard icon={<KeyRound className="w-4 h-4" />} title="Funcionários e PIN" color="#315DFB">
+      <p className="text-xs text-zinc-500">
+        Cada funcionário entra com o próprio PIN e vê só as abas da função dele. Cancelar venda, cancelar pagamento de fiado,
+        sangria e fechar caixa pedem o PIN do dono ou gerente. Sem nenhum PIN cadastrado, o sistema funciona como hoje.
+      </p>
+
+      {!owner ? (
+        <div className="rounded-xl p-4 space-y-3" style={rowStyle}>
+          <p className="text-sm font-semibold">1º passo: crie o seu PIN de dono</p>
+          <div className="grid grid-cols-2 gap-3">
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="Seu nome" className={inputCls} />
+            <input value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric"
+              type="password" placeholder="PIN (4 a 6 números)" className={inputCls} />
+          </div>
+          <button onClick={add} disabled={busy}
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold disabled:opacity-40"
+            style={{ background: "#315DFB", color: "#fff" }}>
+            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />} Ativar PIN do dono
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] gap-2">
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="Nome do funcionário" className={inputCls} />
+            <select value={role} onChange={e => setRole(e.target.value as OperatorRole)} className={inputCls + " sm:w-36"}>
+              {STAFF_ROLES.map(r => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
+            </select>
+            <input value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric"
+              type="password" placeholder="PIN" className={inputCls + " sm:w-28"} />
+            <button onClick={add} disabled={busy || !name.trim()}
+              className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold disabled:opacity-40"
+              style={{ background: "#315DFB", color: "#fff" }}>
+              <Plus className="w-4 h-4" /> Adicionar
+            </button>
+          </div>
+          <p className="text-[11px] text-zinc-500">{ROLE_LABEL[role]}: {ROLE_DESC[role]}</p>
+
+          <div className="space-y-1.5">
+            {ops.map(o => (
+              <div key={o.id} className="rounded-xl px-4 py-2.5" style={rowStyle}>
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0"
+                    style={{ background: "#EFF3FF", border: "1px solid #C4D2FF", color: "#2547D6" }}>
+                    {o.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate">{o.name}</p>
+                    <p className="text-[11px] text-zinc-500">{ROLE_LABEL[o.role]} · {ROLE_DESC[o.role]}</p>
+                  </div>
+                  <button onClick={() => setPinEdit({ id: o.id, pin: "" })}
+                    className="text-xs font-semibold px-2.5 py-1.5 rounded-lg text-blue-500 hover:bg-blue-500/10">Trocar PIN</button>
+                  <button onClick={() => remove(o)} title="Remover"
+                    className="p-1.5 text-zinc-500 hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/10">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                {pinEdit?.id === o.id && (
+                  <div className="flex gap-2 mt-2.5">
+                    <input autoFocus value={pinEdit.pin} type="password" inputMode="numeric" placeholder="Novo PIN (4 a 6 números)"
+                      onChange={e => setPinEdit({ id: o.id, pin: e.target.value.replace(/\D/g, "").slice(0, 6) })}
+                      onKeyDown={e => { if (e.key === "Enter") savePin(); }}
+                      className={inputCls + " flex-1"} />
+                    <button onClick={savePin} disabled={busy} className="px-3.5 rounded-xl text-sm font-bold disabled:opacity-40"
+                      style={{ background: "#315DFB", color: "#fff" }}>Salvar</button>
+                    <button onClick={() => setPinEdit(null)} className="px-3 rounded-xl text-sm text-zinc-500">Cancelar</button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+      {err && <p className="text-xs text-red-500 font-semibold">{err}</p>}
+    </SectionCard>
   );
 }

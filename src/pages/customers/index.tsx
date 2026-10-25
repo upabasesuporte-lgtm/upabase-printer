@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
+import { requireApproval } from "../../lib/operators";
 import { fetchAll } from "../../lib/fetchAll";
 import { matchesSearch } from "../../lib/search";
 import { recalcFiadoBalance, computeFiadoLedger, fetchFiadoMovs, type FiadoMov } from "../../lib/fiado";
@@ -590,6 +591,7 @@ export default function CustomersPage() {
   async function cancelPayment(m: CustomerMovement) {
     if (!selected || saving || m.type !== "payment") return;
     if (!(await assertCurrentShift(m.created_at))) return;
+    if (!(await requireApproval("Cancelar pagamento de fiado"))) return;
     if (!confirm(`Cancelar este pagamento de ${fmt(m.amount)}? O valor volta a ser dívida do cliente.`)) return;
     setSaving(true);
     try {
@@ -655,6 +657,7 @@ export default function CustomersPage() {
   async function cancelDebit(m: CustomerMovement) {
     if (!selected || saving || m.type !== "debit" || !m.sale_id) return;
     if (!(await assertCurrentShift(m.created_at))) return;
+    if (!(await requireApproval("Excluir venda fiado"))) return;
     if (!confirm(`Excluir esta venda fiado de ${fmt(m.amount)}? Isso remove a venda do histórico, do caixa e reduz a dívida do cliente.`)) return;
     setSaving(true);
     try {
