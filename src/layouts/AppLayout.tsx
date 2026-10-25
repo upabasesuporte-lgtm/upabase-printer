@@ -181,15 +181,6 @@ export function AppLayout() {
   const [avatarUrl,       setAvatarUrl]       = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [sidebarOpen,     setSidebarOpen]     = useState(false);
-  // Celular: barra lateral fina só com ícones (como no computador); o ☰ abre com os nomes
-  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches);
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 767px)");
-    const on = () => setIsMobile(mq.matches);
-    mq.addEventListener("change", on);
-    return () => mq.removeEventListener("change", on);
-  }, []);
-  const railCollapsed = isMobile && !sidebarOpen;
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
   // Badge + alarme de pedidos pendentes no Cardápio Digital
@@ -505,20 +496,13 @@ export function AppLayout() {
 
       {/* ── Sidebar ───────────────────────────────────────────────────────── */}
       {/* Espaço reservado da sidebar recolhida (desktop) — ao expandir ela sobrepõe o conteúdo */}
-      <div className="hidden md:block w-[92px] flex-shrink-0" />
-      <div className="md:hidden w-14 flex-shrink-0" />
+      <div className="hidden md:block w-[92px] flex-shrink-0" />
 
-      <aside className={`group ${sidebarOpen ? "w-72" : "w-14"} flex flex-col flex-shrink-0 fixed h-screen z-50 transition-all duration-300 md:top-3 md:bottom-3 md:left-3 md:h-auto md:w-[72px] md:hover:w-64 md:z-30 md:rounded-2xl md:border md:shadow-xl md:overflow-hidden md:duration-200 translate-x-0`}
+      <aside className={`group w-72 flex flex-col flex-shrink-0 fixed h-[100dvh] z-50 transition-all duration-300 md:top-3 md:bottom-3 md:left-3 md:h-auto md:w-[72px] md:hover:w-64 md:z-30 md:rounded-2xl md:border md:shadow-xl md:overflow-hidden md:duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
         style={{ background: T.sidebarBg, borderColor: T.border, borderRightWidth: 1 }}>
 
         {/* Logo (somente celular) */}
-        {railCollapsed && (
-          <button onClick={() => setSidebarOpen(true)} title="Abrir menu"
-            className="md:hidden h-12 flex items-center justify-center flex-shrink-0" style={{ color: T.text, borderBottom: `1px solid ${T.border}` }}>
-            <Menu size={18} />
-          </button>
-        )}
-        <div className={`h-24 flex items-center justify-center md:hidden ${railCollapsed ? "hidden" : ""}`} style={{ overflow: "visible", borderBottom: `1px solid ${T.border}` }}>
+        <div className="hidden h-24 items-center justify-center" style={{ overflow: "visible", borderBottom: `1px solid ${T.border}` }}>
           <img
             src="https://omsjsgnyjjuvixwyevox.supabase.co/storage/v1/object/public/menu-assets/ChatGPT%20Image%2028%20de%20jul.%20de%202026,%2014_45_53.png"
             alt="Logo"
@@ -527,7 +511,7 @@ export function AppLayout() {
         </div>
 
         {/* Nav */}
-        <nav className={`sidebar-nav flex-1 ${railCollapsed ? "px-1.5" : "px-3"} pt-3 pb-0 space-y-1 overflow-y-auto overflow-x-hidden`}>
+        <nav className={`sidebar-nav flex-1 px-3 pt-3 pb-0 space-y-1 overflow-y-auto overflow-x-hidden`}>
           {visibleMenuItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -542,8 +526,7 @@ export function AppLayout() {
                   display: "flex",
                   alignItems: "center",
                   gap: "10px",
-                  padding: railCollapsed ? "11px 0" : "11px 14px",
-                  justifyContent: railCollapsed ? "center" : undefined,
+                  padding: "11px 14px",
                   borderRadius: "12px",
                   fontSize: "14px",
                   fontWeight: isActive ? 600 : 500,
@@ -563,19 +546,19 @@ export function AppLayout() {
                       <Icon size={16} />
                       {/* Ponto de alerta no ícone quando a sidebar está recolhida (desktop) */}
                       {item.path === "/digital-menu" && digitalPending > 0 && (
-                        <span className={`${railCollapsed ? "block" : "hidden"} md:block md:group-hover:hidden absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full animate-pulse`}
+                        <span className="hidden md:block md:group-hover:hidden absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full animate-pulse"
                           style={{ background: "#f43f5e", boxShadow: "0 0 6px rgba(244,63,94,0.8)" }} />
                       )}
                     </span>
-                    <span className={`md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 ${railCollapsed ? "hidden" : ""}`}>{item.label}</span>
+                    <span className={`md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200`}>{item.label}</span>
                     {/* Badge de pedidos pendentes no Cardápio Digital */}
                     {item.path === "/digital-menu" && digitalPending > 0 && (
-                      <span className={`ml-auto flex-shrink-0 min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] font-black text-white animate-pulse md:opacity-0 md:group-hover:opacity-100 ${railCollapsed ? "hidden" : ""}`}
+                      <span className={`ml-auto flex-shrink-0 min-w-[18px] h-[18px] rounded-full flex items-center justify-center text-[10px] font-black text-white animate-pulse md:opacity-0 md:group-hover:opacity-100`}
                         style={{ background: "#f43f5e", boxShadow: "0 0 8px rgba(244,63,94,0.6)", padding: "0 4px" }}>
                         {digitalPending}
                       </span>
                     )}
-                    {isActive && digitalPending === 0 && !railCollapsed && (
+                    {isActive && digitalPending === 0 && (
                       <span className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0 md:opacity-0 md:group-hover:opacity-100"
                         style={{ background: "#ffffff" }} />
                     )}
@@ -648,8 +631,8 @@ export function AppLayout() {
         </nav>
 
         {/* Rodapé minimalista — tema + feedback + suporte + sair */}
-        <div className={`${railCollapsed ? "px-1.5" : "px-3"} pt-2 pb-3 space-y-1.5`} style={{ borderTop: `1px solid ${T.border}` }}>
-          <div className={`flex items-center gap-2 md:flex-col md:group-hover:flex-row ${railCollapsed ? "flex-col" : ""}`}>
+        <div className={`px-3 pt-2 pb-3 space-y-1.5`} style={{ borderTop: `1px solid ${T.border}` }}>
+          <div className={`flex items-center gap-2 md:flex-col md:group-hover:flex-row`}>
             {userEmail !== ADMIN_EMAIL && (
               <button
                 onClick={() => setShowReview(true)}
@@ -674,7 +657,7 @@ export function AppLayout() {
               className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg transition-all font-semibold text-sm whitespace-nowrap overflow-hidden"
               style={{ background: "rgba(49,93,251,0.10)", border: "1px solid rgba(49,93,251,0.35)", color: "#315DFB" }}>
               <Repeat size={16} className="flex-shrink-0" />
-              <span className={`md:hidden md:group-hover:inline truncate ${railCollapsed ? "hidden" : ""}`}>Trocar operador · {ops.current.name}</span>
+              <span className={`md:hidden md:group-hover:inline truncate`}>Trocar operador · {ops.current.name}</span>
             </button>
           )}
 
@@ -684,7 +667,7 @@ export function AppLayout() {
             className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg transition-all text-green-600 hover:text-green-500 font-medium text-sm whitespace-nowrap overflow-hidden"
             style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", hover: { background: "rgba(34,197,94,0.12)" } }}>
             <HelpCircle size={16} className="flex-shrink-0" />
-            <span className={`md:hidden md:group-hover:inline ${railCollapsed ? "hidden" : ""}`}>Suporte</span>
+            <span className={`md:hidden md:group-hover:inline`}>Suporte</span>
           </button>
         </div>
       </aside>
@@ -698,7 +681,7 @@ export function AppLayout() {
 
           {/* Menu hambúrguer móvel */}
           <button onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="hidden flex-shrink-0 p-2 hover:bg-zinc-800 rounded-lg transition-colors"
+            className="md:hidden flex-shrink-0 p-2 hover:bg-zinc-800 rounded-lg transition-colors"
             style={{ color: T.text }}>
             {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
