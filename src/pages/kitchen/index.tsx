@@ -82,9 +82,38 @@ export default function KitchenPage() {
           </button>
         ))}
       </div>
+      {tab === "orders" && <SetupWarning card={card} onGo={() => setTab("sectors")} />}
       {tab === "orders" && <OrdersBoard isLight={isLight} card={card} />}
       {tab === "couriers" && <CouriersTab isLight={isLight} card={card} />}
       {tab === "sectors" && <SectorsTab isLight={isLight} card={card} />}
+    </div>
+  );
+}
+
+// Aviso quando nenhuma categoria tem setor: nada chega na cozinha até configurar
+function SetupWarning({ card, onGo }: { card: React.CSSProperties; onGo: () => void }) {
+  const [missing, setMissing] = useState(false);
+  useEffect(() => {
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const uid = session?.user.id;
+      if (!uid) return;
+      const [{ count }, { data: us }] = await Promise.all([
+        supabase.from("categories").select("id", { count: "exact", head: true }).eq("user_id", uid).not("print_sector", "is", null),
+        supabase.from("user_settings").select("uncategorized_print_sector").eq("user_id", uid).maybeSingle(),
+      ]);
+      setMissing((count ?? 0) === 0 && !(us as any)?.uncategorized_print_sector);
+    })();
+  }, []);
+  if (!missing) return null;
+  return (
+    <div className="rounded-2xl p-4 flex flex-wrap items-center gap-3" style={{ ...card, border: "2px solid #f59e0b" }}>
+      <Info className="w-5 h-5 text-amber-500" />
+      <div className="flex-1 min-w-[200px]">
+        <p className="text-sm font-bold">Nenhum pedido vai chegar aqui ainda</p>
+        <p className="text-xs text-zinc-500">Escolha para qual setor (Cozinha, Bar ou Balcão) vai cada categoria de produto.</p>
+      </div>
+      <button onClick={onGo} className="px-4 py-2 rounded-xl text-sm font-bold text-white" style={{ background: "#f59e0b" }}>Configurar setores</button>
     </div>
   );
 }
