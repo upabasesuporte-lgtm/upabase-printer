@@ -1078,6 +1078,10 @@ export default function PdvPage() {
 
   async function deleteSale(saleId: string) {
     if (!(await requireApproval("Excluir venda"))) return;
+    // Entrega já paga ao motoboy: o pagamento continua valendo mesmo sem a venda
+    const { data: paidCheck } = await supabase.from("sales").select("courier_payment_id").eq("id", saleId).maybeSingle();
+    if ((paidCheck as any)?.courier_payment_id &&
+        !confirm("A entrega desta venda já foi PAGA ao motoboy. Se precisar desfazer o pagamento, use \"Estornar\" em Cozinha → Motoboys antes.\n\nExcluir a venda mesmo assim?")) return;
     if (!confirm("Excluir esta venda definitivamente?")) return;
     const orderNum = saleId.slice(-6).toUpperCase();
     let sale = sales.find(s => s.id === saleId) ?? showEditSale;

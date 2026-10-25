@@ -416,6 +416,9 @@ function CouriersTab({ isLight, card }: { isLight: boolean; card: React.CSSPrope
   const [pendingOld, setPendingOld] = useState<Delivery[]>([]);
   const [payFor, setPayFor] = useState<{ c: Courier; ids: string[]; amount: number } | null>(null);
   const [payMethod, setPayMethod] = useState<"cash" | "pix">("cash");
+  const [payAmount, setPayAmount] = useState("");
+  // Pagamentos ficam numa lista própria: não somem se a venda for excluída
+  const [payments, setPayments] = useState<{ id: string; courier_id: string; amount: number; deliveries: number; method: string | null; paid_at: string; cash_movement_id: string | null }[]>([]);
 
   const mapRows = (data: any[] | null) => ((data ?? []) as any[]).map(r => ({ ...r, total_amount: Number(r.total_amount) || 0, delivery_fee: Number(r.delivery_fee) || 0 })) as Delivery[];
   const SEL = "id, courier_id, dispatched_at, total_amount, delivery_fee, customer_name, courier_payment_id";
@@ -431,6 +434,7 @@ function CouriersTab({ isLight, card }: { isLight: boolean; card: React.CSSPrope
     setRegLoaded(true);
   }
   async function loadDeliveries() {
+    loadPayments();
     if (mode === "day") {
       const from = new Date(`${day}T00:00:00`).toISOString();
       const to = new Date(`${day}T23:59:59.999`).toISOString();
@@ -451,6 +455,28 @@ function CouriersTab({ isLight, card }: { isLight: boolean; card: React.CSSPrope
       .not("courier_id", "is", null).is("courier_payment_id", null)
       .gte("dispatched_at", since).lt("dispatched_at", before).order("dispatched_at"));
     setPendingOld(mapRows(old));
+  }
+  async function loadPayments() {
+    let from: string, to: string;
+    if (mode === "day") { from = new Date(`${day}T00:00:00`).toISOString(); to = new Date(`${day}T23:59:59.999`).toISOString(); }
+    else if (openReg) { from = openReg.opened_at; to = new Date(Date.now() + 60_000).toISOString(); }
+    else { setPayments([]); return; }
+    const { data } = await fetchAll(() => supabase.from("courier_payments")
+      .select("id,courier_id,amount,deliveries,method,paid_at,cash_movement_id")
+      .gte("paid_at", from).lte("paid_at", to).order("paid_at", { ascending: false }));
+    setPayments(((data ?? []) as any[]).map(p => ({ ...p, amount: Number(p.amount) || 0 })));
+  }
+  async function reversePayment(p: { id: string; courier_id: string; amount: number }) {
+    const nm = list.find(c => c.id === p.courier_id)?.name ?? "motoboy";
+    if (!confirm(`Estornar o pagamento de ${fmt(p.amount)} para ${nm}? A saída sai do caixa e as entregas voltam para "a pagar".`)) return;
+    if (!(await requireApproval(`Estornar pagamento do motoboy ${nm}`))) return;
+    setBusy(true); setErr(null);
+    const { error } = await supabase.rpc("reverse_courier_payment", { p_payment_id: p.id });
+    setBusy(false);
+    if (error) { setErr(error.message); return; }
+    setOk(`Pagamento de ${nm} estornado. Agora é só pagar de novo com o valor certo.`);
+    setTimeout(() => setOk(null), 6000);
+    loadDeliveries();
   }
   useEffect(() => { loadList(); loadReg(); }, []);
   useEffect(() => { if (regLoaded) loadDeliveries(); }, [mode, day, openReg?.id, regLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -481,6 +507,7 @@ function CouriersTab({ isLight, card }: { isLight: boolean; card: React.CSSPrope
     if (!openReg) { setErr("Abra o caixa para pagar o motoboy — o pagamento é lançado como saída do caixa."); return; }
     setPayMethod("cash");
     setPayFor({ c, ids, amount: ids.length * c.fee_per_delivery });
+    setPayAmount((ids.length * c.fee_per_delivery).toFixed(2).replace(".", ","));
   }
 
   async function confirmPay() {
@@ -489,6 +516,7 @@ function CouriersTab({ isLight, card }: { isLight: boolean; card: React.CSSPrope
     setBusy(true); setErr(null);
     const { data, error } = await supabase.rpc("pay_courier", {
       p_courier_id: payFor.c.id, p_sale_ids: payFor.ids, p_register_id: openReg.id, p_method: payMethod,
+      p_amount: parseFloat(payAmount.replace(",", ".")) >= 0 && payAmount.trim() !== "" ? parseFloat(payAmount.replace(",", ".")) : null,
     });
     setBusy(false);
     if (error) { setErr(error.message); return; }
@@ -504,7 +532,7 @@ function CouriersTab({ isLight, card }: { isLight: boolean; card: React.CSSPrope
     const pending = mine.filter(d => !d.courier_payment_id);
     return {
       c, count: mine.length, pendingIds: pending.map(d => d.id),
-      toPay: pending.length * c.fee_per_delivery, paid: (mine.length - pending.length) * c.fee_per_delivery,
+      toPay: pending.length * c.fee_per_delivery, paid: payments.filter(p => p.courier_id === c.id).reduce((s, p) => s + p.amount, 0),
       fees: mine.reduce((s, d) => s + d.delivery_fee, 0), sales: mine.reduce((s, d) => s + d.total_amount, 0),
     };
   });
@@ -616,6 +644,23 @@ function CouriersTab({ isLight, card }: { isLight: boolean; card: React.CSSPrope
             ))}
           </div>
         )}
+        {payments.length > 0 && (
+          <div className="pt-1 space-y-1">
+            <p className={`text-[11px] font-semibold uppercase tracking-wider ${muted}`}>Pagamentos</p>
+            {payments.map(p => (
+              <div key={p.id} className="flex items-center gap-2 text-xs">
+                <span className={muted}>{new Date(p.paid_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
+                <span className="flex-1 truncate font-semibold">{list.find(c => c.id === p.courier_id)?.name ?? "—"}</span>
+                <span className={muted}>{p.deliveries} entrega{p.deliveries === 1 ? "" : "s"} · {p.method === "pix" ? "PIX" : p.method === "cash" ? "Dinheiro" : (p.method ?? "—")}</span>
+                <span className="font-bold text-emerald-500">{fmt(p.amount)}</span>
+                {mode === "current" && (
+                  <button onClick={() => reversePayment(p)} disabled={busy}
+                    className="px-2 py-1 rounded-lg text-[11px] font-semibold text-red-500 hover:bg-red-500/10 disabled:opacity-40">Estornar</button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
         {err && <p className="text-xs text-red-500 font-semibold">{err}</p>}
         {ok && <p className="text-xs text-emerald-500 font-semibold">{ok}</p>}
       </div>
@@ -627,7 +672,15 @@ function CouriersTab({ isLight, card }: { isLight: boolean; card: React.CSSPrope
               <p className="text-lg font-black">Pagar {payFor.c.name}</p>
               <p className={`text-sm ${muted}`}>{payFor.ids.length} entrega{payFor.ids.length === 1 ? "" : "s"} × {fmt(payFor.c.fee_per_delivery)}</p>
             </div>
-            <p className="text-3xl font-black text-emerald-500">{fmt(payFor.amount)}</p>
+            <div className="space-y-1">
+              <p className={`text-xs font-semibold ${muted}`}>Valor a pagar (pode ajustar)</p>
+              <div className="flex items-center gap-2">
+                <span className="text-xl font-black text-emerald-500">R$</span>
+                <input value={payAmount} onChange={e => setPayAmount(e.target.value.replace(/[^0-9.,]/g, ""))} inputMode="decimal"
+                  className={inputBase + " flex-1 text-2xl font-black py-2"} />
+              </div>
+              <p className={`text-[11px] ${muted}`}>Calculado: {fmt(payFor.amount)}</p>
+            </div>
             <div className="space-y-1.5">
               <p className={`text-xs font-semibold ${muted}`}>Forma de pagamento</p>
               <div className="grid grid-cols-2 gap-2">
