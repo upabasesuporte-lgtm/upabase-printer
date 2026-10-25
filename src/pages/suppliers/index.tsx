@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
+import { matchesSearch } from "../../lib/search";
 import { useTheme } from "../../contexts/ThemeContext";
 import { PageHeader, btnPrimary, WHITE_TEXT } from "../../components/PageHeader";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
@@ -110,7 +111,7 @@ export default function SuppliersPage() {
     setModal("none");
   }
 
-  const filteredSuppliers = suppliers.filter(s => s.name.toLowerCase().includes(search.toLowerCase()));
+  const filteredSuppliers = suppliers.filter(s => matchesSearch(s.name, search));
 
   if (loading) {
     return (

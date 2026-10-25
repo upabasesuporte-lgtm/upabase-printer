@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
+import { matchesSearch } from "../../lib/search";
 import { recalcFiadoBalance, computeFiadoLedger, fetchFiadoMovs, type FiadoMov } from "../../lib/fiado";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
@@ -979,7 +980,7 @@ export default function CustomersPage() {
 
   const filtered = customers.filter(c =>
     search === "" ||
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
+    matchesSearch(c.name, search) ||
     (c.phone && c.phone.includes(search)) ||
     (c.email && c.email.toLowerCase().includes(search.toLowerCase()))
   );
@@ -1829,7 +1830,7 @@ export default function CustomersPage() {
                         onChange={e => setEditProductSearch(e.target.value)}
                         onKeyDown={e => {
                           if (e.key === "Enter") {
-                            const filtered = allProducts.filter(p => p.name.toLowerCase().includes(editProductSearch.toLowerCase()));
+                            const filtered = allProducts.filter(p => matchesSearch(p.name, editProductSearch));
                             if (filtered.length > 0) editAddItemToSale(filtered[0] as any);
                           }
                         }}
@@ -1840,7 +1841,7 @@ export default function CustomersPage() {
                     {editProductSearch.length >= 1 && (
                       <div className="mt-1.5 space-y-1 max-h-40 overflow-y-auto">
                         {allProducts
-                          .filter(p => p.name.toLowerCase().includes(editProductSearch.toLowerCase()))
+                          .filter(p => matchesSearch(p.name, editProductSearch))
                           .slice(0, 6)
                           .map((p: any) => (
                             <button key={p.id} onClick={() => editAddItemToSale(p)}

@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect, useCallback } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { supabase } from "../../lib/supabase";
+import { matchesSearch } from "../../lib/search";
 import { recalcFiadoBalance } from "../../lib/fiado";
 import { useTheme } from "../../contexts/ThemeContext";
 import { PageHeader, btnPrimary, btnSecondary, WHITE_TEXT } from "../../components/PageHeader";
@@ -883,7 +884,7 @@ export default function TablesPage() {
 
   // catFilter agora guarda o NOME da categoria (maiúsculo) ou null
   const filteredProducts = products.filter(p => {
-    const matchSearch = search === "" || p.name.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = matchesSearch(p.name, search);
     const matchCat    = catFilter === null ||
       (p.category_id !== null && catNameMap[catFilter]?.includes(p.category_id));
     return matchSearch && matchCat;
@@ -1799,7 +1800,7 @@ export default function TablesPage() {
                       </div>
                       <div className="flex-1 space-y-1 overflow-y-auto max-h-80">
                         {products
-                          .filter(p => curateSearch === "" || p.name.toLowerCase().includes(curateSearch.toLowerCase()))
+                          .filter(p => matchesSearch(p.name, curateSearch))
                           .map(p => {
                             const inCat = (curatedProducts[curateActiveCat!] ?? []).includes(p.id);
                             return (

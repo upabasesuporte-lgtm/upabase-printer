@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { matchesSearch } from "../../lib/search";
 import {
   ArrowLeft, Search, Plus, Pencil, X, FileUp, RefreshCw, Check, AlertCircle, TrendingUp, TrendingDown, Package,
 } from "lucide-react";
@@ -70,8 +71,8 @@ export default function PurchaseScreen(p: Props) {
 
   const q = search.trim().toLowerCase();
   const matches = q === "" ? [] : [
-    ...p.products.filter(x => x.name.toLowerCase().includes(q) || (!!x.barcode && x.barcode === search.trim())).map(x => ({ ...x, ref_type: "product" as const })),
-    ...p.stockItems.filter(x => x.name.toLowerCase().includes(q)).map(x => ({ ...x, ref_type: "ingredient" as const })),
+    ...p.products.filter(x => matchesSearch(x.name, q) || (!!x.barcode && x.barcode === search.trim())).map(x => ({ ...x, ref_type: "product" as const })),
+    ...p.stockItems.filter(x => matchesSearch(x.name, q)).map(x => ({ ...x, ref_type: "ingredient" as const })),
   ].slice(0, 8);
 
   const lookup = (line: POLine) =>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../../lib/supabase";
+import { matchesSearch } from "../../lib/search";
 import { recalcFiadoBalance } from "../../lib/fiado";
 import { getStoreSettings, getSellers, refreshStoreCache } from "../settings";
 import { useTheme } from "../../contexts/ThemeContext";
@@ -269,11 +270,11 @@ export default function PdvPage() {
   // ── Produtos filtrados ──
   const filtered = products.filter(p =>
     p.is_active &&
-    (search === "" || p.name.toLowerCase().includes(search.toLowerCase()) || (p.barcode && p.barcode.includes(search)))
+    (matchesSearch(p.name, search) || (p.barcode && p.barcode.includes(search)))
   );
   const allShortcutIds = shortcutGroups.flatMap(g => g.productIds);
   const filteredCustomers = customers.filter(c =>
-    custSearch === "" || c.name.toLowerCase().includes(custSearch.toLowerCase()) || (c.phone && c.phone.includes(custSearch))
+    matchesSearch(c.name, custSearch) || (c.phone && c.phone.includes(custSearch))
   );
 
   useEffect(() => { loadAll(); loadPending(); }, []);
@@ -1586,7 +1587,7 @@ export default function PdvPage() {
             <div className="flex justify-center py-12"><RefreshCw className="w-5 h-5 animate-spin text-brand-600" /></div>
           ) : (
             <div className="space-y-3">
-              {sales.filter(s => historySearch === "" || s.customers?.name?.toLowerCase().includes(historySearch.toLowerCase()) || s.id.includes(historySearch) || (s as any).delivery_address?.toLowerCase().includes(historySearch.toLowerCase())).map(sale => {
+              {sales.filter(s => historySearch === "" || (!!s.customers?.name && matchesSearch(s.customers.name, historySearch)) || s.id.includes(historySearch) || (!!(s as any).delivery_address && matchesSearch((s as any).delivery_address, historySearch))).map(sale => {
                 const isExpanded = expandedSaleId === sale.id;
                 const saleItems = sale.sale_items ?? [];
                 const discountAmt = Number(sale.discount ?? 0);
@@ -1893,7 +1894,7 @@ export default function PdvPage() {
         const editOrderNum = showEditSale.id.slice(-6).toUpperCase();
         const filteredForAdd = products.filter(p =>
           p.is_active && editProductSearch.length >= 1 &&
-          p.name.toLowerCase().includes(editProductSearch.toLowerCase())
+          matchesSearch(p.name, editProductSearch)
         );
         return (
           <Modal title={`Editar Venda · #${editOrderNum}`} onClose={() => { setShowEditSale(null); setEditProductSearch(""); setEditCustSearch(""); setEditingItemPriceId(null); }} wide>
@@ -1930,7 +1931,7 @@ export default function PdvPage() {
                   />
                   {editCustSearch.length > 0 && (
                     <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-zinc-900 border border-zinc-700 rounded-xl overflow-hidden shadow-xl max-h-40 overflow-y-auto">
-                      {customers.filter(c => c.name.toLowerCase().includes(editCustSearch.toLowerCase())).slice(0, 5).map(c => (
+                      {customers.filter(c => matchesSearch(c.name, editCustSearch)).slice(0, 5).map(c => (
                         <button key={c.id} onClick={() => { setEditCustomer(c); setEditCustSearch(""); }}
                           className="w-full text-left px-3 py-2 hover:bg-zinc-800 text-sm transition-colors border-b border-zinc-800 last:border-0">
                           <span className="font-medium">{c.name}</span>
@@ -2192,7 +2193,7 @@ export default function PdvPage() {
                     {/* Lista de produtos */}
                     <div className="flex-1 space-y-1 overflow-y-auto max-h-64">
                       {products
-                        .filter(p => shortcutSearch === "" || p.name.toLowerCase().includes(shortcutSearch.toLowerCase()))
+                        .filter(p => matchesSearch(p.name, shortcutSearch))
                         .map(p => {
                           const inGroup = group.productIds.includes(p.id);
                           return (

@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "../../lib/supabase";
+import { matchesSearch } from "../../lib/search";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import { PageHeader, btnPrimary, btnSecondary, WHITE_TEXT } from "../../components/PageHeader";
@@ -286,8 +287,7 @@ export default function AccountsPayablePage() {
   const filtered = useMemo(() => {
     const now = new Date();
     return bills.filter(b => {
-      if (search && !b.description.toLowerCase().includes(search.toLowerCase()) &&
-          !(b.supplier?.toLowerCase().includes(search.toLowerCase()))) return false;
+      if (search && !matchesSearch(b.description, search) && !matchesSearch(b.supplier, search)) return false;
       if (statusF !== "all" && b.status !== statusF) return false;
       if (categoryF !== "all" && b.category !== categoryF) return false;
       if (periodF !== "all") {

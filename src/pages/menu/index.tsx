@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTheme } from "../../contexts/ThemeContext";
 import { supabase } from "../../lib/supabase";
+import { matchesSearch } from "../../lib/search";
 import {
   ShoppingCart, Plus, Minus, X, Search, Clock, CheckCircle2,
   ChefHat, MapPin, Phone, User, ChevronRight, AlertCircle,
@@ -644,8 +645,7 @@ export default function PublicMenuPage() {
   const filteredProducts = products.filter(p =>
     !hiddenCatIds.includes(p.category_id ?? "") &&
     (activeCat === "all" || p.category_id === activeCat) &&
-    (!search || p.name.toLowerCase().includes(search.toLowerCase()) ||
-      (p.description ?? "").toLowerCase().includes(search.toLowerCase()))
+    (matchesSearch(p.name, search) || matchesSearch(p.description, search))
   );
 
   const availableTypes: ("delivery"|"takeaway")[] = [];

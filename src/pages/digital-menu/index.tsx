@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect, useCallback, useRef } from "react";
 import { flushSync } from "react-dom";
 import { supabase } from "../../lib/supabase";
+import { matchesSearch } from "../../lib/search";
 import { useTheme } from "../../contexts/ThemeContext";
 import { PageHeader, btnSecondary } from "../../components/PageHeader";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
@@ -909,7 +910,7 @@ export default function DigitalMenuPage() {
   // pra achar e reativar algum produto sem precisar mostrar a lista toda.
   const filteredProducts = products.filter(p =>
     (catFilter === "all" || p.category_id === catFilter) &&
-    (!productSearch || p.name.toLowerCase().includes(productSearch.toLowerCase())) &&
+    matchesSearch(p.name, productSearch) &&
     (productSearch !== "" || p.visible_digital_menu)
   );
   const orderedCategories = (() => {
@@ -1779,7 +1780,7 @@ export default function DigitalMenuPage() {
                                       Sem vínculo — sem métricas
                                     </button>
                                     {products
-                                      .filter(p => p.id !== editProduct?.id && p.name.toLowerCase().includes(linkSearch.toLowerCase()))
+                                      .filter(p => p.id !== editProduct?.id && matchesSearch(p.name, linkSearch))
                                       .slice(0, 50)
                                       .map(p => (
                                         <button key={p.id}
@@ -1793,7 +1794,7 @@ export default function DigitalMenuPage() {
                                           {p.name}
                                         </button>
                                       ))}
-                                    {products.filter(p => p.id !== editProduct?.id && p.name.toLowerCase().includes(linkSearch.toLowerCase())).length === 0 && (
+                                    {products.filter(p => p.id !== editProduct?.id && matchesSearch(p.name, linkSearch)).length === 0 && (
                                       <p className="px-2.5 py-1.5 text-[11px] text-zinc-600">Nenhum produto encontrado</p>
                                     )}
                                   </div>

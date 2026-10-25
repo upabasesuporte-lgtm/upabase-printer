@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
+import { matchesSearch } from "../../lib/search";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import {
@@ -892,8 +893,8 @@ export default function PurchasesPage() {
                     const isSearching = openSearchIdx === idx;
                     const q = itemSearchText.trim().toLowerCase();
                     const matches = [
-                      ...stockItems.filter(s => q === "" || s.name.toLowerCase().includes(q)).map(s => ({ ...s, ref_type: "ingredient" as const })),
-                      ...limitedProducts.filter(p => q === "" || p.name.toLowerCase().includes(q) || (!!p.barcode && p.barcode === itemSearchText.trim())).map(p => ({ ...p, ref_type: "product" as const })),
+                      ...stockItems.filter(s => q === "" || matchesSearch(s.name, q)).map(s => ({ ...s, ref_type: "ingredient" as const })),
+                      ...limitedProducts.filter(p => q === "" || matchesSearch(p.name, q) || (!!p.barcode && p.barcode === itemSearchText.trim())).map(p => ({ ...p, ref_type: "product" as const })),
                     ].slice(0, 8);
                     return (
                       <div key={idx} className="pb-2 border-b border-zinc-800 last:border-0 space-y-1.5">
