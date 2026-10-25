@@ -514,39 +514,88 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Resultado do Período (Receita - Despesas) ── */}
-      <div className="relative overflow-hidden rounded-2xl p-4 space-y-3" style={isLight ? {
-          background: netResult >= 0 ? "rgba(16,185,129,0.06)" : "rgba(244,63,94,0.06)",
-          border: `1px solid ${netResult >= 0 ? "rgba(16,185,129,0.25)" : "rgba(244,63,94,0.25)"}`,
-          boxShadow: `0 1px 2px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.8)`,
-        } : {
-          background: netResult >= 0 ? "rgba(16,185,129,0.06)" : "rgba(244,63,94,0.06)",
-          border: `1px solid ${netResult >= 0 ? "rgba(16,185,129,0.3)" : "rgba(244,63,94,0.3)"}`,
-          boxShadow: `0 0 24px ${netResult >= 0 ? "rgba(16,185,129,0.08)" : "rgba(244,63,94,0.08)"}`,
-        }}>
-        {/* Resultado Principal */}
-        <div className="text-center py-2">
-          <p className="text-[10px] font-semibold uppercase tracking-widest mb-2" style={{ color: isLight ? "#9CA3AF" : "#71717a" }}>Resultado — {PERIOD_LABELS[period]}</p>
-          <p className="text-3xl sm:text-4xl font-black tabular-nums leading-tight" style={{ color: netResult >= 0 ? "#10b981" : "#f43f5e" }}>{netResult >= 0 ? "+" : ""}{fmt(netResult)}</p>
-          <p className="text-[10px] mt-1" style={{ color: isLight ? "#6B7280" : "#71717a" }}>{netResult >= 0 ? "Lucro" : "Prejuízo"} no período</p>
-        </div>
+      {(() => {
+        const positive = netResult >= 0;
+        const accent = positive ? "#10b981" : "#f43f5e";
+        // Quanto da receita as despesas consumiram (barra de proporção)
+        const expensePct = totalRev > 0 ? Math.min(100, (apExpenses / totalRev) * 100) : (apExpenses > 0 ? 100 : 0);
+        const margin = totalRev > 0 ? (netResult / totalRev) * 100 : null;
+        const muted = isLight ? "#6B7280" : "#a1a1aa";
+        const faint = isLight ? "#9CA3AF" : "#71717a";
+        const tileBg = isLight ? "#F9FAFB" : "rgba(255,255,255,0.03)";
+        const tileBorder = isLight ? "1px solid #F1F5F9" : "1px solid rgba(255,255,255,0.06)";
+        return (
+          <div className="relative overflow-hidden rounded-2xl" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+            {/* Faixa de cor no topo indicando lucro/prejuízo */}
+            <div className="h-1 w-full" style={{ background: positive ? "linear-gradient(90deg,#10b981,#06b6d4)" : "linear-gradient(90deg,#f43f5e,#f97316)" }} />
+            {/* Brilho suave atrás do número */}
+            <div className="pointer-events-none absolute -top-16 -right-16 w-56 h-56 rounded-full blur-3xl"
+              style={{ background: accent, opacity: isLight ? 0.08 : 0.12 }} />
 
-        {/* Divisor */}
-        <div style={{ height: "1px", background: isLight ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.08)" }} />
+            <div className="relative p-5 sm:p-6 grid gap-5 lg:grid-cols-[1.1fr_1fr] lg:items-center">
+              {/* Resultado */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: `${accent}1a` }}>
+                    {positive ? <TrendingUp className="w-4 h-4" style={{ color: accent }} /> : <TrendingDown className="w-4 h-4" style={{ color: accent }} />}
+                  </span>
+                  <p className="text-xs font-semibold" style={{ color: muted }}>Resultado · {PERIOD_LABELS[period]}</p>
+                  <span className="ml-auto lg:ml-2 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
+                    style={{ background: `${accent}1a`, color: accent }}>
+                    {positive ? "Lucro" : "Prejuízo"}
+                  </span>
+                </div>
+                <p className="text-4xl sm:text-5xl font-black tabular-nums tracking-tight leading-none" style={{ color: isLight ? "#111827" : "#fff" }}>
+                  <span style={{ color: accent }}>{positive ? "+" : "−"}</span>{fmt(Math.abs(netResult))}
+                </p>
+                {margin !== null && (
+                  <p className="text-xs mt-2" style={{ color: faint }}>
+                    Margem de <span className="font-bold" style={{ color: accent }}>{margin.toFixed(1).replace(".", ",")}%</span> sobre as receitas
+                  </p>
+                )}
 
-        {/* Receitas e Despesas */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="text-center py-2">
-            <p className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: isLight ? "#9CA3AF" : "#71717a" }}>Receitas</p>
-            <p className="text-xl sm:text-2xl font-black tabular-nums leading-tight" style={{ color: "#10b981" }}>{fmt(totalRev)}</p>
-            <p className="text-[9px] mt-1" style={{ color: isLight ? "#6B7280" : "#71717a" }}>vendas</p>
+                {/* Barra: receitas vs. despesas */}
+                <div className="mt-4">
+                  <div className="h-2.5 rounded-full overflow-hidden flex" style={{ background: isLight ? "#ECFDF5" : "rgba(16,185,129,0.15)" }}>
+                    <div className="h-full rounded-full transition-all duration-700"
+                      style={{ width: `${expensePct}%`, background: "linear-gradient(90deg,#f43f5e,#fb7185)" }} />
+                  </div>
+                  <div className="flex justify-between mt-1.5 text-[10px]" style={{ color: faint }}>
+                    <span>Despesas consumiram {expensePct.toFixed(0)}% da receita</span>
+                    <span>{totalRev > 0 ? `${Math.max(0, 100 - expensePct).toFixed(0)}% ficou` : ""}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Receitas e Despesas */}
+              <div className="grid grid-cols-2 lg:grid-cols-1 gap-3">
+                <div className="rounded-xl p-3.5 flex items-center gap-3" style={{ background: tileBg, border: tileBorder }}>
+                  <span className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center" style={{ background: "rgba(16,185,129,0.12)" }}>
+                    <Banknote className="w-4 h-4" style={{ color: "#10b981" }} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-medium" style={{ color: faint }}>Receitas</p>
+                    <p className="text-base sm:text-lg font-extrabold tabular-nums leading-tight truncate" style={{ color: "#10b981" }}>{fmt(totalRev)}</p>
+                    <p className="text-[10px]" style={{ color: faint }}>{totalCount} {totalCount === 1 ? "venda" : "vendas"}</p>
+                  </div>
+                </div>
+                <Link to="/accounts-payable" className="group rounded-xl p-3.5 flex items-center gap-3 transition-colors" style={{ background: tileBg, border: tileBorder }}>
+                  <span className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center" style={{ background: "rgba(244,63,94,0.12)" }}>
+                    <Wallet className="w-4 h-4" style={{ color: "#f43f5e" }} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] font-medium" style={{ color: faint }}>Despesas</p>
+                    <p className="text-base sm:text-lg font-extrabold tabular-nums leading-tight truncate" style={{ color: "#f43f5e" }}>{fmt(apExpenses)}</p>
+                    <p className="text-[10px] inline-flex items-center gap-1" style={{ color: faint }}>
+                      ver contas <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />
+                    </p>
+                  </div>
+                </Link>
+              </div>
+            </div>
           </div>
-          <div className="text-center py-2">
-            <p className="text-[10px] font-semibold uppercase tracking-widest mb-1" style={{ color: isLight ? "#9CA3AF" : "#71717a" }}>Despesas</p>
-            <p className="text-xl sm:text-2xl font-black tabular-nums leading-tight" style={{ color: "#f43f5e" }}>{fmt(apExpenses)}</p>
-            <Link to="/accounts-payable" className="text-[9px] underline mt-1" style={{ color: isLight ? "#7B2FBE" : "#71717a" }}>ver contas</Link>
-          </div>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* ── KPIs ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
