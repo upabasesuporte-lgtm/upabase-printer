@@ -655,6 +655,16 @@ export function AppLayout() {
             </button>
           </div>
 
+          {opsOn && ops.current && (
+            <button onClick={() => setCurrentOperator(null)}
+              title={`Trocar operador — agora: ${ops.current.name}`}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg transition-all font-semibold text-sm whitespace-nowrap overflow-hidden"
+              style={{ background: "rgba(49,93,251,0.10)", border: "1px solid rgba(49,93,251,0.35)", color: "#315DFB" }}>
+              <Repeat size={16} className="flex-shrink-0" />
+              <span className="md:hidden md:group-hover:inline truncate">Trocar operador · {ops.current.name}</span>
+            </button>
+          )}
+
           <button
             onClick={() => window.open("https://wa.me/5518997066843?text=upabase%20atendente%20wesley", "_blank")}
             title="Suporte"
@@ -722,8 +732,8 @@ export function AppLayout() {
                 style={{ border: `1px solid ${T.border}` }}>
                 <Repeat size={13} style={{ color: "#315DFB" }} />
                 <span className="flex flex-col items-start leading-none">
-                  <span className="text-[12px] font-bold" style={{ color: T.text }}>{ops.current.name}</span>
-                  <span className="text-[9px] uppercase tracking-wider text-zinc-500 mt-0.5">{ROLE_LABEL[ops.current.role]}</span>
+                  <span className="text-[12px] font-bold max-w-[140px] truncate" style={{ color: T.text }}>{ops.current.name}</span>
+                  <span className="text-[9px] uppercase tracking-wider mt-0.5" style={{ color: "#315DFB" }}>Trocar operador</span>
                 </span>
               </button>
             )}

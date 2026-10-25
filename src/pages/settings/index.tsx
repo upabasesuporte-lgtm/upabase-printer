@@ -450,7 +450,7 @@ function OperatorsSection({ userId, isLight }: { userId: string; isLight: boolea
   useEffect(() => { refresh(); }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pinOk = (p: string) => /^[0-9]{4,6}$/.test(p);
-  const flash = (m: string) => { setOk(m); setTimeout(() => setOk(null), 2500); };
+  const flash = (m: string) => { setOk(m); setTimeout(() => setOk(null), 8000); };
   const badName = (n: string) => !n ? "Informe o nome." : n.includes("@") ? "Use o nome da pessoa, não o e-mail." : null;
 
   async function createOwner() {
@@ -497,7 +497,8 @@ function OperatorsSection({ userId, isLight }: { userId: string; isLight: boolea
     if (error) { setErr(error.message); setBusy(false); return; }
     setDraft(null);
     await refresh();
-    flash(draft.id ? "Alterações salvas." : `${n} cadastrado(a).`);
+    flash(draft.id ? "Alterações salvas."
+      : `${n} cadastrado(a). Para entrar como ${n}, clique em "Trocar operador" no menu lateral (ou no topo, à direita) e digite o PIN.`);
     setBusy(false);
   }
 
