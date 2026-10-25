@@ -50,7 +50,7 @@ function PinPad({ value, onChange, onSubmit, isLight }: {
       </div>
       <button type="button" onClick={onSubmit} disabled={value.length < 4}
         className="mt-3 w-full h-12 rounded-xl text-sm font-bold text-white disabled:opacity-40 transition-opacity"
-        style={{ background: "linear-gradient(135deg, #7C3FFA 0%, #315DFB 55%, #00B8C8 100%)" }}>
+        style={{ color: "#fff", background: "linear-gradient(135deg, #7C3FFA 0%, #315DFB 55%, #00B8C8 100%)" }}>
         Entrar
       </button>
     </div>

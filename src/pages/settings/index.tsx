@@ -669,7 +669,7 @@ function OperatorsSection({ userId, isLight }: { userId: string; isLight: boolea
             <p className="my-4 text-5xl font-black tracking-[0.3em] tabular-nums" style={{ color: "#315DFB" }}>{revealed.pin}</p>
             <p className="text-xs text-zinc-500 mb-5">Anote ou passe agora para a pessoa. <b>Este número não aparece de novo</b> — se esquecer, é só gerar outro.</p>
             <button onClick={() => setRevealed(null)} className="w-full h-11 rounded-xl text-sm font-bold text-white"
-              style={{ background: "#315DFB" }}>Já anotei</button>
+              style={{ color: "#fff", background: "#315DFB" }}>Já anotei</button>
           </div>
         </div>
       )}
