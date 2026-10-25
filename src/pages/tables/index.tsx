@@ -78,10 +78,10 @@ const inputCls = "w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounde
 const selectCls = inputCls + " cursor-pointer";
 
 const STATUS_CFG: Record<string, { label: string; hex: string; glow: string; badge: string; dot: string }> = {
-  free:     { label: "Livre",     hex: "#315DFB", glow: "rgba(37,99,235,0.18)",    badge: "text-blue-400 bg-blue-500/10 border-blue-500/20",           dot: "bg-blue-500"    },
+  free:     { label: "Livre",     hex: "#10b981", glow: "rgba(16,185,129,0.18)",   badge: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20", dot: "bg-emerald-500" },
   occupied: { label: "Ocupada",   hex: "#f59e0b", glow: "rgba(245,158,11,0.18)",   badge: "text-amber-400 bg-amber-500/10 border-amber-500/20",       dot: "bg-amber-500"   },
-  reserved: { label: "Reservada", hex: "#3b82f6", glow: "rgba(59,130,246,0.18)",   badge: "text-blue-400 bg-blue-500/10 border-blue-500/20",           dot: "bg-blue-500"    },
-  cleaning: { label: "Limpeza",   hex: "#71717a", glow: "rgba(113,113,122,0.12)", badge: "text-zinc-400 bg-zinc-500/10 border-zinc-500/20",           dot: "bg-zinc-500"    },
+  reserved: { label: "Reservada", hex: "#6366f1", glow: "rgba(99,102,241,0.18)",   badge: "text-indigo-400 bg-indigo-500/10 border-indigo-500/20",    dot: "bg-indigo-500"  },
+  cleaning: { label: "Limpeza",   hex: "#94a3b8", glow: "rgba(148,163,184,0.12)", badge: "text-zinc-400 bg-zinc-500/10 border-zinc-500/20",           dot: "bg-zinc-500"    },
 };
 const fallbackCfg = STATUS_CFG.free;
 
@@ -126,6 +126,8 @@ export default function TablesPage() {
 
   // Data
   const [tables, setTables]         = useState<TableRecord[]>([]);
+  const [openInfo, setOpenInfo]     = useState<Record<string, { since: string; total: number; items: number }>>({});
+  const [topProductIds, setTopProductIds] = useState<string[]>([]);
   const [products, setProducts]     = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [customers, setCustomers]   = useState<Customer[]>([]);
@@ -278,12 +280,45 @@ export default function TablesPage() {
     ]);
     if (user) setCashRegisterId(regRes?.data?.id ?? null);
     setTables((t ?? []) as TableRecord[]);
+    // Mais pedidos dos últimos 30 dias (se falhar, a seção só não aparece)
+    supabase.rpc("top_products_recent", { p_days: 30, p_limit: 12 })
+      .then(({ data }) => setTopProductIds(((data ?? []) as { product_id: string }[]).map(r => r.product_id)));
+    // Mesas ocupadas: tempo aberta e valor da comanda, mostrados no cartão da mesa
+    const openIds = ((t ?? []) as TableRecord[]).map(x => x.current_sale_id).filter(Boolean) as string[];
+    if (openIds.length) {
+      const { data: os } = await supabase.from("sales")
+        .select("id, created_at, sale_items(quantity, unit_price)").in("id", openIds);
+      const info: Record<string, { since: string; total: number; items: number }> = {};
+      for (const s of (os ?? []) as any[]) {
+        const its = (s.sale_items ?? []) as { quantity: number; unit_price: number }[];
+        info[s.id] = {
+          since: s.created_at,
+          total: its.reduce((a, i) => a + Number(i.quantity) * Number(i.unit_price), 0),
+          items: its.reduce((a, i) => a + Number(i.quantity), 0),
+        };
+      }
+      setOpenInfo(info);
+    } else setOpenInfo({});
     setProducts((p ?? []) as Product[]);
     setCategories((c ?? []) as Category[]);
     setCustomers((custs ?? []) as Customer[]);
   }, []);
 
   useEffect(() => { loadAll(); }, [loadAll]);
+
+  // Comanda aberta: atualiza só a situação de cada item na cozinha (sem recarregar a tela)
+  useEffect(() => {
+    if (view !== "table" || !currentSaleId) return;
+    const saleId = currentSaleId;
+    const t = setInterval(async () => {
+      const { data } = await supabase.from("sale_items").select("id, kds_state").eq("sale_id", saleId);
+      const map = new Map(((data ?? []) as { id: string; kds_state: string | null }[]).map(r => [r.id, r.kds_state]));
+      setOrderItems(prev => prev.some(i => map.has(i.id) && map.get(i.id) !== (i.kds_state ?? null))
+        ? prev.map(i => map.has(i.id) ? { ...i, kds_state: map.get(i.id) ?? null } : i)
+        : prev);
+    }, 10_000);
+    return () => clearInterval(t);
+  }, [view, currentSaleId]);
 
   // Esc fecha o modal/checkout aberto no momento
   useEscapeKey(() => {
@@ -461,6 +496,48 @@ export default function TablesPage() {
   // ── Checkout ────────────────────────────────────────────────────────────────
 
   const orderTotal = orderItems.reduce((s, i) => s + i.unit_price * i.quantity, 0);
+  const orderQty = orderItems.reduce((s, i) => s + i.quantity, 0);
+  // Quantas unidades de cada produto já estão na comanda (badge no cartão do produto)
+  const qtyInOrder: Record<string, number> = {};
+  for (const i of orderItems) qtyInOrder[i.product_id] = (qtyInOrder[i.product_id] ?? 0) + i.quantity;
+
+  // Confirmação rápida ao tocar num produto (o garçom não precisa abrir a comanda)
+  const [addedFlash, setAddedFlash] = useState<{ name: string; key: number } | null>(null);
+  function addWithFlash(p: Product) {
+    addProduct(p);
+    const key = Date.now();
+    setAddedFlash({ name: p.name, key });
+    setTimeout(() => setAddedFlash(f => (f?.key === key ? null : f)), 1400);
+  }
+
+  function renderProduct(p: Product) {
+    const inOrder = qtyInOrder[p.id] ?? 0;
+    return (
+      <button key={p.id} onClick={() => addWithFlash(p)}
+        style={{ background: card.bg, border: inOrder > 0 ? "1px solid rgba(49,93,251,0.55)" : card.border }}
+        className="relative flex flex-col items-start gap-1.5 p-3 min-h-[76px] hover:border-brand-500/50 rounded-xl text-left transition-all active:scale-95">
+        {inOrder > 0 && (
+          <span className="absolute top-1.5 right-1.5 min-w-[22px] h-[22px] px-1.5 rounded-full text-[11px] font-bold flex items-center justify-center"
+            style={{ background: "#315DFB", color: "#fff" }}>{inOrder}</span>
+        )}
+        <span className="text-sm font-semibold leading-tight line-clamp-2 pr-6" style={{ color: isLight ? "#111" : "#fff" }}>{p.name}</span>
+        <span className="text-sm font-bold text-brand-600">{fmt(p.sale_price)}</span>
+        {!isUnlimited(p) && p.stock <= 5 && (
+          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${p.stock === 0 ? "bg-red-500/10 text-red-400" : "bg-amber-500/10 text-amber-400"}`}>
+            {p.stock === 0 ? "Esgotado" : `${p.stock} rest.`}
+          </span>
+        )}
+      </button>
+    );
+  }
+
+  // Situação de cada item na cozinha (aparece na comanda)
+  const KDS_BADGE: Record<string, { label: string; color: string }> = {
+    new: { label: "na cozinha", color: "#f59e0b" },
+    preparing: { label: "preparando", color: "#315DFB" },
+    ready: { label: "pronto", color: "#10b981" },
+    done: { label: "entregue", color: "#94a3b8" },
+  };
   const discountVal = parseFloat(checkoutDiscount) || 0;
   const finalTotal = Math.max(0, orderTotal - discountVal);
   const totalPaid = checkoutPayments.reduce((s, p) => s + p.amount, 0);
@@ -920,81 +997,46 @@ export default function TablesPage() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
               {filteredTables.map(table => {
                 const cfg = STATUS_CFG[table.status] ?? fallbackCfg;
+                const info = table.status === "occupied" && table.current_sale_id ? openInfo[table.current_sale_id] : undefined;
+                const mins = info ? Math.max(0, Math.floor((Date.now() - new Date(info.since).getTime()) / 60000)) : 0;
                 return (
                   <button key={table.id} onClick={() => enterTable(table)}
-                    className="relative overflow-hidden flex flex-col items-center gap-2.5 rounded-2xl transition-all hover:scale-[1.03] active:scale-95 cursor-pointer"
-                    style={isLight ? {
-                      padding: "16px 12px",
-                      minHeight: 130,
-                      background: `linear-gradient(160deg,#ffffff,${cfg.hex}10)`,
-                      border: `1px solid ${cfg.hex}30`,
-                      boxShadow: `0 2px 8px rgba(0,0,0,0.05), 0 6px 20px ${cfg.hex}18, inset 0 1px 0 rgba(255,255,255,1)`,
-                      borderTop: `3px solid ${cfg.hex}`,
-                    } : {
-                      padding: "20px",
-                      minHeight: 160,
-                      background: table.status === "free"
-                        ? "linear-gradient(135deg,#059669,#10b981)"
-                        : "linear-gradient(135deg,#18181b 0%,#09090b 100%)",
-                      boxShadow: table.status === "free"
-                        ? "0 8px 32px rgba(16,185,129,0.45), inset 0 1px 0 rgba(255,255,255,0.15)"
-                        : `0 0 24px ${cfg.glow}, inset 0 1px 0 rgba(255,255,255,0.04)`,
-                      border: "1px solid rgba(63,63,70,0.8)",
+                    className="relative text-left rounded-2xl p-4 transition-all hover:-translate-y-0.5 active:scale-[0.98] cursor-pointer flex flex-col gap-3 min-h-[124px]"
+                    style={{
+                      background: card.bg,
+                      border: isLight ? "1px solid #e5e7eb" : "1px solid rgba(63,63,70,0.7)",
+                      boxShadow: isLight ? "0 1px 2px rgba(17,24,39,0.04), 0 4px 14px -6px rgba(17,24,39,0.10)" : "none",
                     }}>
-                    {/* Glow orb — dark only */}
-                    {!isLight && (
-                      <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-32 h-16 rounded-full opacity-25 blur-2xl pointer-events-none"
-                        style={{ background: table.status === "free" ? "rgba(255,255,255,0.4)" : cfg.hex }} />
-                    )}
-                    {/* Status dot */}
-                    <div className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full"
-                      style={{
-                        background: isLight ? cfg.hex : (table.status === "free" ? "rgba(255,255,255,0.8)" : cfg.hex),
-                        boxShadow: isLight ? `0 0 6px ${cfg.hex}` : (table.status === "free" ? "0 0 8px rgba(255,255,255,0.6)" : `0 0 8px ${cfg.hex}`),
-                      }} />
-                    {/* Icon */}
-                    <div className="flex items-center justify-center relative z-10 mt-1"
-                      style={isLight ? {
-                        width: 44, height: 44, borderRadius: 12,
-                        background: `${cfg.hex}12`,
-                        border: `1px solid ${cfg.hex}25`,
-                      } : {
-                        width: 56, height: 56, borderRadius: 16,
-                        background: table.status === "free" ? "rgba(255,255,255,0.2)" : `${cfg.hex}14`,
-                        border: table.status === "free" ? "1px solid rgba(255,255,255,0.35)" : `1px solid ${cfg.hex}30`,
-                        boxShadow: table.status === "free" ? "0 0 20px rgba(255,255,255,0.15)" : `0 0 20px ${cfg.hex}20`,
-                      }}>
-                      <UtensilsCrossed style={isLight ? { width: 18, height: 18, color: cfg.hex } : {
-                        width: 24, height: 24,
-                        color: table.status === "free" ? "#fff" : cfg.hex,
-                        filter: table.status === "free" ? "drop-shadow(0 0 5px rgba(255,255,255,0.6))" : `drop-shadow(0 0 5px ${cfg.hex})`,
-                      }} />
+                    {/* faixa fina da cor do status */}
+                    <span className="absolute left-0 top-4 bottom-4 w-1 rounded-r-full" style={{ background: cfg.hex }} />
+                    <div className="flex items-start gap-2 pl-1">
+                      <p className="flex-1 min-w-0 text-base font-bold leading-tight truncate" style={{ color: isLight ? "#111827" : "#f4f4f5" }}>{table.name}</p>
+                      <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
+                        style={{ color: cfg.hex, background: `${cfg.hex}14` }}>
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: cfg.hex }} />
+                        {cfg.label}
+                      </span>
                     </div>
-                    {/* Table info */}
-                    <div className="text-center relative z-10 flex-1 flex flex-col justify-center gap-0.5">
-                      <p className="font-bold leading-tight"
-                        style={{ fontSize: isLight ? 13 : 14, color: isLight ? "#0f172a" : "#fff" }}>{table.name}</p>
-                      <p style={{ fontSize: 10, color: isLight ? `${cfg.hex}99` : (table.status === "free" ? "rgba(255,255,255,0.65)" : "#52525b") }}>
-                        {table.capacity} lug · {table.area}
-                      </p>
+                    <div className="pl-1 flex-1 flex flex-col justify-end">
+                      {info ? (
+                        <>
+                          <p className="text-lg font-black tabular-nums leading-none" style={{ color: isLight ? "#111827" : "#f4f4f5" }}>{fmt(info.total)}</p>
+                          <p className="text-[11px] mt-1 flex items-center gap-1" style={{ color: mins >= 90 ? "#ef4444" : isLight ? "#6b7280" : "#a1a1aa" }}>
+                            <Clock className="w-3 h-3" /> {timeAgo(info.since)} · {info.items} ite{info.items === 1 ? "m" : "ns"}
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-xs" style={{ color: isLight ? "#9ca3af" : "#71717a" }}>
+                          {table.status === "free" ? "Toque para abrir" : table.status === "reserved" ? "Reservada" : cfg.label}
+                        </p>
+                      )}
                     </div>
-                    {/* Status badge */}
-                    <span className="font-bold px-2.5 py-0.5 rounded-full relative z-10"
-                      style={isLight ? {
-                        fontSize: 10, color: cfg.hex,
-                        background: `${cfg.hex}12`,
-                        border: `1px solid ${cfg.hex}30`,
-                      } : {
-                        fontSize: 10,
-                        color: table.status === "free" ? "#fff" : cfg.hex,
-                        background: table.status === "free" ? "rgba(255,255,255,0.2)" : `${cfg.hex}12`,
-                        border: table.status === "free" ? "1px solid rgba(255,255,255,0.35)" : `1px solid ${cfg.hex}35`,
-                      }}>
-                      {cfg.label}
-                    </span>
+                    <p className="pl-1 text-[11px] flex items-center gap-1" style={{ color: isLight ? "#9ca3af" : "#71717a" }}>
+                      <Users className="w-3 h-3" /> {table.capacity} lugares{table.area ? ` · ${table.area}` : ""}
+                    </p>
                   </button>
                 );
               })}
@@ -1131,6 +1173,24 @@ export default function TablesPage() {
                     <div className="text-center py-10 text-xs text-zinc-600">Nenhum produto encontrado</div>
                   ) : (
                   <>
+                    {/* Mais pedidos (últimos 30 dias) — atalho para lançar rápido */}
+                    {(() => {
+                      const top = topProductIds.map(id => products.find(p => p.id === id)).filter(Boolean).slice(0, 8) as Product[];
+                      if (top.length === 0) return null;
+                      return (
+                        <div className="mb-4">
+                          <div className="flex items-center gap-2 py-1.5 mb-2">
+                            <span className="text-[11px] font-bold uppercase tracking-wider whitespace-nowrap flex items-center gap-1" style={{ color: "#f59e0b" }}>
+                              <Star className="w-3 h-3" /> Mais pedidos
+                            </span>
+                            <div className="flex-1 h-px bg-zinc-800/60" />
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                            {top.map(p => renderProduct(p))}
+                          </div>
+                        </div>
+                      );
+                    })()}
                     {visibleCatNames.map(name => {
                       const catProds = productsForCategory(name);
                       if (catProds.length === 0) return null;
@@ -1144,17 +1204,7 @@ export default function TablesPage() {
                           </div>
                           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2">
                             {catProds.map(p => (
-                              <button key={p.id} onClick={() => addProduct(p)}
-                                style={{ background: card.bg, border: card.border }}
-                                className="flex flex-col items-start gap-1.5 p-3 hover:border-brand-500/50 rounded-xl text-left transition-all active:scale-95">
-                                <span className="text-sm font-semibold leading-tight line-clamp-2" style={{ color: isLight ? "#111" : "#fff" }}>{p.name}</span>
-                                <span className="text-sm font-bold text-brand-600">{fmt(p.sale_price)}</span>
-                                {!isUnlimited(p) && p.stock <= 5 && (
-                                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${p.stock === 0 ? "bg-red-500/10 text-red-400" : "bg-amber-500/10 text-amber-400"}`}>
-                                    {p.stock === 0 ? "Esgotado" : `${p.stock} rest.`}
-                                  </span>
-                                )}
-                              </button>
+                              renderProduct(p)
                             ))}
                           </div>
                         </div>
@@ -1172,12 +1222,7 @@ export default function TablesPage() {
                           </div>
                           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2">
                             {uncategorized.map(p => (
-                              <button key={p.id} onClick={() => addProduct(p)}
-                                style={{ background: card.bg, border: card.border }}
-                                className="flex flex-col items-start gap-1.5 p-3 hover:border-brand-500/50 rounded-xl text-left transition-all active:scale-95">
-                                <span className="text-sm font-semibold leading-tight line-clamp-2" style={{ color: isLight ? "#111" : "#fff" }}>{p.name}</span>
-                                <span className="text-sm font-bold text-brand-600">{fmt(p.sale_price)}</span>
-                              </button>
+                              renderProduct(p)
                             ))}
                           </div>
                         </div>
@@ -1194,23 +1239,23 @@ export default function TablesPage() {
                     ) : (
                       <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2">
                         {listProds.map(p => (
-                          <button key={p.id} onClick={() => addProduct(p)}
-                            style={{ background: card.bg, border: card.border }}
-                            className="flex flex-col items-start gap-1.5 p-3 hover:border-brand-500/50 rounded-xl text-left transition-all active:scale-95">
-                            <span className="text-sm font-semibold leading-tight line-clamp-2" style={{ color: isLight ? "#111" : "#fff" }}>{p.name}</span>
-                            <span className="text-sm font-bold text-brand-600">{fmt(p.sale_price)}</span>
-                            {!isUnlimited(p) && p.stock <= 5 && (
-                              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${p.stock === 0 ? "bg-red-500/10 text-red-400" : "bg-amber-500/10 text-amber-400"}`}>
-                                {p.stock === 0 ? "Esgotado" : `${p.stock} rest.`}
-                              </span>
-                            )}
-                          </button>
+                          renderProduct(p)
                         ))}
                       </div>
                     );
                   })()
                 )}
               </div>
+
+              {/* Celular: barra fixa para ver a comanda sem perder o lugar no cardápio */}
+              {orderItems.length > 0 && (
+                <button onClick={() => setComandaTab("order")}
+                  className="sm:hidden mt-2 flex-shrink-0 w-full h-12 rounded-2xl flex items-center justify-between px-4 text-sm font-semibold shadow-lg"
+                  style={{ background: "#315DFB", color: "#fff" }}>
+                  <span className="flex items-center gap-2"><ShoppingCart className="w-4 h-4" /> Ver comanda · {orderQty} ite{orderQty === 1 ? "m" : "ns"}</span>
+                  <span className="font-black">{fmt(orderTotal)}</span>
+                </button>
+              )}
             </div>
 
             {/* RIGHT — Order / Comanda */}
@@ -1240,23 +1285,30 @@ export default function TablesPage() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-white truncate">{item.products?.name ?? "—"}</p>
                         {item.notes && <p className="text-xs text-zinc-500 italic">{item.notes}</p>}
+                        {item.kds_state && KDS_BADGE[item.kds_state] && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full mt-0.5"
+                            style={{ color: KDS_BADGE[item.kds_state].color, background: `${KDS_BADGE[item.kds_state].color}18` }}>
+                            <span className="w-1.5 h-1.5 rounded-full" style={{ background: KDS_BADGE[item.kds_state].color }} />
+                            {KDS_BADGE[item.kds_state].label}
+                          </span>
+                        )}
                         <p className="text-xs text-zinc-500">{fmt(item.unit_price)} /un</p>
                       </div>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
                         <button onClick={() => changeQty(item, -1)}
-                          className="w-6 h-6 flex items-center justify-center text-zinc-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors">
+                          className="w-9 h-9 sm:w-6 sm:h-6 flex items-center justify-center text-zinc-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors">
                           <Minus className="w-3.5 h-3.5" />
                         </button>
                         <span className="text-sm font-bold text-white w-6 text-center">{item.quantity}</span>
                         <button onClick={() => changeQty(item, 1)}
-                          className="w-6 h-6 flex items-center justify-center text-zinc-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors">
+                          className="w-9 h-9 sm:w-6 sm:h-6 flex items-center justify-center text-zinc-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors">
                           <Plus className="w-3.5 h-3.5" />
                         </button>
                         <button onClick={async () => {
                           await supabase.from("sale_items").delete().eq("id", item.id);
                           setOrderItems(prev => prev.filter(i => i.id !== item.id));
                         }}
-                          className="w-6 h-6 flex items-center justify-center text-zinc-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors">
+                          className="w-9 h-9 sm:w-6 sm:h-6 flex items-center justify-center text-zinc-600 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors">
                           <Trash2 className="w-3 h-3" />
                         </button>
                       </div>
@@ -1291,6 +1343,15 @@ export default function TablesPage() {
           </div>
         </>}
       </div>
+
+      {/* Confirmação ao lançar produto */}
+      {addedFlash && view === "table" && createPortal(
+        <div key={addedFlash.key} className="fixed left-1/2 -translate-x-1/2 bottom-24 sm:bottom-8 z-[60] px-4 py-2.5 rounded-full text-sm font-semibold shadow-xl flex items-center gap-2 pointer-events-none"
+          style={{ background: "#111827", color: "#fff" }}>
+          <CheckCircle2 className="w-4 h-4" style={{ color: "#34d399" }} /> +1 {addedFlash.name}
+        </div>,
+        document.body,
+      )}
 
       {/* ═══ MODAL — portal ao document.body, totalmente fora da árvore DOM do componente ═══ */}
       {createPortal(modal === "openConfirm" && selectedTable ? (

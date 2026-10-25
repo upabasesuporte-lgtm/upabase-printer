@@ -185,12 +185,39 @@ function OrdersBoard({ isLight, card }: { isLight: boolean; card: React.CSSPrope
     } finally { printing.current = false; }
   }, [prefs.autoPrint, prefs.sectors.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Cancelamentos (item já impresso foi diminuído/excluído): aviso na tela e ticket
+  const [cancels, setCancels] = useState<{ id: string; origin_label: string | null; sector: Sector; product_name: string | null; quantity: number; created_at: string }[]>([]);
+  const cancelSeen = useRef<Set<string> | null>(null);
+  const loadCancels = useCallback(async () => {
+    if (prefs.sectors.length === 0) { setCancels([]); return; }
+    const since = new Date(Date.now() - 30 * 60_000).toISOString();
+    const { data } = await supabase.from("kitchen_cancellations")
+      .select("id, origin_label, sector, product_name, quantity, created_at")
+      .in("sector", prefs.sectors).is("dismissed_at", null).gte("created_at", since).order("created_at", { ascending: false });
+    const list = ((data ?? []) as any[]).map(r => ({ ...r, quantity: Number(r.quantity) }));
+    if (cancelSeen.current && list.some(c => !cancelSeen.current!.has(c.id))) { try { playAlertBeep(); } catch { /* sem áudio */ } }
+    cancelSeen.current = new Set(list.map(c => c.id));
+    setCancels(list);
+    if (prefs.autoPrint) {
+      const { data: claimed } = await supabase.rpc("claim_kitchen_cancellations", { p_sectors: prefs.sectors });
+      const rows = (claimed ?? []) as { sale_id: string | null; origin_label: string | null; sector: Sector; product_name: string | null; quantity: number }[];
+      if (rows.length) printTickets(rows.map(r => ({
+        sector: r.sector, origin: r.origin_label ?? "Pedido", orderNum: (r.sale_id ?? "").slice(-6).toUpperCase(),
+        lines: [{ quantity: Number(r.quantity), product_name: r.product_name, notes: null }], cancelled: true,
+      })));
+    }
+  }, [prefs.autoPrint, prefs.sectors.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
+  async function dismissCancel(id: string) {
+    setCancels(prev => prev.filter(c => c.id !== id));
+    await supabase.from("kitchen_cancellations").update({ dismissed_at: new Date().toISOString() }).eq("id", id);
+  }
+
   useEffect(() => {
-    load(); autoPrint();
-    const t = setInterval(() => { load(); autoPrint(); }, 5000);
+    load(); autoPrint(); loadCancels();
+    const t = setInterval(() => { load(); autoPrint(); loadCancels(); }, 5000);
     const c = setInterval(() => setNow(Date.now()), 30_000);
     return () => { clearInterval(t); clearInterval(c); };
-  }, [load, autoPrint]);
+  }, [load, autoPrint, loadCancels]);
 
   useEffect(() => {
     supabase.from("couriers").select("id,name,phone,fee_per_delivery,active").eq("active", true).order("name")
@@ -289,6 +316,18 @@ function OrdersBoard({ isLight, card }: { isLight: boolean; card: React.CSSPrope
       )}
 
       {err && <p className="text-xs text-red-500 font-semibold">{err}</p>}
+
+      {cancels.length > 0 && (
+        <div className="rounded-2xl p-3 space-y-2" style={{ ...card, border: "2px solid #ef4444" }}>
+          <p className="text-sm font-black text-red-500">Cancelados — não preparar</p>
+          {cancels.map(c => (
+            <div key={c.id} className="flex items-center gap-2">
+              <p className="flex-1 text-sm"><b>{c.quantity}x</b> {c.product_name ?? "Produto"} <span className={muted}>· {c.origin_label}</span></p>
+              <button onClick={() => dismissCancel(c.id)} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ color: "#fff", background: "#ef4444" }}>Ok, visto</button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-brand-600" /></div>

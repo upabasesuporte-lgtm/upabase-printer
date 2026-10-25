@@ -21,6 +21,7 @@ export interface Ticket {
   orderNum: string;
   lines: TicketLine[];
   extra?: string | null; // observação do pedido / endereço
+  cancelled?: boolean;   // ticket de CANCELAMENTO (item já impresso foi tirado)
 }
 
 const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
@@ -29,6 +30,7 @@ const fmtQty = (q: number) => Number.isInteger(Number(q)) ? String(Number(q)) : 
 function ticketHtml(t: Ticket): string {
   const now = new Date().toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
   return `<div class="t">
+    ${t.cancelled ? `<div class="cx">*** CANCELADO ***</div>` : ""}
     <div class="sec">${esc(SECTOR_LABEL[t.sector].toUpperCase())}</div>
     <div class="org">${esc(t.origin)}</div>
     <div class="meta">#${esc(t.orderNum)} · ${esc(now)}</div>
@@ -53,6 +55,7 @@ export function printTickets(tickets: Ticket[]) {
     .sep { border-top: 1px dashed #000; margin: 6px 0; }
     .ln { font-size: 16px; margin: 4px 0; }
     .nt { font-size: 13px; margin: 0 0 4px 14px; }
+    .cx { font-size: 18px; font-weight: 900; text-align: center; border: 2px solid #000; padding: 4px; margin-bottom: 6px; }
   </style></head><body>${tickets.map(ticketHtml).join("")}</body></html>`;
   const iframe = document.createElement("iframe");
   iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden";
