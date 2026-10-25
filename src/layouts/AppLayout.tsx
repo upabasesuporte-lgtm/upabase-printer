@@ -37,7 +37,7 @@ import {
   Repeat,
 } from "lucide-react";
 import { OperatorGate } from "../components/OperatorGate";
-import { useOperators, loadOperators, canAccessRoute, setCurrentOperator, operatorsEnabled, ROLE_LABEL } from "../lib/operators";
+import { useOperators, loadOperators, canAccessRoute, setCurrentOperator, operatorsEnabled } from "../lib/operators";
 import { AvaliacaoModal } from "../components/AvaliacaoModal";
 import { prefetchReports, clearReportsCache } from "../pages/reports";
 import { clearDashboardCache } from "../pages/dashboard";
@@ -638,15 +638,6 @@ export function AppLayout() {
               </button>
             )}
 
-            {opsOn && ops.current && (
-              <button onClick={() => setCurrentOperator(null)}
-                title={`Trocar operador (${ops.current.name} · ${ROLE_LABEL[ops.current.role]})`}
-                className="flex items-center justify-center w-8 h-8 rounded-lg transition-all text-blue-500 hover:text-blue-400 hover:bg-blue-500/10 flex-shrink-0"
-                style={{ border: "1px solid transparent" }}>
-                <Repeat size={14} />
-              </button>
-            )}
-
             <button onClick={handleLogout}
               title="Sair"
               className="flex items-center justify-center w-8 h-8 rounded-lg transition-all text-zinc-500 hover:text-red-400 hover:bg-red-500/10 flex-shrink-0"
@@ -726,17 +717,6 @@ export function AppLayout() {
               <PlanBadge plan={userPlan} />
             )}
 
-            {opsOn && ops.current && (
-              <button onClick={() => setCurrentOperator(null)} title="Trocar operador"
-                className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl transition-colors hover:opacity-80"
-                style={{ border: `1px solid ${T.border}` }}>
-                <Repeat size={13} style={{ color: "#315DFB" }} />
-                <span className="flex flex-col items-start leading-none">
-                  <span className="text-[12px] font-bold max-w-[140px] truncate" style={{ color: T.text }}>{ops.current.name}</span>
-                  <span className="text-[9px] uppercase tracking-wider mt-0.5" style={{ color: "#315DFB" }}>Trocar operador</span>
-                </span>
-              </button>
-            )}
 
             {companyName && (
               <div className="hidden md:flex flex-col items-end leading-none">

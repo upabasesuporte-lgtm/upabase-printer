@@ -498,7 +498,7 @@ function OperatorsSection({ userId, isLight }: { userId: string; isLight: boolea
     setDraft(null);
     await refresh();
     flash(draft.id ? "Alterações salvas."
-      : `${n} cadastrado(a). Para entrar como ${n}, clique em "Trocar operador" no menu lateral (ou no topo, à direita) e digite o PIN.`);
+      : `${n} cadastrado(a). Para entrar como ${n}, clique em "Trocar operador" no menu lateral e digite o PIN dele.`);
     setBusy(false);
   }
 

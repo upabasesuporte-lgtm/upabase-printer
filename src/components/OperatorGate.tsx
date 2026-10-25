@@ -2,11 +2,11 @@
 // Só aparece quando a conta tem operadores cadastrados (ver lib/operators.ts).
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Lock, ShieldCheck, User, X, Delete } from "lucide-react";
+import { Lock, ShieldCheck, X, Delete } from "lucide-react";
 import { useTheme } from "../contexts/ThemeContext";
 import {
   useOperators, operatorsEnabled, setCurrentOperator, finishApproval,
-  verifyOperatorPin, verifyManagerPin, ROLE_LABEL, type Operator,
+  verifyPinLogin, verifyManagerPin,
 } from "../lib/operators";
 
 function PinPad({ value, onChange, onSubmit, isLight }: {
@@ -61,25 +61,25 @@ export function OperatorGate() {
   const s = useOperators();
   const { theme } = useTheme();
   const isLight = theme === "light";
-  const [picked, setPicked] = useState<Operator | null>(null);
   const [pin, setPin] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const locked = operatorsEnabled(s) && !s.current;
-  useEffect(() => { if (!locked) { setPicked(null); setPin(""); setErr(null); } }, [locked]);
+  useEffect(() => { if (!locked) { setPin(""); setErr(null); } }, [locked]);
   useEffect(() => { setPin(""); setErr(null); }, [s.approval]);
 
   const panel = isLight ? "bg-white border border-gray-200" : "bg-zinc-900 border border-zinc-800";
   const text = isLight ? "text-gray-900" : "text-white";
   const muted = isLight ? "text-gray-500" : "text-zinc-400";
 
+  // Troca rápida: só o PIN — o banco diz de quem é
   async function submitLogin() {
-    if (!picked || pin.length < 4 || busy) return;
+    if (pin.length < 4 || busy) return;
     setBusy(true); setErr(null);
     try {
-      const r = await verifyOperatorPin(picked.id, pin);
-      if (r.ok) setCurrentOperator(picked);
+      const r = await verifyPinLogin(pin);
+      if (r.ok && r.operator) setCurrentOperator(r.operator);
       else { setErr("PIN incorreto"); setPin(""); }
     } catch (e: any) { setErr("Erro ao conferir PIN: " + (e?.message ?? e)); }
     finally { setBusy(false); }
@@ -103,31 +103,10 @@ export function OperatorGate() {
         <div className={`w-full max-w-sm rounded-3xl p-6 shadow-2xl ${panel}`}>
           <div className="flex items-center gap-2 mb-1">
             <Lock className="w-4 h-4" style={{ color: "#315DFB" }} />
-            <h2 className={`text-lg font-black ${text}`}>Quem está operando?</h2>
+            <h2 className={`text-lg font-black ${text}`}>Digite seu PIN</h2>
           </div>
-          {!picked ? (
-            <>
-              <p className={`text-xs mb-4 ${muted}`}>Toque no seu nome</p>
-              <div className="grid grid-cols-2 gap-2.5 max-h-[60vh] overflow-auto">
-                {s.operators.map(o => (
-                  <button key={o.id} onClick={() => { setPicked(o); setPin(""); setErr(null); }}
-                    className={`rounded-2xl p-3 text-left transition-colors ${isLight ? "bg-gray-50 hover:bg-gray-100 border border-gray-200" : "bg-zinc-800 hover:bg-zinc-700 border border-zinc-700"}`}>
-                    <User className="w-4 h-4 mb-1.5" style={{ color: "#315DFB" }} />
-                    <p className={`text-sm font-bold truncate ${text}`}>{o.name}</p>
-                    <p className={`text-[11px] ${muted}`}>{ROLE_LABEL[o.role]}</p>
-                  </button>
-                ))}
-              </div>
-            </>
-          ) : (
-            <>
-              <button onClick={() => { setPicked(null); setPin(""); setErr(null); }} className={`text-xs mb-4 underline ${muted}`}>
-                ← trocar ({picked.name} · {ROLE_LABEL[picked.role]})
-              </button>
-              <p className={`text-xs mb-3 ${muted}`}>Digite seu PIN</p>
-              <PinPad value={pin} onChange={setPin} onSubmit={submitLogin} isLight={isLight} />
-            </>
-          )}
+          <p className={`text-xs mb-4 ${muted}`}>O sistema reconhece quem você é pelo PIN.</p>
+          <PinPad value={pin} onChange={setPin} onSubmit={submitLogin} isLight={isLight} />
           {err && <p className="text-xs text-red-500 mt-3 text-center font-semibold">{err}</p>}
         </div>
       </div>,

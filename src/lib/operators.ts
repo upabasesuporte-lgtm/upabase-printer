@@ -164,6 +164,13 @@ export async function verifyOperatorPin(id: string, pin: string) {
   return data as { ok: boolean; id?: string; name?: string; role?: OperatorRole };
 }
 
+// Entrar só com o PIN: o banco descobre de quem é (PIN não repete na conta)
+export async function verifyPinLogin(pin: string) {
+  const { data, error } = await supabase.rpc("verify_pin_login", { p_pin: pin });
+  if (error) throw error;
+  return data as { ok: boolean; operator?: Operator };
+}
+
 export async function verifyManagerPin(pin: string) {
   const { data, error } = await supabase.rpc("verify_manager_pin", { p_pin: pin });
   if (error) throw error;
