@@ -1002,39 +1002,51 @@ export default function TablesPage() {
                 const cfg = STATUS_CFG[table.status] ?? fallbackCfg;
                 const info = table.status === "occupied" && table.current_sale_id ? openInfo[table.current_sale_id] : undefined;
                 const mins = info ? Math.max(0, Math.floor((Date.now() - new Date(info.since).getTime()) / 60000)) : 0;
+                // Cores da marca: ocupada em destaque com o degradê do logo; livre neutra
+                const busy = table.status === "occupied";
+                const reserved = table.status === "reserved";
+                const BRAND_GRAD = "linear-gradient(135deg, #7C3FFA 0%, #315DFB 55%, #00B8C8 100%)";
+                const txt = busy ? "#ffffff" : isLight ? "#111827" : "#f4f4f5";
+                const sub = busy ? "rgba(255,255,255,0.85)" : isLight ? "#9ca3af" : "#71717a";
                 return (
                   <button key={table.id} onClick={() => enterTable(table)}
                     className="relative text-left rounded-2xl p-4 transition-all hover:-translate-y-0.5 active:scale-[0.98] cursor-pointer flex flex-col gap-3 min-h-[124px]"
-                    style={{
-                      background: card.bg,
-                      border: isLight ? "1px solid #e5e7eb" : "1px solid rgba(63,63,70,0.7)",
-                      boxShadow: isLight ? "0 1px 2px rgba(17,24,39,0.04), 0 4px 14px -6px rgba(17,24,39,0.10)" : "none",
+                    style={busy ? {
+                      background: BRAND_GRAD,
+                      border: "1px solid transparent",
+                      boxShadow: "0 8px 20px -8px rgba(49,93,251,0.55)",
+                    } : {
+                      background: isLight ? "#f9fafb" : "#18181b",
+                      border: reserved ? "1.5px solid #315DFB" : isLight ? "1px solid #e5e7eb" : "1px solid rgba(63,63,70,0.7)",
+                      boxShadow: isLight ? "0 1px 2px rgba(17,24,39,0.04)" : "none",
                     }}>
-                    {/* faixa fina da cor do status */}
-                    <span className="absolute left-0 top-4 bottom-4 w-1 rounded-r-full" style={{ background: cfg.hex }} />
-                    <div className="flex items-start gap-2 pl-1">
-                      <p className="flex-1 min-w-0 text-base font-bold leading-tight truncate" style={{ color: isLight ? "#111827" : "#f4f4f5" }}>{table.name}</p>
+                    <div className="flex items-start gap-2">
+                      <p className="flex-1 min-w-0 text-base font-bold leading-tight truncate" style={{ color: txt }}>{table.name}</p>
                       <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
-                        style={{ color: cfg.hex, background: `${cfg.hex}14` }}>
-                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: cfg.hex }} />
+                        style={busy
+                          ? { color: "#ffffff", background: "rgba(255,255,255,0.22)" }
+                          : reserved
+                            ? { color: "#315DFB", background: "rgba(49,93,251,0.10)" }
+                            : { color: isLight ? "#6b7280" : "#a1a1aa", background: isLight ? "#eef0f3" : "rgba(255,255,255,0.06)" }}>
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: busy ? "#ffffff" : reserved ? "#315DFB" : table.status === "free" ? "#9ca3af" : cfg.hex }} />
                         {cfg.label}
                       </span>
                     </div>
-                    <div className="pl-1 flex-1 flex flex-col justify-end">
+                    <div className="flex-1 flex flex-col justify-end">
                       {info ? (
                         <>
-                          <p className="text-lg font-black tabular-nums leading-none" style={{ color: isLight ? "#111827" : "#f4f4f5" }}>{fmt(info.total)}</p>
-                          <p className="text-[11px] mt-1 flex items-center gap-1" style={{ color: mins >= 90 ? "#ef4444" : isLight ? "#6b7280" : "#a1a1aa" }}>
-                            <Clock className="w-3 h-3" /> {timeAgo(info.since)} · {info.items} ite{info.items === 1 ? "m" : "ns"}
+                          <p className="text-lg font-black tabular-nums leading-none" style={{ color: txt }}>{fmt(info.total)}</p>
+                          <p className="text-[11px] mt-1 flex items-center gap-1" style={{ color: sub, fontWeight: mins >= 90 ? 700 : 400 }}>
+                            <Clock className="w-3 h-3" /> {timeAgo(info.since)}{mins >= 90 ? " ⚠" : ""} · {info.items} ite{info.items === 1 ? "m" : "ns"}
                           </p>
                         </>
                       ) : (
-                        <p className="text-xs" style={{ color: isLight ? "#9ca3af" : "#71717a" }}>
-                          {table.status === "free" ? "Toque para abrir" : table.status === "reserved" ? "Reservada" : cfg.label}
+                        <p className="text-xs" style={{ color: sub }}>
+                          {table.status === "free" ? "Toque para abrir" : reserved ? "Reservada" : cfg.label}
                         </p>
                       )}
                     </div>
-                    <p className="pl-1 text-[11px] flex items-center gap-1" style={{ color: isLight ? "#9ca3af" : "#71717a" }}>
+                    <p className="text-[11px] flex items-center gap-1" style={{ color: sub }}>
                       <Users className="w-3 h-3" /> {table.capacity} lugares{table.area ? ` · ${table.area}` : ""}
                     </p>
                   </button>
