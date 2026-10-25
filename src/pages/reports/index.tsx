@@ -12,7 +12,7 @@ import {
   BarChart3, Package, Users, Wallet, Boxes,
   TrendingUp, TrendingDown, Calendar, RefreshCw,
   ShoppingCart, Banknote, AlertTriangle,
-  CheckCircle2, Award, Zap, Activity, Clock, Trophy, Truck,
+  CheckCircle2, Award, Zap, Activity, Clock, Trophy, Truck, Bike,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -106,7 +106,7 @@ const PAY_LABELS: Record<string, string> = {
 const WEEKDAYS = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
 
 type Preset = "today"|"yesterday"|"week"|"month"|"last_month"|"custom";
-type Tab = "overview"|"sales"|"products"|"payments"|"sellers"|"customers"|"stock"|"purchases";
+type Tab = "overview"|"sales"|"products"|"payments"|"sellers"|"customers"|"stock"|"purchases"|"deliveries";
 
 const PRESETS: { key: Preset; label: string }[] = [
   { key:"today", label:"Hoje" }, { key:"yesterday", label:"Ontem" },
@@ -123,6 +123,7 @@ const TABS: { key: Tab; label: string; icon: React.ReactNode; color: string }[] 
   { key:"customers", label:"Clientes",    icon:<Users className="w-3.5 h-3.5" />,       color:"#f43f5e" },
   { key:"stock",     label:"Estoque",     icon:<Boxes className="w-3.5 h-3.5" />,       color:"#3b82f6" },
   { key:"purchases", label:"Compras",     icon:<Truck className="w-3.5 h-3.5" />,       color:"#f97316" },
+  { key:"deliveries",label:"Entregas",    icon:<Bike className="w-3.5 h-3.5" />,        color:"#10b981" },
 ];
 
 function presetToRange(p: Preset): { from: Date; to: Date } {
@@ -144,6 +145,10 @@ function presetToRange(p: Preset): { from: Date; to: Date } {
 // limpo no "Sair". Ao abrir a aba, mostra o último relatório na hora e atualiza
 // por trás. As consultas continuam passando pelas mesmas regras de segurança (RLS).
 
+interface DeliveryRow { id: string; courier_id: string; dispatched_at: string; total_amount: number; delivery_fee: number; customer_name: string | null; courier_payment_id: string | null }
+interface CourierRow { id: string; name: string; fee_per_delivery: number }
+interface CourierPaymentRow { id: string; courier_id: string; amount: number; deliveries: number; from_cash: boolean; paid_at: string }
+
 interface ReportData {
   sales: Sale[];
   saleItems: SaleItem[];
@@ -152,6 +157,9 @@ interface ReportData {
   stockItems: StockItem[];
   products: Product[];
   purchases: PurchaseOrderRow[];
+  deliveries: DeliveryRow[];
+  couriers: CourierRow[];
+  courierPayments: CourierPaymentRow[];
 }
 
 const reportCache    = new Map<string, { data: ReportData; at: number }>();
@@ -164,7 +172,7 @@ async function currentUserId(): Promise<string | null> {
 
 async function fetchReportData(fromISO: string, toISO: string): Promise<{ data: ReportData; errs: string[] }> {
   const errs: string[] = [];
-  const data: ReportData = { sales: [], saleItems: [], cashMovs: [], custMovs: [], stockItems: [], products: [], purchases: [] };
+  const data: ReportData = { sales: [], saleItems: [], cashMovs: [], custMovs: [], stockItems: [], products: [], purchases: [], deliveries: [], couriers: [], courierPayments: [] };
 
   try {
     // Consultas que não dependem das vendas — já disparam em paralelo
@@ -195,6 +203,21 @@ async function fetchReportData(fromISO: string, toISO: string): Promise<{ data: 
         .gte("created_at", fromISO)
         .lte("created_at", toISO)
         .order("created_at",{ascending:false})),
+
+      fetchAll(() => supabase.from("sales")
+        .select("id,courier_id,dispatched_at,total_amount,delivery_fee,customer_name,courier_payment_id")
+        .not("courier_id","is",null)
+        .gte("dispatched_at", fromISO)
+        .lte("dispatched_at", toISO)
+        .order("dispatched_at",{ascending:false})),
+
+      fetchAll(() => supabase.from("couriers").select("id,name,fee_per_delivery")),
+
+      fetchAll(() => supabase.from("courier_payments")
+        .select("id,courier_id,amount,deliveries,from_cash,paid_at")
+        .gte("paid_at", fromISO)
+        .lte("paid_at", toISO)
+        .order("paid_at",{ascending:false})),
     ]);
 
     // 0. Caixas (turnos) cuja ABERTURA caiu dentro do período selecionado.
@@ -265,7 +288,7 @@ async function fetchReportData(fromISO: string, toISO: string): Promise<{ data: 
     }
 
     // 3. Restante (já estava sendo buscado em paralelo)
-    const [cm, cu, st, pr, po] = await restPromise;
+    const [cm, cu, st, pr, po, dl, co, cp] = await restPromise;
 
     if (cm.error) errs.push(`Caixa: ${cm.error.message}`);
     if (cu.error) errs.push(`Clientes: ${cu.error.message}`);
@@ -278,6 +301,11 @@ async function fetchReportData(fromISO: string, toISO: string): Promise<{ data: 
     data.stockItems = (st.data ?? []) as StockItem[];
     data.products   = (pr.data ?? []) as Product[];
     data.purchases  = (po.data ?? []) as unknown as PurchaseOrderRow[];
+    // Entregas (motoboys): pelo horário do despacho, dentro do período
+    if (dl.error) errs.push(`Entregas: ${dl.error.message}`);
+    data.deliveries = ((dl.data ?? []) as any[]).map(r => ({ ...r, total_amount: Number(r.total_amount) || 0, delivery_fee: Number(r.delivery_fee) || 0 }));
+    data.couriers = ((co.data ?? []) as any[]).map(r => ({ ...r, fee_per_delivery: Number(r.fee_per_delivery) || 0 }));
+    data.courierPayments = ((cp.data ?? []) as any[]).map(r => ({ ...r, amount: Number(r.amount) || 0 }));
   } catch (e: any) {
     // Um erro em qualquer await não pode deixar a tela travada em "Carregando..."
     errs.push(`Falha ao carregar: ${e?.message ?? String(e)}`);
@@ -418,6 +446,9 @@ export default function ReportsPage() {
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   const [products,   setProducts]   = useState<Product[]>([]);
   const [purchases,  setPurchases]  = useState<PurchaseOrderRow[]>([]);
+  const [deliveries, setDeliveries] = useState<DeliveryRow[]>([]);
+  const [couriers, setCouriers] = useState<CourierRow[]>([]);
+  const [courierPayments, setCourierPayments] = useState<CourierPaymentRow[]>([]);
 
   const { from, to } = preset === "custom"
     ? { from: new Date(customFrom+"T00:00:00"), to: new Date(customTo+"T23:59:59") }
@@ -437,6 +468,9 @@ export default function ReportsPage() {
     setStockItems(d.stockItems);
     setProducts(d.products);
     setPurchases(d.purchases);
+    setDeliveries(d.deliveries ?? []);
+    setCouriers(d.couriers ?? []);
+    setCourierPayments(d.courierPayments ?? []);
   };
 
   const load = useCallback(async () => {
@@ -1424,6 +1458,105 @@ export default function ReportsPage() {
             </Card>
           </div>
         )}
+
+        {/* ════ ENTREGAS (MOTOBOYS) ════ */}
+        {tab==="deliveries" && (() => {
+          const nameOf = (id: string) => couriers.find(c => c.id === id)?.name ?? "Motoboy removido";
+          const feeOf = (id: string) => couriers.find(c => c.id === id)?.fee_per_delivery ?? 0;
+          const byCourier = [...new Set(deliveries.map(d => d.courier_id))].map(id => {
+            const ds = deliveries.filter(d => d.courier_id === id);
+            const pend = ds.filter(d => !d.courier_payment_id).length;
+            return {
+              id, name: nameOf(id), count: ds.length,
+              sales: ds.reduce((s, d) => s + d.total_amount, 0),
+              fees: ds.reduce((s, d) => s + d.delivery_fee, 0),
+              cost: ds.length * feeOf(id), pending: pend * feeOf(id),
+            };
+          }).sort((a, b) => b.count - a.count);
+          const totalCount = deliveries.length;
+          const totalSales = deliveries.reduce((s, d) => s + d.total_amount, 0);
+          const totalFees = deliveries.reduce((s, d) => s + d.delivery_fee, 0);
+          const totalCost = byCourier.reduce((s, c) => s + c.cost, 0);
+          const totalPaid = courierPayments.reduce((s, p) => s + p.amount, 0);
+          const totalPending = byCourier.reduce((s, c) => s + c.pending, 0);
+          return (
+            <div className="space-y-5">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <KPICard label="Entregas" value={String(totalCount)} sub={`${fmt(totalSales)} em pedidos`} from="#10b981" to="#059669" glow="rgba(16,185,129,0.12)"
+                  icon={<Bike className="w-4 h-4" style={{color:"#10b981"}} />} />
+                <KPICard label="Custo com motoboys" value={fmt(totalCost)} sub="entregas × taxa de cada um" from="#f43f5e" to="#dc2626" glow="rgba(244,63,94,0.1)"
+                  icon={<TrendingDown className="w-4 h-4" style={{color:"#f43f5e"}} />} />
+                <KPICard label="Pago no período" value={fmt(totalPaid)} sub={`${courierPayments.length} pagamento${courierPayments.length===1?"":"s"}`} from="#10b981" to="#059669" glow="rgba(16,185,129,0.12)"
+                  icon={<CheckCircle2 className="w-4 h-4" style={{color:"#10b981"}} />} />
+                <KPICard label="Ainda a pagar" value={fmt(totalPending)} sub={`Taxas cobradas: ${fmt(totalFees)}`} from="#f59e0b" to="#d97706" glow="rgba(245,158,11,0.12)"
+                  icon={<Clock className="w-4 h-4" style={{color:"#f59e0b"}} />} />
+              </div>
+
+              <Card className="p-5">
+                <CardTitle sub="Entregas, valores e custo de cada motoboy no período">Por Motoboy</CardTitle>
+                {byCourier.length===0 ? <Empty text="Nenhuma entrega despachada no período" /> : (
+                  <div className="space-y-2">
+                    {byCourier.map((c,i)=>(
+                      <div key={c.id} className="flex flex-wrap items-center gap-3 p-3 rounded-xl border border-zinc-800/60">
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-black flex-shrink-0"
+                          style={{ background:`${PIE_COLORS[i%PIE_COLORS.length]}30`, border:`1px solid ${PIE_COLORS[i%PIE_COLORS.length]}40`, color:PIE_COLORS[i%PIE_COLORS.length] }}>
+                          {c.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-[120px]">
+                          <p className="text-sm font-semibold">{c.name}</p>
+                          <p className="text-xs text-zinc-500">{c.count} entrega{c.count===1?"":"s"} · {fmt(c.sales)} em pedidos</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-zinc-500">Custo</p>
+                          <p className="text-sm font-black">{fmt(c.cost)}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-zinc-500">A pagar</p>
+                          <p className={`text-sm font-black ${c.pending>0 ? "text-amber-500" : "text-emerald-500"}`}>{fmt(c.pending)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <Card className="p-5">
+                  <CardTitle sub={`${deliveries.length} no período`}>Histórico de Entregas</CardTitle>
+                  {deliveries.length===0 ? <Empty text="Nenhuma entrega no período" /> : (
+                    <div className="space-y-1.5 max-h-[420px] overflow-auto">
+                      {deliveries.map(d=>(
+                        <div key={d.id} className="flex items-center gap-2 text-xs py-1.5 border-b border-zinc-800/40">
+                          <span className="text-zinc-500 w-24 flex-shrink-0">{new Date(d.dispatched_at).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</span>
+                          <span className="font-semibold">#{d.id.slice(-6).toUpperCase()}</span>
+                          <span className="flex-1 truncate">{nameOf(d.courier_id)}{d.customer_name ? ` · ${d.customer_name}` : ""}</span>
+                          <span className={`text-[10px] font-bold ${d.courier_payment_id ? "text-emerald-500" : "text-amber-500"}`}>{d.courier_payment_id ? "pago" : "a pagar"}</span>
+                          <span className="font-bold">{fmt(d.total_amount)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </Card>
+
+                <Card className="p-5">
+                  <CardTitle sub="Pagamentos feitos aos motoboys">Pagamentos</CardTitle>
+                  {courierPayments.length===0 ? <Empty text="Nenhum pagamento no período" /> : (
+                    <div className="space-y-1.5 max-h-[420px] overflow-auto">
+                      {courierPayments.map(p=>(
+                        <div key={p.id} className="flex items-center gap-2 text-xs py-1.5 border-b border-zinc-800/40">
+                          <span className="text-zinc-500 w-24 flex-shrink-0">{new Date(p.paid_at).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</span>
+                          <span className="flex-1 truncate font-semibold">{nameOf(p.courier_id)}</span>
+                          <span className="text-zinc-500">{p.deliveries} entrega{p.deliveries===1?"":"s"}{p.from_cash ? " · do caixa" : ""}</span>
+                          <span className="font-bold text-emerald-500">{fmt(p.amount)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </Card>
+              </div>
+            </div>
+          );
+        })()}
 
         </>
       )}
