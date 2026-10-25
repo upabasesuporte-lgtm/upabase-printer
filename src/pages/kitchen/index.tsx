@@ -29,7 +29,9 @@ interface Courier { id: string; name: string; phone: string | null; fee_per_deli
 interface Category { id: string; name: string; print_sector: Sector | null }
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-const inputCls = "w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 transition-all";
+// Base sem largura: campos de largura fixa usam inputBase (com w-full o tamanho fixo era ignorado)
+const inputBase = "px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 transition-all";
+const inputCls = "w-full " + inputBase;
 
 function originOf(s: KSale | undefined): { label: string; kind: "table" | "delivery" | "counter" } {
   if (!s) return { label: "Pedido", kind: "counter" };
@@ -437,13 +439,15 @@ function CouriersTab({ isLight, card }: { isLight: boolean; card: React.CSSPrope
         <div className="space-y-1.5">
           {list.map(c => (
             <div key={c.id} className="flex items-center gap-3 rounded-xl px-3 py-2" style={{ border: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" }}>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">{c.name}</p>
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0"
+                style={{ background: "#EFF3FF", border: "1px solid #C4D2FF", color: "#2547D6" }}>{c.name.charAt(0).toUpperCase()}</div>
+              <div className="flex-1 min-w-[90px]">
+                <p className="text-sm font-bold truncate">{c.name}</p>
                 {c.phone && <p className={`text-[11px] ${muted}`}>{c.phone}</p>}
               </div>
-              <span className={`text-[11px] ${muted}`}>R$/entrega</span>
+              <span className={`text-[11px] flex-shrink-0 ${muted}`}>R$/entrega</span>
               <input defaultValue={String(c.fee_per_delivery).replace(".", ",")} onBlur={e => updateFee(c, e.target.value)}
-                inputMode="decimal" className={inputCls + " w-20 py-1.5"} />
+                inputMode="decimal" className={inputBase + " w-20 flex-shrink-0 py-1.5"} />
               <button onClick={() => remove(c)} className="p-1.5 text-zinc-500 hover:text-red-400 rounded-lg"><Trash2 className="w-3.5 h-3.5" /></button>
             </div>
           ))}
@@ -454,7 +458,7 @@ function CouriersTab({ isLight, card }: { isLight: boolean; card: React.CSSPrope
       <div className="rounded-2xl p-5 space-y-3" style={card}>
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-black flex-1">Acerto do dia</h3>
-          <input type="date" value={day} onChange={e => setDay(e.target.value)} className={inputCls + " w-44 py-1.5"} />
+          <input type="date" value={day} onChange={e => setDay(e.target.value)} className={inputBase + " w-44 flex-shrink-0 py-1.5"} />
         </div>
         {byCourier.length === 0 && <p className={`text-xs ${muted}`}>Cadastre motoboys para ver o acerto.</p>}
         {byCourier.map(({ c, count, pay, fees, sales }) => (

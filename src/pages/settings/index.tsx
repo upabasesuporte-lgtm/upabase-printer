@@ -589,7 +589,7 @@ function OperatorsSection({ userId, isLight }: { userId: string; isLight: boolea
                 catch (ex: any) { setErr(ex?.message ?? String(ex)); }
                 setBusy(false);
               }}
-              className={inputCls + " w-40"}>
+              className={inputCls.replace("w-full ", "") + " w-40 flex-shrink-0"}>
               {[0, 2, 5, 10, 15, 30, 60].map(m => <option key={m} value={m}>{m === 0 ? "Nunca" : `${m} minutos`}</option>)}
             </select>
           </div>
