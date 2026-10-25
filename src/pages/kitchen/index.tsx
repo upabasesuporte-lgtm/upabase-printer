@@ -465,25 +465,63 @@ function SectorsTab({ isLight, card }: { isLight: boolean; card: React.CSSProper
   const [cats, setCats] = useState<Category[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
+  const [uid, setUid] = useState<string | null>(null);
+  // Produtos sem categoria (ex.: adicionais avulsos) usam este setor
+  const [noCatSector, setNoCatSector] = useState<Sector | null>(null);
+  const [noCatCount, setNoCatCount] = useState(0);
   const muted = isLight ? "text-gray-500" : "text-zinc-400";
 
   async function load() {
     const { data: { session } } = await supabase.auth.getSession();
-    const uid = session?.user.id;
-    if (!uid) return;
-    // categories tem leitura pública (cardápio): filtra pelo dono
-    const { data, error } = await supabase.from("categories").select("id,name,print_sector").eq("user_id", uid).order("name");
+    const id = session?.user.id;
+    if (!id) return;
+    setUid(id);
+    // categories/products têm leitura pública (cardápio): filtra pelo dono
+    const [{ data, error }, { data: us }, { count }] = await Promise.all([
+      supabase.from("categories").select("id,name,print_sector").eq("user_id", id).order("name"),
+      supabase.from("user_settings").select("uncategorized_print_sector").eq("user_id", id).maybeSingle(),
+      supabase.from("products").select("id", { count: "exact", head: true }).eq("user_id", id).is("category_id", null),
+    ]);
     if (error) setErr(error.message); else setCats((data ?? []) as Category[]);
+    setNoCatSector(((us as any)?.uncategorized_print_sector ?? null) as Sector | null);
+    setNoCatCount(count ?? 0);
   }
   useEffect(() => { load(); }, []);
+
+  const flashSaved = () => { setSaved("Salvo"); setTimeout(() => setSaved(null), 1500); };
 
   async function setSector(ids: string[], sector: Sector | null) {
     setErr(null);
     const { error } = await supabase.from("categories").update({ print_sector: sector }).in("id", ids);
     if (error) { setErr(error.message); return; }
     setCats(prev => prev.map(c => ids.includes(c.id) ? { ...c, print_sector: sector } : c));
-    setSaved("Salvo"); setTimeout(() => setSaved(null), 1500);
+    flashSaved();
   }
+
+  async function setNoCat(sector: Sector | null) {
+    if (!uid) return;
+    setErr(null);
+    const { error } = await supabase.from("user_settings").upsert(
+      { user_id: uid, uncategorized_print_sector: sector, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+    if (error) { setErr(error.message); return; }
+    setNoCatSector(sector);
+    flashSaved();
+  }
+
+  const sectorButtons = (current: Sector | null, onPick: (s: Sector | null) => void) => (
+    <div className="flex gap-1">
+      {([null, ...SECTORS] as (Sector | null)[]).map(s => {
+        const on = current === s;
+        return (
+          <button key={s ?? "none"} onClick={() => onPick(s)}
+            className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold"
+            style={on ? { background: "#315DFB", color: "#fff" } : { border: isLight ? "1px solid #e5e7eb" : "1px solid #3f3f46", color: isLight ? "#374151" : "#d4d4d8" }}>
+            {s ? SECTOR_LABEL[s] : "Nenhum"}
+          </button>
+        );
+      })}
+    </div>
+  );
 
   return (
     <div className="rounded-2xl p-5 space-y-3 max-w-2xl" style={card}>
@@ -493,7 +531,7 @@ function SectorsTab({ isLight, card }: { isLight: boolean; card: React.CSSProper
         Categorias em "Nenhum" não aparecem na cozinha nem são impressas.
       </p>
       <div className="flex flex-wrap gap-2">
-        <button onClick={() => setSector(cats.map(c => c.id), "kitchen")} className="px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "#315DFB", color: "#fff" }}>
+        <button onClick={async () => { await setSector(cats.map(c => c.id), "kitchen"); await setNoCat("kitchen"); }} className="px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "#315DFB", color: "#fff" }}>
           Tudo para a Cozinha (uma impressora só)
         </button>
         {saved && <span className="text-xs text-emerald-500 font-semibold self-center flex items-center gap-1"><Save className="w-3.5 h-3.5" />{saved}</span>}
@@ -502,20 +540,16 @@ function SectorsTab({ isLight, card }: { isLight: boolean; card: React.CSSProper
         {cats.map(c => (
           <div key={c.id} className="flex items-center gap-3 rounded-xl px-3 py-2" style={{ border: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" }}>
             <p className="text-sm font-semibold flex-1 truncate">{c.name}</p>
-            <div className="flex gap-1">
-              {([null, ...SECTORS] as (Sector | null)[]).map(s => {
-                const on = c.print_sector === s;
-                return (
-                  <button key={s ?? "none"} onClick={() => setSector([c.id], s)}
-                    className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold"
-                    style={on ? { background: "#315DFB", color: "#fff" } : { border: isLight ? "1px solid #e5e7eb" : "1px solid #3f3f46", color: isLight ? "#374151" : "#d4d4d8" }}>
-                    {s ? SECTOR_LABEL[s] : "Nenhum"}
-                  </button>
-                );
-              })}
-            </div>
+            {sectorButtons(c.print_sector, s => setSector([c.id], s))}
           </div>
         ))}
+        <div className="flex items-center gap-3 rounded-xl px-3 py-2" style={{ border: isLight ? "1px dashed #d1d5db" : "1px dashed #3f3f46" }}>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold truncate">Produtos sem categoria</p>
+            <p className={`text-[11px] ${muted}`}>{noCatCount} produto{noCatCount === 1 ? "" : "s"} sem categoria (ex.: adicionais)</p>
+          </div>
+          {sectorButtons(noCatSector, setNoCat)}
+        </div>
         {cats.length === 0 && <p className={`text-xs ${muted}`}>Nenhuma categoria cadastrada.</p>}
       </div>
       {err && <p className="text-xs text-red-500 font-semibold">{err}</p>}
