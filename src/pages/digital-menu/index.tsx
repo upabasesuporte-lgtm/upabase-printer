@@ -546,6 +546,10 @@ export default function DigitalMenuPage() {
         // Para a Cozinha saber de quem é e se vai para entrega
         customer_name: order.customer_name || null,
         delivery_address: order.order_type === "delivery" ? (order.delivery_address || null) : null,
+        // Taxa de entrega = total do pedido − soma dos itens (o cardápio soma a taxa no total)
+        delivery_fee: order.order_type === "delivery"
+          ? Math.max(0, Math.round((Number(order.total_amount) - items.reduce((s, it) => s + Number(it.total_price ?? (it.unit_price * it.quantity)), 0)) * 100) / 100)
+          : 0,
       }).select("id").single();
 
       if (saleErr) {

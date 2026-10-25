@@ -371,6 +371,12 @@ function OrdersBoard({ isLight, card }: { isLight: boolean; card: React.CSSPrope
 
 // ── Motoboys + acerto do dia ─────────────────────────────────────────────────
 
+type Delivery = { id: string; courier_id: string; dispatched_at: string; total_amount: number; delivery_fee: number; customer_name: string | null; courier_payment_id: string | null };
+const PAY_METHODS: { key: "cash" | "pix"; label: string }[] = [
+  { key: "cash", label: "Dinheiro (sai da gaveta)" },
+  { key: "pix", label: "PIX" },
+];
+
 function CouriersTab({ isLight, card }: { isLight: boolean; card: React.CSSProperties }) {
   const [list, setList] = useState<Courier[]>([]);
   const [name, setName] = useState("");
@@ -382,45 +388,56 @@ function CouriersTab({ isLight, card }: { isLight: boolean; card: React.CSSPrope
   const muted = isLight ? "text-gray-500" : "text-zinc-400";
   const border = isLight ? "1px solid #e5e7eb" : "1px solid #27272a";
 
-  // Período do acerto: turno do caixa (padrão) ou dia do calendário
+  // Acerto do caixa atual (zera quando o caixa fecha) ou histórico por data
   const today = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
-  const [mode, setMode] = useState<"shift" | "day">("shift");
+  const [mode, setMode] = useState<"current" | "day">("current");
   const [day, setDay] = useState(`${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`);
-  const [regs, setRegs] = useState<{ id: string; opened_at: string; closed_at: string | null; status: string }[]>([]);
-  const [regId, setRegId] = useState<string>("");
-  const [deliveries, setDeliveries] = useState<{ id: string; courier_id: string; dispatched_at: string; total_amount: number; delivery_fee: number; customer_name: string | null; courier_payment_id: string | null }[]>([]);
+  const [openReg, setOpenReg] = useState<{ id: string; opened_at: string } | null>(null);
+  const [regLoaded, setRegLoaded] = useState(false);
+  const [deliveries, setDeliveries] = useState<Delivery[]>([]);
+  // Entregas de turnos anteriores que ficaram sem pagar (não somem quando o caixa fecha)
+  const [pendingOld, setPendingOld] = useState<Delivery[]>([]);
   const [payFor, setPayFor] = useState<{ c: Courier; ids: string[]; amount: number } | null>(null);
-  const [fromCash, setFromCash] = useState(true);
+  const [payMethod, setPayMethod] = useState<"cash" | "pix">("cash");
 
-  const openReg = regs.find(r => r.status === "open") ?? null;
+  const mapRows = (data: any[] | null) => ((data ?? []) as any[]).map(r => ({ ...r, total_amount: Number(r.total_amount) || 0, delivery_fee: Number(r.delivery_fee) || 0 })) as Delivery[];
+  const SEL = "id, courier_id, dispatched_at, total_amount, delivery_fee, customer_name, courier_payment_id";
 
   async function loadList() {
     const { data, error } = await supabase.from("couriers").select("id,name,phone,fee_per_delivery,active").eq("active", true).order("name");
     if (error) setErr(error.message); else setList((data ?? []) as Courier[]);
   }
-  async function loadRegs() {
-    const { data } = await supabase.from("cash_registers").select("id,opened_at,closed_at,status").order("opened_at", { ascending: false }).limit(30);
-    const rs = (data ?? []) as any[];
-    setRegs(rs);
-    if (rs.length && !regId) setRegId(rs[0].id);
-    if (!rs.length) setMode("day");
+  async function loadReg() {
+    const { data } = await supabase.from("cash_registers").select("id,opened_at").eq("status", "open")
+      .order("opened_at", { ascending: false }).limit(1).maybeSingle();
+    setOpenReg((data as any) ?? null);
+    setRegLoaded(true);
   }
-  const window_ = (): { from: string; to: string } | null => {
-    if (mode === "day") return { from: new Date(`${day}T00:00:00`).toISOString(), to: new Date(`${day}T23:59:59.999`).toISOString() };
-    const r = regs.find(x => x.id === regId);
-    return r ? { from: r.opened_at, to: r.closed_at ?? new Date().toISOString() } : null;
-  };
   async function loadDeliveries() {
-    const w = window_();
-    if (!w) { setDeliveries([]); return; }
-    const { data } = await fetchAll(() => supabase.from("sales")
-      .select("id, courier_id, dispatched_at, total_amount, delivery_fee, customer_name, courier_payment_id")
-      .not("courier_id", "is", null).gte("dispatched_at", w.from).lte("dispatched_at", w.to).order("dispatched_at"));
-    setDeliveries(((data ?? []) as any[]).map(r => ({ ...r, total_amount: Number(r.total_amount) || 0, delivery_fee: Number(r.delivery_fee) || 0 })));
+    if (mode === "day") {
+      const from = new Date(`${day}T00:00:00`).toISOString();
+      const to = new Date(`${day}T23:59:59.999`).toISOString();
+      const { data } = await fetchAll(() => supabase.from("sales").select(SEL)
+        .not("courier_id", "is", null).gte("dispatched_at", from).lte("dispatched_at", to).order("dispatched_at"));
+      setDeliveries(mapRows(data)); setPendingOld([]);
+      return;
+    }
+    if (!openReg) { setDeliveries([]); }
+    else {
+      const { data } = await fetchAll(() => supabase.from("sales").select(SEL)
+        .not("courier_id", "is", null).gte("dispatched_at", openReg.opened_at).order("dispatched_at"));
+      setDeliveries(mapRows(data));
+    }
+    const before = openReg?.opened_at ?? new Date().toISOString();
+    const since = new Date(Date.now() - 60 * 86400_000).toISOString();
+    const { data: old } = await fetchAll(() => supabase.from("sales").select(SEL)
+      .not("courier_id", "is", null).is("courier_payment_id", null)
+      .gte("dispatched_at", since).lt("dispatched_at", before).order("dispatched_at"));
+    setPendingOld(mapRows(old));
   }
-  useEffect(() => { loadList(); loadRegs(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { loadDeliveries(); }, [mode, day, regId, regs.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { loadList(); loadReg(); }, []);
+  useEffect(() => { if (regLoaded) loadDeliveries(); }, [mode, day, openReg?.id, regLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function add() {
     if (!name.trim()) { setErr("Informe o nome."); return; }
@@ -443,34 +460,41 @@ function CouriersTab({ isLight, card }: { isLight: boolean; card: React.CSSPrope
     if (error) setErr(error.message); else loadList();
   }
 
+  function openPay(c: Courier, ids: string[]) {
+    setErr(null);
+    if (!openReg) { setErr("Abra o caixa para pagar o motoboy — o pagamento é lançado como saída do caixa."); return; }
+    setPayMethod("cash");
+    setPayFor({ c, ids, amount: ids.length * c.fee_per_delivery });
+  }
+
   async function confirmPay() {
-    if (!payFor) return;
+    if (!payFor || !openReg) return;
     if (!(await requireApproval(`Pagar motoboy ${payFor.c.name}`))) return;
     setBusy(true); setErr(null);
     const { data, error } = await supabase.rpc("pay_courier", {
-      p_courier_id: payFor.c.id, p_sale_ids: payFor.ids, p_register_id: fromCash && openReg ? openReg.id : null,
+      p_courier_id: payFor.c.id, p_sale_ids: payFor.ids, p_register_id: openReg.id, p_method: payMethod,
     });
     setBusy(false);
     if (error) { setErr(error.message); return; }
-    const r = data as { amount: number; deliveries: number; from_cash: boolean };
+    const r = data as { amount: number };
     setPayFor(null);
-    setOk(`${payFor.c.name}: ${fmt(Number(r.amount))} pago${r.from_cash ? " (saída lançada no caixa)" : ""}.`);
+    setOk(`${payFor.c.name}: ${fmt(Number(r.amount))} pago em ${payMethod === "pix" ? "PIX" : "dinheiro"} e lançado no caixa.`);
     setTimeout(() => setOk(null), 6000);
     loadDeliveries();
   }
 
-  const byCourier = list.map(c => {
-    const ds = deliveries.filter(d => d.courier_id === c.id);
-    const pending = ds.filter(d => !d.courier_payment_id);
+  const summarize = (ds: Delivery[]) => list.map(c => {
+    const mine = ds.filter(d => d.courier_id === c.id);
+    const pending = mine.filter(d => !d.courier_payment_id);
     return {
-      c, count: ds.length, pendingIds: pending.map(d => d.id),
-      toPay: pending.length * c.fee_per_delivery, paid: (ds.length - pending.length) * c.fee_per_delivery,
-      fees: ds.reduce((s, d) => s + d.delivery_fee, 0), sales: ds.reduce((s, d) => s + d.total_amount, 0),
+      c, count: mine.length, pendingIds: pending.map(d => d.id),
+      toPay: pending.length * c.fee_per_delivery, paid: (mine.length - pending.length) * c.fee_per_delivery,
+      fees: mine.reduce((s, d) => s + d.delivery_fee, 0), sales: mine.reduce((s, d) => s + d.total_amount, 0),
     };
   });
-  const fmtShift = (r: { opened_at: string; closed_at: string | null; status: string }) =>
-    `${new Date(r.opened_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}` +
-    (r.status === "open" ? " · aberto" : r.closed_at ? ` → ${new Date(r.closed_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : "");
+  const byCourier = summarize(deliveries);
+  const oldByCourier = summarize(pendingOld).filter(x => x.pendingIds.length > 0);
+  const canPay = mode === "current";
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
@@ -507,20 +531,24 @@ function CouriersTab({ isLight, card }: { isLight: boolean; card: React.CSSPrope
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-sm font-black flex-1">Acerto</h3>
           <div className="flex gap-1">
-            {([["shift", "Turno do caixa"], ["day", "Dia"]] as const).map(([k, l]) => (
-              <button key={k} onClick={() => setMode(k)} disabled={k === "shift" && regs.length === 0}
-                className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold disabled:opacity-40"
+            {([["current", "Caixa atual"], ["day", "Histórico por data"]] as const).map(([k, l]) => (
+              <button key={k} onClick={() => setMode(k)}
+                className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold"
                 style={mode === k ? { background: "#315DFB", color: "#fff" } : { border, color: isLight ? "#374151" : "#d4d4d8" }}>{l}</button>
             ))}
           </div>
-          {mode === "shift" ? (
-            <select value={regId} onChange={e => setRegId(e.target.value)} className={inputBase + " w-52 flex-shrink-0 py-1.5"}>
-              {regs.map(r => <option key={r.id} value={r.id}>{fmtShift(r)}</option>)}
-            </select>
-          ) : (
+          {mode === "day" && (
             <input type="date" value={day} onChange={e => setDay(e.target.value)} className={inputBase + " w-44 flex-shrink-0 py-1.5"} />
           )}
         </div>
+        {mode === "current" && (
+          <p className={`text-[11px] ${muted}`}>
+            {openReg
+              ? `Caixa aberto em ${new Date(openReg.opened_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}. Ao fechar o caixa, este acerto recomeça do zero.`
+              : "Nenhum caixa aberto. Abra o caixa para ver e pagar as entregas do turno."}
+          </p>
+        )}
+
         {byCourier.length === 0 && <p className={`text-xs ${muted}`}>Cadastre motoboys para ver o acerto.</p>}
         {byCourier.map(({ c, count, pendingIds, toPay, paid, fees, sales }) => (
           <div key={c.id} className="rounded-xl p-3 space-y-2" style={{ border }}>
@@ -534,14 +562,30 @@ function CouriersTab({ isLight, card }: { isLight: boolean; card: React.CSSPrope
               <div><p className={`text-[10px] ${muted}`}>Taxas cobradas</p><p className="text-sm font-bold">{fmt(fees)}</p></div>
               <div><p className={`text-[10px] ${muted}`}>Valor dos pedidos</p><p className="text-sm font-bold">{fmt(sales)}</p></div>
             </div>
-            {pendingIds.length > 0 && (
-              <button onClick={() => { setFromCash(!!openReg); setPayFor({ c, ids: pendingIds, amount: toPay }); }}
+            {canPay && pendingIds.length > 0 && (
+              <button onClick={() => openPay(c, pendingIds)}
                 className="w-full h-9 rounded-xl text-sm font-bold text-white" style={{ background: "#10b981" }}>
                 Pagar {fmt(toPay)} ({pendingIds.length} entrega{pendingIds.length === 1 ? "" : "s"})
               </button>
             )}
           </div>
         ))}
+
+        {mode === "current" && oldByCourier.length > 0 && (
+          <div className="rounded-xl p-3 space-y-2" style={{ border: "2px solid #f59e0b" }}>
+            <p className="text-sm font-bold text-amber-500">Pendentes de turnos anteriores</p>
+            <p className={`text-[11px] ${muted}`}>Entregas de caixas já fechados que ainda não foram pagas.</p>
+            {oldByCourier.map(({ c, pendingIds, toPay }) => (
+              <div key={c.id} className="flex items-center gap-2">
+                <p className="text-sm font-semibold flex-1">{c.name} · {pendingIds.length} entrega{pendingIds.length === 1 ? "" : "s"}</p>
+                <button onClick={() => openPay(c, pendingIds)} className="px-3 h-8 rounded-lg text-xs font-bold text-white" style={{ background: "#f59e0b" }}>
+                  Pagar {fmt(toPay)}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         {deliveries.length > 0 && (
           <div className="pt-1 space-y-1">
             <p className={`text-[11px] font-semibold uppercase tracking-wider ${muted}`}>Entregas</p>
@@ -568,12 +612,18 @@ function CouriersTab({ isLight, card }: { isLight: boolean; card: React.CSSPrope
               <p className={`text-sm ${muted}`}>{payFor.ids.length} entrega{payFor.ids.length === 1 ? "" : "s"} × {fmt(payFor.c.fee_per_delivery)}</p>
             </div>
             <p className="text-3xl font-black text-emerald-500">{fmt(payFor.amount)}</p>
-            <label className={`flex items-start gap-2 text-sm ${openReg ? "" : "opacity-50"}`}>
-              <input type="checkbox" checked={fromCash && !!openReg} disabled={!openReg} onChange={e => setFromCash(e.target.checked)} className="w-4 h-4 mt-0.5 accent-[#315DFB]" />
-              <span>Tirar do caixa (lança a saída no caixa aberto)
-                {!openReg && <span className={`block text-[11px] ${muted}`}>Nenhum caixa aberto agora — o pagamento fica registrado sem mexer no caixa.</span>}
-              </span>
-            </label>
+            <div className="space-y-1.5">
+              <p className={`text-xs font-semibold ${muted}`}>Forma de pagamento</p>
+              <div className="grid grid-cols-2 gap-2">
+                {PAY_METHODS.map(m => (
+                  <button key={m.key} onClick={() => setPayMethod(m.key)} className="h-11 rounded-xl text-xs font-bold px-2"
+                    style={payMethod === m.key ? { background: "#315DFB", color: "#fff" } : { border, color: isLight ? "#374151" : "#d4d4d8" }}>
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+              <p className={`text-[11px] ${muted}`}>Fica lançado como saída no caixa aberto, com a forma de pagamento escolhida.</p>
+            </div>
             <div className="flex gap-2">
               <button onClick={confirmPay} disabled={busy} className="flex-1 h-11 rounded-xl text-sm font-bold text-white disabled:opacity-40" style={{ background: "#10b981" }}>
                 {busy ? "Pagando..." : "Confirmar pagamento"}

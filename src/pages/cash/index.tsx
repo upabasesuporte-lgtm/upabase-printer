@@ -181,9 +181,13 @@ export default function CashPage() {
   const sales        = movements.filter(m => m.movement_type === "sale");
   const totalSales   = sales.reduce((s, m) => s + m.amount, 0);
   const totalSangria = movements.filter(m => m.movement_type === "sangria").reduce((s, m) => s + m.amount, 0);
+  // Saída paga por PIX/cartão (ex.: pagamento de motoboy) não tira dinheiro da gaveta
+  const cashSangria  = movements.filter(m => m.movement_type === "sangria" && (m.payment_method ?? "cash") === "cash").reduce((s, m) => s + m.amount, 0);
+  const otherSangria = totalSangria - cashSangria;
+  const courierOut   = movements.filter(m => m.movement_type === "sangria" && (m.description ?? "").startsWith("Pagamento motoboy")).reduce((s, m) => s + m.amount, 0);
   const totalAporte  = movements.filter(m => m.movement_type === "aporte").reduce((s, m) => s + m.amount, 0);
   const cashSales    = sales.filter(m => m.payment_method === "cash").reduce((s, m) => s + m.amount, 0);
-  const currentBalance = (register?.opening_amount ?? 0) + cashSales + totalAporte - totalSangria;
+  const currentBalance = (register?.opening_amount ?? 0) + cashSales + totalAporte - cashSangria;
 
   const countedVal   = parseFloat(countedAmount.replace(",", ".")) || 0;
   const difference   = countedAmount ? countedVal - currentBalance : null;
@@ -555,7 +559,8 @@ export default function CashPage() {
             <SummaryCard label="Saldo em Dinheiro" value={fmt(currentBalance)}
               sub={`Fundo inicial: ${fmt(register.opening_amount)}`}
               icon={<Wallet className="w-5 h-5" />} iconBg="bg-brand-500/15" iconColor="text-brand-600" color="#315DFB" />
-            <SummaryCard label="Sangrias" value={fmt(totalSangria)} sub="Retiradas do caixa"
+            <SummaryCard label="Sangrias" value={fmt(totalSangria)}
+              sub={otherSangria > 0 ? `Dinheiro: ${fmt(cashSangria)} · PIX/cartão: ${fmt(otherSangria)}` : "Retiradas do caixa"}
               icon={<TrendingDown className="w-5 h-5" />} iconBg="bg-red-500/15" iconColor="text-red-400" color="#ef4444" />
             <SummaryCard label="Aportes" value={fmt(totalAporte)} sub="Entradas extras"
               icon={<ArrowUpCircle className="w-5 h-5" />} iconBg="bg-blue-500/15" iconColor="text-blue-400" color="#3b82f6" />
@@ -785,7 +790,9 @@ export default function CashPage() {
               <Row label="Fundo Inicial" value={fmt(register.opening_amount)} />
               <Row label="Total de Vendas" value={fmt(salesTotal)} positive />
               <Row label="Aportes" value={fmt(totalAporte)} positive />
-              <Row label="Sangrias" value={fmt(totalSangria)} negative />
+              <Row label={otherSangria > 0 ? "Sangrias em dinheiro" : "Sangrias"} value={fmt(cashSangria)} negative />
+              {otherSangria > 0 && <Row label="Saídas por PIX/cartão (não saem da gaveta)" value={fmt(otherSangria)} negative />}
+              {courierOut > 0 && <Row label="↳ inclui pagamentos a motoboys" value={fmt(courierOut)} />}
               <div className="pt-2 border-t border-zinc-800 flex items-center justify-between">
                 <span className="font-semibold text-white">Saldo Esperado em Dinheiro</span>
                 <span className="text-lg font-bold text-emerald-400">{fmt(currentBalance)}</span>

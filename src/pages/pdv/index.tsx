@@ -179,6 +179,7 @@ export default function PdvPage() {
   const [orderNotes, setOrderNotes] = useState("");
   const [sellerName, setSellerName] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [deliveryFee, setDeliveryFee] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   // Desktop: campos extras do carrinho ficam recolhidos em botões (só visual)
   const [extraOpen, setExtraOpen] = useState<"address" | "notes" | "seller" | null>(null);
@@ -265,7 +266,9 @@ export default function PdvPage() {
   // ── Totais ──
   const subtotal = cart.reduce((s, i) => s + (i.customPrice ?? i.product.sale_price) * i.quantity, 0);
   const discountVal = parseFloat(discount.replace(",", ".")) || 0;
-  const total = Math.max(0, subtotal - discountVal);
+  // Taxa de entrega: só em venda PDV com endereço (iFood já vem com o valor dele)
+  const deliveryFeeVal = saleChannel === "pdv" && deliveryAddress.trim() ? (parseFloat(deliveryFee.replace(",", ".")) || 0) : 0;
+  const total = Math.max(0, subtotal - discountVal) + deliveryFeeVal;
   const totalPaid = payments.reduce((s, p) => s + p.amount, 0);
   const remaining = Math.max(0, total - totalPaid);
   const cashPaid = payments.filter(p => p.method === "cash").reduce((s, p) => s + p.amount, 0);
@@ -438,7 +441,7 @@ export default function PdvPage() {
   function removeFromCart(cartId: string) { setCart(prev => prev.filter(i => i.cartId !== cartId)); }
   function updateItemNotes(cartId: string, notes: string) { setCart(prev => prev.map(i => i.cartId === cartId ? { ...i, notes } : i)); }
   function updateItemPrice(cartId: string, price: number) { setCart(prev => prev.map(i => i.cartId === cartId ? { ...i, customPrice: price } : i)); }
-  function clearCart() { setCart([]); setDiscount(""); setOrderNotes(""); setSellerName(""); setDeliveryAddress(""); setSelectedCustomer(null); setDiscountType("value"); setShowDiscountField(false); setExtraOpen(null); }
+  function clearCart() { setCart([]); setDiscount(""); setOrderNotes(""); setSellerName(""); setDeliveryAddress(""); setDeliveryFee(""); setSelectedCustomer(null); setDiscountType("value"); setShowDiscountField(false); setExtraOpen(null); }
 
   // ── Atalhos ──
   async function persistShortcuts(groups: ShortcutGroup[]) {
@@ -635,6 +638,7 @@ export default function PdvPage() {
         customer_id: selectedCustomer?.id ?? null, origin: saleChannel,
         seller_name: sellerName || null, notes: orderNotes || null,
         delivery_address: deliveryAddress || null, payments: normalizedPayments,
+        delivery_fee: deliveryFeeVal,
       },
       items: cart.map(i => ({
         product_id: i.product.id, quantity: i.quantity,
@@ -846,6 +850,7 @@ export default function PdvPage() {
     ${SEP()}
     ${subtotal !== totalVal ? ROW("Subtotal", fmt(subtotal)) : ""}
     ${disc > 0 ? ROW("Desconto", "- " + fmt(disc)) : ""}
+    ${Number((sale as any).delivery_fee ?? 0) > 0 ? ROW("Taxa de entrega", fmt(Number((sale as any).delivery_fee))) : ""}
     ${TOTAL_BOX(fmt(totalVal))}
 
     ${SEP()}
@@ -1407,6 +1412,7 @@ export default function PdvPage() {
                       <span>{fmt(subtotal)}</span>
                     </div>
                     {discountVal > 0 && <div className="flex justify-between text-xs text-red-400"><span>Desconto</span><span>-{fmt(discountVal)}</span></div>}
+                    {deliveryFeeVal > 0 && <div className="flex justify-between text-xs text-zinc-400"><span>Taxa de entrega</span><span>+{fmt(deliveryFeeVal)}</span></div>}
                     <div className="flex justify-between items-baseline text-sm md:text-base font-bold border-t border-zinc-800 pt-1.5"><span>Total</span><span className="md:text-2xl md:font-black" style={{ color: "#7B2FBE" }}>{fmt(total)}</span></div>
                   </div>
                 </>
@@ -1462,6 +1468,12 @@ export default function PdvPage() {
               <input placeholder="Endereço de entrega (opcional)..." value={deliveryAddress} onChange={e => setDeliveryAddress(e.target.value)}
                 className={`w-full text-xs px-3 py-2 rounded-xl placeholder-zinc-500 focus:outline-none focus:border-brand-500 ${extraOpen === "address" ? "" : "md:hidden"}`}
                 style={{ background: card.bg, border: card.border, color: isLight ? "#374151" : "#d4d4d8" }} />
+              {deliveryAddress.trim() && saleChannel === "pdv" && (
+                <input placeholder="Taxa de entrega (R$) — opcional" value={deliveryFee} inputMode="decimal"
+                  onChange={e => setDeliveryFee(e.target.value.replace(/[^0-9.,]/g, ""))}
+                  className={`w-full text-xs px-3 py-2 rounded-xl placeholder-zinc-500 focus:outline-none focus:border-brand-500 ${extraOpen === "address" ? "" : "md:hidden"}`}
+                  style={{ background: card.bg, border: card.border, color: isLight ? "#374151" : "#d4d4d8" }} />
+              )}
               <input placeholder="Observações do pedido..." value={orderNotes} onChange={e => setOrderNotes(e.target.value)}
                 className={`w-full text-xs px-3 py-2 rounded-xl placeholder-zinc-500 focus:outline-none focus:border-brand-500 ${extraOpen === "notes" ? "" : "md:hidden"}`}
                 style={{ background: card.bg, border: card.border, color: isLight ? "#374151" : "#d4d4d8" }} />
