@@ -1004,8 +1004,8 @@ export default function TablesPage() {
                 // Cor de cada status: a aba (marcador de fichário) leva a cor cheia;
                 // o corpo do cartão só um leve tom dela.
                 const TONE: Record<string, { tab: string; tint: string; ink: string; label: string }> = {
-                  free:     { tab: "linear-gradient(135deg,#34d399,#10b981)", tint: "#10b981", ink: "#059669", label: "Livre" },
-                  occupied: { tab: "linear-gradient(135deg,#7C3FFA 0%,#315DFB 60%,#00B8C8 100%)", tint: "#315DFB", ink: "#315DFB", label: "Ocupada" },
+                  free:     { tab: "linear-gradient(135deg, #7C3FFA 0%, #315DFB 55%, #00B8C8 100%)", tint: "#315DFB", ink: "#315DFB", label: "Livre" },
+                  occupied: { tab: "linear-gradient(135deg,#334155,#1e293b)", tint: "#334155", ink: "#475569", label: "Ocupada" },
                   reserved: { tab: "linear-gradient(135deg,#818cf8,#6366f1)", tint: "#6366f1", ink: "#4f46e5", label: "Reservada" },
                   cleaning: { tab: "linear-gradient(135deg,#cbd5e1,#94a3b8)", tint: "#94a3b8", ink: "#64748b", label: "Em limpeza" },
                 };
@@ -1027,9 +1027,9 @@ export default function TablesPage() {
                     {/* Corpo */}
                     <div className="relative rounded-2xl rounded-tl-md px-4 pt-4 pb-3 min-h-[118px] flex flex-col"
                       style={{
-                        background: isLight ? `linear-gradient(180deg, ${t.tint}12 0%, #ffffff 70%)` : `linear-gradient(180deg, ${t.tint}22 0%, #18181b 75%)`,
-                        border: `1px solid ${t.tint}${isLight ? "33" : "55"}`,
-                        boxShadow: isLight ? `0 1px 2px rgba(17,24,39,0.04), 0 10px 24px -14px ${t.tint}88` : "none",
+                        background: isLight ? "#ffffff" : "#18181b",
+                        border: isLight ? "1px solid #e5e7eb" : "1px solid rgba(63,63,70,0.7)",
+                        boxShadow: isLight ? "0 1px 2px rgba(17,24,39,0.04), 0 8px 20px -12px rgba(17,24,39,0.18)" : "none",
                       }}>
                       <div className="flex-1 flex flex-col items-center justify-center text-center gap-1">
                         {info ? (
