@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
+import { fetchAll } from "../../lib/fetchAll";
 import { matchesSearch } from "../../lib/search";
 import { recalcFiadoBalance, computeFiadoLedger, fetchFiadoMovs, type FiadoMov } from "../../lib/fiado";
 import { useTheme } from "../../contexts/ThemeContext";
@@ -250,13 +251,13 @@ export default function CustomersPage() {
     const range = getDateRange(dateFilter, customFrom, customTo);
     // Movimentos do período e histórico completo — buscados em paralelo
     const [{ data }, allMovs] = await Promise.all([
-      supabase
+      fetchAll(() => supabase
         .from("customer_movements")
         .select("*")
         .eq("customer_id", customerId)
         .gte("created_at", range.from)
         .lte("created_at", range.to)
-        .order("created_at", { ascending: false }),
+        .order("created_at", { ascending: false })),
 
       // Restante do fiado após cada pagamento (usa histórico completo, não só o período filtrado)
       fetchFiadoMovs(customerId).catch(() => [] as FiadoMov[]),
@@ -294,12 +295,12 @@ export default function CustomersPage() {
 
   async function loadRanking() {
     setRankingLoading(true);
-    const { data: sales } = await supabase
+    const { data: sales } = await fetchAll(() => supabase
       .from("sales")
       .select("customer_id, total, total_amount")
       .eq("status", "paid")
       .neq("origin", "fiado_payment")
-      .not("customer_id", "is", null);
+      .not("customer_id", "is", null));
     const map: Record<string, { count: number; total: number }> = {};
     for (const s of sales ?? []) {
       if (!map[s.customer_id]) map[s.customer_id] = { count: 0, total: 0 };

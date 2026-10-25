@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { fetchAll } from "./fetchAll";
 
 const isSaldoMov = (m: { type: string; description: string | null }) =>
   m.type === "saldo" || (m.description ?? "").toLowerCase().startsWith("saldo usado");
@@ -31,13 +32,13 @@ export function computeFiadoLedger(movsAsc: FiadoMov[]) {
 }
 
 export async function fetchFiadoMovs(customerId: string): Promise<FiadoMov[]> {
-  const { data, error } = await supabase
+  // Paginado: clientes antigos podem passar de 1000 lançamentos
+  const { data, error } = await fetchAll(() => supabase
     .from("customer_movements")
     .select("id, type, amount, description")
     .eq("customer_id", customerId)
     .in("type", ["debit", "payment"])
-    .order("created_at", { ascending: true })
-    .order("id", { ascending: true });
+    .order("created_at", { ascending: true }));
   if (error) throw error;
   return (data ?? []) as FiadoMov[];
 }

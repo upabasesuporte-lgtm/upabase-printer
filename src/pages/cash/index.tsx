@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
+import { fetchAll } from "../../lib/fetchAll";
 import { useTheme } from "../../contexts/ThemeContext";
 import { PageHeader, btnSecondary, segWrap, segBtn, WHITE_TEXT } from "../../components/PageHeader";
 import { StatCard, toneFor } from "../../components/StatCard";
@@ -267,30 +268,30 @@ export default function CashPage() {
       setRegister(reg);
       // Movimentos, vendas e recebimentos de fiado do turno — buscados em paralelo
       const [{ data: movs }, { data: salesData }, { data: fiadoPaidData }] = await Promise.all([
-        supabase
+        fetchAll(() => supabase
           .from("cash_movements")
           .select("*")
           .eq("register_id", reg.id)
-          .order("created_at", { ascending: false }),
+          .order("created_at", { ascending: false })),
 
         // Carrega vendas (iFood usa valor bruto = total + comissão para bater com recibos)
-        supabase
+        fetchAll(() => supabase
           .from("sales")
           .select("total_amount, discount, payments, origin")
           .eq("user_id", user?.id)
           .eq("status", "paid")
           .neq("origin", "fiado_payment")
-          .gte("created_at", reg.opened_at),
+          .gte("created_at", reg.opened_at)),
 
         // Pagamentos de fiado recebidos neste turno: abatem "Fiado (A Rec.)" e
         // somam na forma de pagamento realmente usada (ex: pago no PIX → soma no PIX)
-        supabase
+        fetchAll(() => supabase
           .from("sales")
           .select("total_amount, payments")
           .eq("user_id", user?.id)
           .eq("status", "paid")
           .eq("origin", "fiado_payment")
-          .gte("created_at", reg.opened_at),
+          .gte("created_at", reg.opened_at)),
       ]);
       setMovements(movs ?? []);
 
@@ -330,13 +331,13 @@ export default function CashPage() {
     // Busca totais de vendas para todos os caixas em uma só query
     if (regs.length > 0) {
       const oldest = regs[regs.length - 1].opened_at;
-      const { data: salesData } = await supabase
+      const { data: salesData } = await fetchAll(() => supabase
         .from("sales")
         .select("total_amount, discount, origin, created_at")
         .eq("user_id", userId)
         .eq("status", "paid")
         .neq("origin", "fiado_payment")
-        .gte("created_at", oldest);
+        .gte("created_at", oldest));
       const allSales = salesData ?? [];
       const totals: Record<string, number> = {};
       const counts: Record<string, number> = {};
@@ -919,15 +920,15 @@ function HistoryTab({
     if (details[reg.id]) return;
     setDetailLoading(reg.id);
     const [{ data: movData }, { data: salesData }] = await Promise.all([
-      supabase.from("cash_movements").select("*").eq("register_id", reg.id).order("created_at", { ascending: false }),
-      supabase.from("sales")
+      fetchAll(() => supabase.from("cash_movements").select("*").eq("register_id", reg.id).order("created_at", { ascending: false })),
+      fetchAll(() => supabase.from("sales")
         .select("id, total_amount, discount, payments, origin, created_at")
         .eq("user_id", userId ?? "")
         .eq("status", "paid")
         .neq("origin", "fiado_payment")
         .gte("created_at", reg.opened_at)
         .lte("created_at", reg.closed_at ?? new Date().toISOString())
-        .order("created_at", { ascending: false }),
+        .order("created_at", { ascending: false })),
     ]);
     setDetails(prev => ({ ...prev, [reg.id]: { movs: movData ?? [], sales: salesData ?? [] } }));
     setDetailLoading(null);

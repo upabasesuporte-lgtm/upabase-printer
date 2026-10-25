@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
+import { fetchAll, fetchAllIn } from "../../lib/fetchAll";
 import { useTheme } from "../../contexts/ThemeContext";
 import { PageHeader, btnSecondary } from "../../components/PageHeader";
 import { StatCard, toneFor, type StatTone } from "../../components/StatCard";
@@ -238,12 +239,12 @@ export default function DashboardPage() {
     const prevTo   = from.toISOString();
 
     const [salesRes, prevRes, prodRes, digRes, tabRes, recentRes, apRes, custMovRes] = await Promise.all([
-      supabase.from("sales").select("id,total_amount,discount,origin,created_at,status,seller_name,payments")
+      fetchAll(() => supabase.from("sales").select("id,total_amount,discount,origin,created_at,status,seller_name,payments")
         .eq("user_id", userId).eq("status", "paid").neq("origin", "fiado_payment")
-        .gte("created_at", fromISO).lte("created_at", toISO).order("created_at"),
-      supabase.from("sales").select("id,total_amount")
+        .gte("created_at", fromISO).lte("created_at", toISO).order("created_at")),
+      fetchAll(() => supabase.from("sales").select("id,total_amount")
         .eq("user_id", userId).eq("status", "paid").neq("origin", "fiado_payment")
-        .gte("created_at", prevFrom).lte("created_at", prevTo),
+        .gte("created_at", prevFrom).lte("created_at", prevTo)),
       supabase.from("products").select("id,name,stock,stock_min")
         .eq("is_active", true).order("stock").limit(30),
       supabase.from("digital_orders").select("id", { count: "exact", head: true })
@@ -252,14 +253,14 @@ export default function DashboardPage() {
       supabase.from("sales").select("id,total_amount,origin,created_at,status,seller_name,payments")
         .eq("user_id", userId).eq("status", "paid")
         .order("created_at", { ascending: false }).limit(15),
-      supabase.from("accounts_payable").select("*")
-        .eq("user_id", userId).not("status", "eq", "cancelled"),
+      fetchAll(() => supabase.from("accounts_payable").select("*")
+        .eq("user_id", userId).not("status", "eq", "cancelled")),
       // Top customers ranking - from customer_movements with customer names
-      supabase.from("customer_movements")
+      fetchAll(() => supabase.from("customer_movements")
         .select("customer_id,amount,created_at,customers(name)")
         .eq("user_id", userId)
         .gte("created_at", fromISO)
-        .lte("created_at", toISO),
+        .lte("created_at", toISO)),
     ]);
 
     const currentSales = (salesRes.data ?? []) as Sale[];
@@ -269,9 +270,9 @@ export default function DashboardPage() {
     const periodSaleIds = currentSales.map(s => s.id);
     let periodItems: (SaleItem & { sale_id?: string })[] = [];
     if (periodSaleIds.length > 0) {
-      const { data: itemsData } = await supabase
+      const { data: itemsData } = await fetchAllIn(periodSaleIds, ids => supabase
         .from("sale_items").select("sale_id,product_id,quantity,unit_price,products(name)")
-        .in("sale_id", periodSaleIds);
+        .in("sale_id", ids));
       periodItems = (itemsData ?? []) as unknown as (SaleItem & { sale_id?: string })[];
     }
     const ifoodSaleIds = new Set(currentSales.filter(s => s.origin === "ifood").map(s => s.id));

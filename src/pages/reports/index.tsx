@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../../lib/supabase";
+import { fetchAll } from "../../lib/fetchAll";
 import { useTheme } from "../../contexts/ThemeContext";
 import { PageHeader, btnSecondary } from "../../components/PageHeader";
 import { StatCard, toneFor } from "../../components/StatCard";
@@ -168,44 +169,44 @@ async function fetchReportData(fromISO: string, toISO: string): Promise<{ data: 
   try {
     // Consultas que não dependem das vendas — já disparam em paralelo
     const restPromise = Promise.all([
-      supabase.from("cash_movements")
+      fetchAll(() => supabase.from("cash_movements")
         .select("id,movement_type,amount,payment_method,description,created_at")
         .gte("created_at", fromISO)
         .lte("created_at", toISO)
-        .order("created_at",{ascending:false}),
+        .order("created_at",{ascending:false})),
 
-      supabase.from("customer_movements")
+      fetchAll(() => supabase.from("customer_movements")
         .select("id,type,amount,created_at,customers(name)")
         .gte("created_at", fromISO)
         .lte("created_at", toISO)
-        .order("created_at",{ascending:false}),
+        .order("created_at",{ascending:false})),
 
-      supabase.from("stock_items")
+      fetchAll(() => supabase.from("stock_items")
         .select("id,name,current_qty,min_qty,unit")
-        .order("current_qty"),
+        .order("current_qty")),
 
-      supabase.from("products")
+      fetchAll(() => supabase.from("products")
         .select("id,name,stock,stock_min,sale_price,unlimited_stock,stock_type")
         .eq("is_active",true)
-        .order("stock"),
+        .order("stock")),
 
-      supabase.from("purchase_orders")
+      fetchAll(() => supabase.from("purchase_orders")
         .select("id,status,created_at,suppliers(name),purchase_order_items(quantity,unit_cost,stock_items(name),products(name))")
         .gte("created_at", fromISO)
         .lte("created_at", toISO)
-        .order("created_at",{ascending:false}),
+        .order("created_at",{ascending:false})),
     ]);
 
     // 0. Caixas (turnos) cuja ABERTURA caiu dentro do período selecionado.
     //    Uma venda pertence ao turno de caixa em que foi lançada — não ao dia-calendário
     //    do created_at. Um caixa aberto ontem e fechado só hoje continua sendo "de ontem":
     //    as vendas lançadas nele hoje (antes de fechar) devem contar para o turno de ontem.
-    const { data: regsRaw, error: regsErr } = await supabase
+    const { data: regsRaw, error: regsErr } = await fetchAll(() => supabase
       .from("cash_registers")
       .select("id,opened_at,closed_at")
       .gte("opened_at", fromISO)
       .lte("opened_at", toISO)
-      .order("opened_at",{ascending:true});
+      .order("opened_at",{ascending:true}));
 
     if (regsErr) errs.push(`Caixas: ${regsErr.message}`);
     const regs: CashRegisterRow[] = (regsRaw ?? []) as CashRegisterRow[];
@@ -222,14 +223,14 @@ async function fetchReportData(fromISO: string, toISO: string): Promise<{ data: 
       : toISO;
 
     // 1. Vendas finalizadas — colunas que sabemos que existem (sem "seller")
-    const { data: salesRaw, error: salesErr } = await supabase
+    const { data: salesRaw, error: salesErr } = await fetchAll(() => supabase
       .from("sales")
       .select("id,total_amount,discount,origin,created_at,status,seller_name,payments")
       .eq("status","paid")
       .neq("origin","fiado_payment")
       .gte("created_at", sessionFrom)
       .lte("created_at", sessionTo)
-      .order("created_at",{ascending:false});
+      .order("created_at",{ascending:false}));
 
     if (salesErr) errs.push(`Vendas: ${salesErr.message}`);
     const salesFiltered = useRegisterWindow
@@ -250,10 +251,10 @@ async function fetchReportData(fromISO: string, toISO: string): Promise<{ data: 
       const chunks: string[][] = [];
       for (let i = 0; i < saleIds.length; i += CHUNK) chunks.push(saleIds.slice(i, i + CHUNK));
       const results = await Promise.all(chunks.map(ids =>
-        supabase
+        fetchAll(() => supabase
           .from("sale_items")
           .select("sale_id,product_id,quantity,unit_price,products(name,category_id)")
-          .in("sale_id", ids)
+          .in("sale_id", ids))
       ));
       const allItems: any[] = [];
       for (const { data: itemsRaw, error: itemsErr } of results) {
