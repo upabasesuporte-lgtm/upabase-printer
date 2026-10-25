@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../../lib/supabase";
+import { matchesSearch } from "../../lib/search";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import { ProductModal, type Category, type Product } from "../products";
 import {
@@ -175,12 +176,11 @@ export default function StockPage() {
   const lowCount = rows.filter(r => statusOf(r.qty, r.min) === "low").length;
   const outCount = rows.filter(r => statusOf(r.qty, r.min) === "out").length;
 
-  const q = search.trim().toLowerCase();
   const filteredRows = rows.filter(r =>
-    (q === "" || r.name.toLowerCase().includes(q) || (r.subtitle ?? "").toLowerCase().includes(q)) &&
+    (matchesSearch(r.name, search) || matchesSearch(r.subtitle, search)) &&
     (kindFilter === "all" || r.kind === kindFilter) &&
     (statusFilter === "all" || statusFilter === "uncontrolled" || statusOf(r.qty, r.min) === statusFilter));
-  const filteredUncontrolled = uncontrolledProducts.filter(p => q === "" || p.name.toLowerCase().includes(q));
+  const filteredUncontrolled = uncontrolledProducts.filter(p => matchesSearch(p.name, search));
 
   const selectedRow = selected ? rows.find(r => r.kind === selected.kind && r.id === selected.id) ?? null : null;
 
@@ -275,7 +275,7 @@ export default function StockPage() {
                 onRecipe={() => setView("recipes")} />
             ) : (
               <>
-                {uncontrolledProducts.length > 0 && statusFilter === "all" && kindFilter !== "ingredient" && q === "" && (
+                {uncontrolledProducts.length > 0 && statusFilter === "all" && kindFilter !== "ingredient" && search.trim() === "" && (
                   <div className="flex items-start sm:items-center gap-3 px-4 py-3 rounded-2xl bg-brand-50/60 border border-brand-100 text-sm text-brand-900">
                     <Info className="w-4 h-4 flex-shrink-0 mt-0.5 sm:mt-0 text-brand-600" />
                     <p className="flex-1">
@@ -772,10 +772,9 @@ function HistoryView() {
   const groups: Record<string, string[]> = {
     in: ["entry", "purchase", "return"], sale: ["sale"], out: ["exit", "loss", "purchase_cancel"], count: ["count"],
   };
-  const q = search.trim().toLowerCase();
   const list = (moves ?? []).filter(m =>
     (filter === "all" || groups[filter].includes(m.type)) &&
-    (q === "" || (m.products?.name ?? m.stock_items?.name ?? "").toLowerCase().includes(q)));
+    matchesSearch(m.products?.name ?? m.stock_items?.name, search));
 
   return (
     <div className="space-y-3">
@@ -834,8 +833,7 @@ function RecipesView({ products, stockItems, onCountsChange, onNewIngredient }: 
     setLines(((data ?? []) as any[]).map(l => ({ ...l, quantity: Number(l.quantity) })));
   }
 
-  const q = search.trim().toLowerCase();
-  const list = products.filter(p => q === "" || p.name.toLowerCase().includes(q))
+  const list = products.filter(p => matchesSearch(p.name, search))
     .sort((a, b) => (counts[b.id] ?? 0) - (counts[a.id] ?? 0) || a.name.localeCompare(b.name, "pt-BR"));
   const selected = products.find(p => p.id === selectedId) ?? null;
   const ingById = (id: string) => stockItems.find(s => s.id === id);

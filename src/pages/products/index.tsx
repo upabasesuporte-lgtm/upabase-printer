@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../../lib/supabase";
+import { accentInsensitivePattern } from "../../lib/search";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import { PageHeader, btnPrimary, btnSecondary, WHITE_TEXT } from "../../components/PageHeader";
@@ -828,7 +829,11 @@ export default function ProductsPage() {
     setLoading(true);
     let q = supabase.from("products").select("*", { count: "exact" });
 
-    if (search) q = q.or(`name.ilike.%${search}%,sku.ilike.%${search}%,barcode.ilike.%${search}%`);
+    if (search.trim()) {
+      // Nome sem diferença de acento ("oleo" acha "Óleo"); SKU e código de barras como digitado
+      const raw = search.trim().replace(/[,()"\\]/g, " ");
+      q = q.or(`name.imatch."${accentInsensitivePattern(search)}",sku.ilike.%${raw}%,barcode.ilike.%${raw}%`);
+    }
     if (filterCat) q = q.eq("category_id", filterCat);
     if (filterStatus) q = q.eq("status", filterStatus);
     if (filterStock === "low") q = q.gt("stock_min", 0).lte("stock", supabase.rpc as any);
