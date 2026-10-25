@@ -196,6 +196,7 @@ export default function PdvPage() {
   const [showNewCustomer, setShowNewCustomer] = useState(false);
   const [showPending, setShowPending] = useState(false);
   const [showEditSale, setShowEditSale] = useState<Sale | null>(null);
+  const editSaveInFlight = useRef(false);
   const [showEditItems, setShowEditItems] = useState<SaleItem[]>([]);
   const [pendingSales, setPendingSales] = useState<Sale[]>([]);
 
@@ -990,7 +991,19 @@ export default function PdvPage() {
     setPendingSales(prev => prev.filter(s => s.id !== saleId));
   }
 
+  // Trava síncrona: clique repetido em "Salvar" rodava a edição em paralelo e
+  // cada execução reinseria o débito do fiado (venda lançada 2-3x no cliente).
   async function saveEditPayments() {
+    if (editSaveInFlight.current) return;
+    editSaveInFlight.current = true;
+    try {
+      await saveEditPaymentsInner();
+    } finally {
+      editSaveInFlight.current = false;
+    }
+  }
+
+  async function saveEditPaymentsInner() {
     if (!showEditSale) return;
     const saleId = showEditSale.id;
     const orderNum = saleId.slice(-6).toUpperCase();

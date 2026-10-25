@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
-import { recalcFiadoBalance } from "../../lib/fiado";
+import { recalcFiadoBalance, computeFiadoLedger, fetchFiadoMovs, type FiadoMov } from "../../lib/fiado";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import { PageHeader, btnPrimary, WHITE_TEXT } from "../../components/PageHeader";
@@ -53,6 +53,9 @@ interface ProductOption {
   stock: number;
 }
 
+
+// Movimento "credit" criado quando um pagamento de fiado passa da dívida
+const SURPLUS_DESC = "Sobra do pagamento de fiado (foi para o saldo)";
 
 type PayMethod = "cash" | "credit" | "debit" | "pix" | "fiado";
 type DateFilter = "today" | "week" | "month" | "year" | "custom";
@@ -132,6 +135,8 @@ export default function CustomersPage() {
   const [movements, setMovements] = useState<CustomerMovement[]>([]);
   const [movLoading, setMovLoading] = useState(false);
   const [remainingAfter, setRemainingAfter] = useState<Record<string, number>>({});
+  // Quanto cada pagamento passou da dívida da época (sobra)
+  const [overpaidBy, setOverpaidBy] = useState<Record<string, number>>({});
   const [dateFilter, setDateFilter] = useState<DateFilter>("month");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
@@ -183,6 +188,8 @@ export default function CustomersPage() {
   // rápidos podem passar pela checagem antes do botão desabilitar. Um ref
   // atualiza na hora, então bloqueia o segundo clique de verdade.
   const payDebtInFlight = useRef(false);
+  // Trava síncrona das edições de lançamento (clique repetido duplicava o débito)
+  const editInFlight = useRef(false);
 
   // Detail: histórico de movimentações
   const [saleItemsMap, setSaleItemsMap] = useState<Record<string, SaleItemInfo[]>>({});
@@ -241,7 +248,7 @@ export default function CustomersPage() {
     setMovLoading(true);
     const range = getDateRange(dateFilter, customFrom, customTo);
     // Movimentos do período e histórico completo — buscados em paralelo
-    const [{ data }, { data: allData }] = await Promise.all([
+    const [{ data }, allMovs] = await Promise.all([
       supabase
         .from("customer_movements")
         .select("*")
@@ -251,25 +258,13 @@ export default function CustomersPage() {
         .order("created_at", { ascending: false }),
 
       // Restante do fiado após cada pagamento (usa histórico completo, não só o período filtrado)
-      supabase
-        .from("customer_movements")
-        .select("id, type, amount, description")
-        .eq("customer_id", customerId)
-        .in("type", ["debit", "payment"])
-        .order("created_at", { ascending: true }),
+      fetchFiadoMovs(customerId).catch(() => [] as FiadoMov[]),
     ]);
     const movs = (data ?? []) as CustomerMovement[];
     setMovements(movs);
-    const isSaldoMovFull = (m: { type: string; description: string | null }) =>
-      (m.description ?? "").toLowerCase().startsWith("saldo usado");
-    let running = 0;
-    const afterMap: Record<string, number> = {};
-    for (const m of (allData ?? []) as { id: string; type: string; amount: number; description: string | null }[]) {
-      if (m.type === "debit" && !isSaldoMovFull(m)) running += m.amount;
-      else if (m.type === "payment") running = Math.max(0, running - m.amount);
-      afterMap[m.id] = running;
-    }
-    setRemainingAfter(afterMap);
+    const ledger = computeFiadoLedger(allMovs);
+    setRemainingAfter(ledger.after);
+    setOverpaidBy(ledger.overpaid);
 
     const saleIds = movs.map(m => m.sale_id).filter(Boolean) as string[];
     if (saleIds.length > 0) {
@@ -474,6 +469,9 @@ export default function CustomersPage() {
     setSaving(true);
     try {
       const totalPaid = payEntries.reduce((s, e) => s + e.amount, 0);
+      // Dívida real neste momento (do histórico, não do estado da tela que pode estar velho)
+      const debtNow = computeFiadoLedger(await fetchFiadoMovs(selected.id)).total;
+      const surplus = Math.round(Math.max(0, totalPaid - debtNow) * 100) / 100;
 
       // Lança no histórico de Vendas (origin "fiado_payment" para não duplicar faturamento:
       // a receita da venda original já foi contabilizada quando o fiado foi gerado).
@@ -499,6 +497,20 @@ export default function CustomersPage() {
         sale_id: saleId,
       });
       if (movErr) throw movErr;
+
+      // Pagou mais do que devia: a sobra não abate compras futuras do fiado,
+      // vira saldo positivo do cliente (usável no PDV como "Saldo").
+      if (surplus > 0) {
+        const { error: credErr } = await supabase.from("customer_movements").insert({
+          customer_id: selected.id, user_id: userId, type: "credit", amount: surplus,
+          description: SURPLUS_DESC, payment_methods: [], sale_id: saleId,
+        });
+        if (credErr) throw credErr;
+        const { data: curr } = await supabase.from("customers").select("balance").eq("id", selected.id).single();
+        const { error: balErr } = await supabase.from("customers")
+          .update({ balance: (Number(curr?.balance) || 0) + surplus }).eq("id", selected.id);
+        if (balErr) throw balErr;
+      }
 
       // Recalcula o fiado a partir do histórico real (evita o contador salvo
       // ficar dessincronizado do extrato se algum passo anterior tiver falhado).
@@ -579,6 +591,27 @@ export default function CustomersPage() {
     if (!confirm(`Cancelar este pagamento de ${fmt(m.amount)}? O valor volta a ser dívida do cliente.`)) return;
     setSaving(true);
     try {
+      // 0) Se esse pagamento gerou sobra (saldo), desfaz a sobra também.
+      // Busca antes de apagar a venda, enquanto o vínculo por sale_id existe.
+      const movTime = new Date(m.created_at).getTime();
+      let surplusQ = supabase.from("customer_movements").select("id, amount")
+        .eq("customer_id", selected.id).eq("type", "credit").eq("description", SURPLUS_DESC);
+      surplusQ = m.sale_id
+        ? surplusQ.eq("sale_id", m.sale_id)
+        : surplusQ.gte("created_at", new Date(movTime - 120000).toISOString())
+                  .lte("created_at", new Date(movTime + 120000).toISOString()).limit(1);
+      const { data: surplusMovs } = await surplusQ;
+      const surplusTotal = (surplusMovs ?? []).reduce((s, x: any) => s + (Number(x.amount) || 0), 0);
+      if (surplusTotal > 0) {
+        await supabase.from("customer_movements").delete().in("id", (surplusMovs ?? []).map((x: any) => x.id));
+        const { data: curr } = await supabase.from("customers").select("balance").eq("id", selected.id).single();
+        const currBal = Number(curr?.balance) || 0;
+        if (currBal < surplusTotal) {
+          alert(`Atenção: a sobra de ${fmt(surplusTotal)} desse pagamento já foi parcialmente usada como saldo. O saldo do cliente ficará zerado.`);
+        }
+        await supabase.from("customers").update({ balance: Math.max(0, currBal - surplusTotal) }).eq("id", selected.id);
+      }
+
       // 1) Apaga a venda criada para esse pagamento (some do Histórico/Vendas)
       if (m.sale_id) {
         await supabase.from("sales").delete().eq("id", m.sale_id);
@@ -745,6 +778,8 @@ export default function CustomersPage() {
 
   async function saveMovementEdit() {
     if (!editingMovement || !selected || saving) return;
+    if (editInFlight.current) return;
+    editInFlight.current = true;
     setSaving(true);
     try {
       if (editingMovement.type === "payment") {
@@ -856,6 +891,7 @@ export default function CustomersPage() {
       alert("Erro ao editar: " + (e?.message ?? String(e)));
     } finally {
       setSaving(false);
+      editInFlight.current = false;
     }
   }
 
@@ -899,7 +935,7 @@ export default function CustomersPage() {
         : "";
       const remainingRow = m.type === "payment"
         ? `<tr><td colspan="5" style="padding:0 10px 8px;font-size:10px;color:#b45309;background:#fffbeb;border-bottom:1px solid #e5e7eb">
-            ${remainingAfter[m.id] > 0 ? `Restante do fiado: ${fmt(remainingAfter[m.id])}` : "Fiado quitado"}
+            ${paymentStatusText(m.id)}
           </td></tr>`
         : "";
       return `<tr style="border-bottom:${items.length === 0 && !remainingRow ? "1px solid #e5e7eb" : "none"}">
@@ -949,6 +985,13 @@ export default function CustomersPage() {
   );
 
   const totalPaid = payEntries.reduce((s, e) => s + e.amount, 0);
+
+  // Situação do fiado logo após um pagamento (extrato e impressão)
+  function paymentStatusText(movId: string): string {
+    if (remainingAfter[movId] > 0) return `Restante do fiado: ${fmt(remainingAfter[movId])}`;
+    const extra = overpaidBy[movId] ?? 0;
+    return extra > 0 ? `Fiado quitado · pago ${fmt(extra)} a mais que a dívida` : "Fiado quitado";
+  }
   const debtAmt = selected ? (selected.fiado_balance ?? 0) : 0;
   const remaining = Math.max(0, debtAmt - totalPaid);
 
@@ -1303,7 +1346,7 @@ export default function CustomersPage() {
                           <p className="text-xs text-zinc-600">{new Date(m.created_at).toLocaleString("pt-BR")}</p>
                           {m.type === "payment" && (
                             <p className="text-xs text-amber-400 mt-0.5">
-                              {remainingAfter[m.id] > 0 ? `Restante do fiado: ${fmt(remainingAfter[m.id])}` : "Fiado quitado"}
+                              {paymentStatusText(m.id)}
                             </p>
                           )}
                           {items.length > 0 && (
@@ -1529,6 +1572,12 @@ export default function CustomersPage() {
                           {selected.fiado_balance - totalPaid <= 0 ? "Quitado!" : fmt(selected.fiado_balance - totalPaid)}
                         </span>
                       </div>
+                      {totalPaid - selected.fiado_balance > 0.004 && (
+                        <div className="flex items-center justify-between rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-2 py-1.5">
+                          <span className="text-xs text-emerald-300">Sobra — vai para o saldo do cliente</span>
+                          <span className="text-sm font-bold text-emerald-400">+{fmt(totalPaid - selected.fiado_balance)}</span>
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
