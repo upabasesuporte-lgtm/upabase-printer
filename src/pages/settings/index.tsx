@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect } from "react";
 import { Store, Phone, CreditCard, Save, CheckCircle2, Receipt, Plus, Trash2, Users, Settings, Loader2, KeyRound } from "lucide-react";
 import { supabase } from "../../lib/supabase";
-import { loadOperators, setCurrentOperator, saveLockMinutes, useOperators, TAB_OPTIONS, PRESETS, describeOperator, operatorRoutes, operatorCanApprove, type Operator } from "../../lib/operators";
+import { loadOperators, setCurrentOperator, saveLockMinutes, setDeviceNoLock, useOperators, TAB_OPTIONS, PRESETS, describeOperator, operatorRoutes, operatorCanApprove, type Operator } from "../../lib/operators";
 import { PageHeader } from "../../components/PageHeader";
 import { useTheme } from "../../contexts/ThemeContext";
 
@@ -558,6 +558,11 @@ function OperatorsSection({ userId, isLight }: { userId: string; isLight: boolea
       <p className="text-xs text-zinc-500">
         Cada funcionário entra com o próprio PIN e vê só as abas que você marcar. Sem nenhum PIN cadastrado, o sistema funciona como hoje.
       </p>
+      {!owner && (
+        <p className="text-xs rounded-xl px-3 py-2" style={{ background: "rgba(49,93,251,0.08)", color: "#315DFB" }}>
+          <b>Trabalha sozinho(a)?</b> Não precisa cadastrar PIN — o sistema funciona normalmente, sem tela de PIN e sem pedir autorização.
+        </p>
+      )}
 
       {!owner ? (
         <div className="rounded-xl p-4 space-y-3" style={rowStyle}>
@@ -579,7 +584,7 @@ function OperatorsSection({ userId, isLight }: { userId: string; isLight: boolea
           <div className="rounded-xl px-4 py-3 flex flex-wrap items-center gap-3" style={rowStyle}>
             <div className="flex-1 min-w-[180px]">
               <p className="text-sm font-semibold">Travar automaticamente</p>
-              <p className="text-[11px] text-zinc-500">Depois desse tempo sem uso, o aparelho volta para "Digite seu PIN". Vale para todos os aparelhos.</p>
+              <p className="text-[11px] text-zinc-500">Depois desse tempo sem uso, o aparelho volta para "Digite seu PIN". Vale só para funcionários: o dono e quem pode autorizar não são travados.</p>
             </div>
             <select value={opState.lockMinutes} disabled={busy}
               onChange={async e => {
@@ -593,6 +598,16 @@ function OperatorsSection({ userId, isLight }: { userId: string; isLight: boolea
               {[0, 2, 5, 10, 15, 30, 60].map(m => <option key={m} value={m}>{m === 0 ? "Nunca" : `${m} minutos`}</option>)}
             </select>
           </div>
+
+          {/* Não travar este aparelho (vale só para o aparelho atual) */}
+          <label className="rounded-xl px-4 py-3 flex items-center gap-3 cursor-pointer select-none" style={rowStyle}>
+            <input type="checkbox" checked={opState.deviceNoLock} onChange={e => { setDeviceNoLock(e.target.checked); flash(e.target.checked ? "Este aparelho não trava mais sozinho." : "Este aparelho volta a travar sozinho."); }}
+              className="w-4 h-4 accent-[#315DFB]" />
+            <span className="flex-1">
+              <span className="text-sm font-semibold block">Não travar este aparelho</span>
+              <span className="text-[11px] text-zinc-500">Ex.: o computador do escritório do dono. Vale só para este aparelho — os outros continuam travando.</span>
+            </span>
+          </label>
 
           {/* Dono */}
           <div className="rounded-xl px-4 py-2.5" style={rowStyle}>

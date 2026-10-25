@@ -87,9 +87,15 @@ interface State {
   current: Operator | null;     // quem está operando neste aparelho
   approval: { reason: string; resolve: (ok: boolean) => void } | null;
   lockMinutes: number;          // trava automática por inatividade (0 = nunca)
+  deviceNoLock: boolean;        // "não travar este aparelho" (só neste aparelho)
 }
 
-let state: State = { ownerId: null, operators: [], current: null, approval: null, lockMinutes: 10 };
+const NOLOCK_KEY = "operator_nolock_device";
+function readNoLock(): boolean {
+  try { return localStorage.getItem(NOLOCK_KEY) === "1"; } catch { return false; }
+}
+
+let state: State = { ownerId: null, operators: [], current: null, approval: null, lockMinutes: 10, deviceNoLock: readNoLock() };
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach(l => l());
 const setState = (patch: Partial<State>) => { state = { ...state, ...patch }; emit(); };
@@ -143,6 +149,17 @@ export async function saveLockMinutes(ownerId: string, minutes: number) {
   );
   if (error) throw error;
   setState({ lockMinutes: minutes });
+}
+
+export function setDeviceNoLock(v: boolean) {
+  try { if (v) localStorage.setItem(NOLOCK_KEY, "1"); else localStorage.removeItem(NOLOCK_KEY); } catch { /* sem storage */ }
+  setState({ deviceNoLock: v });
+}
+
+// A trava automática só vale para funcionários comuns: dono e quem pode
+// autorizar não travam sozinhos, e um aparelho marcado como "não travar" também não.
+export function shouldAutoLock(s: State = state): boolean {
+  return operatorsEnabled(s) && !!s.current && s.lockMinutes > 0 && !s.deviceNoLock && !operatorCanApprove(s.current);
 }
 
 export function setCurrentOperator(op: Operator | null) {
