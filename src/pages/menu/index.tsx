@@ -70,6 +70,7 @@ interface TrackedOrder {
   delivery_address: string | null; order_type: string | null;
   payment_method: string | null; change_for: number | null;
   notes: string | null;
+  courier_name?: string | null; // motoboy que saiu com o pedido
 }
 
 type Step = "menu" | "configure" | "cart" | "checkout" | "tracking";
@@ -381,7 +382,7 @@ export default function PublicMenuPage() {
         event: "UPDATE", schema: "public", table: "digital_orders",
         filter: `id=eq.${orderId}`,
       }, payload => {
-        if (!cancelled) setTrackedOrder(prev => prev ? { ...prev, status: (payload.new as any).status } : prev);
+        if (!cancelled) setTrackedOrder(prev => prev ? { ...prev, status: (payload.new as any).status, courier_name: (payload.new as any).courier_name ?? prev.courier_name } : prev);
       })
       .subscribe();
 
@@ -807,6 +808,18 @@ export default function PublicMenuPage() {
               </p>
             </div>
           )}
+
+          {!isCancelled && trackedOrder.status === "dispatched" && trackedOrder.courier_name && (
+          <div className="flex items-center gap-3 rounded-2xl p-4 border" style={{ borderColor: "#14b8a655", background: "#14b8a614" }}>
+            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#14b8a6" }}>
+              <Truck className="w-5 h-5 text-white" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-zinc-400">Seu pedido saiu para entrega com</p>
+              <p className="text-base font-bold truncate">{trackedOrder.courier_name}</p>
+            </div>
+          </div>
+        )}
 
           {/* Order summary */}
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-2">

@@ -22,6 +22,7 @@ interface TrackedOrder {
   delivery_address: string | null; order_type: string | null;
   payment_method: string | null; change_for: number | null;
   notes: string | null;
+  courier_name?: string | null; // motoboy que saiu com o pedido
 }
 
 interface ChatMessage {
@@ -77,7 +78,7 @@ export default function MenuTrackingPage() {
     let cancelled = false;
     async function load() {
       const [orderRes, settingsRes, msgsRes] = await Promise.all([
-        supabase.from("digital_orders").select("id,order_number,status,customer_name,total_amount,items,delivery_address,order_type,payment_method,change_for,notes").eq("id", orderId).single(),
+        supabase.from("digital_orders").select("id,order_number,status,customer_name,total_amount,items,delivery_address,order_type,payment_method,change_for,notes,courier_name").eq("id", orderId).single(),
         supabase.from("menu_store_settings").select("settings").eq("user_id", uid).maybeSingle(),
         supabase.from("menu_order_messages").select("*").eq("order_id", orderId).order("created_at"),
       ]);
@@ -106,7 +107,7 @@ export default function MenuTrackingPage() {
 
     const orderCh = supabase.channel(`trak-order-${orderId}`)
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "digital_orders", filter: `id=eq.${orderId}` }, p => {
-        if (!cancelled) setOrder(prev => prev ? { ...prev, status: (p.new as any).status } : prev);
+        if (!cancelled) setOrder(prev => prev ? { ...prev, status: (p.new as any).status, courier_name: (p.new as any).courier_name ?? prev.courier_name } : prev);
       }).subscribe();
 
     const msgCh = supabase.channel(`trak-msgs-${orderId}`)
@@ -204,6 +205,18 @@ export default function MenuTrackingPage() {
             <p className="text-xs text-zinc-500 text-center mt-3">
               Tempo estimado: {settings.estimated_time_min}–{settings.estimated_time_max} min
             </p>
+          </div>
+        )}
+
+        {!isCancelled && order.status === "dispatched" && order.courier_name && (
+          <div className="flex items-center gap-3 rounded-2xl p-4 border" style={{ borderColor: "#f9731655", background: "#f9731614" }}>
+            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#f97316" }}>
+              <Truck className="w-5 h-5 text-white" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs text-zinc-400">Seu pedido saiu para entrega com</p>
+              <p className="text-base font-bold truncate">{order.courier_name}</p>
+            </div>
           </div>
         )}
 

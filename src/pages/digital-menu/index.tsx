@@ -38,6 +38,7 @@ interface DigitalOrder {
   status: string; order_number: string | null;
   payment_method: string | null; change_for: number | null;
   sale_id: string | null; created_at: string; updated_at: string | null;
+  courier_name?: string | null; // motoboy escolhido ao despachar na Cozinha
 }
 
 interface OrderItem {
@@ -342,6 +343,16 @@ export default function DigitalMenuPage() {
   // Orders
   const [orders,        setOrders]        = useState<DigitalOrder[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<DigitalOrder | null>(null);
+  // Telefone do motoboy do pedido aberto (para ligar/chamar no WhatsApp)
+  const [courierPhone, setCourierPhone] = useState<string | null>(null);
+  useEffect(() => {
+    setCourierPhone(null);
+    if (!selectedOrder?.sale_id || !selectedOrder.courier_name) return;
+    let off = false;
+    supabase.from("sales").select("couriers(phone)").eq("id", selectedOrder.sale_id).maybeSingle()
+      .then(({ data }) => { if (!off) setCourierPhone((data as any)?.couriers?.phone ?? null); });
+    return () => { off = true; };
+  }, [selectedOrder?.sale_id, selectedOrder?.courier_name]);
   const [orderMessages, setOrderMessages] = useState<MenuMessage[]>([]);
   const [newMsg,        setNewMsg]        = useState("");
   const [statusFilter,  setStatusFilter]  = useState("all");
@@ -1546,6 +1557,19 @@ export default function DigitalMenuPage() {
               <div className="flex items-center gap-2"><Users className="w-3.5 h-3.5 text-zinc-600 flex-shrink-0" /><span className="text-sm">{selectedOrder.customer_name ?? "—"}</span></div>
               {selectedOrder.customer_phone && <div className="flex items-center gap-2"><Phone className="w-3.5 h-3.5 text-zinc-600 flex-shrink-0" /><span className="text-sm">{selectedOrder.customer_phone}</span></div>}
               <div className="flex items-start gap-2"><MapPin className="w-3.5 h-3.5 text-zinc-600 flex-shrink-0 mt-0.5" /><span className="text-sm">{selectedOrder.order_type === "delivery" ? (selectedOrder.delivery_address ?? "—") : "Retirada no balcão"}</span></div>
+              {selectedOrder.courier_name && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Truck className="w-3.5 h-3.5 text-zinc-600 flex-shrink-0" />
+                  <span className="text-sm">Motoboy: <b>{selectedOrder.courier_name}</b></span>
+                  {courierPhone && (
+                    <a href={`https://wa.me/${(() => { const d = courierPhone.replace(/\D/g, ""); return d.length === 10 || d.length === 11 ? "55" + d : d; })()}`}
+                      target="_blank" rel="noreferrer"
+                      className="text-xs font-semibold px-2 py-0.5 rounded-md" style={{ background: "#25D366", color: "#fff" }}>
+                      {courierPhone}
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Items */}
