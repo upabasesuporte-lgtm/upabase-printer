@@ -217,6 +217,50 @@ export default function PdvPage() {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [discountType, setDiscountType] = useState<"value" | "percent">("value");
+
+  // ── Venda em andamento guardada neste aparelho ──
+  // Trocar de aba (ou recarregar a página) não perde o carrinho, cliente,
+  // endereço etc. Só some ao finalizar a venda ou ao tocar no X (cancelar venda).
+  const draftRestored = useRef(false);
+  useEffect(() => {
+    if (!userId || draftRestored.current) return;
+    draftRestored.current = true;
+    try {
+      const d = JSON.parse(localStorage.getItem(`pdv_draft_${userId}`) ?? "null");
+      if (!d) return;
+      if (Array.isArray(d.cart)) setCart(d.cart);
+      if (typeof d.discount === "string") setDiscount(d.discount);
+      if (d.discountType === "value" || d.discountType === "percent") setDiscountType(d.discountType);
+      if (typeof d.orderNotes === "string") setOrderNotes(d.orderNotes);
+      if (typeof d.sellerName === "string") setSellerName(d.sellerName);
+      if (typeof d.deliveryAddress === "string") setDeliveryAddress(d.deliveryAddress);
+      if (typeof d.deliveryFee === "string") setDeliveryFee(d.deliveryFee);
+      if (d.selectedCustomer && typeof d.selectedCustomer === "object") setSelectedCustomer(d.selectedCustomer);
+      if (d.saleChannel === "pdv" || d.saleChannel === "ifood") setSaleChannel(d.saleChannel);
+    } catch { /* rascunho inválido: ignora */ }
+  }, [userId]);
+  useEffect(() => {
+    if (!userId || !draftRestored.current) return;
+    const key = `pdv_draft_${userId}`;
+    const empty = cart.length === 0 && !discount && !orderNotes.trim() && !sellerName.trim()
+      && !deliveryAddress.trim() && !deliveryFee && !selectedCustomer && saleChannel === "pdv";
+    try {
+      if (empty) localStorage.removeItem(key);
+      else localStorage.setItem(key, JSON.stringify({
+        cart, discount, discountType, orderNotes, sellerName, deliveryAddress, deliveryFee, selectedCustomer, saleChannel,
+      }));
+    } catch { /* sem storage */ }
+  }, [userId, cart, discount, discountType, orderNotes, sellerName, deliveryAddress, deliveryFee, selectedCustomer, saleChannel]);
+
+  // Cancelar venda (X): toque duplo para não apagar sem querer — 1º toque arma, 2º limpa
+  const [clearArmed, setClearArmed] = useState(false);
+  const hasDraft = cart.length > 0 || !!discount || !!orderNotes.trim() || !!sellerName.trim()
+    || !!deliveryAddress.trim() || !!deliveryFee || !!selectedCustomer;
+  function cancelSaleTap() {
+    if (!clearArmed) { setClearArmed(true); setTimeout(() => setClearArmed(false), 3000); return; }
+    setClearArmed(false);
+    clearCart();
+  }
   const [discountPctRaw, setDiscountPctRaw] = useState("");
 
   // Histórico
@@ -1340,7 +1384,16 @@ export default function PdvPage() {
                 <span className="text-sm font-semibold">Carrinho</span>
                 {cart.length > 0 && <span className="text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold" style={{ background: isLight ? "#10b981" : "linear-gradient(135deg,#7B2FBE,#00B4D8)", color: "#fff" }}>{cart.reduce((s, i) => s + i.quantity, 0)}</span>}
               </div>
-              {cart.length > 0 && <button onClick={clearCart} className="text-xs text-red-400 hover:text-red-300 transition-colors">Limpar tudo</button>}
+              {hasDraft && (
+                <button onClick={cancelSaleTap} title="Cancelar venda (limpa carrinho, cliente e endereço)"
+                  className="flex items-center gap-1 h-7 rounded-full transition-all text-xs font-semibold"
+                  style={clearArmed
+                    ? { background: "#ef4444", color: "#fff", padding: "0 10px" }
+                    : { color: "#ef4444", padding: "0 6px" }}>
+                  <X className="w-4 h-4" />
+                  {clearArmed && "Toque de novo para limpar"}
+                </button>
+              )}
             </div>
 
             {/* Celular: tudo rola junto. Desktop: só os itens rolam e o bloco de totais/botões fica fixo embaixo */}
