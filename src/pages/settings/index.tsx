@@ -18,6 +18,8 @@ interface StoreSettings {
   pix: string;
   footer_message: string;
   show_cnpj: boolean;
+  service_fee_pct: number;   // taxa de serviço das mesas (0 = desligada)
+  blind_cash_close: boolean; // fechamento de caixa sem mostrar o valor esperado
 }
 
 const DEFAULT: StoreSettings = {
@@ -28,6 +30,8 @@ const DEFAULT: StoreSettings = {
   pix: "",
   footer_message: "Obrigado pela preferência! Volte sempre.",
   show_cnpj: true,
+  service_fee_pct: 0,
+  blind_cash_close: false,
 };
 
 // Funções síncronas mantidas para compatibilidade com PDV / Mesas / Cardápio
@@ -54,6 +58,8 @@ export async function refreshStoreCache(userId: string): Promise<void> {
         pix:            data.pix            ?? "",
         footer_message: data.footer_message ?? DEFAULT.footer_message,
         show_cnpj:      data.show_cnpj      ?? true,
+        service_fee_pct:  Number(data.service_fee_pct ?? 0),
+        blind_cash_close: !!data.blind_cash_close,
       }));
     }
   } catch { /* silently ignore — cache já existente será usado */ }
@@ -152,6 +158,8 @@ export default function SettingsPage() {
           pix:            data.pix            ?? "",
           footer_message: data.footer_message ?? DEFAULT.footer_message,
           show_cnpj:      data.show_cnpj      ?? true,
+          service_fee_pct:  Number(data.service_fee_pct ?? 0),
+          blind_cash_close: !!data.blind_cash_close,
         };
         const sellersList: string[] = data.sellers ?? [];
 
@@ -188,6 +196,8 @@ export default function SettingsPage() {
       pix:            form.pix,
       footer_message: form.footer_message,
       show_cnpj:      form.show_cnpj,
+      service_fee_pct:  Math.max(0, Math.min(30, Number(form.service_fee_pct) || 0)),
+      blind_cash_close: form.blind_cash_close,
       sellers,
       updated_at:     new Date().toISOString(),
     };
@@ -311,6 +321,43 @@ export default function SettingsPage() {
         <Field label="Chave PIX" hint="Aparece no comprovante quando o pagamento for via PIX">
           <input value={form.pix} onChange={e=>set("pix",e.target.value)} placeholder="CPF, e-mail, telefone ou chave aleatória" className={inputCls} />
         </Field>
+      </SectionCard>
+
+      {/* Mesas e Caixa */}
+      <SectionCard icon={<Settings className="w-4 h-4" />} title="Mesas e Caixa" color="#315DFB">
+        <div className="flex items-center justify-between gap-3 rounded-xl px-4 py-3" style={{ background: isLight ? "#f9fafb" : "#09090b", border: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" }}>
+          <div>
+            <p className="text-sm font-medium">Taxa de serviço nas mesas</p>
+            <p className="text-xs text-zinc-500">Somada ao fechar a conta da mesa; dá para tirar se o cliente não quiser pagar</p>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {form.service_fee_pct > 0 && (
+              <div className="flex items-center gap-1">
+                <input type="number" min="1" max="30" step="1" value={form.service_fee_pct}
+                  onChange={e => set("service_fee_pct", Math.max(0, Math.min(30, Number(e.target.value) || 0)))}
+                  className={inputCls + " !w-16 !px-2 text-center"} />
+                <span className="text-sm text-zinc-500">%</span>
+              </div>
+            )}
+            <button type="button" onClick={() => set("service_fee_pct", form.service_fee_pct > 0 ? 0 : 10)}
+              className="w-11 h-6 rounded-full transition-all flex-shrink-0 relative"
+              style={{ background: form.service_fee_pct > 0 ? "#315DFB" : "#d1d5db", boxShadow: "none" }}>
+              <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${form.service_fee_pct > 0 ? "left-6" : "left-1"}`} />
+            </button>
+          </div>
+        </div>
+        <div className="flex items-center justify-between gap-3 rounded-xl px-4 py-3" style={{ background: isLight ? "#f9fafb" : "#09090b", border: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" }}>
+          <div>
+            <p className="text-sm font-medium">Fechamento de caixa cego</p>
+            <p className="text-xs text-zinc-500">Quem fecha o caixa digita o que contou sem ver o valor esperado; a diferença aparece só depois</p>
+          </div>
+          <button type="button" onClick={() => set("blind_cash_close", !form.blind_cash_close)}
+            className="w-11 h-6 rounded-full transition-all flex-shrink-0 relative"
+            style={{ background: form.blind_cash_close ? "#315DFB" : "#d1d5db", boxShadow: "none" }}>
+            <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${form.blind_cash_close ? "left-6" : "left-1"}`} />
+          </button>
+        </div>
+        <p className="text-xs text-zinc-500">Clique em <b>Salvar configurações</b> no fim da página para aplicar.</p>
       </SectionCard>
 
       {/* Comprovante */}

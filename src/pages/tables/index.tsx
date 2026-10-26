@@ -231,6 +231,8 @@ export default function TablesPage() {
   const [checkoutNotes, setCheckoutNotes] = useState("");
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [servicePct, setServicePct] = useState(0);          // taxa de serviço da loja (0 = desligada)
+  const [checkoutService, setCheckoutService] = useState(false); // cobrar nesta conta?
 
   // Modals
   type Modal = "none" | "manage" | "editTable" | "reserve" | "openConfirm" | "statusChange" | "itemNote" | "cancelOrder" | "moveTable";
@@ -547,7 +549,8 @@ export default function TablesPage() {
     done: { label: "entregue", color: "#94a3b8" },
   };
   const discountVal = parseFloat(checkoutDiscount) || 0;
-  const finalTotal = Math.max(0, orderTotal - discountVal);
+  const serviceVal = checkoutService && servicePct > 0 ? Math.round(orderTotal * servicePct) / 100 : 0;
+  const finalTotal = Math.max(0, Math.round((orderTotal - discountVal + serviceVal) * 100) / 100);
   const totalPaid = checkoutPayments.reduce((s, p) => s + p.amount, 0);
   const round2 = (v: number) => Math.round(v * 100) / 100;
 
@@ -626,6 +629,7 @@ export default function TablesPage() {
           customer_id: checkoutCustomer?.id ?? null,
           seller_name: checkoutSeller || null,
           notes: checkoutNotes || null,
+          service_tax: serviceVal,
         },
         stock,
         recipe_lines: orderItems.map(oi => ({ product_id: oi.product_id, qty: oi.quantity })),
@@ -799,6 +803,7 @@ export default function TablesPage() {
     ${SEP()}
     ${subtotal !== finalTotal ? ROW("Subtotal", fmt(subtotal)) : ""}
     ${discountVal > 0 ? ROW("Desconto", "- " + fmt(discountVal)) : ""}
+    ${serviceVal > 0 ? ROW(`Serviço (${servicePct}%)`, fmt(serviceVal)) : ""}
     ${TOTAL_BOX(fmt(finalTotal))}
 
     ${SEP()}
@@ -1152,7 +1157,7 @@ export default function TablesPage() {
                 <X className="w-4 h-4" /> Cancelar Mesa
               </button>
               {orderItems.length > 0 && (
-                <button onClick={() => { setSellers(getSellers()); setShowCheckout(true); setCheckoutPayments([]); setCheckoutInput(""); setCheckoutDiscount("0"); setCheckoutCustomer(null); setCheckoutSeller(""); setCheckoutNotes(""); setCheckoutError(null); setSplitMode("none"); setSplitN(2); setSplitPaidParts(0); setSplitSel([]); setSplitPaidItems([]); }}
+                <button onClick={() => { setSellers(getSellers()); setShowCheckout(true); setCheckoutPayments([]); setCheckoutInput(""); setCheckoutDiscount("0"); setCheckoutCustomer(null); setCheckoutSeller(""); setCheckoutNotes(""); setCheckoutError(null); setSplitMode("none"); setSplitN(2); setSplitPaidParts(0); setSplitSel([]); setSplitPaidItems([]); const pct = Number(getStoreSettings().service_fee_pct) || 0; setServicePct(pct); setCheckoutService(pct > 0); }}
                   className="basis-full sm:basis-auto flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-sm font-bold transition-colors shadow-lg shadow-emerald-900/30"
                   style={{ color: "#fff" }}>
                   <CheckCircle2 className="w-4 h-4" /> Fechar Conta · {fmt(orderTotal)}
@@ -1412,7 +1417,7 @@ export default function TablesPage() {
                     <span className="text-sm text-zinc-400">Total</span>
                     <span className="text-lg font-black text-white">{fmt(orderTotal)}</span>
                   </div>
-                  <button onClick={() => { setSellers(getSellers()); setShowCheckout(true); setCheckoutPayments([]); setCheckoutInput(""); setCheckoutDiscount("0"); setCheckoutCustomer(null); setCheckoutSeller(""); setCheckoutNotes(""); setCheckoutError(null); setSplitMode("none"); setSplitN(2); setSplitPaidParts(0); setSplitSel([]); setSplitPaidItems([]); }}
+                  <button onClick={() => { setSellers(getSellers()); setShowCheckout(true); setCheckoutPayments([]); setCheckoutInput(""); setCheckoutDiscount("0"); setCheckoutCustomer(null); setCheckoutSeller(""); setCheckoutNotes(""); setCheckoutError(null); setSplitMode("none"); setSplitN(2); setSplitPaidParts(0); setSplitSel([]); setSplitPaidItems([]); const pct = Number(getStoreSettings().service_fee_pct) || 0; setServicePct(pct); setCheckoutService(pct > 0); }}
                     className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 font-bold rounded-xl text-sm transition-colors"
                     style={{ color: "#fff" }}>
                     Fechar Conta
@@ -1920,6 +1925,15 @@ export default function TablesPage() {
                   <div className="flex justify-between text-sm text-red-400">
                     <span>Desconto</span><span>-{fmt(discountVal)}</span>
                   </div>
+                )}
+                {servicePct > 0 && (
+                  <label className="flex items-center justify-between gap-2 text-sm text-zinc-400 cursor-pointer">
+                    <span className="flex items-center gap-2">
+                      <input type="checkbox" checked={checkoutService} onChange={e => setCheckoutService(e.target.checked)} className="w-4 h-4 accent-[#315DFB]" />
+                      Serviço ({servicePct}%)
+                    </span>
+                    <span className={checkoutService ? "" : "line-through opacity-50"}>{fmt(Math.round(orderTotal * servicePct) / 100)}</span>
+                  </label>
                 )}
                 <div className="flex justify-between text-base font-black text-white border-t border-zinc-800 pt-1.5">
                   <span>Total</span><span>{fmt(finalTotal)}</span>

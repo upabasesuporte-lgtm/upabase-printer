@@ -26,6 +26,7 @@ interface Sale {
   status: string;
   seller_name: string | null;
   payments: { method: string; amount: number }[] | null;
+  service_tax?: number | null;
 }
 
 interface SaleItem {
@@ -248,7 +249,7 @@ async function fetchReportData(fromISO: string, toISO: string): Promise<{ data: 
     // 1. Vendas finalizadas — colunas que sabemos que existem (sem "seller")
     const { data: salesRaw, error: salesErr } = await fetchAll(() => supabase
       .from("sales")
-      .select("id,total_amount,discount,origin,created_at,status,seller_name,payments")
+      .select("id,total_amount,discount,origin,created_at,status,seller_name,payments,service_tax")
       .eq("status","paid")
       .neq("origin","fiado_payment")
       .gte("created_at", sessionFrom)
@@ -263,6 +264,7 @@ async function fetchReportData(fromISO: string, toISO: string): Promise<{ data: 
       ...r,
       total_amount: Number(r.total_amount ?? 0),
       discount:     Number(r.discount ?? 0),
+      service_tax:  Number(r.service_tax ?? 0),
     }));
 
     // 2. Itens de venda — busca pelos IDs das vendas encontradas, em lotes
@@ -514,6 +516,8 @@ export default function ReportsPage() {
 
   const totalRevenue  = sales.reduce((a,s)=>a+s.total_amount, 0);
   const totalDiscount = sales.reduce((a,s)=>a+(s.discount??0), 0);
+  const totalService = sales.reduce((a,s)=>a+(s.service_tax??0), 0);
+  const serviceCount = sales.filter(s=>(s.service_tax??0)>0).length;
   const orderCount    = sales.length;
   const avgTicket     = orderCount>0 ? totalRevenue/orderCount : 0;
 
@@ -876,6 +880,15 @@ export default function ReportsPage() {
                 from="#10b981" to="#059669" glow="rgba(16,185,129,0.1)"
                 icon={<Banknote className="w-4 h-4" style={{color:"#10b981"}} />} />
             </div>
+            {totalService > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl px-5 py-4 border border-zinc-800">
+                <div>
+                  <p className="text-sm font-semibold">Taxa de serviço das mesas</p>
+                  <p className="text-xs text-zinc-500">Já incluída no faturamento · {serviceCount} conta{serviceCount===1?"":"s"} · valor para repassar à equipe</p>
+                </div>
+                <span className="text-xl font-bold">{fmt(totalService)}</span>
+              </div>
+            )}
 
             <Card className="p-6">
               <CardTitle sub="Faturamento e pedidos por dia">Evolução de Vendas</CardTitle>
