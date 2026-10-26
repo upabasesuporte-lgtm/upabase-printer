@@ -377,44 +377,32 @@ export default function PublicMenuPage() {
     let cancelled = false;
     const orderId = trackedOrder.id;
 
-    const orderCh = supabase.channel(`order-status-${orderId}`)
-      .on("postgres_changes", {
-        event: "UPDATE", schema: "public", table: "digital_orders",
-        filter: `id=eq.${orderId}`,
-      }, payload => {
-        if (!cancelled) setTrackedOrder(prev => prev ? { ...prev, status: (payload.new as any).status, courier_name: (payload.new as any).courier_name ?? prev.courier_name } : prev);
-      })
-      .subscribe();
-
-    const msgCh = supabase.channel(`order-msgs-${orderId}`)
-      .on("postgres_changes", {
-        event: "INSERT", schema: "public", table: "menu_order_messages",
-        filter: `order_id=eq.${orderId}`,
-      }, payload => {
-        if (!cancelled) {
-          const msg = payload.new as ChatMessage;
-          setChatMessages(prev => [...prev, msg]);
-          setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
-          // Alerta quando a loja manda mensagem pro cliente
-          if (msg.sender === "store") {
-            playMessageBeep();
-            setStoreMsgAlert(true);
-            setTimeout(() => setStoreMsgAlert(false), 5000);
-          }
-        }
-      })
-      .subscribe();
-
-    supabase.from("menu_order_messages")
-      .select("id,order_id,sender,message,created_at")
-      .eq("order_id", orderId)
-      .order("created_at")
-      .then(({ data }) => { if (!cancelled) setChatMessages((data ?? []) as ChatMessage[]); });
+    // Consulta periódica pelo id do pedido (o cliente só enxerga o próprio pedido)
+    let seen: Set<string> | null = null;
+    async function poll() {
+      const [{ data: o }, { data: m }] = await Promise.all([
+        supabase.rpc("get_public_order", { p_id: orderId }),
+        supabase.rpc("get_order_messages", { p_order_id: orderId }),
+      ]);
+      if (cancelled) return;
+      if (o) setTrackedOrder(prev => prev ? { ...prev, status: (o as any).status, courier_name: (o as any).courier_name ?? prev.courier_name } : prev);
+      const list = (m ?? []) as ChatMessage[];
+      // Alerta quando a loja manda mensagem pro cliente
+      if (seen && list.some(x => x.sender === "store" && !seen!.has(x.id))) {
+        playMessageBeep();
+        setStoreMsgAlert(true);
+        setTimeout(() => setStoreMsgAlert(false), 5000);
+      }
+      if (!seen || list.length !== seen.size) setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+      seen = new Set(list.map(x => x.id));
+      setChatMessages(list);
+    }
+    poll();
+    const t = setInterval(poll, 6000);
 
     return () => {
       cancelled = true;
-      supabase.removeChannel(orderCh);
-      supabase.removeChannel(msgCh);
+      clearInterval(t);
     };
   }, [step, trackedOrder?.id]);
 
@@ -559,7 +547,9 @@ export default function PublicMenuPage() {
       ? parseFloat(changeFor.replace(",", ".")) || null
       : null;
 
-    const { data: orderRow, error } = await supabase.from("digital_orders").insert({
+    const newOrderId = crypto.randomUUID();
+    const { error } = await supabase.from("digital_orders").insert({
+      id:               newOrderId,
       user_id:          uid,
       customer_name:    custName.trim(),
       customer_phone:   custPhone.trim(),
@@ -572,7 +562,8 @@ export default function PublicMenuPage() {
       order_number:     num,
       payment_method:   payMethod,
       change_for:       changeForVal,
-    }).select("id,order_number,status,customer_name,total_amount,items,delivery_address,order_type,payment_method,change_for,notes").single();
+    });
+    const orderRow = error ? null : { id: newOrderId, order_number: num as string | null };
 
     if (error || !orderRow) {
       setSubmitting(false);
@@ -617,11 +608,9 @@ export default function PublicMenuPage() {
   async function sendMessage() {
     if (!chatInput.trim() || !trackedOrder || sendingMsg) return;
     setSendingMsg(true);
-    await supabase.from("menu_order_messages").insert({
-      order_id: trackedOrder.id,
-      sender:   "customer",
-      message:  chatInput.trim(),
-    });
+    await supabase.rpc("send_order_message", { p_order_id: trackedOrder.id, p_message: chatInput.trim() });
+    const { data: m } = await supabase.rpc("get_order_messages", { p_order_id: trackedOrder.id });
+    if (m) setChatMessages(m as ChatMessage[]);
     setChatInput("");
     setSendingMsg(false);
   }

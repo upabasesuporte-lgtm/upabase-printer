@@ -78,9 +78,9 @@ export default function MenuTrackingPage() {
     let cancelled = false;
     async function load() {
       const [orderRes, settingsRes, msgsRes] = await Promise.all([
-        supabase.from("digital_orders").select("id,order_number,status,customer_name,total_amount,items,delivery_address,order_type,payment_method,change_for,notes,courier_name").eq("id", orderId).single(),
+        supabase.rpc("get_public_order", { p_id: orderId }),
         supabase.from("menu_store_settings").select("settings").eq("user_id", uid).maybeSingle(),
-        supabase.from("menu_order_messages").select("*").eq("order_id", orderId).order("created_at"),
+        supabase.rpc("get_order_messages", { p_order_id: orderId }),
       ]);
       if (cancelled) return;
       if (orderRes.data) setOrder(orderRes.data as TrackedOrder);
@@ -105,27 +105,30 @@ export default function MenuTrackingPage() {
     if (!orderId) return;
     let cancelled = false;
 
-    const orderCh = supabase.channel(`trak-order-${orderId}`)
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "digital_orders", filter: `id=eq.${orderId}` }, p => {
-        if (!cancelled) setOrder(prev => prev ? { ...prev, status: (p.new as any).status, courier_name: (p.new as any).courier_name ?? prev.courier_name } : prev);
-      }).subscribe();
-
-    const msgCh = supabase.channel(`trak-msgs-${orderId}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "menu_order_messages", filter: `order_id=eq.${orderId}` }, p => {
-        if (!cancelled) setMsgs(prev => [...prev, p.new as ChatMessage]);
-      }).subscribe();
+    // Consulta periódica pelo id do pedido (o cliente só enxerga o próprio pedido)
+    async function poll() {
+      const [{ data: o }, { data: m }] = await Promise.all([
+        supabase.rpc("get_public_order", { p_id: orderId }),
+        supabase.rpc("get_order_messages", { p_order_id: orderId }),
+      ]);
+      if (cancelled) return;
+      if (o) setOrder(prev => prev ? { ...prev, status: (o as any).status, courier_name: (o as any).courier_name ?? prev.courier_name } : prev);
+      if (m) setMsgs(prev => (prev.length === (m as ChatMessage[]).length ? prev : (m as ChatMessage[])));
+    }
+    const t = setInterval(poll, 6000);
 
     return () => {
       cancelled = true;
-      supabase.removeChannel(orderCh);
-      supabase.removeChannel(msgCh);
+      clearInterval(t);
     };
   }, [orderId]);
 
   async function sendMessage() {
     if (!input.trim() || !orderId || sending) return;
     setSending(true);
-    await supabase.from("menu_order_messages").insert({ order_id: orderId, sender: "customer", message: input.trim() });
+    await supabase.rpc("send_order_message", { p_order_id: orderId, p_message: input.trim() });
+    const { data: m } = await supabase.rpc("get_order_messages", { p_order_id: orderId });
+    if (m) setMsgs(m as ChatMessage[]);
     setInput("");
     setSending(false);
   }
