@@ -11,7 +11,7 @@ import {
   UtensilsCrossed, Plus, Search, X, ChevronLeft, RefreshCw,
   Clock, Users, CheckCircle2, Settings, Edit2, Trash2,
   Banknote, CreditCard, Smartphone, Receipt, AlertTriangle, ChevronUp, ChevronDown, ListOrdered,
-  ShoppingCart, Minus, Save, Tag, Coffee, Star, StarOff, MessageSquare,
+  ShoppingCart, Minus, Save, Tag, Coffee, Star, StarOff, MessageSquare, ArrowLeftRight,
 } from "lucide-react";
 import { getStoreSettings, getSellers, refreshStoreCache } from "../settings";
 
@@ -68,7 +68,7 @@ interface Customer {
 }
 
 type PayMethod = "cash" | "credit" | "debit" | "pix" | "fiado" | "house_credit";
-interface PaymentEntry { method: PayMethod; amount: number; }
+interface PaymentEntry { method: PayMethod; amount: number; part?: boolean; items?: string[]; } // part/items: só para a divisão da conta (não vão para o banco)
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -233,7 +233,15 @@ export default function TablesPage() {
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   // Modals
-  type Modal = "none" | "manage" | "editTable" | "reserve" | "openConfirm" | "statusChange" | "itemNote" | "cancelOrder";
+  type Modal = "none" | "manage" | "editTable" | "reserve" | "openConfirm" | "statusChange" | "itemNote" | "cancelOrder" | "moveTable";
+  const [moveTarget, setMoveTarget] = useState<TableRecord | null>(null);
+  const [moveError, setMoveError] = useState<string | null>(null);
+  // Dividir a conta: em partes iguais ou pelos itens de cada um
+  const [splitMode, setSplitMode] = useState<"none" | "equal" | "items">("none");
+  const [splitN, setSplitN] = useState(2);
+  const [splitPaidParts, setSplitPaidParts] = useState(0);
+  const [splitSel, setSplitSel] = useState<string[]>([]);
+  const [splitPaidItems, setSplitPaidItems] = useState<string[]>([]);
   const [modal, setModal] = useState<Modal>("none");
   const [editingTable, setEditingTable] = useState<TableRecord | null>(null);
   const [reserveNotes, setReserveNotes] = useState("");
@@ -541,12 +549,34 @@ export default function TablesPage() {
   const discountVal = parseFloat(checkoutDiscount) || 0;
   const finalTotal = Math.max(0, orderTotal - discountVal);
   const totalPaid = checkoutPayments.reduce((s, p) => s + p.amount, 0);
+  const round2 = (v: number) => Math.round(v * 100) / 100;
+
+  // Divisão da conta: cada parte vira um pagamento próprio (pode ser outra forma)
+  const remainingToPay = Math.max(0, round2(finalTotal - totalPaid));
+  const partsLeft = Math.max(1, splitN - splitPaidParts);
+  const equalPart = partsLeft <= 1 ? remainingToPay : round2(remainingToPay / partsLeft);
+  const splitSelTotal = round2(orderItems.filter(i => splitSel.includes(i.id)).reduce((s, i) => s + i.unit_price * i.quantity, 0));
+  function launchSplit(amount: number, itemIds?: string[]) {
+    const amt = round2(amount);
+    if (amt <= 0) return;
+    setCheckoutPayments(prev => [...prev, itemIds ? { method: checkoutMethod, amount: amt, items: itemIds } : { method: checkoutMethod, amount: amt, part: true }]);
+    if (itemIds) { setSplitPaidItems(prev => [...prev, ...itemIds]); setSplitSel([]); }
+    else setSplitPaidParts(n => n + 1);
+  }
+  function removePayment(idx: number) {
+    const p = checkoutPayments[idx];
+    if (p?.part) setSplitPaidParts(n => Math.max(0, n - 1));
+    if (p?.items) setSplitPaidItems(prev => prev.filter(id => !p.items!.includes(id)));
+    setCheckoutPayments(prev => prev.filter((_, j) => j !== idx));
+  }
 
   function addPayment() {
     const amt = parseFloat(checkoutInput);
     if (isNaN(amt) || amt <= 0) return;
-    if (checkoutPayments.some(p => p.method === checkoutMethod)) {
-      setCheckoutPayments(prev => prev.map(p => p.method === checkoutMethod ? { ...p, amount: amt } : p));
+    // Valor digitado substitui o da mesma forma (as partes da divisão ficam separadas)
+    const manual = (p: PaymentEntry) => p.method === checkoutMethod && !p.part && !p.items;
+    if (checkoutPayments.some(manual)) {
+      setCheckoutPayments(prev => prev.map(p => manual(p) ? { ...p, amount: amt } : p));
     } else {
       setCheckoutPayments(prev => [...prev, { method: checkoutMethod, amount: amt }]);
     }
@@ -582,13 +612,16 @@ export default function TablesPage() {
         .filter(([productId]) => { const prod = products.find(p => p.id === productId); return !!prod && !isUnlimited(prod); })
         .map(([product_id, qty]) => ({ product_id, qty }));
 
-      const fiadoAmt = checkoutCustomer ? checkoutPayments.find(p => p.method === "fiado")?.amount ?? 0 : 0;
-      const houseAmt = checkoutCustomer ? checkoutPayments.find(p => p.method === "house_credit")?.amount ?? 0 : 0;
+      // Somados: com a conta dividida, a mesma forma pode aparecer mais de uma vez
+      const sumOf = (m: PayMethod) => round2(checkoutPayments.filter(p => p.method === m).reduce((s, p) => s + p.amount, 0));
+      const fiadoAmt = checkoutCustomer ? sumOf("fiado") : 0;
+      const houseAmt = checkoutCustomer ? sumOf("house_credit") : 0;
+      const payments = checkoutPayments.map(p => ({ method: p.method, amount: p.amount }));
 
       const { data: result, error } = await supabase.rpc("finalize_sale", { p: {
         mode: "update", sale_id: saleId,
         sale: {
-          payments: checkoutPayments, discount: discountVal,
+          payments, discount: discountVal,
           total_amount: finalTotal,
           customer_id: checkoutCustomer?.id ?? null,
           seller_name: checkoutSeller || null,
@@ -598,7 +631,7 @@ export default function TablesPage() {
         recipe_lines: orderItems.map(oi => ({ product_id: oi.product_id, qty: oi.quantity })),
         stock_note: `Mesa ${tableName} - Venda #${orderNum}`,
         cash: cashRegisterId
-          ? checkoutPayments.map(p => ({
+          ? payments.map(p => ({
               register_id: cashRegisterId, amount: p.amount, payment_method: p.method,
               channel: "tables", description: `Mesa ${tableName} - #${orderNum}`,
             }))
@@ -875,6 +908,29 @@ export default function TablesPage() {
     goBack();
   }
 
+  // Transferir a comanda para uma mesa livre, ou juntar com a comanda de uma
+  // mesa ocupada. O banco faz tudo de uma vez (move_table_order).
+  async function moveTableOrder() {
+    if (!selectedTable || !moveTarget || saving) return;
+    setSaving(true);
+    setMoveError(null);
+    const { data, error } = await supabase.rpc("move_table_order", { p_from: selectedTable.id, p_to: moveTarget.id });
+    if (error || !(data as any)?.sale_id) {
+      setMoveError("Não foi possível: " + (error?.message ?? "tente novamente") + ". Nada foi alterado.");
+      setSaving(false);
+      return;
+    }
+    const target = { ...moveTarget, status: "occupied" as const, current_sale_id: (data as any).sale_id as string };
+    const fromId = selectedTable.id;
+    setTables(prev => prev.map(t => t.id === fromId ? { ...t, status: "free" as const, current_sale_id: null }
+      : t.id === target.id ? target : t));
+    setModal("none");
+    setMoveTarget(null);
+    setSaving(false);
+    await enterTable(target);
+    loadAll();
+  }
+
   // ── Derived ──────────────────────────────────────────────────────────────────
 
   // Agrupa IDs de categoria pelo nome (resolve duplicatas como "BEBIDAS BEBIDAS")
@@ -1082,14 +1138,22 @@ export default function TablesPage() {
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {orderItems.length > 0 && (
+                <button onClick={() => { setMoveTarget(null); setMoveError(null); setModal("moveTable"); }}
+                  title="Transferir para outra mesa ou juntar mesas"
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 text-zinc-300 hover:text-white rounded-xl text-sm font-bold transition-colors"
+                  style={{ background: card.bg, border: card.border }}>
+                  <ArrowLeftRight className="w-4 h-4" /> Trocar mesa
+                </button>
+              )}
               <button onClick={() => setModal("cancelOrder")}
                 className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-xl text-sm font-bold transition-colors">
                 <X className="w-4 h-4" /> Cancelar Mesa
               </button>
               {orderItems.length > 0 && (
-                <button onClick={() => { setSellers(getSellers()); setShowCheckout(true); setCheckoutPayments([]); setCheckoutInput(""); setCheckoutDiscount("0"); setCheckoutCustomer(null); setCheckoutSeller(""); setCheckoutNotes(""); setCheckoutError(null); }}
-                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-sm font-bold transition-colors shadow-lg shadow-emerald-900/30"
+                <button onClick={() => { setSellers(getSellers()); setShowCheckout(true); setCheckoutPayments([]); setCheckoutInput(""); setCheckoutDiscount("0"); setCheckoutCustomer(null); setCheckoutSeller(""); setCheckoutNotes(""); setCheckoutError(null); setSplitMode("none"); setSplitN(2); setSplitPaidParts(0); setSplitSel([]); setSplitPaidItems([]); }}
+                  className="basis-full sm:basis-auto flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-sm font-bold transition-colors shadow-lg shadow-emerald-900/30"
                   style={{ color: "#fff" }}>
                   <CheckCircle2 className="w-4 h-4" /> Fechar Conta · {fmt(orderTotal)}
                 </button>
@@ -1348,7 +1412,7 @@ export default function TablesPage() {
                     <span className="text-sm text-zinc-400">Total</span>
                     <span className="text-lg font-black text-white">{fmt(orderTotal)}</span>
                   </div>
-                  <button onClick={() => { setSellers(getSellers()); setShowCheckout(true); setCheckoutPayments([]); setCheckoutInput(""); setCheckoutDiscount("0"); setCheckoutCustomer(null); setCheckoutSeller(""); setCheckoutNotes(""); setCheckoutError(null); }}
+                  <button onClick={() => { setSellers(getSellers()); setShowCheckout(true); setCheckoutPayments([]); setCheckoutInput(""); setCheckoutDiscount("0"); setCheckoutCustomer(null); setCheckoutSeller(""); setCheckoutNotes(""); setCheckoutError(null); setSplitMode("none"); setSplitN(2); setSplitPaidParts(0); setSplitSel([]); setSplitPaidItems([]); }}
                     className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 font-bold rounded-xl text-sm transition-colors"
                     style={{ color: "#fff" }}>
                     Fechar Conta
@@ -1633,6 +1697,63 @@ export default function TablesPage() {
             </div>
           </div>
         </div>
+      ) : modal === "moveTable" && selectedTable ? (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[88vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 flex-shrink-0">
+              <div>
+                <h2 className="text-base font-semibold">Trocar mesa — {selectedTable.name}</h2>
+                <p className="text-xs text-zinc-500 mt-0.5">Mesa livre: a comanda muda de mesa · Mesa ocupada: as comandas se juntam</p>
+              </div>
+              <button onClick={() => setModal("none")} className="p-1.5 text-zinc-400 hover:text-white rounded-lg"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {(["free", "occupied"] as const).map(group => {
+                const list = tables.filter(t => t.id !== selectedTable.id &&
+                  (group === "occupied" ? t.status === "occupied" && !!t.current_sale_id : !(t.status === "occupied" && t.current_sale_id)));
+                if (!list.length) return null;
+                return (
+                  <div key={group}>
+                    <p className="text-xs font-semibold text-zinc-400 mb-2">
+                      {group === "free" ? "Transferir para mesa livre" : "Juntar com mesa ocupada"}
+                    </p>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                      {list.map(t => {
+                        const sel = moveTarget?.id === t.id;
+                        const info = t.current_sale_id ? openInfo[t.current_sale_id] : undefined;
+                        return (
+                          <button key={t.id} onClick={() => setMoveTarget(t)}
+                            className="flex flex-col items-center justify-center gap-0.5 min-h-[58px] px-2 py-2 rounded-xl text-sm font-bold transition-all active:scale-95"
+                            style={sel ? { background: "#315DFB", color: "#fff", border: "1px solid #315DFB" } : { background: card.bg, border: card.border }}>
+                            <span className="truncate max-w-full">{t.name}</span>
+                            {info && <span className="text-[10px] font-semibold opacity-80">{fmt(info.total)}</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+              {moveError && (
+                <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-sm text-red-400">
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0" />{moveError}
+                </div>
+              )}
+            </div>
+            <div className="flex gap-3 px-6 py-4 border-t border-zinc-800 flex-shrink-0">
+              <button onClick={() => setModal("none")}
+                className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Voltar</button>
+              <button onClick={moveTableOrder} disabled={!moveTarget || saving}
+                className="flex-[2] flex items-center justify-center gap-2 py-2.5 disabled:opacity-50 rounded-xl text-sm font-bold transition-colors"
+                style={{ background: "#315DFB", color: "#fff" }}>
+                {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ArrowLeftRight className="w-4 h-4" />}
+                <span className="truncate">{!moveTarget ? "Escolha a mesa"
+                  : moveTarget.status === "occupied" && moveTarget.current_sale_id ? `Juntar com ${moveTarget.name}`
+                  : `Transferir para ${moveTarget.name}`}</span>
+              </button>
+            </div>
+          </div>
+        </div>
       ) : showCheckout ? (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[92vh] flex flex-col">
@@ -1692,6 +1813,67 @@ export default function TablesPage() {
                   })}
                 </div>
               </div>
+              {/* Dividir a conta */}
+              <div className="rounded-xl border border-zinc-800 p-3 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-1.5 text-xs font-medium text-zinc-400"><Users className="w-3.5 h-3.5" /> Dividir a conta</span>
+                  <div className="flex gap-1">
+                    {(["none", "equal", "items"] as const).map(m => (
+                      <button key={m} onClick={() => setSplitMode(m)}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${splitMode === m ? "bg-brand-600" : "text-zinc-400 hover:bg-zinc-800"}`}
+                        style={splitMode === m ? { color: "#fff" } : undefined}>
+                        {m === "none" ? "Não" : m === "equal" ? "Por pessoa" : "Por itens"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {splitMode === "equal" && (
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => setSplitN(n => Math.max(Math.max(2, splitPaidParts + 1), n - 1))}
+                          className="w-9 h-9 flex items-center justify-center rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800"><Minus className="w-4 h-4" /></button>
+                        <span className="text-sm font-bold w-20 text-center">{splitN} pessoas</span>
+                        <button onClick={() => setSplitN(n => Math.min(50, n + 1))}
+                          className="w-9 h-9 flex items-center justify-center rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800"><Plus className="w-4 h-4" /></button>
+                      </div>
+                      <span className="text-xs text-zinc-500 text-right">
+                        {remainingToPay > 0 ? <>Faltam {partsLeft} de {splitN}<br /><b className="text-white">{fmt(equalPart)}</b> cada</> : "Tudo pago"}
+                      </span>
+                    </div>
+                    <button onClick={() => launchSplit(equalPart)} disabled={remainingToPay <= 0}
+                      className="w-full py-2.5 rounded-xl text-sm font-bold disabled:opacity-40 transition-colors"
+                      style={{ background: "#315DFB", color: "#fff" }}>
+                      Lançar parte {splitPaidParts + 1} · {fmt(equalPart)} em {PAY_INFO[checkoutMethod].label}
+                    </button>
+                  </div>
+                )}
+                {splitMode === "items" && (
+                  <div className="space-y-2.5">
+                    <p className="text-[11px] text-zinc-500">Marque o que a pessoa consumiu e lance na forma escolhida acima.</p>
+                    <div className="max-h-44 overflow-y-auto divide-y divide-zinc-800/60 rounded-lg border border-zinc-800">
+                      {orderItems.map(item => {
+                        const paid = splitPaidItems.includes(item.id);
+                        const sel = splitSel.includes(item.id);
+                        return (
+                          <label key={item.id} className={`flex items-center gap-2.5 px-3 py-2 text-xs ${paid ? "opacity-40" : "cursor-pointer"}`}>
+                            <input type="checkbox" disabled={paid} checked={paid || sel}
+                              onChange={() => setSplitSel(prev => prev.includes(item.id) ? prev.filter(x => x !== item.id) : [...prev, item.id])}
+                              className="w-4 h-4 accent-[#315DFB]" />
+                            <span className={`flex-1 ${paid ? "line-through" : "text-zinc-300"}`}>{item.quantity}x {item.products?.name}</span>
+                            <span className="font-semibold">{fmt(item.unit_price * item.quantity)}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <button onClick={() => launchSplit(Math.min(splitSelTotal, remainingToPay), splitSel)} disabled={splitSelTotal <= 0 || remainingToPay <= 0}
+                      className="w-full py-2.5 rounded-xl text-sm font-bold disabled:opacity-40 transition-colors"
+                      style={{ background: "#315DFB", color: "#fff" }}>
+                      {splitSel.length ? `Lançar ${fmt(Math.min(splitSelTotal, remainingToPay))} em ${PAY_INFO[checkoutMethod].label}` : "Marque os itens da pessoa"}
+                    </button>
+                  </div>
+                )}
+              </div>
               <div className="flex gap-2">
                 <input value={checkoutInput} onChange={e => setCheckoutInput(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && addPayment()}
@@ -1708,10 +1890,10 @@ export default function TablesPage() {
                 <div className="space-y-1.5">
                   {checkoutPayments.map((p, i) => (
                     <div key={i} className="flex items-center justify-between bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5">
-                      <span className="text-sm text-zinc-300">{PAY_INFO[p.method]?.label}</span>
+                      <span className="text-sm text-zinc-300">{PAY_INFO[p.method]?.label}{p.part ? " · parte" : p.items ? ` · ${p.items.length} ite${p.items.length === 1 ? "m" : "ns"}` : ""}</span>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-bold">{fmt(p.amount)}</span>
-                        <button onClick={() => setCheckoutPayments(prev => prev.filter((_, j) => j !== i))}
+                        <button onClick={() => removePayment(i)}
                           className="p-1 text-zinc-600 hover:text-red-400 rounded-md transition-colors">
                           <X className="w-3 h-3" />
                         </button>
