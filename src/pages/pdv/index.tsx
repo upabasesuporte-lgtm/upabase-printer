@@ -252,14 +252,26 @@ export default function PdvPage() {
     } catch { /* sem storage */ }
   }, [userId, cart, discount, discountType, orderNotes, sellerName, deliveryAddress, deliveryFee, selectedCustomer, saleChannel]);
 
-  // Cancelar venda (X): toque duplo para não apagar sem querer — 1º toque arma, 2º limpa
-  const [clearArmed, setClearArmed] = useState(false);
+  // Limpar venda: um toque limpa tudo; por 5s dá para desfazer (toque sem querer)
   const hasDraft = cart.length > 0 || !!discount || !!orderNotes.trim() || !!sellerName.trim()
     || !!deliveryAddress.trim() || !!deliveryFee || !!selectedCustomer;
+  const [undoClear, setUndoClear] = useState<null | {
+    cart: CartItem[]; discount: string; discountType: "value" | "percent"; orderNotes: string; sellerName: string;
+    deliveryAddress: string; deliveryFee: string; selectedCustomer: Customer | null; key: number;
+  }>(null);
   function cancelSaleTap() {
-    if (!clearArmed) { setClearArmed(true); setTimeout(() => setClearArmed(false), 3000); return; }
-    setClearArmed(false);
+    const key = Date.now();
+    setUndoClear({ cart, discount, discountType, orderNotes, sellerName, deliveryAddress, deliveryFee, selectedCustomer, key });
     clearCart();
+    setTimeout(() => setUndoClear(u => (u?.key === key ? null : u)), 5000);
+  }
+  function undoCancelSale() {
+    if (!undoClear) return;
+    setCart(undoClear.cart); setDiscount(undoClear.discount); setDiscountType(undoClear.discountType);
+    setOrderNotes(undoClear.orderNotes); setSellerName(undoClear.sellerName);
+    setDeliveryAddress(undoClear.deliveryAddress); setDeliveryFee(undoClear.deliveryFee);
+    setSelectedCustomer(undoClear.selectedCustomer);
+    setUndoClear(null);
   }
   const [discountPctRaw, setDiscountPctRaw] = useState("");
 
@@ -1191,6 +1203,15 @@ export default function PdvPage() {
   return (
     <div className="flex flex-col overflow-hidden -m-3 sm:-m-6 h-[calc(100vh-64px)] md:h-screen">
 
+      {/* Venda limpa — desfazer por 5s */}
+      {undoClear && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[100] text-sm px-4 py-2.5 rounded-full shadow-2xl flex items-center gap-3"
+          style={{ background: "#111827", color: "#fff" }}>
+          <span>Venda limpa</span>
+          <button onClick={undoCancelSale} className="font-bold" style={{ color: "#93c5fd" }}>Desfazer</button>
+        </div>
+      )}
+
       {/* Toast de erro global */}
       {toastError && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[100] bg-red-900 border border-red-500/50 text-red-200 text-sm px-5 py-3 rounded-2xl shadow-2xl max-w-lg flex items-center gap-3">
@@ -1385,13 +1406,10 @@ export default function PdvPage() {
                 {cart.length > 0 && <span className="text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold" style={{ background: isLight ? "#10b981" : "linear-gradient(135deg,#7B2FBE,#00B4D8)", color: "#fff" }}>{cart.reduce((s, i) => s + i.quantity, 0)}</span>}
               </div>
               {hasDraft && (
-                <button onClick={cancelSaleTap} title="Cancelar venda (limpa carrinho, cliente e endereço)"
-                  className="flex items-center gap-1 h-7 rounded-full transition-all text-xs font-semibold"
-                  style={clearArmed
-                    ? { background: "#ef4444", color: "#fff", padding: "0 10px" }
-                    : { color: "#ef4444", padding: "0 6px" }}>
-                  <X className="w-4 h-4" />
-                  {clearArmed && "Toque de novo para limpar"}
+                <button onClick={cancelSaleTap} title="Limpa carrinho, cliente, endereço e observações"
+                  className="flex items-center gap-1 h-7 px-2.5 rounded-full text-[11px] font-semibold transition-colors hover:bg-red-500/10"
+                  style={{ color: "#ef4444", border: "1px solid rgba(239,68,68,0.45)" }}>
+                  <X className="w-3.5 h-3.5" /> Limpar venda
                 </button>
               )}
             </div>
