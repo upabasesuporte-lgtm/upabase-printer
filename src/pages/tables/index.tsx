@@ -1,7 +1,8 @@
 ﻿import { useState, useEffect, useCallback } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { supabase } from "../../lib/supabase";
-import { requireApproval } from "../../lib/operators";
+import { requireApproval, useOperators } from "../../lib/operators";
+import { printItemsHere, onlineSectors, getPrintHere, setPrintHere, printTickets, printHtml, SECTOR_LABEL, type Sector } from "../../lib/kitchen";
 import { matchesSearch } from "../../lib/search";
 import { useTheme } from "../../contexts/ThemeContext";
 import { PageHeader, btnPrimary, btnSecondary, WHITE_TEXT } from "../../components/PageHeader";
@@ -11,7 +12,7 @@ import {
   UtensilsCrossed, Plus, Search, X, ChevronLeft, RefreshCw,
   Clock, Users, CheckCircle2, Settings, Edit2, Trash2,
   Banknote, CreditCard, Smartphone, Receipt, AlertTriangle, ChevronUp, ChevronDown, ListOrdered,
-  ShoppingCart, Minus, Save, Tag, Coffee, Star, StarOff, MessageSquare, ArrowLeftRight,
+  ShoppingCart, Minus, Save, Tag, Coffee, Star, StarOff, MessageSquare, ArrowLeftRight, Send, Printer,
 } from "lucide-react";
 import { getStoreSettings, getSellers, refreshStoreCache } from "../settings";
 
@@ -235,7 +236,7 @@ export default function TablesPage() {
   const [checkoutService, setCheckoutService] = useState(false); // cobrar nesta conta?
 
   // Modals
-  type Modal = "none" | "manage" | "editTable" | "reserve" | "openConfirm" | "statusChange" | "itemNote" | "cancelOrder" | "moveTable";
+  type Modal = "none" | "manage" | "editTable" | "reserve" | "openConfirm" | "statusChange" | "itemNote" | "cancelOrder" | "moveTable" | "pendingLeave";
   const [moveTarget, setMoveTarget] = useState<TableRecord | null>(null);
   const [moveError, setMoveError] = useState<string | null>(null);
   // Dividir a conta: em partes iguais ou pelos itens de cada um
@@ -434,7 +435,9 @@ export default function TablesPage() {
     setModal("none");
   }
 
-  async function goBack() {
+  async function goBack(force = false) {
+    // Itens lançados e ainda não enviados à cozinha: pergunta antes de sair
+    if (!force && orderItems.some(i => i.kds_state === "pending")) { setModal("pendingLeave"); return; }
     // If the open sale has no items, delete it entirely so it doesn't appear
     // in "Vendas em Pausa" on the PDV page
     if (currentSaleId && orderItems.length === 0 && selectedTable) {
@@ -457,7 +460,8 @@ export default function TablesPage() {
     if (!currentSaleId) return;
     // Item que já foi para a cozinha não é somado: vira uma linha nova, para a
     // cozinha receber o acréscimo. Sem setor de impressão, soma como antes.
-    const existing = orderItems.find(i => i.product_id === product.id && !i.notes && !i.kds_state);
+    // Soma na linha ainda não enviada (ou sem setor); o que já foi para a cozinha vira linha nova
+    const existing = orderItems.find(i => i.product_id === product.id && !i.notes && (!i.kds_state || i.kds_state === "pending"));
     if (existing) {
       const newQty = existing.quantity + 1;
       await supabase.from("sale_items").update({
@@ -471,7 +475,7 @@ export default function TablesPage() {
         sale_id: currentSaleId, product_id: product.id,
         quantity: 1, unit_price: product.sale_price,
         total_price: product.sale_price, notes: null,
-        kds_state: "new", // vai para a estação do setor da categoria (se tiver)
+        kds_state: "pending", // fica na comanda até "Enviar pedido"
       }).select("*").single();
       if (insertErr) { alert("Erro ao adicionar item: " + insertErr.message); return; }
       if (data) setOrderItems(prev => [...prev, { ...data, products: { name: product.name } } as OrderItem]);
@@ -501,6 +505,104 @@ export default function TablesPage() {
     setNoteTarget(null);
     setNoteText("");
     setModal("none");
+  }
+
+  // ── Enviar pedido / impressão ────────────────────────────────────────────────
+
+  const ops = useOperators();
+  const pendingItems = orderItems.filter(i => i.kds_state === "pending");
+  const pendingQty = pendingItems.reduce((s, i) => s + i.quantity, 0);
+  const [sending, setSending] = useState(false);
+  const [sentFlash, setSentFlash] = useState<{ text: string; key: number } | null>(null);
+  // Setores sem impressora ligada no momento do envio
+  const [printNotice, setPrintNotice] = useState<{ ids: string[]; sectors: Sector[] } | null>(null);
+  const [printHereAlways, setPrintHereAlways] = useState(getPrintHere);
+
+  function flashSent(text: string) {
+    const key = Date.now();
+    setSentFlash({ text, key });
+    setTimeout(() => setSentFlash(f => (f?.key === key ? null : f)), 2200);
+  }
+
+  // Manda de uma vez tudo que está "não enviado": cada setor recebe o seu papel
+  // (a estação ligada daquele setor imprime; sem estação, oferece imprimir aqui)
+  async function sendOrder(): Promise<boolean> {
+    if (!currentSaleId || sending || pendingItems.length === 0) return false;
+    setSending(true);
+    try {
+      const { data, error } = await supabase.rpc("send_table_order", { p_sale_id: currentSaleId, p_sent_by: ops.current?.name ?? null });
+      if (error) { alert("Não foi possível enviar o pedido: " + error.message + "\nNada foi alterado — tente de novo."); return false; }
+      const rows = (data ?? []) as { item_id: string; sector: Sector | null }[];
+      const sectorOf = new Map(rows.map(r => [r.item_id, r.sector]));
+      setOrderItems(prev => prev.map(i => sectorOf.has(i.id) ? { ...i, kds_state: sectorOf.get(i.id) ? "new" : null } : i));
+      const toKitchen = rows.filter(r => r.sector);
+      flashSent(toKitchen.length ? "Pedido enviado" : "Itens confirmados");
+      if (toKitchen.length) {
+        const online = await onlineSectors().catch(() => new Set<Sector>());
+        const missing = toKitchen.filter(r => !online.has(r.sector!));
+        if (missing.length) {
+          const ids = missing.map(r => r.item_id);
+          if (getPrintHere()) await printItemsHere(ids).catch(() => setPrintNotice({ ids, sectors: [...new Set(missing.map(r => r.sector!))] }));
+          else setPrintNotice({ ids, sectors: [...new Set(missing.map(r => r.sector!))] });
+        }
+      }
+      return true;
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function printNoticeHere() {
+    if (!printNotice) return;
+    setPrintHere(printHereAlways);
+    try { await printItemsHere(printNotice.ids); } catch (e: any) { alert("Não foi possível imprimir: " + (e?.message ?? "")); }
+    setPrintNotice(null);
+  }
+
+  // Segunda via dos itens já enviados, por setor, neste aparelho
+  function reprintSent() {
+    const sent = orderItems.filter(i => i.kds_state && i.kds_state !== "pending");
+    if (!sent.length || !selectedTable || !currentSaleId) return;
+    const sectorOfProduct = (pid: string): Sector => {
+      const p = products.find(x => x.id === pid);
+      const c = categories.find(x => x.id === p?.category_id) as (Category & { print_sector?: Sector | null }) | undefined;
+      return c?.print_sector ?? "counter";
+    };
+    const by = new Map<Sector, OrderItem[]>();
+    for (const i of sent) { const s = ((i as any).sector as Sector | null) ?? sectorOfProduct(i.product_id); by.set(s, [...(by.get(s) ?? []), i]); }
+    printTickets([...by.entries()].map(([sector, its]) => ({
+      sector, origin: `MESA ${selectedTable.name}`, orderNum: currentSaleId.slice(-6).toUpperCase(), reprint: true,
+      lines: its.map(i => ({ quantity: i.quantity, product_name: i.products?.name ?? "Produto", notes: i.notes })),
+    })));
+  }
+
+  // Pré-conta: conferência do cliente antes de pagar (não é cupom fiscal)
+  function printPreBill() {
+    if (!selectedTable || !orderItems.length) return;
+    const store = getStoreSettings();
+    const pct = Number(store.service_fee_pct) || 0;
+    const service = pct > 0 ? Math.round(orderTotal * pct) / 100 : 0;
+    const e = (t: string) => t.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
+    const row = (a: string, b: string, big = false) => `<div class="r${big ? " big" : ""}"><span>${a}</span><span>${b}</span></div>`;
+    const dt = new Date().toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+    printHtml(`<div class="t">
+      <div class="c b">${e(store.name)}</div>
+      <div class="c big">MESA ${e(selectedTable.name)}</div>
+      <div class="c s">CONFERÊNCIA DE CONTA · ${dt}</div>
+      <div class="sep"></div>
+      ${orderItems.map(i => row(`${i.quantity}x ${e(i.products?.name ?? "Produto")}`, fmt(i.unit_price * i.quantity))).join("")}
+      <div class="sep"></div>
+      ${service > 0 ? row("Subtotal", fmt(orderTotal)) + row(`Serviço (${pct}%) — opcional`, fmt(service)) : ""}
+      ${row("TOTAL", fmt(orderTotal + service), true)}
+      <div class="sep"></div>
+      <div class="c s">Não é documento fiscal</div>
+    </div>`, `
+      .t { padding: 8px 10px 14px; }
+      .c { text-align: center; } .b { font-weight: 800; font-size: 15px; } .s { font-size: 11px; }
+      .big { font-size: 18px; font-weight: 900; }
+      .r { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; margin: 3px 0; }
+      .sep { border-top: 1px dashed #000; margin: 6px 0; }
+    `);
   }
 
   // ── Checkout ────────────────────────────────────────────────────────────────
@@ -543,6 +645,7 @@ export default function TablesPage() {
 
   // Situação de cada item na cozinha (aparece na comanda)
   const KDS_BADGE: Record<string, { label: string; color: string }> = {
+    pending: { label: "não enviado", color: "#ef4444" },
     new: { label: "na cozinha", color: "#f59e0b" },
     preparing: { label: "preparando", color: "#315DFB" },
     ready: { label: "pronto", color: "#10b981" },
@@ -910,7 +1013,7 @@ export default function TablesPage() {
     await supabase.from("sales").delete().eq("id", currentSaleId);
     await supabase.from("tables").update({ status: "free", current_sale_id: null }).eq("id", selectedTable.id);
     setSaving(false);
-    goBack();
+    goBack(true);
   }
 
   // Transferir a comanda para uma mesa livre, ou juntar com a comanda de uma
@@ -1125,7 +1228,7 @@ export default function TablesPage() {
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4 flex-shrink-0">
             <div className="flex items-center gap-3 sm:flex-1 min-w-0">
-              <button onClick={goBack}
+              <button onClick={() => goBack()}
                 className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-xl transition-colors flex-shrink-0">
                 <ChevronLeft className="w-5 h-5" />
               </button>
@@ -1334,12 +1437,21 @@ export default function TablesPage() {
 
               {/* Celular: barra fixa para ver a comanda sem perder o lugar no cardápio */}
               {orderItems.length > 0 && (
-                <button onClick={() => setComandaTab("order")}
-                  className="sm:hidden mt-2 flex-shrink-0 w-full h-12 rounded-2xl flex items-center justify-between px-4 text-sm font-semibold shadow-lg"
-                  style={{ background: "#315DFB", color: "#fff" }}>
-                  <span className="flex items-center gap-2"><ShoppingCart className="w-4 h-4" /> Ver comanda · {orderQty} ite{orderQty === 1 ? "m" : "ns"}</span>
-                  <span className="font-black">{fmt(orderTotal)}</span>
-                </button>
+                <div className="sm:hidden mt-2 flex-shrink-0 flex gap-2">
+                  <button onClick={() => setComandaTab("order")}
+                    className="flex-1 min-w-0 h-12 rounded-2xl flex items-center justify-between px-4 text-sm font-semibold shadow-lg"
+                    style={pendingQty > 0 ? { background: card.bg, border: card.border } : { background: "#315DFB", color: "#fff" }}>
+                    <span className="flex items-center gap-2 truncate"><ShoppingCart className="w-4 h-4" /> Comanda · {orderQty}</span>
+                    <span className="font-black">{fmt(orderTotal)}</span>
+                  </button>
+                  {pendingQty > 0 && (
+                    <button onClick={() => sendOrder()} disabled={sending}
+                      className="h-12 px-4 rounded-2xl flex items-center gap-2 text-sm font-bold shadow-lg disabled:opacity-60"
+                      style={{ background: "#315DFB", color: "#fff" }}>
+                      {sending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Enviar ({pendingQty})
+                    </button>
+                  )}
+                </div>
               )}
             </div>
 
@@ -1417,6 +1529,24 @@ export default function TablesPage() {
                     <span className="text-sm text-zinc-400">Total</span>
                     <span className="text-lg font-black text-white">{fmt(orderTotal)}</span>
                   </div>
+                  {pendingQty > 0 && (
+                    <button onClick={() => sendOrder()} disabled={sending}
+                      className="w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-60 transition-colors"
+                      style={{ background: "#315DFB", color: "#fff" }}>
+                      {sending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                      Enviar pedido · {pendingQty} ite{pendingQty === 1 ? "m" : "ns"}
+                    </button>
+                  )}
+                  <div className="grid grid-cols-2 gap-2">
+                    <button onClick={printPreBill}
+                      className="py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border border-zinc-700 text-zinc-300 hover:bg-zinc-800 transition-colors">
+                      <Receipt className="w-3.5 h-3.5" /> Pré-conta
+                    </button>
+                    <button onClick={reprintSent} disabled={!orderItems.some(i => i.kds_state && i.kds_state !== "pending")}
+                      className="py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border border-zinc-700 text-zinc-300 hover:bg-zinc-800 disabled:opacity-40 transition-colors">
+                      <Printer className="w-3.5 h-3.5" /> 2ª via cozinha
+                    </button>
+                  </div>
                   <button onClick={() => { setSellers(getSellers()); setShowCheckout(true); setCheckoutPayments([]); setCheckoutInput(""); setCheckoutDiscount("0"); setCheckoutCustomer(null); setCheckoutSeller(""); setCheckoutNotes(""); setCheckoutError(null); setSplitMode("none"); setSplitN(2); setSplitPaidParts(0); setSplitSel([]); setSplitPaidItems([]); const pct = Number(getStoreSettings().service_fee_pct) || 0; setServicePct(pct); setCheckoutService(pct > 0); }}
                     className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 font-bold rounded-xl text-sm transition-colors"
                     style={{ color: "#fff" }}>
@@ -1428,6 +1558,42 @@ export default function TablesPage() {
           </div>
         </>}
       </div>
+
+      {sentFlash && view === "table" && createPortal(
+        <div key={sentFlash.key} className="fixed left-1/2 -translate-x-1/2 bottom-24 sm:bottom-8 z-[61] px-4 py-2.5 rounded-full text-sm font-semibold shadow-xl flex items-center gap-2 pointer-events-none"
+          style={{ background: "#315DFB", color: "#fff" }}>
+          <Send className="w-4 h-4" /> {sentFlash.text}
+        </div>,
+        document.body,
+      )}
+
+      {/* Sem impressora ligada para algum setor */}
+      {printNotice && createPortal(
+        <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+            <div className="text-center">
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: "rgba(245,158,11,0.12)" }}>
+                <Printer className="w-7 h-7 text-amber-500" />
+              </div>
+              <p className="text-base font-bold">Nenhuma impressora ligada para {printNotice.sectors.map(x => SECTOR_LABEL[x]).join(", ")}</p>
+              <p className="text-sm text-zinc-500 mt-1">O pedido já aparece na tela da Cozinha. Quer imprimir neste aparelho?</p>
+            </div>
+            <label className="flex items-center gap-2 text-xs text-zinc-400 cursor-pointer">
+              <input type="checkbox" checked={printHereAlways} onChange={e => setPrintHereAlways(e.target.checked)} className="w-4 h-4 accent-[#315DFB]" />
+              Sempre imprimir neste aparelho quando não houver impressora ligada
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => setPrintNotice(null)}
+                className="py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Não imprimir</button>
+              <button onClick={printNoticeHere}
+                className="py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2" style={{ background: "#315DFB", color: "#fff" }}>
+                <Printer className="w-4 h-4" /> Imprimir aqui
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
 
       {/* Confirmação ao lançar produto */}
       {addedFlash && view === "table" && createPortal(
@@ -1702,6 +1868,29 @@ export default function TablesPage() {
             </div>
           </div>
         </div>
+      ) : modal === "pendingLeave" ? (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+            <div className="text-center">
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: "rgba(49,93,251,0.12)" }}>
+                <Send className="w-7 h-7" style={{ color: "#315DFB" }} />
+              </div>
+              <p className="text-base font-bold">{pendingQty} ite{pendingQty === 1 ? "m não enviado" : "ns não enviados"}</p>
+              <p className="text-sm text-zinc-500 mt-1">A cozinha ainda não recebeu. Enviar agora?</p>
+            </div>
+            <button onClick={async () => { if (await sendOrder()) goBack(true); }} disabled={sending}
+              className="w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-60"
+              style={{ background: "#315DFB", color: "#fff" }}>
+              {sending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Enviar e sair
+            </button>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => setModal("none")}
+                className="py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Continuar na mesa</button>
+              <button onClick={() => goBack(true)}
+                className="py-2.5 rounded-xl text-sm font-medium border border-zinc-700 text-zinc-400 hover:bg-zinc-800 transition-colors">Sair sem enviar</button>
+            </div>
+          </div>
+        </div>
       ) : modal === "moveTable" && selectedTable ? (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[88vh] flex flex-col">
@@ -1770,6 +1959,14 @@ export default function TablesPage() {
               <button onClick={() => setShowCheckout(false)} className="p-1.5 text-zinc-400 hover:text-white rounded-lg"><X className="w-4 h-4" /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
+              {pendingQty > 0 && (
+                <div className="flex items-center gap-3 rounded-xl px-4 py-3 border" style={{ borderColor: "rgba(239,68,68,0.35)", background: "rgba(239,68,68,0.06)" }}>
+                  <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                  <span className="flex-1 text-xs text-zinc-400">{pendingQty} ite{pendingQty === 1 ? "m não foi enviado" : "ns não foram enviados"} para a cozinha</span>
+                  <button onClick={() => sendOrder()} disabled={sending}
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold disabled:opacity-60" style={{ background: "#315DFB", color: "#fff" }}>Enviar</button>
+                </div>
+              )}
               <div className="bg-zinc-950 border border-zinc-800 rounded-xl divide-y divide-zinc-800/60 max-h-36 overflow-y-auto">
                 {orderItems.map(item => (
                   <div key={item.id} className="flex items-center justify-between px-3 py-2">

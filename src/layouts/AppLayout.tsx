@@ -38,6 +38,7 @@ import {
   ChefHat,
 } from "lucide-react";
 import { OperatorGate } from "../components/OperatorGate";
+import { StationPrinter } from "../components/StationPrinter";
 import { useOperators, loadOperators, canAccessRoute, setCurrentOperator, operatorsEnabled, requireApproval } from "../lib/operators";
 import { AvaliacaoModal } from "../components/AvaliacaoModal";
 import { prefetchReports, clearReportsCache } from "../pages/reports";
@@ -788,6 +789,8 @@ export function AppLayout() {
 
       {/* Funcionários: tela de PIN e autorização (só aparece se houver operadores) */}
       <OperatorGate />
+      {/* Estação de impressão: imprime os pedidos da cozinha em qualquer aba */}
+      <StationPrinter />
 
       {/* Modal de avaliação — disponível em qualquer página */}
       {userId && (

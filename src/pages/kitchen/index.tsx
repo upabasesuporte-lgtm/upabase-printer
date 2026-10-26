@@ -9,8 +9,8 @@ import { playAlertBeep } from "../../lib/audio";
 import { fetchAll } from "../../lib/fetchAll";
 import { requireApproval } from "../../lib/operators";
 import {
-  SECTOR_LABEL, SECTORS, printTickets, getStationPrefs, setStationPrefs,
-  type Sector, type Ticket, type StationPrefs,
+  SECTOR_LABEL, SECTORS, printTickets, getStationPrefs, setStationPrefs, originOf, loadSales,
+  type Sector, type StationPrefs, type KSale,
 } from "../../lib/kitchen";
 import {
   ChefHat, Printer, Clock, Bike, Store, UtensilsCrossed, CheckCircle2, Flame,
@@ -23,10 +23,6 @@ interface KItem {
   id: string; sale_id: string; sector: Sector; quantity: number; notes: string | null;
   kds_state: KdsState; kds_created_at: string; product_name: string;
 }
-interface KSale {
-  id: string; origin: string | null; notes: string | null; customer_name: string | null;
-  delivery_address: string | null; table_id: string | null; customer: string | null; table: string | null;
-}
 interface Courier { id: string; name: string; phone: string | null; fee_per_delivery: number; active: boolean }
 interface Category { id: string; name: string; print_sector: Sector | null }
 
@@ -34,37 +30,6 @@ const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", curren
 // Base sem largura: campos de largura fixa usam inputBase (com w-full o tamanho fixo era ignorado)
 const inputBase = "px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 transition-all";
 const inputCls = "w-full " + inputBase;
-
-function originOf(s: KSale | undefined): { label: string; kind: "table" | "delivery" | "counter" } {
-  if (!s) return { label: "Pedido", kind: "counter" };
-  const who = s.customer_name || s.customer;
-  if (s.origin === "mesa" || s.table_id) return { label: `MESA ${s.table ?? ""}`.trim(), kind: "table" };
-  if (s.delivery_address) return { label: `DELIVERY${who ? ` — ${who}` : ""}`, kind: "delivery" };
-  if (s.origin === "ifood") return { label: `IFOOD${who ? ` — ${who}` : ""}`, kind: "delivery" };
-  if (s.origin === "cardapio_digital" || s.origin === "digital_menu") return { label: `CARDÁPIO${who ? ` — ${who}` : ""}`, kind: "counter" };
-  return { label: `BALCÃO${who ? ` — ${who}` : ""}`, kind: "counter" };
-}
-
-async function loadSales(ids: string[]): Promise<Record<string, KSale>> {
-  if (ids.length === 0) return {};
-  const { data } = await supabase.from("sales")
-    .select("id, origin, notes, customer_name, delivery_address, table_id, customers(name)")
-    .in("id", ids);
-  const rows = (data ?? []) as any[];
-  const tableIds = [...new Set(rows.map(r => r.table_id).filter(Boolean))];
-  const tables: Record<string, string> = {};
-  if (tableIds.length) {
-    const { data: t } = await supabase.from("tables").select("id, name").in("id", tableIds);
-    for (const r of t ?? []) tables[(r as any).id] = (r as any).name;
-  }
-  const out: Record<string, KSale> = {};
-  for (const r of rows) out[r.id] = {
-    id: r.id, origin: r.origin, notes: r.notes, customer_name: r.customer_name,
-    delivery_address: r.delivery_address, table_id: r.table_id,
-    customer: r.customers?.name ?? null, table: r.table_id ? tables[r.table_id] ?? null : null,
-  };
-  return out;
-}
 
 export default function KitchenPage() {
   const { theme } = useTheme();
@@ -135,7 +100,6 @@ function OrdersBoard({ isLight, card }: { isLight: boolean; card: React.CSSPrope
   const [showHelp, setShowHelp] = useState(false);
   const [courierPick, setCourierPick] = useState<string | null>(null); // pedido com a lista de motoboys aberta
   const seen = useRef<Set<string> | null>(null);
-  const printing = useRef(false);
 
   const updatePrefs = (p: StationPrefs) => { setPrefs(p); setStationPrefs(p); };
 
@@ -161,30 +125,6 @@ function OrdersBoard({ isLight, card }: { isLight: boolean; card: React.CSSPrope
     setLoading(false);
   }, [prefs.sectors.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Impressão automática: pega os itens ainda não impressos dos setores desta estação
-  const autoPrint = useCallback(async () => {
-    if (!prefs.autoPrint || prefs.sectors.length === 0 || printing.current) return;
-    printing.current = true;
-    try {
-      const { data, error } = await supabase.rpc("claim_kitchen_print", { p_sectors: prefs.sectors });
-      if (error) { setErr("Impressão: " + error.message); return; }
-      const rows = (data ?? []) as { item_id: string; sale_id: string; sector: Sector; quantity: number; notes: string | null; product_name: string | null }[];
-      if (rows.length === 0) return;
-      const info = await loadSales([...new Set(rows.map(r => r.sale_id))]);
-      const groups = new Map<string, Ticket>();
-      for (const r of rows) {
-        const key = `${r.sale_id}|${r.sector}`;
-        const s = info[r.sale_id];
-        if (!groups.has(key)) groups.set(key, {
-          sector: r.sector, origin: originOf(s).label, orderNum: r.sale_id.slice(-6).toUpperCase(), lines: [],
-          extra: [s?.delivery_address, s?.notes].filter(Boolean).join(" · ") || null,
-        });
-        groups.get(key)!.lines.push({ quantity: Number(r.quantity), product_name: r.product_name, notes: r.notes });
-      }
-      printTickets([...groups.values()]);
-    } finally { printing.current = false; }
-  }, [prefs.autoPrint, prefs.sectors.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // Cancelamentos (item já impresso foi diminuído/excluído): aviso na tela e ticket
   const [cancels, setCancels] = useState<{ id: string; origin_label: string | null; sector: Sector; product_name: string | null; quantity: number; created_at: string }[]>([]);
   const cancelSeen = useRef<Set<string> | null>(null);
@@ -198,26 +138,19 @@ function OrdersBoard({ isLight, card }: { isLight: boolean; card: React.CSSPrope
     if (cancelSeen.current && list.some(c => !cancelSeen.current!.has(c.id))) { try { playAlertBeep(); } catch { /* sem áudio */ } }
     cancelSeen.current = new Set(list.map(c => c.id));
     setCancels(list);
-    if (prefs.autoPrint) {
-      const { data: claimed } = await supabase.rpc("claim_kitchen_cancellations", { p_sectors: prefs.sectors });
-      const rows = (claimed ?? []) as { sale_id: string | null; origin_label: string | null; sector: Sector; product_name: string | null; quantity: number }[];
-      if (rows.length) printTickets(rows.map(r => ({
-        sector: r.sector, origin: r.origin_label ?? "Pedido", orderNum: (r.sale_id ?? "").slice(-6).toUpperCase(),
-        lines: [{ quantity: Number(r.quantity), product_name: r.product_name, notes: null }], cancelled: true,
-      })));
-    }
-  }, [prefs.autoPrint, prefs.sectors.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Os tickets de cancelamento são impressos pelo StationPrinter (em qualquer aba)
+  }, [prefs.sectors.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
   async function dismissCancel(id: string) {
     setCancels(prev => prev.filter(c => c.id !== id));
     await supabase.from("kitchen_cancellations").update({ dismissed_at: new Date().toISOString() }).eq("id", id);
   }
 
   useEffect(() => {
-    load(); autoPrint(); loadCancels();
-    const t = setInterval(() => { load(); autoPrint(); loadCancels(); }, 5000);
+    load(); loadCancels();
+    const t = setInterval(() => { load(); loadCancels(); }, 5000);
     const c = setInterval(() => setNow(Date.now()), 30_000);
     return () => { clearInterval(t); clearInterval(c); };
-  }, [load, autoPrint, loadCancels]);
+  }, [load, loadCancels]);
 
   useEffect(() => {
     supabase.from("couriers").select("id,name,phone,fee_per_delivery,active").eq("active", true).order("name")
@@ -308,7 +241,7 @@ function OrdersBoard({ isLight, card }: { isLight: boolean; card: React.CSSPrope
             <li>No computador ligado à impressora (cozinha, bar ou balcão), deixe essa impressora como <b>padrão</b> do Windows.</li>
             <li>Crie um atalho do Chrome e, em Propriedades → Destino, coloque no final: <code className="px-1 rounded bg-black/10">--kiosk-printing</code> (com um espaço antes). Abra o sistema por esse atalho.</li>
             <li>Entre na aba <b>Cozinha</b>, marque os setores dessa impressora (ex.: só Bar) e ligue <b>Imprimir automaticamente</b>.</li>
-            <li>Deixe essa tela aberta. Cada pedido novo do setor sai sozinho, sem janela de impressão.</li>
+            <li>Deixe o sistema aberto (pode ser em qualquer aba, até no PDV). Cada pedido novo do setor sai sozinho, sem janela de impressão.</li>
           </ol>
           <p className={muted}>Só uma impressora? Marque Cozinha, Bar e Balcão na mesma estação e tudo sai nela. Duas estações do mesmo setor não imprimem o mesmo pedido duas vezes.</p>
           <p className={muted}>Os setores de cada categoria são definidos na aba <b>Setores</b>.</p>
