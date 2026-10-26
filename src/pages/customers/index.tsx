@@ -3,7 +3,8 @@ import { supabase } from "../../lib/supabase";
 import { requireApproval } from "../../lib/operators";
 import { fetchAll } from "../../lib/fetchAll";
 import { matchesSearch } from "../../lib/search";
-import { recalcFiadoBalance, computeFiadoLedger, fetchFiadoMovs, type FiadoMov } from "../../lib/fiado";
+import { recalcFiadoBalance, computeFiadoLedger, fetchFiadoMovs, fetchOpenFiado, type FiadoMov } from "../../lib/fiado";
+import { getStoreSettings } from "../settings";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import { PageHeader, btnPrimary, WHITE_TEXT } from "../../components/PageHeader";
@@ -11,7 +12,7 @@ import {
   Search, Plus, Trash2, Edit2, X, User, Phone, MapPin, Mail,
   Printer, ChevronLeft, Banknote, CreditCard, Smartphone,
   TrendingUp, RefreshCw, Save, DollarSign,
-  AlertTriangle, CheckCircle2, FileText, Minus,
+  AlertTriangle, CheckCircle2, FileText, Minus, MessageCircle,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -316,6 +317,45 @@ export default function CustomersPage() {
   }
 
   // ── Navigation ─────────────────────────────────────────────────────────────
+
+  // Cobrança pelo WhatsApp do próprio aparelho (wa.me) — sem custo, sem robô
+  const [waLoading, setWaLoading] = useState(false);
+  async function chargeOnWhatsApp(c: Customer) {
+    if (waLoading) return;
+    // Abre a janela já no clique (o navegador bloqueia janela aberta depois de esperar)
+    const win = window.open("", "_blank");
+    setWaLoading(true);
+    try {
+      const st = await fetchOpenFiado(c.id);
+      const store = getStoreSettings();
+      const first = c.name.trim().split(/\s+/)[0] ?? "";
+      const nice = first ? first.charAt(0).toUpperCase() + first.slice(1).toLowerCase() : "";
+      const day = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+      const shown = st.debits.slice(-15);
+      const lines = [
+        `Olá${nice ? `, ${nice}` : ""}! Tudo bem?`,
+        `Passando para lembrar do seu fiado${store.name ? ` na ${store.name}` : ""}:`,
+        "",
+        ...(st.debits.length > shown.length ? [`(+ ${st.debits.length - shown.length} compras anteriores)`] : []),
+        ...shown.map(d => `• ${day(d.date)} — ${fmt(d.amount)}`),
+        ...(st.paid > 0 ? [`Já pago: − ${fmt(st.paid)}`] : []),
+        "",
+        `*Total em aberto: ${fmt(st.total)}*`,
+        ...(store.pix ? [`PIX: ${store.pix}`] : []),
+        "",
+        "Obrigado!",
+      ];
+      let phone = (c.phone ?? "").replace(/\D/g, "");
+      if (phone.length === 10 || phone.length === 11) phone = "55" + phone;
+      const url = `https://wa.me/${phone}?text=${encodeURIComponent(lines.join("\n"))}`;
+      if (win) win.location.href = url; else window.location.href = url;
+    } catch (e: any) {
+      win?.close();
+      alert("Não foi possível montar a cobrança: " + (e?.message ?? "tente novamente"));
+    } finally {
+      setWaLoading(false);
+    }
+  }
 
   function openDetail(c: Customer) {
     setSelected(c);
@@ -1263,6 +1303,15 @@ export default function CustomersPage() {
                   <p className="text-xs text-brand-600/60">Quitar fiado</p>
                 </div>
               </button>
+              {(selected.fiado_balance ?? 0) > 0 && (
+                <button onClick={() => chargeOnWhatsApp(selected)} disabled={waLoading}
+                  className="sm:col-span-2 flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 py-3 px-3 rounded-2xl text-sm font-semibold transition-colors disabled:opacity-60 hover:opacity-90"
+                  style={{ background: "#25D366", color: "#fff" }}>
+                  {waLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <MessageCircle className="w-4 h-4" />}
+                  Cobrar no WhatsApp · {fmt(selected.fiado_balance ?? 0)}
+                  {!selected.phone && <span className="text-[11px] font-normal opacity-90">(sem telefone: você escolhe o contato)</span>}
+                </button>
+              )}
             </div>
           </div>
 

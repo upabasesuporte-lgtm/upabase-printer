@@ -58,3 +58,32 @@ export async function recalcFiadoBalance(customerId: string): Promise<number> {
 
   return total;
 }
+
+// Compras que formam a dívida atual (desde a última vez que o fiado zerou),
+// com a mesma regra do extrato. Usado na cobrança pelo WhatsApp.
+export async function fetchOpenFiado(customerId: string) {
+  const { data, error } = await fetchAll(() => supabase
+    .from("customer_movements")
+    .select("id, type, amount, description, created_at")
+    .eq("customer_id", customerId)
+    .in("type", ["debit", "payment"])
+    .order("created_at", { ascending: true }));
+  if (error) throw error;
+  let running = 0;
+  let debits: { date: string; amount: number }[] = [];
+  let paid = 0;
+  for (const m of (data ?? []) as (FiadoMov & { created_at: string })[]) {
+    const amount = Number(m.amount) || 0;
+    if (m.type === "debit" && !isSaldoMov(m)) {
+      if (running <= 0) { debits = []; paid = 0; }
+      running += amount;
+      debits.push({ date: m.created_at, amount });
+    } else if (m.type === "payment") {
+      paid += Math.min(amount, running);
+      running = Math.max(0, running - amount);
+    }
+    running = Math.round(running * 100) / 100;
+  }
+  if (running <= 0) return { total: 0, debits: [], paid: 0 };
+  return { total: running, debits, paid: Math.round(paid * 100) / 100 };
+}
