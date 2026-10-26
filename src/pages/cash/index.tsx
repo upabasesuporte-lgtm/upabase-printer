@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
-import { requireApproval } from "../../lib/operators";
+import { requireApproval, useOperators, operatorsEnabled, operatorCanApprove } from "../../lib/operators";
 import { fetchAll } from "../../lib/fetchAll";
 import { useTheme } from "../../contexts/ThemeContext";
 import { PageHeader, btnSecondary, segWrap, segBtn, WHITE_TEXT } from "../../components/PageHeader";
@@ -170,6 +170,16 @@ export default function CashPage() {
   // Fechamento
   const [closingOperator, setClosingOperator] = useState("");
   const [countedAmount,   setCountedAmount]   = useState("");
+  // Fechamento cego: quem fecha não vê o valor esperado (dono/quem autoriza vê tudo)
+  const [blindSetting, setBlindSetting] = useState(false);
+  const [closeResult, setCloseResult] = useState<{ counted: number; expected: number; diff: number } | null>(null);
+  const ops = useOperators();
+  const blind = blindSetting && !(operatorsEnabled(ops) && operatorCanApprove(ops.current));
+  useEffect(() => {
+    if (!userId) return;
+    supabase.from("store_settings").select("blind_cash_close").eq("user_id", userId).maybeSingle()
+      .then(({ data }) => setBlindSetting(!!(data as any)?.blind_cash_close));
+  }, [userId]);
 
   // Total de vendas real (da tabela sales, não cash_movements)
   const [salesTotal, setSalesTotal] = useState(0);
@@ -436,10 +446,12 @@ export default function CashPage() {
   // ── Fechar caixa ──
   async function handleCloseRegister() {
     if (!register || !userId) return;
+    if (blind && !countedAmount) { setError("Digite o valor contado na gaveta."); return; }
     if (!(await requireApproval("Fechar o caixa"))) return;
+    setError(null);
     setActionLoading(true);
 
-    const closingDesc = `Fechamento de caixa${closingOperator ? ` — ${closingOperator}` : ""}${difference !== null ? ` | Contado: ${fmt(countedVal)} | Diferença: ${fmt(difference)}` : ""}`;
+    const closingDesc = `Fechamento de caixa${blind ? " (cego)" : ""}${closingOperator ? ` — ${closingOperator}` : ""}${difference !== null ? ` | Contado: ${fmt(countedVal)} | Diferença: ${fmt(difference)}` : ""}`;
 
     await supabase.from("cash_registers")
       .update({ status: "closed", closed_at: new Date().toISOString(), closing_amount: currentBalance })
@@ -451,10 +463,32 @@ export default function CashPage() {
       description: closingDesc,
     });
 
+    if (blind && difference !== null) setCloseResult({ counted: countedVal, expected: currentBalance, diff: difference });
     setShowClose(false); setClosingOperator(""); setCountedAmount("");
     await loadData();
     setActionLoading(false);
   }
+
+  // Resultado do fechamento cego (aparece já com o caixa fechado)
+  const closeResultModal = closeResult && (
+        <Modal title="Caixa fechado" onClose={() => setCloseResult(null)}>
+          <div className="space-y-3 text-sm">
+            <Row label="Dinheiro contado" value={fmt(closeResult.counted)} />
+            <Row label="Dinheiro esperado" value={fmt(closeResult.expected)} />
+            <div className={`flex items-center justify-between px-4 py-3 rounded-xl border font-semibold ${
+              Math.abs(closeResult.diff) < 0.005 ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+              : closeResult.diff > 0 ? "bg-blue-500/10 border-blue-500/30 text-blue-400"
+                                     : "bg-red-500/10 border-red-500/30 text-red-400"
+            }`}>
+              <span>{Math.abs(closeResult.diff) < 0.005 ? "✓ Caixa conferido" : closeResult.diff > 0 ? "Sobra no caixa" : "Falta no caixa"}</span>
+              <span>{closeResult.diff > 0 ? "+" : ""}{fmt(closeResult.diff)}</span>
+            </div>
+            <p className="text-xs text-zinc-500">Fica registrado no Histórico de Caixas.</p>
+            <button onClick={() => setCloseResult(null)}
+              className="w-full py-2.5 rounded-lg text-sm font-semibold" style={{ background: "#315DFB", color: "#fff" }}>OK</button>
+          </div>
+        </Modal>
+      );
 
   // ── Render: carregando ──
   if (loading) {
@@ -517,6 +551,8 @@ export default function CashPage() {
           )}
         </div>
 
+        {closeResultModal}
+
         {showOpen && (
           <Modal title="Abertura de Caixa" onClose={() => setShowOpen(false)}>
             <OpenModalContent
@@ -545,7 +581,7 @@ export default function CashPage() {
           <button onClick={loadData} className={btnSecondary + " !px-2.5"} title="Atualizar">
             <RefreshCw className="w-4 h-4" />
           </button>
-          <button onClick={() => { setShowClose(true); setClosingOperator(""); setCountedAmount(""); }}
+          <button onClick={() => { setShowClose(true); setClosingOperator(""); setCountedAmount(""); setError(null); }}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold bg-red-600 hover:bg-red-700 transition-colors" style={WHITE_TEXT}>
             <Lock className="w-4 h-4" />
             Fechar Caixa
@@ -562,8 +598,8 @@ export default function CashPage() {
             <SummaryCard label="Total de Vendas" value={fmt(salesTotal)}
               sub={`${sales.length} venda${sales.length !== 1 ? "s" : ""}`}
               icon={<TrendingUp className="w-5 h-5" />} iconBg="bg-emerald-500/15" iconColor="text-emerald-400" accent color="#10b981" />
-            <SummaryCard label="Saldo em Dinheiro" value={fmt(currentBalance)}
-              sub={`Fundo inicial: ${fmt(register.opening_amount)}`}
+            <SummaryCard label="Saldo em Dinheiro" value={blind ? "Oculto" : fmt(currentBalance)}
+              sub={blind ? "Fechamento cego ativado" : `Fundo inicial: ${fmt(register.opening_amount)}`}
               icon={<Wallet className="w-5 h-5" />} iconBg="bg-brand-500/15" iconColor="text-brand-600" color="#315DFB" />
             <SummaryCard label="Sangrias" value={fmt(totalSangria)}
               sub={otherSangria > 0 ? `Dinheiro: ${fmt(cashSangria)} · PIX/cartão: ${fmt(otherSangria)}` : "Retiradas do caixa"}
@@ -790,8 +826,15 @@ export default function CashPage() {
         <Modal title="Fechamento de Caixa" onClose={() => setShowClose(false)} wide>
           <div className="space-y-4">
 
+            {blind && (
+              <div className="bg-brand-500/10 border border-brand-500/20 rounded-xl p-4 text-sm">
+                <p className="font-semibold">Fechamento cego</p>
+                <p className="text-xs text-zinc-500 mt-1">Conte o dinheiro da gaveta e digite abaixo. O valor esperado e a diferença aparecem depois de fechar.</p>
+              </div>
+            )}
+
             {/* Resumo financeiro */}
-            <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-2.5 text-sm">
+            {!blind && <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-2.5 text-sm">
               <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest mb-3">Resumo do Caixa</p>
               <Row label="Fundo Inicial" value={fmt(register.opening_amount)} />
               <Row label="Total de Vendas" value={fmt(salesTotal)} positive />
@@ -807,10 +850,10 @@ export default function CashPage() {
                 <span className="font-semibold text-white">Saldo Esperado em Dinheiro</span>
                 <span className="text-lg font-bold text-emerald-400">{fmt(currentBalance)}</span>
               </div>
-            </div>
+            </div>}
 
             {/* Vendas por forma de pagamento */}
-            {paymentBreakdown.length > 0 && (
+            {!blind && paymentBreakdown.length > 0 && (
               <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
                 <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest mb-3">Vendas por Forma de Pagamento</p>
                 <div className="space-y-1.5">
@@ -836,8 +879,8 @@ export default function CashPage() {
             </div>
 
             {/* Valor contado */}
-            <AmountInput label="Valor contado em caixa (dinheiro físico)" value={countedAmount} onChange={setCountedAmount} />
-            {difference !== null && (
+            <AmountInput label={blind ? "Dinheiro contado na gaveta *" : "Valor contado em caixa (dinheiro físico)"} value={countedAmount} onChange={setCountedAmount} />
+            {!blind && difference !== null && (
               <div className={`flex items-center justify-between px-4 py-3 rounded-xl border text-sm font-semibold ${
                 difference === 0 ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
                 : difference > 0  ? "bg-blue-500/10 border-blue-500/30 text-blue-400"
@@ -846,6 +889,10 @@ export default function CashPage() {
                 <span>{difference === 0 ? "✓ Caixa conferido" : difference > 0 ? "Sobra no caixa" : "Falta no caixa"}</span>
                 <span>{difference > 0 ? "+" : ""}{fmt(difference)}</span>
               </div>
+            )}
+
+            {error && showClose && (
+              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-xs text-red-400">{error}</div>
             )}
 
             <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 flex gap-2 text-xs text-amber-300">
@@ -866,6 +913,8 @@ export default function CashPage() {
           </div>
         </Modal>
       )}
+
+      {closeResultModal}
 
       {/* Modal Abrir Caixa (caso o usuário queira reabrir) */}
       {showOpen && (
