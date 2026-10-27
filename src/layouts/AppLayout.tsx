@@ -195,43 +195,10 @@ export function AppLayout() {
   const [totalTables,     setTotalTables]     = useState<number>(0);
 
   // ── processInvite
-  async function processInvite(token: string, uid: string) {
-    const { data: linkData } = await supabase
-      .from("access_links")
-      .select("*")
-      .eq("token", token)
-      .is("used_by", null)
-      .maybeSingle();
-
-    if (!linkData) return;
-
-    // Rejeita link expirado
-    if (linkData.link_expires_at && new Date(linkData.link_expires_at) < new Date()) return;
-
-    const now = new Date();
-    let expiresAt: string | null = null;
-    let isLifetime = false;
-    let plan: "trial" | "active" | "lifetime" = "active";
-
-    if (linkData.plan_type === "lifetime") {
-      isLifetime = true;
-      plan = "lifetime";
-    } else {
-      const days = linkData.days_granted ?? (linkData.plan_type === "trial" ? 15 : 30);
-      const expiry = new Date(now);
-      expiry.setDate(expiry.getDate() + days);
-      expiresAt = expiry.toISOString();
-      plan = linkData.plan_type === "trial" ? "trial" : "active";
-    }
-
-    await supabase.from("user_plans")
-      .update({ plan, plan_expires_at: expiresAt, is_lifetime: isLifetime })
-      .eq("user_id", uid);
-
-    await supabase.from("access_links").update({
-      used_by: uid,
-      used_at: now.toISOString(),
-    }).eq("token", token);
+  async function processInvite(token: string) {
+    // Validado e aplicado no banco (redeem_access_link): o navegador não grava plano
+    const { error } = await supabase.rpc("redeem_access_link", { p_token: token });
+    if (error) console.warn("convite:", error.message);
   }
 
   // ── Auth
@@ -249,7 +216,7 @@ export function AppLayout() {
       const pendingInvite = sessionStorage.getItem("pending_invite");
       if (pendingInvite) {
         sessionStorage.removeItem("pending_invite");
-        await processInvite(pendingInvite, uid);
+        await processInvite(pendingInvite);
       }
 
       // Auto-criar trial de 15 dias para novos usuários
@@ -259,15 +226,8 @@ export function AppLayout() {
         .eq("user_id", uid)
         .maybeSingle();
       if (!existingPlan) {
-        const trialEnd = new Date();
-        trialEnd.setDate(trialEnd.getDate() + 15);
-        await supabase.from("user_plans").insert({
-          user_id: uid,
-          email: data.user.email,
-          plan: "trial",
-          plan_expires_at: trialEnd.toISOString(),
-          is_lifetime: false,
-        });
+        // Teste grátis de 15 dias criado pelo banco (ensure_trial_plan)
+        await supabase.rpc("ensure_trial_plan");
       }
 
       setLoading(false);
