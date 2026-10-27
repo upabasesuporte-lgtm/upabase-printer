@@ -1,7 +1,7 @@
 // Cozinha (KDS + estação de impressão + despacho + motoboys).
 // Os itens chegam aqui quando são lançados (Mesas, PDV, Cardápio Digital) e a
 // categoria do produto tem setor (Cozinha/Bar/Balcão) — ver aba "Setores".
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback, lazy, Suspense } from "react";
 import { supabase } from "../../lib/supabase";
 import { useTheme } from "../../contexts/ThemeContext";
 import { PageHeader } from "../../components/PageHeader";
@@ -12,6 +12,9 @@ import {
   SECTOR_LABEL, SECTORS, printTickets, getStationPrefs, setStationPrefs, originOf, loadSales,
   type Sector, type StationPrefs, type KSale,
 } from "../../lib/kitchen";
+import type { MapOrder } from "./DeliveryMap";
+// Mapa de entregas: carregado só quando aberto
+const DeliveryMap = lazy(() => import("./DeliveryMap"));
 import {
   ChefHat, Printer, Clock, Bike, Store, UtensilsCrossed, CheckCircle2, Flame,
   Plus, Trash2, Save, Loader2, Info, Tags,
@@ -99,6 +102,10 @@ function OrdersBoard({ isLight, card }: { isLight: boolean; card: React.CSSPrope
   const [now, setNow] = useState(Date.now());
   const [showHelp, setShowHelp] = useState(false);
   const [courierPick, setCourierPick] = useState<string | null>(null); // pedido com a lista de motoboys aberta
+  const [view, setView] = useState<"list" | "map">(() => {
+    try { return localStorage.getItem("kitchen_view") === "map" ? "map" : "list"; } catch { return "list"; }
+  });
+  const changeView = (v: "list" | "map") => { setView(v); try { localStorage.setItem("kitchen_view", v); } catch { /* sem storage */ } };
   const seen = useRef<Set<string> | null>(null);
 
   const updatePrefs = (p: StationPrefs) => { setPrefs(p); setStationPrefs(p); };
@@ -201,6 +208,26 @@ function OrdersBoard({ isLight, card }: { isLight: boolean; card: React.CSSPrope
     return cols;
   }, [items]);
 
+  // Entregas para o mapa: um ponto por pedido (pronto só quando todos os itens ficaram prontos)
+  const mapOrders = useMemo<MapOrder[]>(() => {
+    const bySale = new Map<string, KItem[]>();
+    for (const i of items) bySale.set(i.sale_id, [...(bySale.get(i.sale_id) ?? []), i]);
+    const out: MapOrder[] = [];
+    for (const [saleId, its] of bySale) {
+      const s = sales[saleId];
+      const o = originOf(s);
+      if (o.kind !== "delivery") continue;
+      const since = Math.min(...its.map(i => new Date(i.kds_created_at).getTime()));
+      out.push({
+        saleId, label: o.label, address: s?.delivery_address ?? null, mins: Math.max(0, Math.floor((now - since) / 60000)),
+        ready: its.every(i => i.kds_state === "ready"), ids: its.map(i => i.id),
+        lat: s?.lat ?? null, lng: s?.lng ?? null, custLat: s?.cust_lat ?? null, custLng: s?.cust_lng ?? null,
+        customerId: s?.customer_id ?? null, total: s?.total ?? null,
+      });
+    }
+    return out.sort((a, b) => b.mins - a.mins);
+  }, [items, sales, now]);
+
   const muted = isLight ? "text-gray-500" : "text-zinc-400";
   const chip = (on: boolean) => on
     ? { background: "#315DFB", color: "#fff", border: "1px solid #315DFB" }
@@ -262,7 +289,20 @@ function OrdersBoard({ isLight, card }: { isLight: boolean; card: React.CSSPrope
         </div>
       )}
 
-      {loading ? (
+      <div className="flex gap-2">
+        {(["list", "map"] as const).map(v => (
+          <button key={v} onClick={() => changeView(v)} className="px-4 py-2 rounded-xl text-sm font-bold" style={chip(view === v)}>
+            {v === "list" ? "Lista" : `Mapa de entregas${mapOrders.length ? ` (${mapOrders.length})` : ""}`}
+          </button>
+        ))}
+      </div>
+
+      {view === "map" ? (
+        <Suspense fallback={<div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-brand-600" /></div>}>
+          <DeliveryMap orders={mapOrders} couriers={couriers} isLight={isLight} card={card}
+            onDispatch={(saleId, ids, courierId) => dispatch(saleId, ids, "delivery", courierId)} />
+        </Suspense>
+      ) : loading ? (
         <div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-brand-600" /></div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">

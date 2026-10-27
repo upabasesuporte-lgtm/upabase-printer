@@ -268,6 +268,18 @@ export default function PublicMenuPage() {
   const [custPhone, setCustPhone]     = useState("");
   const [bairro, setBairro]           = useState("");
   const [address, setAddress]         = useState("");
+  // Localização pelo GPS do celular (opcional): a loja vê a entrega no mapa
+  const [geo, setGeo]                 = useState<{ lat: number; lng: number; acc: number } | null>(null);
+  const [geoStatus, setGeoStatus]     = useState<"idle" | "loading" | "error">("idle");
+  function pickMyLocation() {
+    if (!("geolocation" in navigator)) { setGeoStatus("error"); return; }
+    setGeoStatus("loading");
+    navigator.geolocation.getCurrentPosition(
+      pos => { setGeo({ lat: pos.coords.latitude, lng: pos.coords.longitude, acc: Math.round(pos.coords.accuracy) }); setGeoStatus("idle"); },
+      () => setGeoStatus("error"),
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
+    );
+  }
   const [payMethod, setPayMethod]     = useState<PayMethod>("pix");
   const [changeFor, setChangeFor]     = useState("");
   const [obsGeral, setObsGeral]       = useState("");
@@ -562,6 +574,7 @@ export default function PublicMenuPage() {
       order_number:     num,
       payment_method:   payMethod,
       change_for:       changeForVal,
+      ...(orderType === "delivery" && geo ? { lat: geo.lat, lng: geo.lng } : {}),
     });
     const orderRow = error ? null : { id: newOrderId, order_number: num as string | null };
 
@@ -1007,6 +1020,27 @@ export default function PublicMenuPage() {
                   className="w-full pl-9 px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-teal-500 resize-none"
                 />
               </div>
+              {geo ? (
+                <div className="mt-2 flex items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-semibold"
+                  style={{ background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.35)", color: "#059669" }}>
+                  <MapPin className="w-4 h-4 flex-shrink-0" />
+                  <span className="flex-1">Localização marcada{geo.acc > 0 ? ` (precisão ~${geo.acc} m)` : ""}</span>
+                  <button type="button" onClick={() => setGeo(null)} className="underline font-normal" style={{ color: "#6b7280" }}>remover</button>
+                </div>
+              ) : (
+                <button type="button" onClick={pickMyLocation} disabled={geoStatus === "loading"}
+                  className="mt-2 w-full flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold disabled:opacity-60"
+                  style={{ background: "#14b8a6", color: "#fff" }}>
+                  <MapPin className="w-4 h-4" />
+                  {geoStatus === "loading" ? "Pegando sua localização..." : "Usar minha localização (opcional)"}
+                </button>
+              )}
+              {geoStatus === "error" && !geo && (
+                <p className="text-xs mt-1.5" style={{ color: "#dc2626" }}>Não foi possível pegar a localização. Verifique se o GPS está ligado e permita o acesso — ou siga só com o endereço.</p>
+              )}
+              {!geo && geoStatus !== "error" && (
+                <p className="text-[11px] text-zinc-500 mt-1.5">Ajuda o entregador a achar você mais rápido. Use só se estiver no local da entrega.</p>
+              )}
               {isFreeShippingNeighborhood ? (
                 <p className="text-xs text-emerald-400 mt-2 flex items-center gap-1 font-semibold">
                   <Truck className="w-3 h-3" /> Frete grátis para o bairro {bairro.trim()}!

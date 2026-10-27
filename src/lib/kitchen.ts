@@ -87,6 +87,9 @@ export function printTickets(tickets: Ticket[]) {
 export interface KSale {
   id: string; origin: string | null; notes: string | null; customer_name: string | null;
   delivery_address: string | null; table_id: string | null; customer: string | null; table: string | null;
+  // Mapa de entregas: ponto da venda (GPS do cliente ou marcado na loja) e o salvo no cadastro do cliente
+  lat?: number | null; lng?: number | null; customer_id?: string | null;
+  cust_lat?: number | null; cust_lng?: number | null; total?: number | null;
 }
 
 export function originOf(s: KSale | undefined): { label: string; kind: "table" | "delivery" | "counter" } {
@@ -102,7 +105,7 @@ export function originOf(s: KSale | undefined): { label: string; kind: "table" |
 export async function loadSales(ids: string[]): Promise<Record<string, KSale>> {
   if (ids.length === 0) return {};
   const { data } = await supabase.from("sales")
-    .select("id, origin, notes, customer_name, delivery_address, table_id, customers(name)")
+    .select("id, origin, notes, customer_name, delivery_address, table_id, total_amount, delivery_lat, delivery_lng, customer_id, customers(name, lat, lng)")
     .in("id", ids);
   const rows = (data ?? []) as any[];
   const tableIds = [...new Set(rows.map(r => r.table_id).filter(Boolean))];
@@ -116,6 +119,8 @@ export async function loadSales(ids: string[]): Promise<Record<string, KSale>> {
     id: r.id, origin: r.origin, notes: r.notes, customer_name: r.customer_name,
     delivery_address: r.delivery_address, table_id: r.table_id,
     customer: r.customers?.name ?? null, table: r.table_id ? tables[r.table_id] ?? null : null,
+    lat: r.delivery_lat ?? null, lng: r.delivery_lng ?? null, customer_id: r.customer_id ?? null,
+    cust_lat: r.customers?.lat ?? null, cust_lng: r.customers?.lng ?? null, total: r.total_amount ?? null,
   };
   return out;
 }
