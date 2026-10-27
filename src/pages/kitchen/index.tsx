@@ -613,7 +613,7 @@ function CouriersTab({ isLight, card }: { isLight: boolean; card: React.CSSPrope
         {mode === "current" && (
           <p className={`text-[11px] ${muted}`}>
             {openReg
-              ? `Caixa aberto em ${new Date(openReg.opened_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}. Ao fechar o caixa, este acerto recomeça do zero.`
+              ? `Caixa aberto em ${new Date(openReg.opened_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}. Pague no fim do dia: as entregas vão somando em "A pagar ao motoboy". Entrega que não for paga continua aparecendo depois que o caixa fechar.`
               : "Nenhum caixa aberto. Abra o caixa para ver e pagar as entregas do turno."}
           </p>
         )}
@@ -626,9 +626,9 @@ function CouriersTab({ isLight, card }: { isLight: boolean; card: React.CSSPrope
               <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(49,93,251,0.12)", color: "#315DFB" }}>{count} entrega{count === 1 ? "" : "s"}</span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-              <div><p className={`text-[10px] ${muted}`}>A pagar</p><p className="text-sm font-black text-amber-500">{fmt(toPay)}</p></div>
-              <div><p className={`text-[10px] ${muted}`}>Já pago</p><p className="text-sm font-black text-emerald-500">{fmt(paid)}</p></div>
-              <div><p className={`text-[10px] ${muted}`}>Taxas cobradas</p><p className="text-sm font-bold">{fmt(fees)}</p></div>
+              <div><p className={`text-[10px] ${muted}`}>A pagar ao motoboy</p><p className="text-sm font-black text-amber-500">{fmt(toPay)}</p></div>
+              <div><p className={`text-[10px] ${muted}`}>{mode === "current" ? "Já pago neste caixa" : "Já pago no dia"}</p><p className="text-sm font-black text-emerald-500">{fmt(paid)}</p></div>
+              <div><p className={`text-[10px] ${muted}`}>Taxa de entrega cobrada dos clientes</p><p className="text-sm font-bold">{fmt(fees)}</p></div>
               <div><p className={`text-[10px] ${muted}`}>Valor dos pedidos</p><p className="text-sm font-bold">{fmt(sales)}</p></div>
             </div>
             {canPay && pendingIds.length > 0 && (
@@ -658,15 +658,19 @@ function CouriersTab({ isLight, card }: { isLight: boolean; card: React.CSSPrope
         {deliveries.length > 0 && (
           <div className="pt-1 space-y-1">
             <p className={`text-[11px] font-semibold uppercase tracking-wider ${muted}`}>Entregas</p>
-            {deliveries.map(d => (
-              <div key={d.id} className="flex items-center gap-2 text-xs">
-                <span className={muted}>{new Date(d.dispatched_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
-                <span className="font-semibold">#{d.id.slice(-6).toUpperCase()}</span>
-                <span className="flex-1 truncate">{list.find(c => c.id === d.courier_id)?.name ?? "—"}{d.customer_name ? ` · ${d.customer_name}` : ""}</span>
-                <span className={`text-[10px] font-bold ${d.courier_payment_id ? "text-emerald-500" : "text-amber-500"}`}>{d.courier_payment_id ? "pago" : "a pagar"}</span>
-                <span className="font-bold">{fmt(d.total_amount)}</span>
-              </div>
-            ))}
+            {deliveries.map(d => {
+              const c = list.find(x => x.id === d.courier_id);
+              return (
+                <div key={d.id} className="flex items-center gap-2 text-xs">
+                  <span className={muted}>{new Date(d.dispatched_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
+                  <span className="font-semibold">#{d.id.slice(-6).toUpperCase()}</span>
+                  <span className="flex-1 truncate">{c?.name ?? "—"}{d.customer_name ? ` · ${d.customer_name}` : ""}</span>
+                  <span className={`hidden sm:inline ${muted}`}>pedido {fmt(d.total_amount)}</span>
+                  <span className={`text-[10px] font-bold ${d.courier_payment_id ? "text-emerald-500" : "text-amber-500"}`}>{d.courier_payment_id ? "acertado" : "a pagar"}</span>
+                  <span className="font-bold" title="Quanto o motoboy ganha por esta entrega">{c ? fmt(c.fee_per_delivery) : "—"}</span>
+                </div>
+              );
+            })}
           </div>
         )}
         {payments.length > 0 && (
@@ -695,7 +699,8 @@ function CouriersTab({ isLight, card }: { isLight: boolean; card: React.CSSPrope
           <div className="w-full max-w-sm rounded-3xl p-6 space-y-4" style={{ ...card, background: isLight ? "#fff" : "#18181b" }}>
             <div>
               <p className="text-lg font-black">Pagar {payFor.c.name}</p>
-              <p className={`text-sm ${muted}`}>{payFor.ids.length} entrega{payFor.ids.length === 1 ? "" : "s"} × {fmt(payFor.c.fee_per_delivery)}</p>
+              <p className={`text-sm ${muted}`}>{payFor.ids.length} entrega{payFor.ids.length === 1 ? "" : "s"} × {fmt(payFor.c.fee_per_delivery)} = {fmt(payFor.amount)}</p>
+              <p className="text-xs font-semibold text-amber-500 mt-1">Pagar agora? Se os motoboys recebem no fim do dia, deixe para pagar quando fechar o expediente.</p>
             </div>
             <div className="space-y-1">
               <p className={`text-xs font-semibold ${muted}`}>Valor a pagar (pode ajustar)</p>
