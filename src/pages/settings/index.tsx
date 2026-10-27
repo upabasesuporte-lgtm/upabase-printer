@@ -3,6 +3,7 @@ import { Store, Phone, CreditCard, Save, CheckCircle2, Receipt, Plus, Trash2, Us
 import { supabase } from "../../lib/supabase";
 import { loadOperators, setCurrentOperator, saveLockMinutes, setDeviceNoLock, useOperators, TAB_OPTIONS, PRESETS, describeOperator, operatorRoutes, operatorCanApprove, type Operator } from "../../lib/operators";
 import { PageHeader } from "../../components/PageHeader";
+import { StoreLocationCard } from "../../components/StoreLocationCard";
 import { useTheme } from "../../contexts/ThemeContext";
 
 // ── Storage keys (cache local para impressão síncrona) ────────────────────────
@@ -20,6 +21,12 @@ interface StoreSettings {
   show_cnpj: boolean;
   service_fee_pct: number;   // taxa de serviço das mesas (0 = desligada)
   blind_cash_close: boolean; // fechamento de caixa sem mostrar o valor esperado
+  // Localização da loja (Mapa de entregas)
+  cep: string;
+  city: string;
+  state: string;
+  lat: number | null;
+  lng: number | null;
 }
 
 const DEFAULT: StoreSettings = {
@@ -32,6 +39,11 @@ const DEFAULT: StoreSettings = {
   show_cnpj: true,
   service_fee_pct: 0,
   blind_cash_close: false,
+  cep: "",
+  city: "",
+  state: "",
+  lat: null,
+  lng: null,
 };
 
 // Funções síncronas mantidas para compatibilidade com PDV / Mesas / Cardápio
@@ -60,6 +72,8 @@ export async function refreshStoreCache(userId: string): Promise<void> {
         show_cnpj:      data.show_cnpj      ?? true,
         service_fee_pct:  Number(data.service_fee_pct ?? 0),
         blind_cash_close: !!data.blind_cash_close,
+        cep: data.cep ?? "", city: data.city ?? "", state: data.state ?? "",
+        lat: data.lat ?? null, lng: data.lng ?? null,
       }));
     }
   } catch { /* silently ignore — cache já existente será usado */ }
@@ -160,6 +174,8 @@ export default function SettingsPage() {
           show_cnpj:      data.show_cnpj      ?? true,
           service_fee_pct:  Number(data.service_fee_pct ?? 0),
           blind_cash_close: !!data.blind_cash_close,
+          cep: data.cep ?? "", city: data.city ?? "", state: data.state ?? "",
+          lat: data.lat ?? null, lng: data.lng ?? null,
         };
         const sellersList: string[] = data.sellers ?? [];
 
@@ -198,6 +214,11 @@ export default function SettingsPage() {
       show_cnpj:      form.show_cnpj,
       service_fee_pct:  Math.max(0, Math.min(30, Number(form.service_fee_pct) || 0)),
       blind_cash_close: form.blind_cash_close,
+      cep:            form.cep || null,
+      city:           form.city || null,
+      state:          form.state || null,
+      lat:            form.lat,
+      lng:            form.lng,
       sellers,
       updated_at:     new Date().toISOString(),
     };
@@ -273,6 +294,14 @@ export default function SettingsPage() {
         <Field label="Endereço completo">
           <input value={form.address} onChange={e=>set("address",e.target.value)} placeholder="Rua Exemplo, 123 – Bairro – Cidade/UF" className={inputCls} />
         </Field>
+      </SectionCard>
+
+      {/* Localização da loja (Mapa de entregas) */}
+      <SectionCard icon={<Store className="w-4 h-4" />} title="Localização da Loja (Mapa de Entregas)" color="#315DFB">
+        <StoreLocationCard isLight={isLight} inputCls={inputCls}
+          value={{ cep: form.cep, city: form.city, state: form.state, lat: form.lat, lng: form.lng }}
+          onChange={v => setForm(prev => ({ ...prev, ...v }))}
+          onAddressSuggestion={addr => setForm(prev => (prev.address.trim() ? prev : { ...prev, address: addr }))} />
       </SectionCard>
 
       {/* Vendedores / Garçons */}
