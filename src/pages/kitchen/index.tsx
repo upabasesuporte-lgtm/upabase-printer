@@ -208,6 +208,18 @@ function OrdersBoard({ isLight, card }: { isLight: boolean; card: React.CSSPrope
     return cols;
   }, [items]);
 
+  // Como o cliente paga (para o motoboy saber se cobra e se leva troco)
+  const PAY_LABEL: Record<string, string> = { cash: "Dinheiro", pix: "PIX", credit: "Crédito", debit: "Débito", fiado: "Fiado", house_credit: "Saldo", ifood_receivable: "iFood" };
+  function payText(s: KSale | undefined): string | null {
+    if (!s) return null;
+    if (s.pay_method) {
+      const base = PAY_LABEL[s.pay_method] ?? s.pay_method;
+      return s.change_for && Number(s.change_for) > 0 ? `${base} · troco p/ ${fmt(Number(s.change_for))}` : base;
+    }
+    const ps = (s.payments ?? []).filter(p => Number(p.amount) > 0);
+    return ps.length ? ps.map(p => PAY_LABEL[p.method] ?? p.method).join(" + ") : null;
+  }
+
   // Entregas para o mapa: um ponto por pedido (pronto só quando todos os itens ficaram prontos)
   const mapOrders = useMemo<MapOrder[]>(() => {
     const bySale = new Map<string, KItem[]>();
@@ -223,6 +235,7 @@ function OrdersBoard({ isLight, card }: { isLight: boolean; card: React.CSSPrope
         ready: its.every(i => i.kds_state === "ready"), ids: its.map(i => i.id),
         lat: s?.lat ?? null, lng: s?.lng ?? null, custLat: s?.cust_lat ?? null, custLng: s?.cust_lng ?? null,
         customerId: s?.customer_id ?? null, total: s?.total ?? null,
+        num: saleId.slice(-6).toUpperCase(), payText: payText(s),
       });
     }
     return out.sort((a, b) => b.mins - a.mins);

@@ -90,6 +90,8 @@ export interface KSale {
   // Mapa de entregas: ponto da venda (GPS do cliente ou marcado na loja) e o salvo no cadastro do cliente
   lat?: number | null; lng?: number | null; customer_id?: string | null;
   cust_lat?: number | null; cust_lng?: number | null; total?: number | null;
+  payments?: { method: string; amount: number }[] | null;      // formas de pagamento da venda
+  pay_method?: string | null; change_for?: number | null;       // pedido do Cardápio (troco)
 }
 
 export function originOf(s: KSale | undefined): { label: string; kind: "table" | "delivery" | "counter" } {
@@ -104,9 +106,13 @@ export function originOf(s: KSale | undefined): { label: string; kind: "table" |
 
 export async function loadSales(ids: string[]): Promise<Record<string, KSale>> {
   if (ids.length === 0) return {};
-  const { data } = await supabase.from("sales")
-    .select("id, origin, notes, customer_name, delivery_address, table_id, total_amount, delivery_lat, delivery_lng, customer_id, customers(name, lat, lng)")
+  const full = await supabase.from("sales")
+    .select("id, origin, notes, customer_name, delivery_address, table_id, total_amount, delivery_lat, delivery_lng, customer_id, payments, customers(name, lat, lng), digital_orders(payment_method, change_for)")
     .in("id", ids);
+  // Segurança: se a consulta completa falhar, os tickets continuam saindo com o básico
+  const data: any[] | null = !full.error ? full.data : (await supabase.from("sales")
+    .select("id, origin, notes, customer_name, delivery_address, table_id, customers(name)")
+    .in("id", ids)).data;
   const rows = (data ?? []) as any[];
   const tableIds = [...new Set(rows.map(r => r.table_id).filter(Boolean))];
   const tables: Record<string, string> = {};
@@ -121,6 +127,8 @@ export async function loadSales(ids: string[]): Promise<Record<string, KSale>> {
     customer: r.customers?.name ?? null, table: r.table_id ? tables[r.table_id] ?? null : null,
     lat: r.delivery_lat ?? null, lng: r.delivery_lng ?? null, customer_id: r.customer_id ?? null,
     cust_lat: r.customers?.lat ?? null, cust_lng: r.customers?.lng ?? null, total: r.total_amount ?? null,
+    payments: Array.isArray(r.payments) ? r.payments : null,
+    pay_method: r.digital_orders?.[0]?.payment_method ?? null, change_for: r.digital_orders?.[0]?.change_for ?? null,
   };
   return out;
 }
