@@ -131,9 +131,15 @@ function setAutoStart(on) {
 // ── Impressão silenciosa ──────────────────────────────────────────────────────
 // Uma de cada vez, numa janela invisível que nunca aparece (reaproveitada: imprime mais rápido).
 let printWin = null;
+const PAPER_MM = 80;
+const PAPER_PX = Math.round(PAPER_MM / 25.4 * 96);
+const PX_TO_MICRONS = 25400 / 96;
 function getPrintWindow() {
   if (!printWin || printWin.isDestroyed()) {
-    printWin = new BrowserWindow({ show: false, webPreferences: { javascript: false, sandbox: true } });
+    // Largura do rolo de 80 mm (302 px a 96 dpi): o cupom é montado já no tamanho do papel
+    printWin = new BrowserWindow({ show: false, width: PAPER_PX, height: 200, useContentSize: true, webPreferences: { sandbox: true } });
+    printWin.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+    printWin.webContents.on("will-navigate", e => e.preventDefault());
   }
   return printWin;
 }
@@ -149,11 +155,18 @@ function printHtml(html, deviceName) {
     const done = r => { if (finished) return; finished = true; clearTimeout(timer); cleanup(); fs.unlink(file, () => {}); resolve(r); };
     // Travou: descarta a janela e a próxima impressão cria outra
     const timer = setTimeout(() => { try { pw.destroy(); } catch { /* já fechada */ } done({ ok: false, error: "Tempo esgotado" }); }, 30_000);
-    const onLoad = () => {
+    const onLoad = async () => {
       cleanup();
+      // Página do tamanho exato do conteúdo: 80 mm de largura e a altura do cupom
+      // (sem isso o Windows usa uma página larga, o cupom centralizado cai fora do
+      // rolo e sai papel em branco)
+      let heightPx = 1200;
+      try { heightPx = await wc.executeJavaScript("Math.ceil(document.body.getBoundingClientRect().bottom + 12)"); } catch { /* usa o padrão */ }
+      const height = Math.max(40000, Math.ceil(Number(heightPx) * PX_TO_MICRONS) + 6000);
       wc.print({
         silent: true, printBackground: true, deviceName: deviceName || "",
         margins: { marginType: "none" },
+        pageSize: { width: PAPER_MM * 1000, height },
       }, (ok, reason) => done(ok ? { ok: true } : { ok: false, error: reason || "Falha na impressora" }));
     };
     const onFail = (_e, code) => { if (code !== -3) done({ ok: false, error: "Documento inválido" }); };

@@ -73,7 +73,8 @@ export function printHtml(bodyHtml: string, css: string) {
 
 // Vários tickets saem em sequência, cada um numa "página" (corte) própria.
 const TICKET_CSS = `
-    .t { padding: 8px 10px 14px; page-break-after: always; }
+    .t { padding: 8px 10px 14px; }
+    .t + .t { page-break-before: always; } /* corte entre tickets, sem página em branco no fim */
     .sec { font-size: 12px; font-weight: 700; letter-spacing: 2px; text-align: center; }
     .org { font-size: 22px; font-weight: 900; text-align: center; margin-top: 2px; }
     .meta { font-size: 11px; text-align: center; margin-top: 2px; }

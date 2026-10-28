@@ -247,7 +247,8 @@ function AgentPanel({ api, email, uid }: { api: AgentApi; email: string; uid: st
     async function printTickets(tickets: Ticket[], c: AgentConfig, what: string) {
       for (const s of SECTORS) {
         const group = tickets.filter(t => t.sector === s);
-        if (group.length && c.sectors[s] !== null) await print(ticketsDocument(group), c.sectors[s]!, `${what} ${SECTOR_LABEL[s]}`);
+        // Um ticket por impressão: cada um sai com o tamanho certo e corte próprio
+        if (c.sectors[s] !== null) for (const t of group) await print(ticketsDocument([t]), c.sectors[s]!, `${what} ${SECTOR_LABEL[s]}`);
       }
     }
     tick();
