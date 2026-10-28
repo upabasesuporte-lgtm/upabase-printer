@@ -87,17 +87,17 @@ const TICKET_CSS = `
     .t { padding: 8px 8px 14px; line-height: 1.3; -webkit-font-smoothing: none; }
     .t + .t { page-break-before: always; } /* corte entre tickets, sem página em branco no fim */
     .inv { background: #000; color: #fff; font-size: 16px; font-weight: 900; text-align: center; padding: 4px; margin-bottom: 6px; border-radius: 3px; }
-    .hd { display: flex; justify-content: space-between; font-size: 13px; font-weight: 900; letter-spacing: 1px; }
+    .hd { display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; letter-spacing: 1px; }
     .org { font-size: 22px; font-weight: 900; text-align: center; margin-top: 2px; text-transform: uppercase; }
-    .meta { font-size: 12px; font-weight: 700; text-align: center; margin-top: 2px; }
+    .meta { font-size: 12px; font-weight: 400; text-align: center; margin-top: 2px; }
     .sep { border-top: 2px dashed #000; margin: 7px 0; }
     .it { display: flex; align-items: flex-start; gap: 7px; margin-top: 8px; }
     .q { background: #000; color: #fff; font-size: 17px; font-weight: 900; padding: 1px 6px; border-radius: 3px; white-space: nowrap; line-height: 1.25; }
-    .n { flex: 1; font-size: 17px; font-weight: 900; text-transform: uppercase; }
+    .n { flex: 1; font-size: 17px; font-weight: 400; text-transform: uppercase; }
     .d { font-size: 15px; font-weight: 700; padding-left: 40px; margin-top: 1px; }
     .sec { display: flex; align-items: center; gap: 6px; margin: 12px 0 2px; font-size: 14px; font-weight: 900; letter-spacing: 1px; }
     .sec:before, .sec:after { content: ""; flex: 1; border-top: 2px dashed #000; }
-    .ex { font-size: 14px; font-weight: 700; }
+    .ex { font-size: 14px; font-weight: 400; }
 `;
 
 export function printTickets(tickets: Ticket[]) {

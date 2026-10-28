@@ -797,6 +797,7 @@ export default function PdvPage() {
     const html = receiptHtml({
       title: `Pedido #${orderNum}`,
       store,
+      heading: sale.delivery_address ? "DELIVERY" : "BALCÃO",
       orderNum,
       date: receiptDate(sale.created_at),
       info: [

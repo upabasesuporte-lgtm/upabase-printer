@@ -2,6 +2,8 @@
 // Feito para impressora térmica: só preto, letras firmes (nada abaixo de 12px),
 // sem caixas; a quantidade sai em destaque (fundo preto) e as bebidas ficam
 // separadas no fim — quem monta e quem entrega bate o olho e não esquece nada.
+// Negrito forte só no que precisa saltar aos olhos (nº do pedido, 1x/2x, Obs,
+// BEBIDAS, TOTAL); o resto em letra normal, que gasta menos a cabeça térmica.
 
 export interface ReceiptStore {
   name: string; cnpj?: string | null; show_cnpj?: boolean | null;
@@ -54,28 +56,28 @@ export function fmtCnpj(c?: string | null) {
 
 export const RECEIPT_CSS = `
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:600;color:#000;background:#fff;line-height:1.3;
+  body{font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:400;color:#000;background:#fff;line-height:1.3;
        max-width:302px;margin:0 auto;padding:10px 8px;-webkit-font-smoothing:none}
   .c{text-align:center}
-  .store{font-size:19px;font-weight:900;text-transform:uppercase;letter-spacing:.3px}
-  .sub{font-size:12px;font-weight:600}
+  .store{font-size:19px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+  .sub{font-size:12px;font-weight:400}
   .sep{border-top:2px dashed #000;margin:8px 0}
   .head{display:flex;justify-content:space-between;align-items:baseline;font-size:14px;font-weight:900}
-  .big{font-size:17px;font-weight:900;text-align:center;margin:2px 0}
-  .info{font-size:13px;font-weight:600;margin-top:2px}
-  .info b{font-weight:900}
+  .big{font-size:17px;font-weight:700;text-align:center;margin:2px 0}
+  .info{font-size:13px;font-weight:400;margin-top:2px}
+  .info b{font-weight:700}
   .it{display:flex;align-items:flex-start;gap:6px;margin-top:7px}
   .q{background:#000;color:#fff;font-weight:900;font-size:14px;padding:1px 5px;border-radius:3px;white-space:nowrap;line-height:1.25}
-  .n{flex:1;font-size:14px;font-weight:800;text-transform:uppercase}
-  .v{font-size:14px;font-weight:800;white-space:nowrap}
-  .d{font-size:13px;font-weight:600;padding-left:34px;margin-top:1px}
+  .n{flex:1;font-size:15px;font-weight:400;text-transform:uppercase}
+  .v{font-size:14px;font-weight:400;white-space:nowrap}
+  .d{font-size:13px;font-weight:400;padding-left:34px;margin-top:1px}
   .d.ob{font-weight:900}
   .sec{display:flex;align-items:center;gap:6px;margin:12px 0 2px;font-size:13px;font-weight:900;letter-spacing:1px}
   .sec:before,.sec:after{content:"";flex:1;border-top:2px dashed #000}
-  .row{display:flex;justify-content:space-between;font-size:13px;font-weight:600;margin-top:2px}
+  .row{display:flex;justify-content:space-between;font-size:13px;font-weight:400;margin-top:2px}
   .row.t{font-size:18px;font-weight:900;margin-top:5px}
-  .note{font-size:13px;font-weight:700;margin-top:3px}
-  .foot{font-size:13px;font-weight:700;text-align:center}
+  .note{font-size:13px;font-weight:400;margin-top:3px}
+  .foot{font-size:13px;font-weight:400;text-align:center}
   .pbtn{position:fixed;top:12px;right:12px;background:#315DFB;color:#fff;border:none;padding:9px 20px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer}
   @media print{@page{margin:0;size:80mm auto} body{max-width:none;padding:2mm 2mm 4mm} .pbtn{display:none!important}}
 `;
