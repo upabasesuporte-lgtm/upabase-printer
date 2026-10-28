@@ -42,6 +42,7 @@ export const TAB_OPTIONS: { path: string; label: string }[] = [
   { path: "/products",         label: "Produtos" },
   { path: "/stock",            label: "Estoque" },
   { path: "/purchases",        label: "Compras" },
+  { path: "/costs",            label: "Custo e Lucro" },
   { path: "/suppliers",        label: "Fornecedores" },
   { path: "/accounts-payable", label: "Contas a Pagar" },
   { path: "/reports",          label: "Relatórios" },

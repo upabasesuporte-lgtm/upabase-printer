@@ -27,6 +27,7 @@ import PdvPage from "../pages/pdv";
 import ProductsPage from "../pages/products";
 import StockPage from "../pages/stock";
 import PurchasesPage from "../pages/purchases";
+import CostsPage from "../pages/costs";
 import SuppliersPage from "../pages/suppliers";
 import CustomersPage from "../pages/customers";
 import CashPage from "../pages/cash";
@@ -68,6 +69,10 @@ export const router = createBrowserRouter([
       {
         path: "purchases",
         element: <PurchasesPage />,
+      },
+      {
+        path: "costs",
+        element: <CostsPage />,
       },
       {
         path: "suppliers",
