@@ -52,7 +52,7 @@ function ticketHtml(t: Ticket): string {
 export function thermalHtml(bodyHtml: string, css: string) {
   return `<!doctype html><html><head><meta charset="utf-8"><title>Pedido</title><style>
     @page { margin: 0; size: 80mm auto; }
-    body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #000; width: 80mm; }
+    body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #000; max-width: 80mm; }
     ${css}
   </style></head><body>${bodyHtml}</body></html>`;
 }

@@ -17,20 +17,20 @@ interface AgentApi {
   isAgent: true;
   info: () => Promise<{ version: string; url: string }>;
   getPrinters: () => Promise<{ name: string; displayName?: string; isDefault?: boolean }[]>;
-  print: (html: string, printer: string) => Promise<{ ok: boolean; error?: string }>;
+  print: (html: string, printer: string, opts?: { paperMm: number }) => Promise<{ ok: boolean; error?: string }>;
   getAutoStart: () => Promise<boolean>;
   setAutoStart: (v: boolean) => Promise<boolean>;
 }
 const agentApi = (): AgentApi | null => (window as any).upabaseAgent?.isAgent ? (window as any).upabaseAgent as AgentApi : null;
 
 // "" = impressora padrão do Windows; null = não imprime
-interface AgentConfig { receipts: string | null; sectors: Record<Sector, string | null> }
+interface AgentConfig { receipts: string | null; sectors: Record<Sector, string | null>; paperMm: number }
 const CONFIG_KEY = "agent_config";
-const defaultConfig = (): AgentConfig => ({ receipts: "", sectors: { kitchen: "", bar: "", counter: "" } });
+const defaultConfig = (): AgentConfig => ({ receipts: "", sectors: { kitchen: "", bar: "", counter: "" }, paperMm: 80 });
 function loadConfig(): AgentConfig {
   try {
     const v = JSON.parse(localStorage.getItem(CONFIG_KEY) ?? "null");
-    if (v && v.sectors) return { receipts: v.receipts ?? null, sectors: { ...defaultConfig().sectors, ...v.sectors } };
+    if (v && v.sectors) return { receipts: v.receipts ?? null, sectors: { ...defaultConfig().sectors, ...v.sectors }, paperMm: v.paperMm === 58 ? 58 : 80 };
   } catch { /* sem storage */ }
   return defaultConfig();
 }
@@ -197,7 +197,7 @@ function AgentPanel({ api, email, uid }: { api: AgentApi; email: string; uid: st
   }
 
   async function print(html: string, printer: string, what: string) {
-    const r = await api.print(html, printer).catch((e: any) => ({ ok: false, error: String(e?.message ?? e) }));
+    const r = await api.print(html, printer, { paperMm: configRef.current.paperMm }).catch((e: any) => ({ ok: false, error: String(e?.message ?? e) }));
     addLog(r.ok ? `${what} → ${printer || "impressora padrão"}` : `Falhou: ${what} (${r.error ?? "erro"})`, r.ok);
   }
 
@@ -314,6 +314,14 @@ function AgentPanel({ api, email, uid }: { api: AgentApi; email: string; uid: st
               {config.sectors[s] !== null && <button onClick={() => testPrint(config.sectors[s]!)} className="px-3 py-2 rounded-xl text-xs font-semibold border border-gray-200 hover:bg-gray-50">Testar</button>}
             </div>
           ))}
+          <div className="flex items-center gap-2">
+            <span className="w-40 shrink-0 text-sm text-gray-700">Largura do papel</span>
+            <select value={config.paperMm} onChange={e => updateConfig({ ...config, paperMm: Number(e.target.value) })}
+              className="flex-1 min-w-0 px-3 py-2 border border-gray-200 rounded-xl text-sm bg-white">
+              <option value={80}>80 mm (mais comum)</option>
+              <option value={58}>58 mm (bobina pequena)</option>
+            </select>
+          </div>
           <p className="text-xs text-gray-500">Só uma impressora? Deixe tudo em "Impressora padrão do Windows". Pode fechar esta janela: o programa continua imprimindo perto do relógio e liga sozinho junto com o computador.</p>
         </div>
 

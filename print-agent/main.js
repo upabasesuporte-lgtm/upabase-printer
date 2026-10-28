@@ -131,24 +131,27 @@ function setAutoStart(on) {
 // ── Impressão silenciosa ──────────────────────────────────────────────────────
 // Uma de cada vez, numa janela invisível que nunca aparece (reaproveitada: imprime mais rápido).
 let printWin = null;
-const PAPER_MM = 80;
-const PAPER_PX = Math.round(PAPER_MM / 25.4 * 96);
+// Largura do papel vem do painel (80 ou 58 mm); padrão 80 mm
+const DEFAULT_PAPER_MM = 80;
+const mmToPx = mm => Math.round(mm / 25.4 * 96);
 const PX_TO_MICRONS = 25400 / 96;
 function getPrintWindow() {
   if (!printWin || printWin.isDestroyed()) {
-    // Largura do rolo de 80 mm (302 px a 96 dpi): o cupom é montado já no tamanho do papel
-    printWin = new BrowserWindow({ show: false, width: PAPER_PX, height: 200, useContentSize: true, webPreferences: { sandbox: true } });
+    // Janela na largura do rolo: o cupom é montado já no tamanho do papel
+    printWin = new BrowserWindow({ show: false, width: mmToPx(DEFAULT_PAPER_MM), height: 200, useContentSize: true, webPreferences: { sandbox: true } });
     printWin.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
     printWin.webContents.on("will-navigate", e => e.preventDefault());
   }
   return printWin;
 }
 let printChain = Promise.resolve();
-function printHtml(html, deviceName) {
+function printHtml(html, deviceName, paperMm) {
+  const widthMm = Number(paperMm) >= 40 && Number(paperMm) <= 120 ? Math.round(Number(paperMm)) : DEFAULT_PAPER_MM;
   const job = printChain.then(() => new Promise(resolve => {
     const file = path.join(os.tmpdir(), `upabase-print-${Date.now()}-${Math.random().toString(36).slice(2)}.html`);
     try { fs.writeFileSync(file, html, "utf8"); } catch (e) { resolve({ ok: false, error: "Não foi possível preparar a impressão" }); return; }
     const pw = getPrintWindow();
+    pw.setContentSize(mmToPx(widthMm), 200);
     const wc = pw.webContents;
     let finished = false;
     const cleanup = () => { wc.removeListener("did-finish-load", onLoad); wc.removeListener("did-fail-load", onFail); };
@@ -166,7 +169,7 @@ function printHtml(html, deviceName) {
       wc.print({
         silent: true, printBackground: true, deviceName: deviceName || "",
         margins: { marginType: "none" },
-        pageSize: { width: PAPER_MM * 1000, height },
+        pageSize: { width: widthMm * 1000, height },
       }, (ok, reason) => done(ok ? { ok: true } : { ok: false, error: reason || "Falha na impressora" }));
     };
     const onFail = (_e, code) => { if (code !== -3) done({ ok: false, error: "Documento inválido" }); };
@@ -185,10 +188,10 @@ const fromPanel = e => {
 
 ipcMain.handle("agent:info", e => fromPanel(e) ? { version: app.getVersion(), url: readConfig().url } : null);
 ipcMain.handle("agent:printers", async e => fromPanel(e) ? (await win.webContents.getPrintersAsync()).map(p => ({ name: p.name, displayName: p.displayName, isDefault: p.isDefault })) : []);
-ipcMain.handle("agent:print", (e, html, printer) => {
+ipcMain.handle("agent:print", (e, html, printer, opts) => {
   if (!fromPanel(e)) return { ok: false, error: "Não autorizado" };
   if (typeof html !== "string" || html.length > 500_000) return { ok: false, error: "Documento inválido" };
-  return printHtml(html, typeof printer === "string" ? printer : "");
+  return printHtml(html, typeof printer === "string" ? printer : "", opts && opts.paperMm);
 });
 // Código recebido pelo link antes do painel carregar
 ipcMain.handle("agent:takePairCode", e => { if (!fromPanel(e)) return null; const c = pendingCode; pendingCode = null; return c; });
