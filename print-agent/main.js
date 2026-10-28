@@ -129,22 +129,36 @@ function setAutoStart(on) {
 }
 
 // ── Impressão silenciosa ──────────────────────────────────────────────────────
-// Uma de cada vez, numa janela invisível que nunca aparece.
+// Uma de cada vez, numa janela invisível que nunca aparece (reaproveitada: imprime mais rápido).
+let printWin = null;
+function getPrintWindow() {
+  if (!printWin || printWin.isDestroyed()) {
+    printWin = new BrowserWindow({ show: false, webPreferences: { javascript: false, sandbox: true } });
+  }
+  return printWin;
+}
 let printChain = Promise.resolve();
 function printHtml(html, deviceName) {
   const job = printChain.then(() => new Promise(resolve => {
     const file = path.join(os.tmpdir(), `upabase-print-${Date.now()}-${Math.random().toString(36).slice(2)}.html`);
     try { fs.writeFileSync(file, html, "utf8"); } catch (e) { resolve({ ok: false, error: "Não foi possível preparar a impressão" }); return; }
-    const pw = new BrowserWindow({ show: false, webPreferences: { javascript: false, sandbox: true } });
-    const done = r => { try { pw.destroy(); } catch { /* já fechada */ } fs.unlink(file, () => {}); resolve(r); };
-    const timer = setTimeout(() => done({ ok: false, error: "Tempo esgotado" }), 30_000);
-    pw.webContents.once("did-finish-load", () => {
-      pw.webContents.print({
+    const pw = getPrintWindow();
+    const wc = pw.webContents;
+    let finished = false;
+    const cleanup = () => { wc.removeListener("did-finish-load", onLoad); wc.removeListener("did-fail-load", onFail); };
+    const done = r => { if (finished) return; finished = true; clearTimeout(timer); cleanup(); fs.unlink(file, () => {}); resolve(r); };
+    // Travou: descarta a janela e a próxima impressão cria outra
+    const timer = setTimeout(() => { try { pw.destroy(); } catch { /* já fechada */ } done({ ok: false, error: "Tempo esgotado" }); }, 30_000);
+    const onLoad = () => {
+      cleanup();
+      wc.print({
         silent: true, printBackground: true, deviceName: deviceName || "",
         margins: { marginType: "none" },
-      }, (ok, reason) => { clearTimeout(timer); done(ok ? { ok: true } : { ok: false, error: reason || "Falha na impressora" }); });
-    });
-    pw.webContents.once("did-fail-load", () => { clearTimeout(timer); done({ ok: false, error: "Documento inválido" }); });
+      }, (ok, reason) => done(ok ? { ok: true } : { ok: false, error: reason || "Falha na impressora" }));
+    };
+    const onFail = (_e, code) => { if (code !== -3) done({ ok: false, error: "Documento inválido" }); };
+    wc.on("did-finish-load", onLoad);
+    wc.on("did-fail-load", onFail);
     pw.loadFile(file);
   }));
   printChain = job.catch(() => {});

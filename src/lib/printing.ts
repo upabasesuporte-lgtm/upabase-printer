@@ -34,6 +34,16 @@ export async function receiptStationOnline(agentOnly = false): Promise<boolean> 
   return (count ?? 0) > 0;
 }
 
+// Mesma consulta guardada por 20 s: o cupom não espera a ida ao banco a cada venda
+const onlineCache: Record<string, { at: number; v: boolean }> = {};
+async function stationOnlineCached(agentOnly: boolean): Promise<boolean> {
+  const k = String(agentOnly), c = onlineCache[k];
+  if (c && Date.now() - c.at < 20_000) return c.v;
+  const v = await receiptStationOnline(agentOnly).catch(() => false);
+  onlineCache[k] = { at: Date.now(), v };
+  return v;
+}
+
 // Programa de impressão conectado (qualquer setor ou cupons), para a tela de Configurações
 export async function printAgentOnline(): Promise<{ online: boolean; version: string | null }> {
   const since = new Date(Date.now() - 30_000).toISOString();
@@ -82,7 +92,7 @@ export async function printDocument(html: string, opts: { kind: "receipt" | "pre
   if (target === "station") useStation = true;
   else if (target === "auto" && !isStation) {
     // Celular: qualquer estação serve. Computador: só o programa (o navegador do caixa imprime aqui mesmo)
-    useStation = await receiptStationOnline(!isMobileDevice()).catch(() => false);
+    useStation = await stationOnlineCached(!isMobileDevice());
   }
 
   if (useStation) {
