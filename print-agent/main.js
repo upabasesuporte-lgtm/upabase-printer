@@ -103,10 +103,6 @@ function createTray() {
     { label: "Abrir painel", click: showWindow },
     { type: "separator" },
     {
-      label: "Ligar junto com o computador", type: "checkbox", checked: isAutoStart(),
-      click: item => { setAutoStart(item.checked); rebuild(); },
-    },
-    {
       label: "Endereço do sistema...", click: async () => {
         const cur = readConfig().url;
         const r = await dialog.showMessageBox({
@@ -175,7 +171,9 @@ ipcMain.handle("agent:setAutoStart", (e, on) => fromPanel(e) ? setAutoStart(on) 
 // ── Início ────────────────────────────────────────────────────────────────────
 app.whenReady().then(() => {
   const firstRun = !fs.existsSync(configFile());
-  if (firstRun) { writeConfig({ url: DEFAULT_URL }); setAutoStart(true); }
+  if (firstRun) writeConfig({ url: DEFAULT_URL });
+  // Programa de impressão: sempre liga junto com o computador
+  if (app.isPackaged) setAutoStart(true);
   // Abre pelo link das Configurações (registra o endereço upabase-impressao://)
   if (app.isPackaged) app.setAsDefaultProtocolClient(PROTOCOL);
   pendingCode = codeFromArgs(process.argv);

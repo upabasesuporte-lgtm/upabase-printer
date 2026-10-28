@@ -177,7 +177,6 @@ function AgentPanel({ api, email, uid }: { api: AgentApi; email: string; uid: st
   const configRef = useRef(config);
   const [printers, setPrinters] = useState<{ name: string; label: string; isDefault: boolean }[]>([]);
   const [version, setVersion] = useState("");
-  const [autoStart, setAutoStartState] = useState(true);
   const [log, setLog] = useState<LogRow[]>([]);
   const [online, setOnline] = useState<boolean | null>(null);
   const busy = useRef(false);
@@ -189,7 +188,6 @@ function AgentPanel({ api, email, uid }: { api: AgentApi; email: string; uid: st
   useEffect(() => {
     api.getPrinters().then(list => setPrinters(list.map(p => ({ name: p.name, label: p.displayName || p.name, isDefault: !!p.isDefault })))).catch(() => {});
     api.info().then(i => setVersion(i.version)).catch(() => {});
-    api.getAutoStart().then(setAutoStartState).catch(() => {});
   }, []);
 
   function updateConfig(c: AgentConfig) {
@@ -309,18 +307,7 @@ function AgentPanel({ api, email, uid }: { api: AgentApi; email: string; uid: st
               {config.sectors[s] !== null && <button onClick={() => testPrint(config.sectors[s]!)} className="px-3 py-2 rounded-xl text-xs font-semibold border border-gray-200 hover:bg-gray-50">Testar</button>}
             </div>
           ))}
-          <p className="text-xs text-gray-500">Só uma impressora? Deixe tudo em "Impressora padrão do Windows". Pode fechar esta janela: o programa continua imprimindo perto do relógio.</p>
-        </div>
-
-        <div className="bg-white border border-gray-200 rounded-2xl p-4 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold text-gray-900">Ligar junto com o computador</p>
-            <p className="text-xs text-gray-500">Recomendado: assim ninguém precisa lembrar de abrir.</p>
-          </div>
-          <button onClick={async () => setAutoStartState(await api.setAutoStart(!autoStart))}
-            className="w-11 h-6 rounded-full relative shrink-0 transition-colors" style={{ background: autoStart ? "#2563eb" : "#d1d5db" }}>
-            <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${autoStart ? "left-6" : "left-1"}`} />
-          </button>
+          <p className="text-xs text-gray-500">Só uma impressora? Deixe tudo em "Impressora padrão do Windows". Pode fechar esta janela: o programa continua imprimindo perto do relógio e liga sozinho junto com o computador.</p>
         </div>
 
         <div className="bg-white border border-gray-200 rounded-2xl p-4">
