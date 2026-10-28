@@ -1,7 +1,8 @@
 // Upabase Impressão — programa de impressão automática para Windows.
 // Abre o painel /agente-impressao do sistema numa janela (que pode ficar
 // escondida perto do relógio) e imprime direto na impressora, sem janela de
-// imprimir. Toda a lógica de fila fica no sistema; aqui só se imprime.
+// imprimir (como imagem, pelo Windows). Toda a lógica de fila fica no sistema;
+// aqui só se imprime.
 const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, shell, dialog } = require("electron");
 const path = require("path");
 const fs = require("fs");
@@ -129,21 +130,72 @@ function setAutoStart(on) {
 }
 
 // ── Impressão silenciosa ──────────────────────────────────────────────────────
-// Uma de cada vez, numa janela invisível que nunca aparece (reaproveitada: imprime mais rápido).
-let printWin = null;
-// Largura do papel vem do painel (80 ou 58 mm); padrão 80 mm
+// O cupom vira uma imagem nítida (2x) e é impresso pelo caminho tradicional do
+// Windows (GDI, o mesmo do Bloco de Notas). A impressão direta do Chromium saía
+// em branco em térmicas como a Bematech MP-4000 TH; por imagem funciona em todas.
+// Largura do papel vem do painel (80 ou 58 mm); padrão 80 mm.
 const DEFAULT_PAPER_MM = 80;
+const ZOOM = 2;
 const mmToPx = mm => Math.round(mm / 25.4 * 96);
-const PX_TO_MICRONS = 25400 / 96;
+
+const PRINT_PS1 = `param([string]$Image, [string]$Printer, [int]$WidthMm = 80)
+Add-Type -AssemblyName System.Drawing
+$img = [System.Drawing.Image]::FromFile($Image)
+try {
+  $pd = New-Object System.Drawing.Printing.PrintDocument
+  if ($Printer) { $pd.PrinterSettings.PrinterName = $Printer }
+  if (-not $pd.PrinterSettings.IsValid) { Write-Output "ERRO: impressora nao encontrada"; exit 2 }
+  $pd.DocumentName = "Upabase"
+  $pd.PrintController = New-Object System.Drawing.Printing.StandardPrintController
+  $pd.DefaultPageSettings.Margins = New-Object System.Drawing.Printing.Margins(0, 0, 0, 0)
+  $w = [int]($WidthMm / 25.4 * 100)
+  $h = [int]($w * $img.Height / $img.Width) + 20
+  $pd.DefaultPageSettings.PaperSize = New-Object System.Drawing.Printing.PaperSize("Upabase", $w, $h)
+  $pd.add_PrintPage({
+    param($sender, $e)
+    $dw = [single]$e.PageSettings.PrintableArea.Width
+    $dh = [single]($dw * $img.Height / $img.Width)
+    $e.Graphics.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+    $e.Graphics.DrawImage($img, [single]0, [single]0, $dw, $dh)
+    $e.HasMorePages = $false
+  })
+  $pd.Print()
+  Write-Output "ok"
+} catch { Write-Output ("ERRO: " + $_.Exception.Message); exit 1 }
+finally { $img.Dispose() }
+`;
+const ps1File = () => path.join(app.getPath("userData"), "imprimir-imagem.ps1");
+function ensurePs1() {
+  try { if (!fs.existsSync(ps1File()) || fs.readFileSync(ps1File(), "utf8") !== PRINT_PS1) fs.writeFileSync(ps1File(), PRINT_PS1, "utf8"); } catch { /* tenta na hora de imprimir */ }
+}
+
+// Manda a imagem para a impressora pelo Windows
+function printImage(pngFile, deviceName, widthMm) {
+  return new Promise(resolve => {
+    ensurePs1();
+    const { execFile } = require("child_process");
+    execFile("powershell.exe",
+      ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", ps1File(), "-Image", pngFile, "-Printer", deviceName || "", "-WidthMm", String(widthMm)],
+      { windowsHide: true, timeout: 60_000 },
+      (err, stdout) => {
+        const out = String(stdout || "").trim();
+        if (!err && out.endsWith("ok")) resolve({ ok: true });
+        else resolve({ ok: false, error: (out.replace(/^ERRO:\s*/, "") || (err && err.message) || "Falha na impressora").slice(0, 200) });
+      });
+  });
+}
+
+// Janela invisível reaproveitada para montar o cupom no tamanho do papel
+let printWin = null;
 function getPrintWindow() {
   if (!printWin || printWin.isDestroyed()) {
-    // Janela na largura do rolo: o cupom é montado já no tamanho do papel
-    printWin = new BrowserWindow({ show: false, width: mmToPx(DEFAULT_PAPER_MM), height: 200, useContentSize: true, webPreferences: { sandbox: true } });
+    printWin = new BrowserWindow({ show: false, width: mmToPx(DEFAULT_PAPER_MM) * ZOOM, height: 200, useContentSize: true, webPreferences: { sandbox: true, zoomFactor: ZOOM, backgroundThrottling: false } });
     printWin.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
     printWin.webContents.on("will-navigate", e => e.preventDefault());
   }
   return printWin;
 }
+
 let printChain = Promise.resolve();
 let printing = 0;        // impressões em andamento
 let lastPrintAt = 0;     // última impressão (para atualizar só com a impressora parada)
@@ -151,36 +203,39 @@ function printHtml(html, deviceName, paperMm) {
   printing++;
   lastPrintAt = Date.now();
   const widthMm = Number(paperMm) >= 40 && Number(paperMm) <= 120 ? Math.round(Number(paperMm)) : DEFAULT_PAPER_MM;
-  const job = printChain.then(() => new Promise(resolve => {
-    const file = path.join(os.tmpdir(), `upabase-print-${Date.now()}-${Math.random().toString(36).slice(2)}.html`);
-    try { fs.writeFileSync(file, html, "utf8"); } catch (e) { resolve({ ok: false, error: "Não foi possível preparar a impressão" }); return; }
-    const pw = getPrintWindow();
-    pw.setContentSize(mmToPx(widthMm), 200);
-    const wc = pw.webContents;
-    let finished = false;
-    const cleanup = () => { wc.removeListener("did-finish-load", onLoad); wc.removeListener("did-fail-load", onFail); };
-    const done = r => { if (finished) return; finished = true; clearTimeout(timer); cleanup(); fs.unlink(file, () => {}); resolve(r); };
-    // Travou: descarta a janela e a próxima impressão cria outra
-    const timer = setTimeout(() => { try { pw.destroy(); } catch { /* já fechada */ } done({ ok: false, error: "Tempo esgotado" }); }, 30_000);
-    const onLoad = async () => {
+  const job = printChain.then(async () => {
+    const stamp = Date.now() + "-" + Math.random().toString(36).slice(2);
+    const htmlFile = path.join(os.tmpdir(), "upabase-print-" + stamp + ".html");
+    const pngFile = path.join(os.tmpdir(), "upabase-print-" + stamp + ".png");
+    const cleanup = () => { fs.unlink(htmlFile, () => {}); fs.unlink(pngFile, () => {}); };
+    try {
+      fs.writeFileSync(htmlFile, html, "utf8");
+      const pw = getPrintWindow();
+      const wc = pw.webContents;
+      const widthPx = mmToPx(widthMm);
+      pw.setContentSize(widthPx * ZOOM, 200);
+      await Promise.race([
+        pw.loadFile(htmlFile),
+        new Promise((_, rej) => setTimeout(() => rej(new Error("Tempo esgotado ao montar o cupom")), 20_000)),
+      ]);
+      wc.setZoomFactor(ZOOM);
+      // Como no papel: sem o botão "Imprimir" da tela e sem a margem de visualização
+      await wc.insertCSS("button{display:none!important} body{max-width:none!important}");
+      const h = await wc.executeJavaScript("Math.ceil(document.body.getBoundingClientRect().bottom + 8)");
+      pw.setContentSize(widthPx * ZOOM, Math.max(60, Math.ceil(Number(h) * ZOOM)));
+      await new Promise(r => setTimeout(r, 120));
+      const img = await wc.capturePage();
+      fs.writeFileSync(pngFile, img.toPNG());
+      const r = await printImage(pngFile, deviceName, widthMm);
       cleanup();
-      // Página do tamanho exato do conteúdo: 80 mm de largura e a altura do cupom
-      // (sem isso o Windows usa uma página larga, o cupom centralizado cai fora do
-      // rolo e sai papel em branco)
-      let heightPx = 1200;
-      try { heightPx = await wc.executeJavaScript("Math.ceil(document.body.getBoundingClientRect().bottom + 12)"); } catch { /* usa o padrão */ }
-      const height = Math.max(40000, Math.ceil(Number(heightPx) * PX_TO_MICRONS) + 6000);
-      wc.print({
-        silent: true, printBackground: true, deviceName: deviceName || "",
-        margins: { marginType: "none" },
-        pageSize: { width: widthMm * 1000, height },
-      }, (ok, reason) => done(ok ? { ok: true } : { ok: false, error: reason || "Falha na impressora" }));
-    };
-    const onFail = (_e, code) => { if (code !== -3) done({ ok: false, error: "Documento inválido" }); };
-    wc.on("did-finish-load", onLoad);
-    wc.on("did-fail-load", onFail);
-    pw.loadFile(file);
-  }));
+      return r;
+    } catch (e) {
+      cleanup();
+      try { printWin && printWin.destroy(); } catch { /* já fechada */ }
+      printWin = null;
+      return { ok: false, error: String((e && e.message) || e).slice(0, 200) };
+    }
+  });
   printChain = job.catch(() => {});
   job.finally(() => { printing--; lastPrintAt = Date.now(); }).catch(() => {});
   return job;

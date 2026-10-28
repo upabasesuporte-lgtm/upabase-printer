@@ -1,7 +1,7 @@
 {
   "name": "upabase-impressao",
   "productName": "Upabase Impressão",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "description": "Impressão automática do Upabase: cupons e comandas direto na impressora, sem janela.",
   "author": "Upabase",
   "license": "UNLICENSED",
