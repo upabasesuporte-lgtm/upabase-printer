@@ -293,7 +293,10 @@ function AgentPanel({ api, email, uid }: { api: AgentApi; email: string; uid: st
         </div>
 
         <div className="bg-white border border-gray-200 rounded-2xl p-4 space-y-3">
-          <p className="text-sm font-bold text-gray-900">O que sai em cada impressora</p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-bold text-gray-900">O que sai em cada impressora</p>
+            <span className="text-[11px] text-emerald-600 font-semibold">Salva sozinho ao escolher</span>
+          </div>
           <div className="flex items-center gap-2">
             <span className="w-40 shrink-0 text-sm text-gray-700">Cupons, pré-contas e pedidos</span>
             <PrinterSelect value={config.receipts} onChange={v => updateConfig({ ...config, receipts: v })} />

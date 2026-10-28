@@ -103,7 +103,7 @@ function createTray() {
     { label: "Abrir painel", click: showWindow },
     { type: "separator" },
     {
-      label: "Ligar junto com o computador", type: "checkbox", checked: app.getLoginItemSettings().openAtLogin,
+      label: "Ligar junto com o computador", type: "checkbox", checked: isAutoStart(),
       click: item => { setAutoStart(item.checked); rebuild(); },
     },
     {
@@ -124,9 +124,12 @@ function createTray() {
   tray.on("double-click", showWindow);
 }
 
+// No Windows a leitura precisa dos mesmos args da gravação, senão sempre volta "desligado"
+const AUTOSTART_ARGS = ["--hidden"];
+const isAutoStart = () => app.getLoginItemSettings({ args: AUTOSTART_ARGS }).openAtLogin;
 function setAutoStart(on) {
-  app.setLoginItemSettings({ openAtLogin: !!on, args: ["--hidden"] });
-  return app.getLoginItemSettings().openAtLogin;
+  app.setLoginItemSettings({ openAtLogin: !!on, args: AUTOSTART_ARGS });
+  return isAutoStart();
 }
 
 // ── Impressão silenciosa ──────────────────────────────────────────────────────
@@ -166,7 +169,7 @@ ipcMain.handle("agent:print", (e, html, printer) => {
 });
 // Código recebido pelo link antes do painel carregar
 ipcMain.handle("agent:takePairCode", e => { if (!fromPanel(e)) return null; const c = pendingCode; pendingCode = null; return c; });
-ipcMain.handle("agent:getAutoStart", e => fromPanel(e) ? app.getLoginItemSettings().openAtLogin : false);
+ipcMain.handle("agent:getAutoStart", e => fromPanel(e) ? isAutoStart() : false);
 ipcMain.handle("agent:setAutoStart", (e, on) => fromPanel(e) ? setAutoStart(on) : false);
 
 // ── Início ────────────────────────────────────────────────────────────────────
