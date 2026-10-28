@@ -8,4 +8,7 @@ contextBridge.exposeInMainWorld("upabaseAgent", {
   print: (html, printer) => ipcRenderer.invoke("agent:print", String(html), printer ? String(printer) : ""),
   getAutoStart: () => ipcRenderer.invoke("agent:getAutoStart"),
   setAutoStart: on => ipcRenderer.invoke("agent:setAutoStart", !!on),
+  // Código para ligar à loja (vindo do link "Conectar este computador")
+  takePairCode: () => ipcRenderer.invoke("agent:takePairCode"),
+  onPairCode: cb => { ipcRenderer.removeAllListeners("agent:pair"); ipcRenderer.on("agent:pair", (_e, code) => cb(String(code))); },
 });

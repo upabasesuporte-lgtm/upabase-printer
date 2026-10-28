@@ -10,10 +10,24 @@ const os = require("os");
 const DEFAULT_URL = "https://upabase-printer.vercel.app";
 const PANEL_PATH = "/agente-impressao";
 const ICON = path.join(__dirname, "icon.png");
+const PROTOCOL = "upabase-impressao"; // link "Conectar este computador" das Configurações
 
 let win = null;
 let tray = null;
 let quitting = false;
+let pendingCode = null;
+
+// upabase-impressao://conectar?codigo=XXXXXXXX
+function codeFromArgs(argv) {
+  const link = (argv || []).find(a => typeof a === "string" && a.startsWith(PROTOCOL + "://"));
+  if (!link) return null;
+  try { const c = new URL(link).searchParams.get("codigo"); return c ? c.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8) : null; } catch { return null; }
+}
+function deliverCode(code) {
+  if (!code) return;
+  pendingCode = code;
+  if (win && !win.isDestroyed()) { win.webContents.send("agent:pair", code); showWindow(); }
+}
 
 // ── Configuração (endereço do sistema) ────────────────────────────────────────
 const configFile = () => path.join(app.getPath("userData"), "config.json");
@@ -29,7 +43,7 @@ const appOrigin = () => { try { return new URL(readConfig().url).origin; } catch
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on("second-instance", () => showWindow());
+  app.on("second-instance", (_e, argv) => { showWindow(); deliverCode(codeFromArgs(argv)); });
 }
 
 function showWindow() {
@@ -146,6 +160,8 @@ ipcMain.handle("agent:print", (e, html, printer) => {
   if (typeof html !== "string" || html.length > 500_000) return { ok: false, error: "Documento inválido" };
   return printHtml(html, typeof printer === "string" ? printer : "");
 });
+// Código recebido pelo link antes do painel carregar
+ipcMain.handle("agent:takePairCode", e => { if (!fromPanel(e)) return null; const c = pendingCode; pendingCode = null; return c; });
 ipcMain.handle("agent:getAutoStart", e => fromPanel(e) ? app.getLoginItemSettings().openAtLogin : false);
 ipcMain.handle("agent:setAutoStart", (e, on) => fromPanel(e) ? setAutoStart(on) : false);
 
@@ -153,8 +169,11 @@ ipcMain.handle("agent:setAutoStart", (e, on) => fromPanel(e) ? setAutoStart(on) 
 app.whenReady().then(() => {
   const firstRun = !fs.existsSync(configFile());
   if (firstRun) { writeConfig({ url: DEFAULT_URL }); setAutoStart(true); }
+  // Abre pelo link das Configurações (registra o endereço upabase-impressao://)
+  if (app.isPackaged) app.setAsDefaultProtocolClient(PROTOCOL);
+  pendingCode = codeFromArgs(process.argv);
   createTray();
-  createWindow(process.argv.includes("--hidden"));
+  createWindow(process.argv.includes("--hidden") && !pendingCode);
 
   // Atualização automática pelo GitHub (só no programa instalado)
   if (app.isPackaged) {

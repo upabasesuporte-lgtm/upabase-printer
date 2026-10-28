@@ -9,7 +9,7 @@ import {
   SECTORS, SECTOR_LABEL, deviceId, ticketsFromRows, ticketsDocument, thermalHtml,
   type ClaimRow, type Sector, type Ticket,
 } from "../../lib/kitchen";
-import { Printer, CheckCircle2, AlertTriangle, LogOut, Loader2, Download } from "lucide-react";
+import { Printer, CheckCircle2, AlertTriangle, LogOut, Loader2, Download, Eye, EyeOff } from "lucide-react";
 
 export const AGENT_DOWNLOAD_URL = "https://github.com/upabasesuporte-lgtm/upabase-printer/releases/latest/download/Upabase-Impressao-Setup.exe";
 
@@ -75,33 +75,102 @@ function NotInAgent() {
   );
 }
 
+// Liga o programa à loja com o código de Configurações (sem e-mail/senha)
+export async function pairWithCode(raw: string): Promise<string | null> {
+  const code = raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (code.length !== 8) return "O código tem 8 letras e números.";
+  const { data, error } = await supabase.functions.invoke("agent-pair", { body: { code } });
+  if (error || !data?.token_hash) {
+    let msg = "Código inválido ou vencido. Gere outro em Configurações.";
+    try { const body = await (error as any)?.context?.json?.(); if (body?.error) msg = body.error; } catch { /* sem detalhe */ }
+    return msg;
+  }
+  const { error: vErr } = await supabase.auth.verifyOtp({ token_hash: data.token_hash, type: "magiclink" });
+  return vErr ? "Não foi possível conectar. Gere outro código e tente de novo." : null;
+}
+
 function AgentLogin() {
+  const api = agentApi();
+  const [mode, setMode] = useState<"code" | "password">("code");
+  const [code, setCode] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPass, setShowPass] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  async function submit(e: React.FormEvent) {
+
+  async function connect(c: string) {
+    setBusy(true); setErr(null);
+    const e = await pairWithCode(c);
+    setBusy(false);
+    if (e) setErr(e);
+  }
+
+  // Código vindo do botão "Conectar este computador" (abre o programa pelo link)
+  useEffect(() => {
+    const anyApi = api as any;
+    anyApi?.takePairCode?.().then((c: string | null) => { if (c) { setCode(c); connect(c); } }).catch(() => {});
+    anyApi?.onPairCode?.((c: string) => { setCode(c); connect(c); });
+  }, []);
+
+  async function submitPassword(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true); setErr(null);
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
     setBusy(false);
-    if (error) setErr("E-mail ou senha incorretos.");
+    if (!error) return;
+    const m = error.message.toLowerCase();
+    setErr(m.includes("invalid login") ? "E-mail ou senha incorretos. Confira tocando no olho, ou use o código de Configurações."
+      : m.includes("not confirmed") ? "Este e-mail ainda não foi confirmado."
+      : m.includes("fetch") || m.includes("network") ? "Sem conexão com a internet."
+      : "Não foi possível entrar: " + error.message);
   }
+
+  const field = "w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm";
   return (
     <Center>
-      <form onSubmit={submit} className="w-full max-w-sm bg-white border border-gray-200 rounded-2xl p-6 space-y-3">
+      <div className="w-full max-w-sm bg-white border border-gray-200 rounded-2xl p-6 space-y-3">
         <Printer className="w-10 h-10 text-blue-600" />
         <h1 className="text-lg font-bold text-gray-900">Ligar o programa à sua loja</h1>
-        <p className="text-sm text-gray-600">Entre com o mesmo e-mail e senha do sistema. É só uma vez: depois ele liga sozinho com o computador.</p>
-        <input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="E-mail"
-          className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm" />
-        <input type="password" required value={password} onChange={e => setPassword(e.target.value)} placeholder="Senha"
-          className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm" />
-        {err && <p className="text-sm text-red-600">{err}</p>}
-        <button disabled={busy} className="w-full py-2.5 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-700 disabled:opacity-50" style={{ color: "#fff" }}>
-          {busy ? "Entrando..." : "Entrar"}
-        </button>
-      </form>
+        {mode === "code" ? (
+          <form onSubmit={e => { e.preventDefault(); connect(code); }} className="space-y-3">
+            <p className="text-sm text-gray-600">
+              No sistema, abra <b>Configurações → Impressão automática</b> e clique em <b>Conectar este computador</b>.
+              Ele conecta sozinho. Se pedir, digite aqui o código que aparecer:
+            </p>
+            <input value={code} onChange={e => setCode(e.target.value.toUpperCase())} placeholder="ABCD2345" maxLength={9} autoFocus
+              className={field + " text-center text-xl font-bold tracking-[0.3em] uppercase"} />
+            {err && <p className="text-sm text-red-600">{err}</p>}
+            <button disabled={busy || code.replace(/[^A-Za-z0-9]/g, "").length !== 8}
+              className="w-full py-2.5 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-700 disabled:opacity-50" style={{ color: "#fff" }}>
+              {busy ? "Conectando..." : "Conectar"}
+            </button>
+            <button type="button" onClick={() => { setMode("password"); setErr(null); }} className="w-full text-xs text-gray-500 underline">
+              Prefiro entrar com e-mail e senha
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={submitPassword} className="space-y-3">
+            <p className="text-sm text-gray-600">Use o mesmo e-mail e senha do sistema. É só uma vez.</p>
+            <input type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="E-mail" className={field} />
+            <div className="relative">
+              <input type={showPass ? "text" : "password"} required value={password} onChange={e => setPassword(e.target.value)} placeholder="Senha"
+                className={field + " pr-10"} />
+              <button type="button" onClick={() => setShowPass(v => !v)} title={showPass ? "Esconder senha" : "Mostrar senha"}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-gray-400 hover:text-gray-700">
+                {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            {err && <p className="text-sm text-red-600">{err}</p>}
+            <button disabled={busy} className="w-full py-2.5 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-700 disabled:opacity-50" style={{ color: "#fff" }}>
+              {busy ? "Entrando..." : "Entrar"}
+            </button>
+            <button type="button" onClick={() => { setMode("code"); setErr(null); }} className="w-full text-xs text-gray-500 underline">
+              Usar o código de Configurações
+            </button>
+          </form>
+        )}
+      </div>
     </Center>
   );
 }

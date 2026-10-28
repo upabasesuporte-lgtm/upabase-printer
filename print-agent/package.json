@@ -1,7 +1,7 @@
 {
   "name": "upabase-impressao",
   "productName": "Upabase Impressão",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Impressão automática do Upabase: cupons e comandas direto na impressora, sem janela.",
   "author": "Upabase",
   "license": "UNLICENSED",
@@ -23,7 +23,12 @@
     "appId": "br.com.upabase.impressao",
     "productName": "Upabase Impressão",
     "artifactName": "Upabase-Impressao-Setup.${ext}",
-    "files": ["main.js", "preload.js", "icon.png", "package.json"],
+    "files": [
+      "main.js",
+      "preload.js",
+      "icon.png",
+      "package.json"
+    ],
     "win": {
       "target": "nsis",
       "icon": "icon.png"
