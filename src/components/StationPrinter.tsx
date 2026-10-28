@@ -5,11 +5,13 @@
 import { useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { getStationPrefs, deviceId, printTickets, ticketsFromRows, type ClaimRow, type Sector } from "../lib/kitchen";
-import { claimAndPrintQueue } from "../lib/printing";
+import { claimAndPrintQueue, printAgentOnline } from "../lib/printing";
 
 export function StationPrinter() {
   const busy = useRef(false);
   const lastBeat = useRef(0);
+  // Programa de impressão instalado na loja: ele imprime tudo e o navegador fica quieto
+  const agent = useRef({ online: false, at: 0 });
 
   useEffect(() => {
     async function tick() {
@@ -27,6 +29,11 @@ export function StationPrinter() {
               { onConflict: "user_id,device_id" });
           }
         }
+        if (Date.now() - agent.current.at > 15_000) {
+          agent.current = { online: (await printAgentOnline().catch(() => ({ online: false }))).online, at: Date.now() };
+        }
+        if (agent.current.online) return;
+
         // Cupons e pré-contas enviados pelos celulares
         if (prefs.receipts) await claimAndPrintQueue();
 

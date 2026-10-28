@@ -28,6 +28,7 @@ import ProductsPage from "../pages/products";
 import StockPage from "../pages/stock";
 import PurchasesPage from "../pages/purchases";
 import CostsPage from "../pages/costs";
+import PrintAgentPage from "../pages/print-agent";
 import SuppliersPage from "../pages/suppliers";
 import CustomersPage from "../pages/customers";
 import CashPage from "../pages/cash";
@@ -124,6 +125,13 @@ export const router = createBrowserRouter([
   {
     path: "/auth",
     element: <AuthPage />,
+  },
+
+  // Painel do programa de impressão (aberto pelo Upabase Impressão no Windows)
+  {
+    path: "/agente-impressao",
+    element: <PrintAgentPage />,
+    errorElement: <RouteErrorPage />,
   },
 
   {

@@ -1,0 +1,28 @@
+# Gera o instalador do Upabase Impressão (Windows) e publica em Releases.
+# Para lançar uma versão: suba "version" em print-agent/package.json e crie a tag
+# v<versão> (ex.: git tag v1.0.1 && git push origin v1.0.1).
+name: Programa de impressão
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: print-agent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-audit --no-fund
+      - run: npx electron-builder --win --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

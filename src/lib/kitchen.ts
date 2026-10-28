@@ -72,9 +72,7 @@ export function printHtml(bodyHtml: string, css: string) {
 }
 
 // Vários tickets saem em sequência, cada um numa "página" (corte) própria.
-export function printTickets(tickets: Ticket[]) {
-  if (tickets.length === 0) return;
-  printHtml(tickets.map(ticketHtml).join(""), `
+const TICKET_CSS = `
     .t { padding: 8px 10px 14px; page-break-after: always; }
     .sec { font-size: 12px; font-weight: 700; letter-spacing: 2px; text-align: center; }
     .org { font-size: 22px; font-weight: 900; text-align: center; margin-top: 2px; }
@@ -83,7 +81,16 @@ export function printTickets(tickets: Ticket[]) {
     .ln { font-size: 16px; margin: 4px 0; }
     .nt { font-size: 13px; margin: 0 0 4px 14px; }
     .cx { font-size: 18px; font-weight: 900; text-align: center; border: 2px solid #000; padding: 4px; margin-bottom: 6px; }
-  `);
+`;
+
+export function printTickets(tickets: Ticket[]) {
+  if (tickets.length === 0) return;
+  printHtml(tickets.map(ticketHtml).join(""), TICKET_CSS);
+}
+
+// Documento completo dos tickets (usado pelo programa de impressão)
+export function ticketsDocument(tickets: Ticket[]): string {
+  return thermalHtml(tickets.map(ticketHtml).join(""), TICKET_CSS);
 }
 
 // ── Origem do pedido (mesa, balcão, delivery) para o ticket ──────────────────

@@ -3,6 +3,8 @@
 //   janela; com o atalho --kiosk-printing sai direto, sem perguntar nada).
 // - No celular sem impressora: manda para a fila (print_queue) e o computador
 //   do caixa (estação com "cupons dos celulares" ligado) imprime sozinho.
+// - Com o programa de impressão (Upabase Impressão) ligado na loja, todo
+//   aparelho manda para a fila, inclusive o computador: sai sem janela nenhuma.
 import { supabase } from "./supabase";
 import { getStationPrefs, deviceId } from "./kitchen";
 
@@ -22,11 +24,23 @@ const isMobileDevice = () => {
 };
 
 // Algum computador imprimindo cupons agora? (sinal nos últimos 30 s)
-export async function receiptStationOnline(): Promise<boolean> {
+// agentOnly: só conta o programa de impressão instalado
+export async function receiptStationOnline(agentOnly = false): Promise<boolean> {
   const since = new Date(Date.now() - 30_000).toISOString();
-  const { count } = await supabase.from("print_stations").select("device_id", { count: "exact", head: true })
+  let q = supabase.from("print_stations").select("device_id", { count: "exact", head: true })
     .eq("receipts", true).gte("seen_at", since).neq("device_id", deviceId());
+  if (agentOnly) q = q.eq("is_agent", true);
+  const { count } = await q;
   return (count ?? 0) > 0;
+}
+
+// Programa de impressão conectado (qualquer setor ou cupons), para a tela de Configurações
+export async function printAgentOnline(): Promise<{ online: boolean; version: string | null }> {
+  const since = new Date(Date.now() - 30_000).toISOString();
+  const { data } = await supabase.from("print_stations").select("agent_version")
+    .eq("is_agent", true).gte("seen_at", since).limit(1);
+  const row = (data ?? [])[0] as { agent_version: string | null } | undefined;
+  return { online: !!row, version: row?.agent_version ?? null };
 }
 
 // Imprime um documento HTML completo neste aparelho, sem abrir janela
@@ -66,14 +80,17 @@ export async function printDocument(html: string, opts: { kind: "receipt" | "pre
   const isStation = getStationPrefs().autoPrint;
   let useStation = false;
   if (target === "station") useStation = true;
-  else if (target === "auto" && !isStation && isMobileDevice()) useStation = await receiptStationOnline().catch(() => false);
+  else if (target === "auto" && !isStation) {
+    // Celular: qualquer estação serve. Computador: só o programa (o navegador do caixa imprime aqui mesmo)
+    useStation = await receiptStationOnline(!isMobileDevice()).catch(() => false);
+  }
 
   if (useStation) {
     if (target === "station" && !(await receiptStationOnline().catch(() => false))) {
       toast("Nenhum computador de impressão ligado agora. O documento sai assim que ele for ligado (até 30 min).", false);
     }
     if (await sendToStation(html, opts.kind, opts.title)) {
-      toast("Enviado para a impressora do caixa");
+      if (isMobileDevice() || target === "station") toast("Enviado para a impressora do caixa");
       return "station";
     }
     toast("Não foi possível enviar para o caixa. Imprimindo aqui.", false);

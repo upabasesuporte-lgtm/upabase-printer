@@ -1,0 +1,48 @@
+{
+  "name": "upabase-impressao",
+  "productName": "Upabase Impressão",
+  "version": "1.0.0",
+  "description": "Impressão automática do Upabase: cupons e comandas direto na impressora, sem janela.",
+  "author": "Upabase",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win --publish never",
+    "release": "electron-builder --win --publish always"
+  },
+  "dependencies": {
+    "electron-updater": "6.3.9"
+  },
+  "devDependencies": {
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8"
+  },
+  "build": {
+    "appId": "br.com.upabase.impressao",
+    "productName": "Upabase Impressão",
+    "artifactName": "Upabase-Impressao-Setup.${ext}",
+    "files": ["main.js", "preload.js", "icon.png", "package.json"],
+    "win": {
+      "target": "nsis",
+      "icon": "icon.png"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "runAfterFinish": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Upabase Impressão"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "upabasesuporte-lgtm",
+        "repo": "upabase-printer",
+        "releaseType": "release"
+      }
+    ]
+  }
+}

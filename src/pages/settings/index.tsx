@@ -1,10 +1,11 @@
 ﻿import { useState, useEffect } from "react";
-import { Store, Phone, CreditCard, Save, CheckCircle2, Receipt, Plus, Trash2, Users, Settings, Loader2, KeyRound, Download } from "lucide-react";
+import { Store, Phone, CreditCard, Save, CheckCircle2, Receipt, Plus, Trash2, Users, Settings, Loader2, KeyRound, Download, Printer } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { loadOperators, setCurrentOperator, saveLockMinutes, setDeviceNoLock, useOperators, TAB_OPTIONS, PRESETS, describeOperator, operatorRoutes, operatorCanApprove, type Operator } from "../../lib/operators";
 import { PageHeader } from "../../components/PageHeader";
 import { StoreLocationCard } from "../../components/StoreLocationCard";
 import { DataExport } from "../../components/DataExport";
+import { PrintAgentCard } from "../../components/PrintAgentCard";
 import { useTheme } from "../../contexts/ThemeContext";
 
 // ── Storage keys (cache local para impressão síncrona) ────────────────────────
@@ -351,6 +352,11 @@ export default function SettingsPage() {
         <Field label="Chave PIX" hint="Aparece no comprovante quando o pagamento for via PIX">
           <input value={form.pix} onChange={e=>set("pix",e.target.value)} placeholder="CPF, e-mail, telefone ou chave aleatória" className={inputCls} />
         </Field>
+      </SectionCard>
+
+      {/* Programa de impressão */}
+      <SectionCard icon={<Printer className="w-4 h-4" />} title="Impressão automática" color="#315DFB">
+        <PrintAgentCard isLight={isLight} />
       </SectionCard>
 
       {/* Mesas e Caixa */}
