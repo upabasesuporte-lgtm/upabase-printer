@@ -135,8 +135,25 @@ function setAutoStart(on) {
 // em branco em térmicas como a Bematech MP-4000 TH; por imagem funciona em todas.
 // Largura do papel vem do painel (80 ou 58 mm); padrão 80 mm.
 const DEFAULT_PAPER_MM = 80;
-const ZOOM = 2;
 const mmToPx = mm => Math.round(mm / 25.4 * 96);
+// Pontos que a cabeça térmica imprime (203 dpi): 576 no rolo de 80 mm, 384 no de 58 mm.
+// O cupom é desenhado já nessa resolução e em preto puro — letra firme, sem falhas.
+const printDots = mm => mm >= 76 ? 576 : mm >= 56 ? 384 : Math.round(mm * 8 * 0.9);
+
+// Converte para preto e branco puro (térmica não tem cinza: cinza vira pontilhado falhado)
+function toBlackWhite(image, widthDots) {
+  const { nativeImage } = require("electron");
+  let img = image;
+  if (img.getSize().width !== widthDots) img = img.resize({ width: widthDots, quality: "best" });
+  const { width, height } = img.getSize();
+  const buf = Buffer.from(img.toBitmap()); // BGRA
+  for (let i = 0; i < buf.length; i += 4) {
+    const lum = 0.114 * buf[i] + 0.587 * buf[i + 1] + 0.299 * buf[i + 2];
+    const v = lum < 160 ? 0 : 255;
+    buf[i] = buf[i + 1] = buf[i + 2] = v; buf[i + 3] = 255;
+  }
+  return nativeImage.createFromBitmap(buf, { width, height }).toPNG();
+}
 
 const PRINT_PS1 = `param([string]$Image, [string]$Printer, [int]$WidthMm = 80)
 Add-Type -AssemblyName System.Drawing
@@ -155,7 +172,8 @@ try {
     param($sender, $e)
     $dw = [single]$e.PageSettings.PrintableArea.Width
     $dh = [single]($dw * $img.Height / $img.Width)
-    $e.Graphics.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+    $e.Graphics.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::NearestNeighbor
+    $e.Graphics.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::Half
     $e.Graphics.DrawImage($img, [single]0, [single]0, $dw, $dh)
     $e.HasMorePages = $false
   })
@@ -189,7 +207,7 @@ function printImage(pngFile, deviceName, widthMm) {
 let printWin = null;
 function getPrintWindow() {
   if (!printWin || printWin.isDestroyed()) {
-    printWin = new BrowserWindow({ show: false, width: mmToPx(DEFAULT_PAPER_MM) * ZOOM, height: 200, useContentSize: true, webPreferences: { sandbox: true, zoomFactor: ZOOM, backgroundThrottling: false } });
+    printWin = new BrowserWindow({ show: false, width: printDots(DEFAULT_PAPER_MM), height: 200, useContentSize: true, webPreferences: { sandbox: true, backgroundThrottling: false } });
     printWin.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
     printWin.webContents.on("will-navigate", e => e.preventDefault());
   }
@@ -212,20 +230,22 @@ function printHtml(html, deviceName, paperMm) {
       fs.writeFileSync(htmlFile, html, "utf8");
       const pw = getPrintWindow();
       const wc = pw.webContents;
-      const widthPx = mmToPx(widthMm);
-      pw.setContentSize(widthPx * ZOOM, 200);
+      const dots = printDots(widthMm);
+      // Layout pensado na largura do rolo em px de tela, ampliado até os pontos da impressora
+      const zoom = dots / mmToPx(widthMm);
+      pw.setContentSize(dots, 200);
       await Promise.race([
         pw.loadFile(htmlFile),
         new Promise((_, rej) => setTimeout(() => rej(new Error("Tempo esgotado ao montar o cupom")), 20_000)),
       ]);
-      wc.setZoomFactor(ZOOM);
+      wc.setZoomFactor(zoom);
       // Como no papel: sem o botão "Imprimir" da tela e sem a margem de visualização
       await wc.insertCSS("button{display:none!important} body{max-width:none!important}");
       const h = await wc.executeJavaScript("Math.ceil(document.body.getBoundingClientRect().bottom + 8)");
-      pw.setContentSize(widthPx * ZOOM, Math.max(60, Math.ceil(Number(h) * ZOOM)));
+      pw.setContentSize(dots, Math.max(60, Math.ceil(Number(h) * zoom)));
       await new Promise(r => setTimeout(r, 120));
       const img = await wc.capturePage();
-      fs.writeFileSync(pngFile, img.toPNG());
+      fs.writeFileSync(pngFile, toBlackWhite(img, dots));
       const r = await printImage(pngFile, deviceName, widthMm);
       cleanup();
       return r;

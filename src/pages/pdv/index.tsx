@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { printDocument } from "../../lib/printing";
+import { receiptHtml, receiptDate, brl } from "../../lib/receipt";
 import { requireApproval } from "../../lib/operators";
 import { matchesSearch } from "../../lib/search";
 import { recalcFiadoBalance } from "../../lib/fiado";
@@ -779,7 +780,6 @@ export default function PdvPage() {
       customerFiadoBalance = custDebt?.fiado_balance ?? 0;
     }
     const orderNum = sale.id.slice(-6).toUpperCase();
-    const dt = new Date(sale.created_at).toLocaleString("pt-BR", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" });
     const subtotal = items.reduce((s, i) => s + i.unit_price * i.quantity, 0);
     const disc = Number(sale.discount ?? 0);
     const rawSaleTotal = Number((sale as any).total_amount ?? sale.total);
@@ -787,153 +787,42 @@ export default function PdvPage() {
     const paid = (sale.payments ?? []).reduce((s: number, p: PaymentEntry) => s + p.amount, 0);
     const chg = Math.max(0, paid - totalVal);
 
-    const SEP = () => `<div style="border-top:1px dashed #000;margin:8px 0"></div>`;
-    const ROW = (a: string, b: string) =>
-      `<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:12px;font-weight:400;color:#000"><span>${a}</span><span>${b}</span></div>`;
-    const LABEL = (t: string) =>
-      `<div style="font-size:11px;font-weight:700;color:#000;text-transform:uppercase;letter-spacing:0.5px;margin:6px 0 3px">${t}</div>`;
-    const TOTAL_BOX = (v: string) =>
-      `<div style="border:1px solid #000;border-radius:4px;padding:8px 0;margin:6px 0;text-align:center">
-        <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#000">TOTAL</div>
-        <div style="font-size:20px;font-weight:800;color:#000;margin-top:2px">${v}</div>
-      </div>`;
-
-    // Identificar bebidas e separar itens (pela categoria do produto; nome é so um reforco)
+    // Identificar bebidas (pela categoria do produto; nome é so um reforco)
     const isDrink = (item: SaleItem) => {
       const catId = item.products?.category_id;
       const catName = catId ? (categoryNames[catId] ?? "") : "";
       const name = item.products?.name ?? "";
       return /bebida/i.test(catName) || /bebida|coca|água|suco|refrigerante|vinho|cerveja|chopp|açaí|milkshake|café|leite/i.test(name);
     };
-    const mainItems = items.filter(i => !isDrink(i));
-    const drinkItems = items.filter(i => isDrink(i));
-
-    const mainItemsHtml = mainItems.length > 0 ? mainItems.map((i, idx) => {
-      const name = i.products?.name ?? "Produto";
-      const isAdicional = i.products?.item_type === "adicional";
-      const endsGroup = idx === mainItems.length - 1 || mainItems[idx + 1]?.products?.item_type !== "adicional";
-      const border = endsGroup ? "border-bottom:1px dashed #ccc" : "";
-      const unitLine = i.quantity > 1
-        ? `<div style="font-size:${isAdicional ? "9px" : "10px"};font-weight:400;color:#333;margin-top:1px">${i.quantity} un x ${fmt(i.unit_price)}</div>` : "";
-      const obsLine = i.notes
-        ? `<div style="font-size:11px;font-weight:700;color:#000;margin-top:2px">Obs: ${i.notes}</div>` : "";
-      if (isAdicional) {
-        return `<div style="padding:2px 0 3px 16px;${border}">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start">
-            <div style="flex:1;padding-right:8px">
-              <div style="font-size:11px;font-weight:400;color:#000">+ ${i.quantity}x ${name}</div>
-              ${unitLine}
-            </div>
-            <div style="font-size:11px;font-weight:400;color:#000;white-space:nowrap">${fmt(i.unit_price * i.quantity)}</div>
-          </div>
-          ${obsLine}
-        </div>`;
-      }
-      return `<div style="padding:6px 0 4px;${border}">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start">
-          <div style="flex:1;padding-right:8px">
-            <div style="font-size:13px;font-weight:700;color:#000">${i.quantity}x ${name}</div>
-            ${unitLine}
-          </div>
-          <div style="font-size:12px;font-weight:700;color:#000;white-space:nowrap">${fmt(i.unit_price * i.quantity)}</div>
-        </div>
-        ${obsLine}
-      </div>`;
-    }).join("") : "";
-
-    const drinksHtml = drinkItems.length > 0 ? `
-      ${mainItems.length > 0 ? `<div style="margin:10px 0;padding:8px 0;border-top:2px solid #000;border-bottom:2px solid #000;text-align:center">
-        <div style="font-size:11px;font-weight:700;color:#000;text-transform:uppercase;letter-spacing:0.5px">🍹 BEBIDAS 🍹</div>
-      </div>` : ""}
-      ${drinkItems.map(i => {
-        const name = i.products?.name ?? "Produto";
-        const unitLine = i.quantity > 1
-          ? `<div style="font-size:10px;font-weight:400;color:#333;margin-top:1px">${i.quantity} un x ${fmt(i.unit_price)}</div>` : "";
-        const obsLine = i.notes
-          ? `<div style="font-size:11px;font-weight:700;color:#000;margin-top:2px">Obs: ${i.notes}</div>` : "";
-        return `<div style="padding:5px 0;border-bottom:1px dashed #ccc">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start">
-            <div style="flex:1;padding-right:8px">
-              <div style="font-size:12px;font-weight:700;color:#000">${i.quantity}x ${name}</div>
-              ${unitLine}
-            </div>
-            <div style="font-size:12px;font-weight:700;color:#000;white-space:nowrap">${fmt(i.unit_price * i.quantity)}</div>
-          </div>
-          ${obsLine}
-        </div>`;
-      }).join("")}
-    ` : "";
-
-    const itemsHtml = mainItemsHtml + drinksHtml || `<div style="font-size:12px;font-weight:400;color:#000;padding:6px 0">Sem itens</div>`;
-
-    const paymentsHtml = (sale.payments ?? []).map((p: PaymentEntry) =>
-      ROW(PAYMENT_INFO[p.method]?.label ?? p.method, fmt(p.amount))
-    ).join("");
-
-    const pixLine = sale.payments?.some((p: PaymentEntry) => p.method === "pix") && store.pix
-      ? `<div style="font-size:11px;font-weight:400;color:#000">Chave PIX: ${store.pix}</div>` : "";
-
-    const html = (`<!DOCTYPE html><html><head><meta charset="utf-8">
-    <title>Pedido #${orderNum}</title>
-    <style>
-      *{box-sizing:border-box;margin:0;padding:0}
-      body{font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:400;color:#000;background:#fff;padding:16px 14px;max-width:320px;margin:0 auto}
-      @media print{body{padding:4px 2px;max-width:none}@page{margin:2mm}button{display:none!important}}
-    </style></head><body>
-
-    <button onclick="window.print()" style="position:fixed;top:12px;right:12px;z-index:1000;background:#7c3aed;color:#fff;border:none;padding:10px 22px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.2)">Imprimir</button>
-
-    <div style="text-align:center;padding-bottom:8px">
-      <div style="font-size:16px;font-weight:700;color:#000">${store.name}</div>
-      ${store.show_cnpj && store.cnpj ? `<div style="font-size:10px;font-weight:400;color:#000">CNPJ: ${store.cnpj}</div>` : ""}
-      ${store.address ? `<div style="font-size:10px;font-weight:400;color:#000">${store.address}</div>` : ""}
-      ${store.phone ? `<div style="font-size:10px;font-weight:400;color:#000">Tel: ${store.phone}</div>` : ""}
-    </div>
-
-    <div style="border-top:1px solid #000;border-bottom:1px dashed #000;padding:5px 0;margin:4px 0;text-align:center">
-      <div style="font-size:15px;font-weight:700;color:#000;letter-spacing:1px">#${orderNum}</div>
-      <div style="font-size:11px;font-weight:400;color:#000">${dt}</div>
-    </div>
-
-    ${(sale.customers?.name || sale.delivery_address || sale.seller_name) ? `
-    <div style="padding:6px 0">
-      ${sale.customers?.name ? `<div style="font-size:12px;color:#000"><span style="font-weight:700">Cliente:</span> ${sale.customers.name}</div>` : ""}
-      ${sale.delivery_address ? `<div style="font-size:12px;color:#000"><span style="font-weight:700">Endereco:</span> ${sale.delivery_address}</div>` : ""}
-      ${sale.seller_name ? `<div style="font-size:12px;color:#000"><span style="font-weight:700">Vendedor:</span> ${sale.seller_name}</div>` : ""}
-    </div>
-    ` : ""}
-
-    ${SEP()}
-    ${LABEL("Itens do pedido")}
-    ${itemsHtml}
-
-    ${SEP()}
-    ${subtotal !== totalVal ? ROW("Subtotal", fmt(subtotal)) : ""}
-    ${disc > 0 ? ROW("Desconto", "- " + fmt(disc)) : ""}
-    ${Number((sale as any).delivery_fee ?? 0) > 0 ? ROW("Taxa de entrega", fmt(Number((sale as any).delivery_fee))) : ""}
-    ${TOTAL_BOX(fmt(totalVal))}
-
-    ${SEP()}
-    ${LABEL("Pagamento")}
-    ${paymentsHtml}
-    ${pixLine}
-    ${chg > 0.01 ? ROW("Troco", fmt(chg)) : ""}
-
-    ${customerFiadoBalance > 0.01 ? `
-    ${SEP()}
-    <div style="border:1px solid #000;border-radius:4px;padding:8px 10px;margin:6px 0">
-      <div style="font-size:11px;font-weight:700;letter-spacing:0.5px;color:#000;text-transform:uppercase">Fiado - Total devendo</div>
-      <div style="font-size:18px;font-weight:800;color:#000;margin-top:2px">${fmt(customerFiadoBalance)}</div>
-    </div>
-    ` : ""}
-
-    ${sale.notes ? `${SEP()}${LABEL("Observacoes")}<div style="font-size:12px;font-weight:400;color:#000">${sale.notes}</div>` : ""}
-
-    ${SEP()}
-    <div style="text-align:center;font-size:11px;font-weight:400;color:#000;padding-top:4px">
-      ${store.footer_message || "Obrigado pela preferencia!"}
-    </div>
-    </body></html>`);
+    const html = receiptHtml({
+      title: `Pedido #${orderNum}`,
+      store,
+      orderNum,
+      date: receiptDate(sale.created_at),
+      info: [
+        ...(sale.customers?.name ? [{ label: "Cliente", value: sale.customers.name }] : []),
+        ...(sale.delivery_address ? [{ label: "Entrega", value: sale.delivery_address }] : []),
+        ...(sale.seller_name ? [{ label: "Vendedor", value: sale.seller_name }] : []),
+      ],
+      lines: items.map(i => ({
+        qty: i.quantity, name: i.products?.name ?? "Produto", total: i.unit_price * i.quantity, unit: i.unit_price,
+        notes: i.notes, addon: i.products?.item_type === "adicional", drink: isDrink(i),
+      })),
+      totals: [
+        ...(Math.abs(subtotal - totalVal) > 0.009 ? [{ label: "Subtotal", value: brl(subtotal) }] : []),
+        ...(disc > 0 ? [{ label: "Desconto", value: "- " + brl(disc) }] : []),
+        ...(Number((sale as any).delivery_fee ?? 0) > 0 ? [{ label: "Taxa de entrega", value: brl(Number((sale as any).delivery_fee)) }] : []),
+        { label: "TOTAL", value: brl(totalVal), strong: true },
+      ],
+      payments: (sale.payments ?? []).map((p: PaymentEntry) => ({ label: PAYMENT_INFO[p.method]?.label ?? p.method, value: brl(p.amount) })),
+      notes: [
+        ...(sale.payments?.some((p: PaymentEntry) => p.method === "pix") && store.pix ? [`Chave Pix: ${store.pix}`] : []),
+        ...(chg > 0.01 ? [`Troco: ${brl(chg)}`] : []),
+        ...(customerFiadoBalance > 0.01 ? [`FIADO — TOTAL DEVENDO: ${brl(customerFiadoBalance)}`] : []),
+        ...(sale.notes ? [`Obs: ${sale.notes}`] : []),
+      ],
+      footer: store.footer_message || "Obrigado pela preferência!",
+    });
     await printDocument(html, { kind: "receipt", title: `Pedido #${orderNum}` });
   }
 

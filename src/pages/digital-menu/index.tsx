@@ -2,6 +2,7 @@
 import { flushSync } from "react-dom";
 import { supabase } from "../../lib/supabase";
 import { printDocument } from "../../lib/printing";
+import { receiptHtml, receiptDate, brl, fmtPhone } from "../../lib/receipt";
 import { matchesSearch } from "../../lib/search";
 import { useTheme } from "../../contexts/ThemeContext";
 import { PageHeader, btnSecondary } from "../../components/PageHeader";
@@ -179,144 +180,36 @@ function stopMsgLoop(ref: React.MutableRefObject<ReturnType<typeof setInterval> 
 function printLabel(order: DigitalOrder, products: Product[] = []) {
   const store = getStoreSettings();
   const items = Array.isArray(order.items) ? order.items : [];
-  const dt = new Date(order.created_at).toLocaleString("pt-BR", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" });
   const payLabel = PAY_LABELS[order.payment_method ?? ""] ?? order.payment_method ?? "—";
 
-  const SEP = () => `<div style="border-top:1px dashed #000;margin:8px 0"></div>`;
-  const ROW = (a: string, b: string) =>
-    `<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:12px;font-weight:400;color:#000"><span>${a}</span><span>${b}</span></div>`;
-  const LABEL = (t: string) =>
-    `<div style="font-size:11px;font-weight:700;color:#000;text-transform:uppercase;letter-spacing:0.5px;margin:6px 0 3px">${t}</div>`;
-  const TOTAL_BOX = (v: string) =>
-    `<div style="border:1px solid #000;border-radius:4px;padding:8px 0;margin:6px 0;text-align:center">
-      <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#000">TOTAL</div>
-      <div style="font-size:20px;font-weight:800;color:#000;margin-top:2px">${v}</div>
-    </div>`;
-
-  // Identificar bebidas e separar itens
   const isDrink = (name: string) => /bebida|coca|água|suco|refrigerante|vinho|cerveja|chopp|açaí|milkshake|café|leite/i.test(name);
-
-  const mainItems: OrderItem[] = [];
-  const drinkItems: OrderItem[] = [];
-
-  items.forEach(it => {
-    if (isDrink(it.product_name)) {
-      drinkItems.push(it);
-    } else {
-      mainItems.push(it);
-    }
+  const html = receiptHtml({
+    title: `Pedido #${order.order_number}`,
+    store: { ...store, name: store.name || order.customer_name || "Cardápio Digital" },
+    heading: order.order_type === "delivery" ? "DELIVERY" : "RETIRADA NO BALCÃO",
+    orderNum: String(order.order_number ?? "—"),
+    date: receiptDate(order.created_at),
+    info: [
+      ...(order.customer_name ? [{ label: "Cliente", value: order.customer_name }] : []),
+      ...(order.customer_phone ? [{ label: "Tel", value: fmtPhone(order.customer_phone) }] : []),
+      ...(order.order_type === "delivery" ? [{ label: "Entrega", value: order.delivery_address ?? "—" }] : []),
+    ],
+    lines: items.map(it => ({
+      qty: it.quantity, name: it.product_name, total: it.total_price ?? it.unit_price * it.quantity, unit: it.unit_price,
+      details: (it.options ?? []).map(o => `${o.option_name}${o.additional_price > 0 ? ` (+${brl(o.additional_price)})` : ""}`),
+      notes: it.notes,
+      addon: products.find(pr => pr.id === it.product_id)?.item_type === "adicional",
+      drink: isDrink(it.product_name),
+    })),
+    totals: [{ label: "TOTAL", value: brl(order.total_amount), strong: true }],
+    payments: [{ label: payLabel, value: brl(order.total_amount) }],
+    notes: [
+      ...(order.payment_method === "pix" && store.pix ? [`Chave Pix: ${store.pix}`] : []),
+      ...(order.change_for ? [`Troco para: ${brl(order.change_for)}`] : []),
+      ...(order.notes ? [`Obs: ${order.notes}`] : []),
+    ],
+    footer: store.footer_message || "Obrigado pela preferência!",
   });
-
-  // Renderizar itens principais com acompanhamentos organizados
-  const mainItemsHtml = mainItems.length > 0 ? mainItems.map((it, idx) => {
-    const isAdicional = products.find(p => p.id === it.product_id)?.item_type === "adicional";
-    const endsGroup = idx === mainItems.length - 1 || products.find(p => p.id === mainItems[idx + 1]?.product_id)?.item_type !== "adicional";
-    const border = endsGroup ? "border-bottom:1px dashed #ccc" : "";
-    const unitLine = it.quantity > 1
-      ? `<div style="font-size:${isAdicional ? "9px" : "10px"};font-weight:400;color:#333;margin-top:1px">${it.quantity} un x ${fmt(it.unit_price)}</div>` : "";
-    const optLines = (it.options ?? []).map(o =>
-      `<div style="font-size:10px;font-weight:400;color:#555;margin-top:2px;padding-left:12px">→ ${o.option_name}${o.additional_price > 0 ? ` (+${fmt(o.additional_price)})` : ""}</div>`
-    ).join("");
-    const obsLine = it.notes
-      ? `<div style="font-size:11px;font-weight:700;color:#000;margin-top:2px">Obs: ${it.notes}</div>` : "";
-    if (isAdicional) {
-      return `<div style="padding:2px 0 3px 16px;${border}">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start">
-          <div style="flex:1;padding-right:8px">
-            <div style="font-size:11px;font-weight:400;color:#000">+ ${it.quantity}x ${it.product_name}</div>
-            ${unitLine}
-          </div>
-          <div style="font-size:11px;font-weight:400;color:#000;white-space:nowrap">${fmt(it.total_price ?? it.unit_price * it.quantity)}</div>
-        </div>
-        ${optLines}${obsLine}
-      </div>`;
-    }
-    return `<div style="padding:6px 0 4px;${border}">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start">
-        <div style="flex:1;padding-right:8px">
-          <div style="font-size:13px;font-weight:700;color:#000">${it.quantity}x ${it.product_name}</div>
-          ${unitLine}
-        </div>
-        <div style="font-size:12px;font-weight:700;color:#000;white-space:nowrap">${fmt(it.total_price ?? it.unit_price * it.quantity)}</div>
-      </div>
-      ${optLines}${obsLine}
-    </div>`;
-  }).join("") : "";
-
-  // Renderizar bebidas em seção separada com quebra clara
-  const drinksHtml = drinkItems.length > 0 ? `
-    ${mainItems.length > 0 ? `<div style="margin:10px 0;padding:8px 0;border-top:2px solid #000;border-bottom:2px solid #000;text-align:center">
-      <div style="font-size:11px;font-weight:700;color:#000;text-transform:uppercase;letter-spacing:0.5px">🍹 BEBIDAS 🍹</div>
-    </div>` : ""}
-    ${drinkItems.map(it => {
-      const unitLine = it.quantity > 1
-        ? `<div style="font-size:10px;font-weight:400;color:#333;margin-top:1px">${it.quantity} un x ${fmt(it.unit_price)}</div>` : "";
-      const obsLine = it.notes
-        ? `<div style="font-size:11px;font-weight:700;color:#000;margin-top:2px">Obs: ${it.notes}</div>` : "";
-      return `<div style="padding:5px 0;border-bottom:1px dashed #ccc">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start">
-          <div style="flex:1;padding-right:8px">
-            <div style="font-size:12px;font-weight:700;color:#000">${it.quantity}x ${it.product_name}</div>
-            ${unitLine}
-          </div>
-          <div style="font-size:12px;font-weight:700;color:#000;white-space:nowrap">${fmt(it.total_price ?? it.unit_price * it.quantity)}</div>
-        </div>
-        ${obsLine}
-      </div>`;
-    }).join("")}
-  ` : "";
-
-  const itemsHtml = mainItemsHtml + drinksHtml || `<div style="font-size:12px;font-weight:400;color:#000;padding:6px 0">Sem itens</div>`;
-
-  const pixLine = order.payment_method === "pix" && store.pix
-    ? `<div style="font-size:11px;font-weight:400;color:#000">Chave PIX: ${store.pix}</div>` : "";
-
-  const html = (`<!DOCTYPE html><html><head><meta charset="utf-8">
-  <title>Pedido #${order.order_number}</title>
-  <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:400;color:#000;background:#fff;padding:16px 14px;max-width:320px;margin:0 auto}
-    @media print{body{padding:4px 2px;max-width:none}@page{margin:2mm}}
-  </style></head><body>
-
-  <div style="text-align:center;padding-bottom:8px">
-    <div style="font-size:16px;font-weight:700;color:#000">${store.name || order.customer_name || "Cardápio Digital"}</div>
-    ${store.show_cnpj && store.cnpj ? `<div style="font-size:10px;font-weight:400;color:#000">CNPJ: ${store.cnpj}</div>` : ""}
-    ${store.address ? `<div style="font-size:10px;font-weight:400;color:#000">${store.address}</div>` : ""}
-    ${store.phone ? `<div style="font-size:10px;font-weight:400;color:#000">Tel: ${store.phone}</div>` : ""}
-  </div>
-
-  <div style="border-top:1px solid #000;border-bottom:1px dashed #000;padding:5px 0;margin:4px 0;text-align:center">
-    <div style="font-size:15px;font-weight:700;color:#000;letter-spacing:1px">#${order.order_number ?? "—"}</div>
-    <div style="font-size:11px;font-weight:400;color:#000">${dt}</div>
-  </div>
-
-  <div style="padding:6px 0">
-    ${order.customer_name ? `<div style="font-size:12px;color:#000"><span style="font-weight:700">Cliente:</span> ${order.customer_name}</div>` : ""}
-    ${order.customer_phone ? `<div style="font-size:12px;color:#000"><span style="font-weight:700">Tel:</span> ${order.customer_phone}</div>` : ""}
-    <div style="font-size:12px;color:#000">${order.order_type === "delivery" ? `<span style="font-weight:700">Entrega:</span> ${order.delivery_address ?? "—"}` : "Retirada no balcão"}</div>
-  </div>
-
-  ${SEP()}
-  ${LABEL("Itens do pedido")}
-  ${itemsHtml}
-
-  ${SEP()}
-  ${TOTAL_BOX(fmt(order.total_amount))}
-
-  ${SEP()}
-  ${LABEL("Pagamento")}
-  ${ROW(payLabel, fmt(order.total_amount))}
-  ${pixLine}
-  ${order.change_for ? ROW("Troco para", fmt(order.change_for)) : ""}
-
-  ${order.notes ? `${SEP()}${LABEL("Observacoes")}<div style="font-size:12px;font-weight:400;color:#000">${order.notes}</div>` : ""}
-
-  ${SEP()}
-  <div style="text-align:center;font-size:11px;font-weight:400;color:#000;padding-top:4px">
-    ${store.footer_message || "Obrigado pela preferência!"}
-  </div>
-  </body></html>`);
   printDocument(html, { kind: "order", title: `Pedido #${order.order_number}` });
 }
 

@@ -3,7 +3,8 @@ import { createPortal, flushSync } from "react-dom";
 import { supabase } from "../../lib/supabase";
 import { requireApproval, useOperators } from "../../lib/operators";
 import { printDocument } from "../../lib/printing";
-import { printItemsHere, onlineSectors, getPrintHere, setPrintHere, printTickets, thermalHtml, SECTOR_LABEL, type Sector } from "../../lib/kitchen";
+import { receiptHtml, receiptDate, brl } from "../../lib/receipt";
+import { printItemsHere, onlineSectors, getPrintHere, setPrintHere, printTickets, SECTOR_LABEL, type Sector } from "../../lib/kitchen";
 import { matchesSearch } from "../../lib/search";
 import { useTheme } from "../../contexts/ThemeContext";
 import { PageHeader, btnPrimary, btnSecondary, WHITE_TEXT } from "../../components/PageHeader";
@@ -583,27 +584,24 @@ export default function TablesPage() {
     const store = getStoreSettings();
     const pct = Number(store.service_fee_pct) || 0;
     const service = pct > 0 ? Math.round(orderTotal * pct) / 100 : 0;
-    const e = (t: string) => t.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
-    const row = (a: string, b: string, big = false) => `<div class="r${big ? " big" : ""}"><span>${a}</span><span>${b}</span></div>`;
-    const dt = new Date().toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
-    printDocument(thermalHtml(`<div class="t">
-      <div class="c b">${e(store.name)}</div>
-      <div class="c big">MESA ${e(selectedTable.name)}</div>
-      <div class="c s">CONFERÊNCIA DE CONTA · ${dt}</div>
-      <div class="sep"></div>
-      ${orderItems.map(i => row(`${i.quantity}x ${e(i.products?.name ?? "Produto")}`, fmt(i.unit_price * i.quantity))).join("")}
-      <div class="sep"></div>
-      ${service > 0 ? row("Subtotal", fmt(orderTotal)) + row(`Serviço (${pct}%) — opcional`, fmt(service)) : ""}
-      ${row("TOTAL", fmt(orderTotal + service), true)}
-      <div class="sep"></div>
-      <div class="c s">Não é documento fiscal</div>
-    </div>`, `
-      .t { padding: 8px 10px 14px; }
-      .c { text-align: center; } .b { font-weight: 800; font-size: 15px; } .s { font-size: 11px; }
-      .big { font-size: 18px; font-weight: 900; }
-      .r { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; margin: 3px 0; }
-      .sep { border-top: 1px dashed #000; margin: 6px 0; }
-    `), { kind: "prebill", title: `Mesa ${selectedTable.name}` });
+    const isDrink = (name: string) => /bebida|coca|água|suco|refrigerante|vinho|cerveja|chopp|açaí|milkshake|café|leite/i.test(name);
+    const saleId = String((orderItems[0] as any)?.sale_id ?? "");
+    printDocument(receiptHtml({
+      title: `Mesa ${selectedTable.name}`,
+      store,
+      heading: `MESA ${selectedTable.name} · CONFERÊNCIA`,
+      orderNum: saleId ? saleId.slice(-6).toUpperCase() : "—",
+      date: receiptDate(),
+      lines: orderItems.map(i => ({
+        qty: i.quantity, name: i.products?.name ?? "Produto", total: i.unit_price * i.quantity, unit: i.unit_price,
+        notes: i.notes, addon: i.products?.item_type === "adicional", drink: isDrink(i.products?.name ?? ""),
+      })),
+      totals: [
+        ...(service > 0 ? [{ label: "Subtotal", value: brl(orderTotal) }, { label: `Serviço (${pct}%) — opcional`, value: brl(service) }] : []),
+        { label: "TOTAL", value: brl(orderTotal + service), strong: true },
+      ],
+      footer: "Conferência de conta — não é documento fiscal",
+    }), { kind: "prebill", title: `Mesa ${selectedTable.name}` });
   }
 
   // ── Checkout ────────────────────────────────────────────────────────────────
@@ -785,142 +783,39 @@ export default function TablesPage() {
 
   function printReceipt(_saleId: string, orderNum: string) {
     const store = getStoreSettings();
-    const dt = new Date().toLocaleString("pt-BR", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" });
     const subtotal = orderItems.reduce((s, i) => s + i.unit_price * i.quantity, 0);
     const paid = checkoutPayments.reduce((s, p) => s + p.amount, 0);
     const chg = Math.max(0, paid - finalTotal);
 
-    const SEP = () => `<div style="border-top:1px dashed #000;margin:8px 0"></div>`;
-    const ROW = (a: string, b: string) =>
-      `<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:12px;font-weight:400;color:#000"><span>${a}</span><span>${b}</span></div>`;
-    const LABEL = (t: string) =>
-      `<div style="font-size:11px;font-weight:700;color:#000;text-transform:uppercase;letter-spacing:0.5px;margin:6px 0 3px">${t}</div>`;
-    const TOTAL_BOX = (v: string) =>
-      `<div style="border:1px solid #000;border-radius:4px;padding:8px 0;margin:6px 0;text-align:center">
-        <div style="font-size:11px;font-weight:700;letter-spacing:1px;color:#000">TOTAL</div>
-        <div style="font-size:20px;font-weight:800;color:#000;margin-top:2px">${v}</div>
-      </div>`;
-
     const isDrink = (name: string) => /bebida|coca|água|suco|refrigerante|vinho|cerveja|chopp|açaí|milkshake|café|leite/i.test(name);
-    const mainItems = orderItems.filter(i => !isDrink(i.products?.name ?? ""));
-    const drinkItems = orderItems.filter(i => isDrink(i.products?.name ?? ""));
-
-    const mainItemsHtml = mainItems.length > 0 ? mainItems.map((i, idx) => {
-      const name = i.products?.name ?? "Produto";
-      const isAdicional = i.products?.item_type === "adicional";
-      const endsGroup = idx === mainItems.length - 1 || mainItems[idx + 1]?.products?.item_type !== "adicional";
-      const border = endsGroup ? "border-bottom:1px dashed #ccc" : "";
-      const unitLine = i.quantity > 1
-        ? `<div style="font-size:${isAdicional ? "9px" : "10px"};font-weight:400;color:#333;margin-top:1px">${i.quantity} un x ${fmt(i.unit_price)}</div>` : "";
-      const obsLine = i.notes
-        ? `<div style="font-size:11px;font-weight:700;color:#000;margin-top:2px">Obs: ${i.notes}</div>` : "";
-      if (isAdicional) {
-        return `<div style="padding:2px 0 3px 16px;${border}">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start">
-            <div style="flex:1;padding-right:8px">
-              <div style="font-size:11px;font-weight:400;color:#000">+ ${i.quantity}x ${name}</div>
-              ${unitLine}
-            </div>
-            <div style="font-size:11px;font-weight:400;color:#000;white-space:nowrap">${fmt(i.unit_price * i.quantity)}</div>
-          </div>
-          ${obsLine}
-        </div>`;
-      }
-      return `<div style="padding:6px 0 4px;${border}">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start">
-          <div style="flex:1;padding-right:8px">
-            <div style="font-size:13px;font-weight:700;color:#000">${i.quantity}x ${name}</div>
-            ${unitLine}
-          </div>
-          <div style="font-size:12px;font-weight:700;color:#000;white-space:nowrap">${fmt(i.unit_price * i.quantity)}</div>
-        </div>
-        ${obsLine}
-      </div>`;
-    }).join("") : "";
-
-    const drinksHtml = drinkItems.length > 0 ? `
-      ${mainItems.length > 0 ? `<div style="margin:10px 0;padding:8px 0;border-top:2px solid #000;border-bottom:2px solid #000;text-align:center">
-        <div style="font-size:11px;font-weight:700;color:#000;text-transform:uppercase;letter-spacing:0.5px">🍹 BEBIDAS 🍹</div>
-      </div>` : ""}
-      ${drinkItems.map(i => {
-        const name = i.products?.name ?? "Produto";
-        const unitLine = i.quantity > 1
-          ? `<div style="font-size:10px;font-weight:400;color:#333;margin-top:1px">${i.quantity} un x ${fmt(i.unit_price)}</div>` : "";
-        const obsLine = i.notes
-          ? `<div style="font-size:11px;font-weight:700;color:#000;margin-top:2px">Obs: ${i.notes}</div>` : "";
-        return `<div style="padding:5px 0;border-bottom:1px dashed #ccc">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start">
-            <div style="flex:1;padding-right:8px">
-              <div style="font-size:12px;font-weight:700;color:#000">${i.quantity}x ${name}</div>
-              ${unitLine}
-            </div>
-            <div style="font-size:12px;font-weight:700;color:#000;white-space:nowrap">${fmt(i.unit_price * i.quantity)}</div>
-          </div>
-          ${obsLine}
-        </div>`;
-      }).join("")}
-    ` : "";
-
-    const itemsHtml = mainItemsHtml + drinksHtml || `<div style="font-size:12px;font-weight:400;color:#000;padding:6px 0">Sem itens</div>`;
-
-    const paymentsHtml = checkoutPayments.map(p =>
-      ROW(PAY_INFO[p.method]?.label ?? p.method, fmt(p.amount))
-    ).join("");
-
-    const pixLine = checkoutPayments.some(p => p.method === "pix") && store.pix
-      ? `<div style="font-size:11px;font-weight:400;color:#000">Chave PIX: ${store.pix}</div>` : "";
-
-    const html = (`<!DOCTYPE html><html><head><meta charset="utf-8">
-    <title>Comanda #${orderNum}</title>
-    <style>
-      *{box-sizing:border-box;margin:0;padding:0}
-      body{font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:400;color:#000;background:#fff;padding:16px 14px;max-width:320px;margin:0 auto}
-      @media print{body{padding:4px 2px;max-width:none}@page{margin:2mm}}
-    </style></head><body>
-
-    <div style="text-align:center;padding-bottom:8px">
-      <div style="font-size:16px;font-weight:700;color:#000">${store.name}</div>
-      ${store.show_cnpj && store.cnpj ? `<div style="font-size:10px;font-weight:400;color:#000">CNPJ: ${store.cnpj}</div>` : ""}
-      ${store.address ? `<div style="font-size:10px;font-weight:400;color:#000">${store.address}</div>` : ""}
-      ${store.phone ? `<div style="font-size:10px;font-weight:400;color:#000">Tel: ${store.phone}</div>` : ""}
-    </div>
-
-    <div style="border-top:1px solid #000;border-bottom:1px dashed #000;padding:5px 0;margin:4px 0;text-align:center">
-      <div style="font-size:15px;font-weight:700;color:#000;letter-spacing:1px">#${orderNum}</div>
-      <div style="font-size:11px;font-weight:400;color:#000">${dt}</div>
-      <div style="font-size:12px;font-weight:700;color:#000">Mesa: ${selectedTable?.name ?? "—"}</div>
-    </div>
-
-    ${(checkoutCustomer?.name || checkoutSeller) ? `
-    <div style="padding:6px 0">
-      ${checkoutCustomer?.name ? `<div style="font-size:12px;color:#000"><span style="font-weight:700">Cliente:</span> ${checkoutCustomer.name}</div>` : ""}
-      ${checkoutSeller ? `<div style="font-size:12px;color:#000"><span style="font-weight:700">Vendedor:</span> ${checkoutSeller}</div>` : ""}
-    </div>
-    ` : ""}
-
-    ${SEP()}
-    ${LABEL("Itens do pedido")}
-    ${itemsHtml}
-
-    ${SEP()}
-    ${subtotal !== finalTotal ? ROW("Subtotal", fmt(subtotal)) : ""}
-    ${discountVal > 0 ? ROW("Desconto", "- " + fmt(discountVal)) : ""}
-    ${serviceVal > 0 ? ROW(`Serviço (${servicePct}%)`, fmt(serviceVal)) : ""}
-    ${TOTAL_BOX(fmt(finalTotal))}
-
-    ${SEP()}
-    ${LABEL("Pagamento")}
-    ${paymentsHtml}
-    ${pixLine}
-    ${chg > 0.01 ? ROW("Troco", fmt(chg)) : ""}
-
-    ${checkoutNotes ? `${SEP()}${LABEL("Observacoes")}<div style="font-size:12px;font-weight:400;color:#000">${checkoutNotes}</div>` : ""}
-
-    ${SEP()}
-    <div style="text-align:center;font-size:11px;font-weight:400;color:#000;padding-top:4px">
-      ${store.footer_message || "Obrigado pela preferencia!"}
-    </div>
-    </body></html>`);
+    const html = receiptHtml({
+      title: `Mesa · #${orderNum}`,
+      store,
+      heading: `MESA ${selectedTable?.name ?? "—"}`,
+      orderNum,
+      date: receiptDate(),
+      info: [
+        ...(checkoutCustomer?.name ? [{ label: "Cliente", value: checkoutCustomer.name }] : []),
+        ...(checkoutSeller ? [{ label: "Vendedor", value: checkoutSeller }] : []),
+      ],
+      lines: orderItems.map(i => ({
+        qty: i.quantity, name: i.products?.name ?? "Produto", total: i.unit_price * i.quantity, unit: i.unit_price,
+        notes: i.notes, addon: i.products?.item_type === "adicional", drink: isDrink(i.products?.name ?? ""),
+      })),
+      totals: [
+        ...(Math.abs(subtotal - finalTotal) > 0.009 ? [{ label: "Subtotal", value: brl(subtotal) }] : []),
+        ...(discountVal > 0 ? [{ label: "Desconto", value: "- " + brl(discountVal) }] : []),
+        ...(serviceVal > 0 ? [{ label: `Serviço (${servicePct}%)`, value: brl(serviceVal) }] : []),
+        { label: "TOTAL", value: brl(finalTotal), strong: true },
+      ],
+      payments: checkoutPayments.map(p => ({ label: PAY_INFO[p.method]?.label ?? p.method, value: brl(p.amount) })),
+      notes: [
+        ...(checkoutPayments.some(p => p.method === "pix") && store.pix ? [`Chave Pix: ${store.pix}`] : []),
+        ...(chg > 0.01 ? [`Troco: ${brl(chg)}`] : []),
+        ...(checkoutNotes ? [`Obs: ${checkoutNotes}`] : []),
+      ],
+      footer: store.footer_message || "Obrigado pela preferência!",
+    });
     printDocument(html, { kind: "receipt", title: `Mesa · #${orderNum}` });
   }
 

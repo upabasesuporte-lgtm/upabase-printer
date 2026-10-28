@@ -32,18 +32,29 @@ export interface Ticket {
 const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
 const fmtQty = (q: number) => Number.isInteger(Number(q)) ? String(Number(q)) : String(Number(q)).replace(".", ",");
 
+// Comanda no mesmo padrão do cupom (lib/receipt): quantidade em destaque,
+// o que vai na marmita logo abaixo, bebidas separadas no fim. Sem preços.
+const DRINK_RX = /bebida|coca|água|agua|suco|refrigerante|refri|vinho|cerveja|chopp|milkshake|café|leite|guaraná|guarana|fanta|sprite|lata|600ml|2l\b/i;
+
+function ticketLine(l: TicketLine): string {
+  return `<div class="it"><span class="q">${esc(fmtQty(l.quantity))}x</span><span class="n">${esc(l.product_name ?? "Produto")}</span></div>`
+    + (l.notes ? `<div class="d">${esc(l.notes)}</div>` : "");
+}
+
 function ticketHtml(t: Ticket): string {
-  const now = new Date().toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  const now = new Date().toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).replace(", ", " · ");
+  const food = t.lines.filter(l => !DRINK_RX.test(l.product_name ?? ""));
+  const drinks = t.lines.filter(l => DRINK_RX.test(l.product_name ?? ""));
   return `<div class="t">
-    ${t.cancelled ? `<div class="cx">*** CANCELADO ***</div>` : ""}
-    ${!t.cancelled && t.addition ? `<div class="cx">ACRÉSCIMO</div>` : ""}
-    ${t.reprint ? `<div class="meta">2ª VIA</div>` : ""}
-    <div class="sec">${esc(SECTOR_LABEL[t.sector].toUpperCase())}</div>
+    ${t.cancelled ? `<div class="inv">CANCELADO · NÃO PREPARAR</div>` : ""}
+    ${!t.cancelled && t.addition ? `<div class="inv">ACRÉSCIMO</div>` : ""}
+    <div class="hd"><span>${esc(SECTOR_LABEL[t.sector].toUpperCase())}</span><span>${t.reprint ? "2ª VIA" : ""}</span></div>
     <div class="org">${esc(t.origin)}</div>
-    <div class="meta">#${esc(t.orderNum)} · ${esc(now)}${t.sentBy ? ` · ${esc(t.sentBy)}` : ""}</div>
+    <div class="meta">PEDIDO #${esc(t.orderNum)} · ${esc(now)}${t.sentBy ? ` · ${esc(t.sentBy)}` : ""}</div>
     <div class="sep"></div>
-    ${t.lines.map(l => `<div class="ln"><b>${esc(fmtQty(l.quantity))}x</b> ${esc(l.product_name ?? "Produto")}</div>${l.notes ? `<div class="nt">→ ${esc(l.notes)}</div>` : ""}`).join("")}
-    ${t.extra ? `<div class="sep"></div><div class="nt">${esc(t.extra)}</div>` : ""}
+    ${food.map(ticketLine).join("")}
+    ${drinks.length ? `${food.length ? `<div class="sec">BEBIDAS</div>` : ""}${drinks.map(ticketLine).join("")}` : ""}
+    ${t.extra ? `<div class="sep"></div><div class="ex">${esc(t.extra)}</div>` : ""}
   </div>`;
 }
 
@@ -73,15 +84,20 @@ export function printHtml(bodyHtml: string, css: string) {
 
 // Vários tickets saem em sequência, cada um numa "página" (corte) própria.
 const TICKET_CSS = `
-    .t { padding: 8px 10px 14px; }
+    .t { padding: 8px 8px 14px; line-height: 1.3; -webkit-font-smoothing: none; }
     .t + .t { page-break-before: always; } /* corte entre tickets, sem página em branco no fim */
-    .sec { font-size: 12px; font-weight: 700; letter-spacing: 2px; text-align: center; }
-    .org { font-size: 22px; font-weight: 900; text-align: center; margin-top: 2px; }
-    .meta { font-size: 11px; text-align: center; margin-top: 2px; }
-    .sep { border-top: 1px dashed #000; margin: 6px 0; }
-    .ln { font-size: 16px; margin: 4px 0; }
-    .nt { font-size: 13px; margin: 0 0 4px 14px; }
-    .cx { font-size: 18px; font-weight: 900; text-align: center; border: 2px solid #000; padding: 4px; margin-bottom: 6px; }
+    .inv { background: #000; color: #fff; font-size: 16px; font-weight: 900; text-align: center; padding: 4px; margin-bottom: 6px; border-radius: 3px; }
+    .hd { display: flex; justify-content: space-between; font-size: 13px; font-weight: 900; letter-spacing: 1px; }
+    .org { font-size: 22px; font-weight: 900; text-align: center; margin-top: 2px; text-transform: uppercase; }
+    .meta { font-size: 12px; font-weight: 700; text-align: center; margin-top: 2px; }
+    .sep { border-top: 2px dashed #000; margin: 7px 0; }
+    .it { display: flex; align-items: flex-start; gap: 7px; margin-top: 8px; }
+    .q { background: #000; color: #fff; font-size: 17px; font-weight: 900; padding: 1px 6px; border-radius: 3px; white-space: nowrap; line-height: 1.25; }
+    .n { flex: 1; font-size: 17px; font-weight: 900; text-transform: uppercase; }
+    .d { font-size: 15px; font-weight: 700; padding-left: 40px; margin-top: 1px; }
+    .sec { display: flex; align-items: center; gap: 6px; margin: 12px 0 2px; font-size: 14px; font-weight: 900; letter-spacing: 1px; }
+    .sec:before, .sec:after { content: ""; flex: 1; border-top: 2px dashed #000; }
+    .ex { font-size: 14px; font-weight: 700; }
 `;
 
 export function printTickets(tickets: Ticket[]) {
