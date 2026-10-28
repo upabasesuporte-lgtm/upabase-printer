@@ -145,7 +145,11 @@ function getPrintWindow() {
   return printWin;
 }
 let printChain = Promise.resolve();
+let printing = 0;        // impressões em andamento
+let lastPrintAt = 0;     // última impressão (para atualizar só com a impressora parada)
 function printHtml(html, deviceName, paperMm) {
+  printing++;
+  lastPrintAt = Date.now();
   const widthMm = Number(paperMm) >= 40 && Number(paperMm) <= 120 ? Math.round(Number(paperMm)) : DEFAULT_PAPER_MM;
   const job = printChain.then(() => new Promise(resolve => {
     const file = path.join(os.tmpdir(), `upabase-print-${Date.now()}-${Math.random().toString(36).slice(2)}.html`);
@@ -178,6 +182,7 @@ function printHtml(html, deviceName, paperMm) {
     pw.loadFile(file);
   }));
   printChain = job.catch(() => {});
+  job.finally(() => { printing--; lastPrintAt = Date.now(); }).catch(() => {});
   return job;
 }
 
@@ -207,16 +212,31 @@ app.whenReady().then(() => {
   // Abre pelo link das Configurações (registra o endereço upabase-impressao://)
   if (app.isPackaged) app.setAsDefaultProtocolClient(PROTOCOL);
   pendingCode = codeFromArgs(process.argv);
+  // Reaberto por uma atualização automática: volta escondido, como estava
+  const cfg = readConfig();
+  const afterUpdate = !!cfg.hiddenAfterUpdate;
+  if (afterUpdate) { delete cfg.hiddenAfterUpdate; writeConfig(cfg); }
   createTray();
-  createWindow(process.argv.includes("--hidden") && !pendingCode);
+  createWindow((process.argv.includes("--hidden") || afterUpdate) && !pendingCode);
 
   // Atualização automática pelo GitHub (só no programa instalado)
   if (app.isPackaged) {
     try {
       const { autoUpdater } = require("electron-updater");
-      const check = () => autoUpdater.checkForUpdatesAndNotify().catch(() => {});
+      // Versão nova baixada: instala sozinha assim que a impressora estiver parada
+      // (20 s sem imprimir) e o programa reabre escondido — ninguém precisa fazer nada
+      autoUpdater.on("update-downloaded", () => {
+        const tryInstall = () => {
+          if (printing || Date.now() - lastPrintAt < 20_000) { setTimeout(tryInstall, 10_000); return; }
+          writeConfig({ ...readConfig(), hiddenAfterUpdate: true });
+          quitting = true;
+          autoUpdater.quitAndInstall(true, true);
+        };
+        setTimeout(tryInstall, 5_000);
+      });
+      const check = () => autoUpdater.checkForUpdates().catch(() => {});
       check();
-      setInterval(check, 6 * 60 * 60 * 1000);
+      setInterval(check, 60 * 60 * 1000); // a cada hora
     } catch { /* sem atualizador */ }
   }
 });
