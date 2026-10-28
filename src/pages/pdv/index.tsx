@@ -309,6 +309,11 @@ export default function PdvPage() {
 
   // Toast de erro
   const [toastError, setToastError] = useState<string | null>(null);
+  // Excluir venda: pergunta na hora se a cozinha recebe o papel "CANCELADO"
+  const [deleteAsk, setDeleteAsk] = useState<null | { orderNum: string; kitchen: boolean; resolve: (v: "notify" | "silent" | null) => void }>(null);
+  const askDelete = (orderNum: string, kitchen: boolean) =>
+    new Promise<"notify" | "silent" | null>(resolve => setDeleteAsk({ orderNum, kitchen, resolve }));
+  const answerDelete = (v: "notify" | "silent" | null) => { deleteAsk?.resolve(v); setDeleteAsk(null); };
 
   function showError(msg: string) {
     setToastError(msg);
@@ -1135,8 +1140,12 @@ export default function PdvPage() {
     const { data: paidCheck } = await supabase.from("sales").select("courier_payment_id").eq("id", saleId).maybeSingle();
     if ((paidCheck as any)?.courier_payment_id &&
         !confirm("A entrega desta venda já foi PAGA ao motoboy. Se precisar desfazer o pagamento, use \"Estornar\" em Cozinha → Motoboys antes.\n\nExcluir a venda mesmo assim?")) return;
-    if (!confirm("Excluir esta venda definitivamente?")) return;
     const orderNum = saleId.slice(-6).toUpperCase();
+    // Itens que a cozinha já recebeu impressos (e não despachou): aí vale perguntar do aviso
+    const { count: kitchenCount } = await supabase.from("sale_items").select("id", { count: "exact", head: true })
+      .eq("sale_id", saleId).not("printed_at", "is", null).not("sector", "is", null).neq("kds_state", "done");
+    const choice = await askDelete(orderNum, (kitchenCount ?? 0) > 0);
+    if (!choice) return;
     let sale = sales.find(s => s.id === saleId) ?? showEditSale;
     if (!sale) {
       const { data } = await supabase.from("sales").select("*").eq("id", saleId).single();
@@ -1173,7 +1182,8 @@ export default function PdvPage() {
     // Recalcula o fiado a partir do histórico real (já sem os movimentos apagados acima)
     if (customerId) await recalcFiadoBalance(customerId);
 
-    await supabase.from("sales").delete().eq("id", saleId);
+    const { error: delErr } = await supabase.rpc("delete_sale", { p_sale_id: saleId, p_notify_kitchen: choice === "notify" });
+    if (delErr) await supabase.from("sales").delete().eq("id", saleId);
     setSales(prev => prev.filter(s => s.id !== saleId));
     setShowEditSale(null);
   }
@@ -1206,6 +1216,41 @@ export default function PdvPage() {
           style={{ background: "#111827", color: "#fff" }}>
           <span>Venda limpa</span>
           <button onClick={undoCancelSale} className="font-bold" style={{ color: "#93c5fd" }}>Desfazer</button>
+        </div>
+      )}
+
+      {/* Confirmação de exclusão (com ou sem aviso para a cozinha) */}
+      {deleteAsk && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4" onClick={() => answerDelete(null)}>
+          <div className="w-full max-w-sm rounded-2xl p-5 space-y-3 shadow-2xl" style={{ background: card.bg, border: card.border }} onClick={e => e.stopPropagation()}
+            onKeyDown={e => e.nativeEvent.stopPropagation() /* Enter aqui não aciona os atalhos do PDV */}>
+            <div className="flex items-center gap-2">
+              <Trash2 className="w-5 h-5 text-red-500" />
+              <p className="font-bold">Excluir a venda #{deleteAsk.orderNum}?</p>
+            </div>
+            {deleteAsk.kitchen ? (
+              <>
+                <p className="text-sm text-zinc-500">Este pedido já foi impresso para a cozinha. Quer imprimir o aviso <b>CANCELADO</b> para não prepararem?</p>
+                <button onClick={() => answerDelete("notify")} autoFocus
+                  className="w-full py-2.5 rounded-xl text-sm font-bold bg-red-600 hover:bg-red-700" style={{ color: "#fff" }}>
+                  Excluir e avisar a cozinha
+                </button>
+                <button onClick={() => answerDelete("silent")}
+                  className="w-full py-2.5 rounded-xl text-sm font-semibold border border-red-500/40 text-red-500 hover:bg-red-500/10">
+                  Excluir sem imprimir
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-zinc-500">Essa ação não pode ser desfeita.</p>
+                <button onClick={() => answerDelete("silent")} autoFocus
+                  className="w-full py-2.5 rounded-xl text-sm font-bold bg-red-600 hover:bg-red-700" style={{ color: "#fff" }}>
+                  Excluir venda
+                </button>
+              </>
+            )}
+            <button onClick={() => answerDelete(null)} className="w-full py-2 text-sm text-zinc-500 hover:underline">Voltar</button>
+          </div>
         </div>
       )}
 
