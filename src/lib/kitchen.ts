@@ -49,12 +49,16 @@ function ticketHtml(t: Ticket): string {
 
 // Imprime um documento por um iframe escondido (não abre janela; com
 // --kiosk-printing sai direto na impressora padrão do aparelho).
-export function printHtml(bodyHtml: string, css: string) {
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Pedido</title><style>
+export function thermalHtml(bodyHtml: string, css: string) {
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Pedido</title><style>
     @page { margin: 0; size: 80mm auto; }
     body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #000; width: 80mm; }
     ${css}
   </style></head><body>${bodyHtml}</body></html>`;
+}
+
+export function printHtml(bodyHtml: string, css: string) {
+  const html = thermalHtml(bodyHtml, css);
   const iframe = document.createElement("iframe");
   iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden";
   document.body.appendChild(iframe);
@@ -159,14 +163,15 @@ export async function ticketsFromRows(rows: ClaimRow[]): Promise<Ticket[]> {
 // ── Preferências desta estação (ficam neste aparelho) ────────────────────────
 
 const STATION_KEY = "kitchen_station";
-export interface StationPrefs { sectors: Sector[]; autoPrint: boolean }
+// receipts: também imprime cupons/pré-contas enviados pelos celulares (fila print_queue)
+export interface StationPrefs { sectors: Sector[]; autoPrint: boolean; receipts: boolean }
 
 export function getStationPrefs(): StationPrefs {
   try {
     const v = JSON.parse(localStorage.getItem(STATION_KEY) ?? "null");
-    if (v && Array.isArray(v.sectors)) return { sectors: v.sectors.filter((s: string) => SECTORS.includes(s as Sector)), autoPrint: !!v.autoPrint };
+    if (v && Array.isArray(v.sectors)) return { sectors: v.sectors.filter((s: string) => SECTORS.includes(s as Sector)), autoPrint: !!v.autoPrint, receipts: v.receipts !== false };
   } catch { /* sem storage */ }
-  return { sectors: [...SECTORS], autoPrint: false };
+  return { sectors: [...SECTORS], autoPrint: false, receipts: true };
 }
 
 export function setStationPrefs(p: StationPrefs) {

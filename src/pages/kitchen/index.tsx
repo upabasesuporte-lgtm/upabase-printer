@@ -12,11 +12,12 @@ import {
   SECTOR_LABEL, SECTORS, printTickets, getStationPrefs, setStationPrefs, originOf, loadSales,
   type Sector, type StationPrefs, type KSale,
 } from "../../lib/kitchen";
+import { getPrintTarget, setPrintTarget, type PrintTarget } from "../../lib/printing";
 import type { MapOrder } from "./DeliveryMap";
 // Mapa de entregas: carregado só quando aberto
 const DeliveryMap = lazy(() => import("./DeliveryMap"));
 import {
-  ChefHat, Printer, Clock, Bike, Store, UtensilsCrossed, CheckCircle2, Flame,
+  ChefHat, Printer, Smartphone, Clock, Bike, Store, UtensilsCrossed, CheckCircle2, Flame,
   Plus, Trash2, Save, Loader2, Info, Tags,
 } from "lucide-react";
 
@@ -101,6 +102,9 @@ function OrdersBoard({ isLight, card }: { isLight: boolean; card: React.CSSPrope
   const [err, setErr] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
   const [showHelp, setShowHelp] = useState(false);
+  const [copied, setCopied] = useState(false);
+  // Atalho do Chrome com impressão direta (sem a janela de imprimir)
+  const kioskCmd = `"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --kiosk-printing ${window.location.origin}`;
   const [courierPick, setCourierPick] = useState<string | null>(null); // pedido com a lista de motoboys aberta
   const [view, setView] = useState<"list" | "map">(() => {
     try { return localStorage.getItem("kitchen_view") === "map" ? "map" : "list"; } catch { return "list"; }
@@ -109,6 +113,7 @@ function OrdersBoard({ isLight, card }: { isLight: boolean; card: React.CSSPrope
   const seen = useRef<Set<string> | null>(null);
 
   const updatePrefs = (p: StationPrefs) => { setPrefs(p); setStationPrefs(p); };
+  const [target, setTarget] = useState<PrintTarget>(() => getPrintTarget());
 
   const load = useCallback(async () => {
     if (prefs.sectors.length === 0) { setItems([]); setLoading(false); return; }
@@ -269,6 +274,24 @@ function OrdersBoard({ isLight, card }: { isLight: boolean; card: React.CSSPrope
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold" style={chip(prefs.autoPrint)}>
           <Printer className="w-3.5 h-3.5" /> {prefs.autoPrint ? "Imprimindo automaticamente" : "Imprimir automaticamente: desligado"}
         </button>
+        {prefs.autoPrint && (
+          <button onClick={() => updatePrefs({ ...prefs, receipts: !prefs.receipts })}
+            title="Cupons, pré-contas e pedidos lançados pelos celulares saem nesta impressora"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold" style={chip(prefs.receipts)}>
+            <Smartphone className="w-3.5 h-3.5" /> {prefs.receipts ? "Cupons dos celulares: saem aqui" : "Cupons dos celulares: desligado"}
+          </button>
+        )}
+        {!prefs.autoPrint && (
+          <label className={`flex items-center gap-1.5 text-xs ${muted}`} title="Onde saem o cupom, a pré-conta e o pedido lançados neste aparelho">
+            Este aparelho imprime:
+            <select value={target} onChange={e => { setTarget(e.target.value as PrintTarget); setPrintTarget(e.target.value as PrintTarget); }}
+              className="px-2 py-1 rounded-lg text-xs font-semibold" style={chip(false)}>
+              <option value="auto">Automático</option>
+              <option value="here">Aqui mesmo</option>
+              <option value="station">No computador do caixa</option>
+            </select>
+          </label>
+        )}
         <button onClick={() => setShowHelp(v => !v)} className={`flex items-center gap-1 text-xs underline ${muted}`}>
           <Info className="w-3.5 h-3.5" /> Como configurar a impressora
         </button>
@@ -279,9 +302,18 @@ function OrdersBoard({ isLight, card }: { isLight: boolean; card: React.CSSPrope
           <p className="font-bold">Estação de impressão (uma por impressora)</p>
           <ol className={`list-decimal ml-5 space-y-1 ${muted}`}>
             <li>No computador ligado à impressora (cozinha, bar ou balcão), deixe essa impressora como <b>padrão</b> do Windows.</li>
-            <li>Crie um atalho do Chrome e, em Propriedades → Destino, coloque no final: <code className="px-1 rounded bg-black/10">--kiosk-printing</code> (com um espaço antes). Abra o sistema por esse atalho.</li>
+            <li>
+              Crie o atalho de impressão direta: clique com o botão direito na <b>Área de Trabalho → Novo → Atalho</b>, cole o texto abaixo e dê o nome <b>Upabase Caixa</b>.
+              <div className="flex flex-wrap items-center gap-2 mt-1">
+                <code className="px-2 py-1 rounded bg-black/10 text-[11px] break-all">{kioskCmd}</code>
+                <button onClick={() => { navigator.clipboard?.writeText(kioskCmd).then(() => setCopied(true)).catch(() => {}); setTimeout(() => setCopied(false), 2500); }}
+                  className="px-2.5 py-1 rounded-lg text-xs font-bold" style={chip(copied)}>{copied ? "Copiado!" : "Copiar"}</button>
+              </div>
+              <span className="text-xs">Antes de abrir pelo atalho, <b>feche todas as janelas do Chrome</b> (senão ele ignora a impressão direta). Daí em diante, sempre abra o sistema por esse atalho: nada de janela de imprimir, sai direto.</span>
+            </li>
             <li>Entre na aba <b>Cozinha</b>, marque os setores dessa impressora (ex.: só Bar) e ligue <b>Imprimir automaticamente</b>.</li>
             <li>Deixe o sistema aberto (pode ser em qualquer aba, até no PDV). Cada pedido novo do setor sai sozinho, sem janela de impressão.</li>
+            <li>Garçom no celular? Deixe <b>Cupons dos celulares</b> ligado neste computador: cupom, pré-conta e pedido lançados no celular saem nesta impressora. No celular fica "Automático" (ou escolha "No computador do caixa").</li>
           </ol>
           <p className={muted}>Só uma impressora? Marque Cozinha, Bar e Balcão na mesma estação e tudo sai nela. Duas estações do mesmo setor não imprimem o mesmo pedido duas vezes.</p>
           <p className={muted}>Os setores de cada categoria são definidos na aba <b>Setores</b>.</p>

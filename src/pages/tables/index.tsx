@@ -2,7 +2,8 @@
 import { createPortal, flushSync } from "react-dom";
 import { supabase } from "../../lib/supabase";
 import { requireApproval, useOperators } from "../../lib/operators";
-import { printItemsHere, onlineSectors, getPrintHere, setPrintHere, printTickets, printHtml, SECTOR_LABEL, type Sector } from "../../lib/kitchen";
+import { printDocument } from "../../lib/printing";
+import { printItemsHere, onlineSectors, getPrintHere, setPrintHere, printTickets, thermalHtml, SECTOR_LABEL, type Sector } from "../../lib/kitchen";
 import { matchesSearch } from "../../lib/search";
 import { useTheme } from "../../contexts/ThemeContext";
 import { PageHeader, btnPrimary, btnSecondary, WHITE_TEXT } from "../../components/PageHeader";
@@ -585,7 +586,7 @@ export default function TablesPage() {
     const e = (t: string) => t.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
     const row = (a: string, b: string, big = false) => `<div class="r${big ? " big" : ""}"><span>${a}</span><span>${b}</span></div>`;
     const dt = new Date().toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
-    printHtml(`<div class="t">
+    printDocument(thermalHtml(`<div class="t">
       <div class="c b">${e(store.name)}</div>
       <div class="c big">MESA ${e(selectedTable.name)}</div>
       <div class="c s">CONFERÊNCIA DE CONTA · ${dt}</div>
@@ -602,7 +603,7 @@ export default function TablesPage() {
       .big { font-size: 18px; font-weight: 900; }
       .r { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; margin: 3px 0; }
       .sep { border-top: 1px dashed #000; margin: 6px 0; }
-    `);
+    `), { kind: "prebill", title: `Mesa ${selectedTable.name}` });
   }
 
   // ── Checkout ────────────────────────────────────────────────────────────────
@@ -784,8 +785,6 @@ export default function TablesPage() {
 
   function printReceipt(_saleId: string, orderNum: string) {
     const store = getStoreSettings();
-    const win = window.open("", "_blank", "width=420,height=700");
-    if (!win) return;
     const dt = new Date().toLocaleString("pt-BR", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" });
     const subtotal = orderItems.reduce((s, i) => s + i.unit_price * i.quantity, 0);
     const paid = checkoutPayments.reduce((s, p) => s + p.amount, 0);
@@ -871,7 +870,7 @@ export default function TablesPage() {
     const pixLine = checkoutPayments.some(p => p.method === "pix") && store.pix
       ? `<div style="font-size:11px;font-weight:400;color:#000">Chave PIX: ${store.pix}</div>` : "";
 
-    win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+    const html = (`<!DOCTYPE html><html><head><meta charset="utf-8">
     <title>Comanda #${orderNum}</title>
     <style>
       *{box-sizing:border-box;margin:0;padding:0}
@@ -922,8 +921,7 @@ export default function TablesPage() {
       ${store.footer_message || "Obrigado pela preferencia!"}
     </div>
     </body></html>`);
-    win.document.close();
-    setTimeout(() => win.print(), 400);
+    printDocument(html, { kind: "receipt", title: `Mesa · #${orderNum}` });
   }
 
   // ── Table CRUD ───────────────────────────────────────────────────────────────

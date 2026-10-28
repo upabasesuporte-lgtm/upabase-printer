@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../../lib/supabase";
+import { printDocument } from "../../lib/printing";
 import { requireApproval } from "../../lib/operators";
 import { matchesSearch } from "../../lib/search";
 import { recalcFiadoBalance } from "../../lib/fiado";
@@ -765,8 +766,6 @@ export default function PdvPage() {
   // ── Imprimir ──
   async function printSale(sale: Sale, items: SaleItem[]) {
     const store = getStoreSettings();
-    const win = window.open("", "_blank", "width=420,height=700");
-    if (!win) return;
 
     // Busca a dívida atual do cliente (mesmo dado da aba Clientes) pra mostrar na comanda
     let customerFiadoBalance = 0;
@@ -869,7 +868,7 @@ export default function PdvPage() {
     const pixLine = sale.payments?.some((p: PaymentEntry) => p.method === "pix") && store.pix
       ? `<div style="font-size:11px;font-weight:400;color:#000">Chave PIX: ${store.pix}</div>` : "";
 
-    win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+    const html = (`<!DOCTYPE html><html><head><meta charset="utf-8">
     <title>Pedido #${orderNum}</title>
     <style>
       *{box-sizing:border-box;margin:0;padding:0}
@@ -930,9 +929,7 @@ export default function PdvPage() {
       ${store.footer_message || "Obrigado pela preferencia!"}
     </div>
     </body></html>`);
-    win.document.close();
-    win.onafterprint = () => win.close();
-    setTimeout(() => win.print(), 400);
+    await printDocument(html, { kind: "receipt", title: `Pedido #${orderNum}` });
   }
 
   // ── Editar venda ──

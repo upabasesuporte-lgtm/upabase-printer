@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect, useCallback, useRef } from "react";
 import { flushSync } from "react-dom";
 import { supabase } from "../../lib/supabase";
+import { printDocument } from "../../lib/printing";
 import { matchesSearch } from "../../lib/search";
 import { useTheme } from "../../contexts/ThemeContext";
 import { PageHeader, btnSecondary } from "../../components/PageHeader";
@@ -270,9 +271,7 @@ function printLabel(order: DigitalOrder, products: Product[] = []) {
   const pixLine = order.payment_method === "pix" && store.pix
     ? `<div style="font-size:11px;font-weight:400;color:#000">Chave PIX: ${store.pix}</div>` : "";
 
-  const win = window.open("", "_blank", "width=420,height=700");
-  if (!win) return;
-  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+  const html = (`<!DOCTYPE html><html><head><meta charset="utf-8">
   <title>Pedido #${order.order_number}</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
@@ -318,8 +317,7 @@ function printLabel(order: DigitalOrder, products: Product[] = []) {
     ${store.footer_message || "Obrigado pela preferência!"}
   </div>
   </body></html>`);
-  win.document.close();
-  setTimeout(() => win.print(), 400);
+  printDocument(html, { kind: "order", title: `Pedido #${order.order_number}` });
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────

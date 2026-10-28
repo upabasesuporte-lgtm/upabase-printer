@@ -5,6 +5,7 @@
 import { useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase";
 import { getStationPrefs, deviceId, printTickets, ticketsFromRows, type ClaimRow, type Sector } from "../lib/kitchen";
+import { claimAndPrintQueue } from "../lib/printing";
 
 export function StationPrinter() {
   const busy = useRef(false);
@@ -13,7 +14,7 @@ export function StationPrinter() {
   useEffect(() => {
     async function tick() {
       const prefs = getStationPrefs();
-      if (!prefs.autoPrint || prefs.sectors.length === 0 || busy.current) return;
+      if (!prefs.autoPrint || (prefs.sectors.length === 0 && !prefs.receipts) || busy.current) return;
       busy.current = true;
       try {
         // Sinal de vida: quem envia pedido sabe que há impressora ligada para o setor
@@ -22,10 +23,14 @@ export function StationPrinter() {
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.user) {
             await supabase.from("print_stations").upsert(
-              { user_id: session.user.id, device_id: deviceId(), sectors: prefs.sectors, seen_at: new Date().toISOString() },
+              { user_id: session.user.id, device_id: deviceId(), sectors: prefs.sectors, receipts: prefs.receipts, seen_at: new Date().toISOString() },
               { onConflict: "user_id,device_id" });
           }
         }
+        // Cupons e pré-contas enviados pelos celulares
+        if (prefs.receipts) await claimAndPrintQueue();
+
+        if (prefs.sectors.length === 0) return;
         const { data, error } = await supabase.rpc("claim_kitchen_print", { p_sectors: prefs.sectors });
         if (!error && data?.length) printTickets(await ticketsFromRows(data as ClaimRow[]));
 
