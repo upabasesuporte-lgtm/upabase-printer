@@ -1,9 +1,10 @@
 ﻿import { useState, useEffect } from "react";
-import { Store, Phone, CreditCard, Save, CheckCircle2, Receipt, Plus, Trash2, Users, Settings, Loader2, KeyRound } from "lucide-react";
+import { Store, Phone, CreditCard, Save, CheckCircle2, Receipt, Plus, Trash2, Users, Settings, Loader2, KeyRound, Download } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { loadOperators, setCurrentOperator, saveLockMinutes, setDeviceNoLock, useOperators, TAB_OPTIONS, PRESETS, describeOperator, operatorRoutes, operatorCanApprove, type Operator } from "../../lib/operators";
 import { PageHeader } from "../../components/PageHeader";
 import { StoreLocationCard } from "../../components/StoreLocationCard";
+import { DataExport } from "../../components/DataExport";
 import { useTheme } from "../../contexts/ThemeContext";
 
 // ── Storage keys (cache local para impressão síncrona) ────────────────────────
@@ -436,6 +437,11 @@ export default function SettingsPage() {
           </div>
         )}
       </div>
+
+      {/* Exportar os dados da loja */}
+      <SectionCard icon={<Download className="w-4 h-4" />} title="Seus dados" color="#315DFB">
+        <DataExport isLight={isLight} />
+      </SectionCard>
     </div>
   );
 }

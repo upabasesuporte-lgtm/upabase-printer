@@ -4,6 +4,8 @@ import { supabase } from "../lib/supabase";
 import { useTheme } from "../contexts/ThemeContext";
 import type { UserPlanRecord, PlanType } from "../lib/plans";
 import { isPlanValid, isRouteAllowed, PLAN_ROUTES } from "../lib/plans";
+import { TrialBanner } from "../components/TrialBanner";
+import { supportWhatsAppUrl } from "../lib/support";
 import { PlanBlock } from "../components/PlanBlock";
 import { unlockAudio, playAlertBeep } from "../lib/audio";
 
@@ -625,7 +627,7 @@ export function AppLayout() {
           )}
 
           <button
-            onClick={() => window.open("https://wa.me/5518997066843?text=upabase%20atendente%20wesley", "_blank")}
+            onClick={() => window.open(supportWhatsAppUrl(`Olá! Preciso de ajuda com o sistema.${companyName ? ` Loja: ${companyName}.` : ""}${userEmail ? ` Conta: ${userEmail}.` : ""} Tela: ${menuItems.find(m => m.path === currentPath)?.label ?? currentPath}.`), "_blank")}
             title="Suporte"
             className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg transition-all text-green-600 hover:text-green-500 font-medium text-sm whitespace-nowrap overflow-hidden"
             style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", hover: { background: "rgba(34,197,94,0.12)" } }}>
@@ -733,6 +735,7 @@ export function AppLayout() {
 
         <div className="flex-1 overflow-auto min-h-0">
           <div className="p-3 sm:p-6 min-h-full">
+            {!isAdmin && planReady && <TrialBanner plan={userPlan} />}
             {opBlocked
                 ? (!planReady ? null : firstAllowedPath && firstAllowedPath !== currentPath
                     ? <Navigate to={firstAllowedPath} replace />

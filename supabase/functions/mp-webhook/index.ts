@@ -35,15 +35,16 @@ async function verifySignature(req: Request, rawBody: string): Promise<boolean> 
 
   // Extrai ts e v1 do header "ts=...,v1=..."
   const parts = Object.fromEntries(
-    xSignature.split(",").map(p => p.split("=") as [string, string])
+    xSignature.split(",").map(p => p.trim().split("=") as [string, string])
   );
   const ts = parts["ts"];
   const v1 = parts["v1"];
   if (!ts || !v1) return false;
 
   // Extrai o id do data
-  let dataId = "";
-  try { dataId = JSON.parse(rawBody)?.data?.id ?? ""; } catch { /* noop */ }
+  let dataId = new URL(req.url).searchParams.get("data.id") ?? "";
+  if (!dataId) { try { dataId = String(JSON.parse(rawBody)?.data?.id ?? ""); } catch { /* noop */ } }
+  if (/^[a-z0-9]+$/i.test(dataId)) dataId = dataId.toLowerCase();
 
   // Template: id:{data.id};request-id:{x-request-id};ts:{ts};
   const template = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
@@ -81,69 +82,106 @@ serve(async (req) => {
     return new Response("Bad Request", { status: 400 });
   }
 
-  // Ignora eventos que não sejam de assinatura
-  if (body.type !== "subscription_preapproval" || !body.data?.id) {
+  const type = body.type as string | undefined;
+  const dataId = body.data?.id ? String(body.data.id) : "";
+  if (!dataId || (type !== "subscription_preapproval" && type !== "subscription_authorized_payment")) {
     return new Response("OK", { status: 200 });
   }
 
-  const subscriptionId = body.data.id;
+  const mp = (path: string) => fetch(`https://api.mercadopago.com${path}`, { headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` } });
+
+  // Mensalidade cobrada (renovação): chega como authorized_payment e aponta para a assinatura
+  let subscriptionId = dataId;
+  let paymentApproved = false;
+  if (type === "subscription_authorized_payment") {
+    const payRes = await mp(`/authorized_payments/${dataId}`);
+    if (!payRes.ok) {
+      console.error("Erro ao buscar cobrança no MP:", await payRes.text());
+      return new Response("MP Error", { status: 500 });
+    }
+    const pay = await payRes.json();
+    subscriptionId = pay.preapproval_id;
+    paymentApproved = pay.payment?.status === "approved" || pay.status === "processed";
+    if (!subscriptionId || !paymentApproved) {
+      console.log(`Cobrança ${dataId} ainda não aprovada (status: ${pay.status}/${pay.payment?.status})`);
+      return new Response("OK", { status: 200 });
+    }
+  }
 
   // Busca detalhes da assinatura na API do MP
-  const mpRes = await fetch(
-    `https://api.mercadopago.com/preapproval/${subscriptionId}`,
-    { headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` } }
-  );
-
+  const mpRes = await mp(`/preapproval/${subscriptionId}`);
   if (!mpRes.ok) {
     console.error("Erro ao buscar assinatura no MP:", await mpRes.text());
     return new Response("MP Error", { status: 500 });
   }
-
   const sub = await mpRes.json();
 
-  const payerEmail = sub.payer_email as string | undefined;
+  const payerEmail = (sub.payer_email as string | undefined)?.trim() || undefined;
   const planId     = sub.preapproval_plan_id as string | undefined;
   const status     = sub.status as string; // authorized | paused | cancelled | pending
+  const planType   = planId ? MP_PLAN_MAP[planId] : undefined;
+  const supabase   = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  if (!payerEmail) {
-    console.error("Sem payer_email na assinatura", subscriptionId);
+  // Encontra a conta: primeiro pela assinatura já vinculada, depois pelo e-mail (sem diferenciar maiúsculas)
+  let row: { user_id: string; plan_expires_at: string | null; is_lifetime: boolean | null } | null = null;
+  {
+    const { data } = await supabase.from("user_plans").select("user_id, plan_expires_at, is_lifetime")
+      .eq("mp_subscription_id", subscriptionId).limit(1).maybeSingle();
+    row = data;
+  }
+  if (!row && payerEmail) {
+    const { data } = await supabase.from("user_plans").select("user_id, plan_expires_at, is_lifetime")
+      .ilike("email", payerEmail.replace(/[%_\\]/g, "\\$&")).limit(1).maybeSingle();
+    row = data;
+  }
+  if (!row) {
+    // Pagou com e-mail diferente do cadastro: liberar manualmente pelo painel Admin
+    console.error(`Assinatura ${subscriptionId} sem conta correspondente (e-mail MP: ${payerEmail ?? "vazio"}, plano: ${planType ?? planId})`);
     return new Response("OK", { status: 200 });
   }
 
-  const planType = planId ? MP_PLAN_MAP[planId] : undefined;
-  const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+  // Conta vitalícia não muda por causa de assinatura
+  if (row.is_lifetime) {
+    console.log(`Assinatura ${subscriptionId} ignorada: conta vitalícia`);
+    return new Response("OK", { status: 200 });
+  }
 
   if (status === "authorized") {
-    const expiresAt = new Date();
+    // Vale até a próxima cobrança + 3 dias de folga (cartão recusado, atraso do MP)
+    const fallback = new Date();
     ANNUAL_IDS.has(planId ?? "")
-      ? expiresAt.setFullYear(expiresAt.getFullYear() + 1)
-      : expiresAt.setMonth(expiresAt.getMonth() + 1);
+      ? fallback.setFullYear(fallback.getFullYear() + 1)
+      : fallback.setMonth(fallback.getMonth() + 1);
+    const next = sub.next_payment_date ? new Date(sub.next_payment_date) : null;
+    const base = next && !isNaN(next.getTime()) && next > new Date() ? next : fallback;
+    const expiresAt = new Date(base.getTime() + 3 * 86400000);
+    // Nunca encurta um vencimento que já está mais longe
+    const current = row.plan_expires_at ? new Date(row.plan_expires_at) : null;
+    const finalExpires = current && current > expiresAt ? current : expiresAt;
 
     const { error } = await supabase
       .from("user_plans")
       .update({
         plan:               "active",
         plan_type:          planType ?? null,
-        plan_expires_at:    expiresAt.toISOString(),
+        plan_expires_at:    finalExpires.toISOString(),
         mp_subscription_id: subscriptionId,
         is_lifetime:        false,
       })
-      .eq("email", payerEmail);
+      .eq("user_id", row.user_id);
 
     if (error) console.error("Erro ao ativar plano:", error);
-    else console.log(`Plano ${planType} ativado — sub ${subscriptionId}`);
+    else console.log(`Plano ${planType} ativo até ${finalExpires.toISOString()} — sub ${subscriptionId}${paymentApproved ? " (mensalidade paga)" : ""}`);
 
   } else if (status === "cancelled" || status === "paused") {
+    // Cancelou: continua usando até o fim do período já pago; depois o vencimento bloqueia sozinho
     const { error } = await supabase
       .from("user_plans")
-      .update({
-        plan:               "suspended",
-        mp_subscription_id: subscriptionId,
-      })
-      .eq("email", payerEmail);
+      .update({ mp_subscription_id: subscriptionId })
+      .eq("user_id", row.user_id);
 
-    if (error) console.error("Erro ao suspender plano:", error);
-    else console.log(`Plano suspenso — sub ${subscriptionId} (status: ${status})`);
+    if (error) console.error("Erro ao registrar cancelamento:", error);
+    else console.log(`Assinatura ${status} — sub ${subscriptionId}; acesso segue até o vencimento já pago`);
   }
 
   return new Response("OK", { status: 200 });

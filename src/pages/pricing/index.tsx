@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   Check,
@@ -16,7 +16,9 @@ import {
   Receipt,
   BarChart3,
 } from "lucide-react";
-import { PLAN_INFO } from "../../lib/plans";
+import { PLAN_INFO, getMpCheckoutUrl } from "../../lib/plans";
+import { supabase } from "../../lib/supabase";
+import { supportWhatsAppUrl } from "../../lib/support";
 
 const BLUE = "#2451f5";
 const PURPLE = "#7c3aed";
@@ -93,6 +95,10 @@ export default function PricingPage() {
   const plan = PLAN_INFO.loja;
   const amount = isAnnual ? plan.price_annual_monthly : plan.price_monthly;
   const savingsPct = Math.round((1 - plan.price_annual_total / (plan.price_monthly * 12)) * 100);
+  // Já tem conta (veio do aviso de teste/vencimento): o botão vira "Assinar" no Mercado Pago
+  const [email, setEmail] = useState<string | null>(null);
+  useEffect(() => { supabase.auth.getSession().then(({ data }) => setEmail(data.session?.user.email ?? null)); }, []);
+  const checkoutUrl = getMpCheckoutUrl(isAnnual ? plan.mp_id_annual : plan.mp_id_monthly, email ?? undefined);
 
   return (
     <div style={{ position: "relative", background: BG_SOFT, minHeight: "100vh", overflowX: "hidden" }}>
@@ -259,16 +265,41 @@ export default function PricingPage() {
             </div>
           </div>
 
-          <Link
-            to="/auth?register=1"
-            className="up-cta-btn"
-            style={{ margin: "20px 30px 0", width: "calc(100% - 60px)" }}
-          >
-            Começar teste grátis
-          </Link>
-          <div style={{ textAlign: "center", fontSize: 12, color: INK_SOFT, margin: "12px 30px 0" }}>
-            <b style={{ color: INK }}>15 dias grátis</b> · sem cartão de crédito
-          </div>
+          {email ? (
+            <>
+              <a
+                href={checkoutUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="up-cta-btn"
+                style={{ margin: "20px 30px 0", width: "calc(100% - 60px)" }}
+              >
+                Assinar agora · {isAnnual ? "anual" : "mensal"}
+              </a>
+              <div style={{ textAlign: "center", fontSize: 12, color: INK_SOFT, margin: "12px 30px 0", lineHeight: 1.5 }}>
+                Pagamento seguro pelo Mercado Pago. Use o mesmo e-mail da conta: <b style={{ color: INK }}>{email}</b>
+                <br />
+                Pagou com outro e-mail ou quer pagar por Pix?{" "}
+                <a href={supportWhatsAppUrl(`Olá! Quero assinar o Upabase (${isAnnual ? "anual" : "mensal"}). Conta: ${email}`)}
+                  target="_blank" rel="noopener noreferrer" style={{ color: BLUE, fontWeight: 600 }}>Fale com a gente</a>
+                <br />
+                <Link to="/" style={{ color: INK_SOFT, textDecoration: "underline" }}>Voltar para o sistema</Link>
+              </div>
+            </>
+          ) : (
+            <>
+              <Link
+                to="/auth?register=1"
+                className="up-cta-btn"
+                style={{ margin: "20px 30px 0", width: "calc(100% - 60px)" }}
+              >
+                Começar teste grátis
+              </Link>
+              <div style={{ textAlign: "center", fontSize: 12, color: INK_SOFT, margin: "12px 30px 0" }}>
+                <b style={{ color: INK }}>15 dias grátis</b> · sem cartão de crédito
+              </div>
+            </>
+          )}
 
           <div
             style={{

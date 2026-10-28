@@ -15,17 +15,17 @@ export interface UserPlanRecord {
 export const PLAN_ROUTES: Record<PlanType, string[]> = {
   loja: [
     '/', '/cash', '/pdv', '/digital-menu', '/tables', '/kitchen', '/products', '/stock',
-    '/purchases', '/suppliers',
+    '/purchases', '/costs', '/suppliers',
     '/customers', '/accounts-payable', '/reports', '/settings',
   ],
   delivery: [
     '/', '/cash', '/pdv', '/digital-menu', '/kitchen', '/products', '/stock',
-    '/purchases', '/suppliers',
+    '/purchases', '/costs', '/suppliers',
     '/customers', '/accounts-payable', '/reports', '/settings',
   ],
   pro: [
     '/', '/cash', '/pdv', '/digital-menu', '/tables', '/kitchen', '/products', '/stock',
-    '/purchases', '/suppliers',
+    '/purchases', '/costs', '/suppliers',
     '/customers', '/accounts-payable', '/reports', '/settings',
   ],
 };
@@ -61,6 +61,7 @@ export const PLAN_INFO: Record<PlanType, {
       'Controle de estoque',
       'Cadastro de clientes',
       'Contas a pagar',
+      'Custo e lucro por produto',
       'Relatórios',
       'Cardápio digital com QR Code',
       'Gestão de mesas',

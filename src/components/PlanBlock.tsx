@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import { Lock, LogOut, ArrowRight, AlertTriangle } from "lucide-react";
+import { Lock, LogOut, ArrowRight, AlertTriangle, MessageCircle, RefreshCw } from "lucide-react";
+import { supportWhatsAppUrl } from "../lib/support";
 import type { UserPlanRecord } from "../lib/plans";
 import { isPlanValid } from "../lib/plans";
 
@@ -25,7 +26,7 @@ export function PlanBlock({ plan, userEmail, onLogout }: Props) {
   const subtitle = isSuspended
     ? "Sua assinatura foi suspensa. Renove para continuar usando o sistema."
     : isExpired
-      ? "Os 15 dias grátis terminaram. Escolha um plano para continuar."
+      ? "Os 15 dias grátis terminaram. Assine para continuar — seus produtos, vendas e clientes continuam salvos."
       : "Você precisa de um plano ativo para acessar o sistema.";
 
   return (
@@ -97,7 +98,53 @@ export function PlanBlock({ plan, userEmail, onLogout }: Props) {
             boxShadow: "0 4px 16px rgba(123,47,190,0.4)",
           }}
         >
-          Ver Planos e Preços <ArrowRight size={16} />
+          {isSuspended ? "Renovar assinatura" : "Assinar agora"} <ArrowRight size={16} />
+        </button>
+
+        <a
+          href={supportWhatsAppUrl(`Olá! Quero continuar usando o sistema (pagar por Pix ou tirar dúvida). Conta: ${userEmail ?? ""}`)}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            width: "100%",
+            padding: "12px 0",
+            background: "rgba(34,197,94,0.1)",
+            color: "#16a34a",
+            border: "1px solid rgba(34,197,94,0.35)",
+            borderRadius: 12,
+            fontWeight: 600,
+            fontSize: 14,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            marginBottom: 12,
+            textDecoration: "none",
+          }}
+        >
+          <MessageCircle size={16} /> Falar no WhatsApp (Pix ou dúvidas)
+        </a>
+
+        <button
+          onClick={() => window.location.reload()}
+          style={{
+            width: "100%",
+            padding: "10px 0",
+            background: "transparent",
+            color: "#a1a1aa",
+            border: "1px solid rgba(63,63,70,0.5)",
+            borderRadius: 12,
+            fontWeight: 500,
+            fontSize: 14,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            marginBottom: 12,
+          }}
+        >
+          <RefreshCw size={14} /> Já paguei, verificar
         </button>
 
         <button

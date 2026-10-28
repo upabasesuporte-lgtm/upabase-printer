@@ -4,6 +4,7 @@ import { supabase } from "../../lib/supabase";
 import { fetchAll, fetchAllIn } from "../../lib/fetchAll";
 import { useTheme } from "../../contexts/ThemeContext";
 import { PageHeader, btnSecondary } from "../../components/PageHeader";
+import { GettingStarted } from "../../components/GettingStarted";
 import { StatCard, toneFor, type StatTone } from "../../components/StatCard";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -484,6 +485,8 @@ export default function DashboardPage() {
             {loading ? "Carregando..." : refreshing ? "Atualizando..." : "Atualizar"}
           </button>
         } />
+
+      <GettingStarted />
 
       {/* ── Period Filter ── */}
       <div className="flex flex-wrap items-center gap-2">
