@@ -201,10 +201,11 @@ function AgentPanel({ api, email, uid }: { api: AgentApi; email: string; uid: st
     addLog(r.ok ? `${what} → ${printer || "impressora padrão"}` : `Falhou: ${what} (${r.error ?? "erro"})`, r.ok);
   }
 
-  // Ciclo de impressão: a cada 3 s
+  // Ciclo de impressão: na hora, pelo aviso do banco (canal print-<loja>), e a cada 3 s de garantia
   useEffect(() => {
+    let again = false;
     async function tick() {
-      if (busy.current) return;
+      if (busy.current) { again = true; return; }
       busy.current = true;
       const c = configRef.current;
       const sectors = SECTORS.filter(s => c.sectors[s] !== null);
@@ -237,7 +238,11 @@ function AgentPanel({ api, email, uid }: { api: AgentApi; email: string; uid: st
         }
       } catch {
         setOnline(false); // sem internet: tenta de novo no próximo ciclo
-      } finally { busy.current = false; }
+      } finally {
+        busy.current = false;
+        // Chegou aviso enquanto imprimia: roda de novo já
+        if (again) { again = false; setTimeout(tick, 0); }
+      }
     }
     async function printTickets(tickets: Ticket[], c: AgentConfig, what: string) {
       for (const s of SECTORS) {
@@ -247,7 +252,8 @@ function AgentPanel({ api, email, uid }: { api: AgentApi; email: string; uid: st
     }
     tick();
     const t = setInterval(tick, 3000);
-    return () => clearInterval(t);
+    const ch = supabase.channel(`print-${uid}`).on("broadcast", { event: "ping" }, () => { tick(); }).subscribe();
+    return () => { clearInterval(t); supabase.removeChannel(ch); };
   }, [uid, version]);
 
   async function testPrint(printer: string) {
