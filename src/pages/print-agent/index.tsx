@@ -91,7 +91,7 @@ export async function pairWithCode(raw: string): Promise<string | null> {
 
 function AgentLogin() {
   const api = agentApi();
-  const [mode, setMode] = useState<"code" | "password">("code");
+  const [mode, setMode] = useState<"code" | "password">("password");
   const [code, setCode] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -120,7 +120,7 @@ function AgentLogin() {
     setBusy(false);
     if (!error) return;
     const m = error.message.toLowerCase();
-    setErr(m.includes("invalid login") ? "E-mail ou senha incorretos. Confira tocando no olho, ou use o código de Configurações."
+    setErr(m.includes("invalid login") ? "E-mail ou senha incorretos. Confira tocando no olho."
       : m.includes("not confirmed") ? "Este e-mail ainda não foi confirmado."
       : m.includes("fetch") || m.includes("network") ? "Sem conexão com a internet."
       : "Não foi possível entrar: " + error.message);
@@ -164,9 +164,6 @@ function AgentLogin() {
             {err && <p className="text-sm text-red-600">{err}</p>}
             <button disabled={busy} className="w-full py-2.5 rounded-xl text-sm font-semibold bg-blue-600 hover:bg-blue-700 disabled:opacity-50" style={{ color: "#fff" }}>
               {busy ? "Entrando..." : "Entrar"}
-            </button>
-            <button type="button" onClick={() => { setMode("code"); setErr(null); }} className="w-full text-xs text-gray-500 underline">
-              Usar o código de Configurações
             </button>
           </form>
         )}

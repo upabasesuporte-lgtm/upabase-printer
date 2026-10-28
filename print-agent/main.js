@@ -39,6 +39,10 @@ function writeConfig(c) {
 }
 const appOrigin = () => { try { return new URL(readConfig().url).origin; } catch { return DEFAULT_URL; } };
 
+// Identificação só com letras sem acento: o "ã" de "Impressão" no User-Agent
+// fazia o login falhar no servidor (invalid byte sequence for encoding UTF8)
+app.userAgentFallback = app.userAgentFallback.replace(/Upabase Impress\S*/g, "UpabaseImpressao/" + app.getVersion()).replace(/[^\x20-\x7E]/g, "");
+
 // ── Uma cópia só ──────────────────────────────────────────────────────────────
 if (!app.requestSingleInstanceLock()) {
   app.quit();
