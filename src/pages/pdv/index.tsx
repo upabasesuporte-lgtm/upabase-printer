@@ -38,6 +38,7 @@ interface CartItem {
   quantity: number;
   notes: string;
   customPrice?: number;
+  autoPrice?: boolean; // preço veio do combinado com o cliente (troca sozinho se mudar o cliente)
 }
 
 interface ShortcutGroup {
@@ -521,7 +522,41 @@ export default function PdvPage() {
 
   function removeFromCart(cartId: string) { setCart(prev => prev.filter(i => i.cartId !== cartId)); }
   function updateItemNotes(cartId: string, notes: string) { setCart(prev => prev.map(i => i.cartId === cartId ? { ...i, notes } : i)); }
-  function updateItemPrice(cartId: string, price: number) { setCart(prev => prev.map(i => i.cartId === cartId ? { ...i, customPrice: price } : i)); }
+  function updateItemPrice(cartId: string, price: number) { setCart(prev => prev.map(i => i.cartId === cartId ? { ...i, customPrice: price, autoPrice: false } : i)); }
+
+  // Preço combinado com o cliente (Clientes → Preços especiais): ao escolher o
+  // cliente, os itens do carrinho passam a usar o preço dele; ao tirar o cliente,
+  // voltam ao preço normal. Preço digitado à mão nunca é trocado.
+  const [specialPrices, setSpecialPrices] = useState<Record<string, number>>({});
+  useEffect(() => {
+    const cid = selectedCustomer?.id;
+    if (!cid) { setSpecialPrices({}); return; }
+    let alive = true;
+    supabase.from("customer_prices").select("product_id, price").eq("customer_id", cid).then(({ data, error }) => {
+      if (!alive) return;
+      if (error) { const c = readCache<Record<string, number>>("cprices_" + cid); setSpecialPrices(c ?? {}); return; }
+      const map = Object.fromEntries(((data ?? []) as { product_id: string; price: number }[]).map(r => [r.product_id, Number(r.price)]));
+      saveCache("cprices_" + cid, map);
+      setSpecialPrices(map);
+    });
+    return () => { alive = false; };
+  }, [selectedCustomer?.id]);
+  useEffect(() => {
+    setCart(prev => {
+      let changed = false;
+      const next = prev.map(i => {
+        const sp = specialPrices[i.product.id];
+        if (sp != null && (i.customPrice === undefined || i.autoPrice) && (i.customPrice !== sp || !i.autoPrice)) {
+          changed = true; return { ...i, customPrice: sp, autoPrice: true };
+        }
+        if (sp == null && i.autoPrice) {
+          changed = true; const { customPrice: _c, autoPrice: _a, ...rest } = i; return rest;
+        }
+        return i;
+      });
+      return changed ? next : prev;
+    });
+  }, [specialPrices, cart]);
   function clearCart() { setCart([]); setDiscount(""); setOrderNotes(""); setSellerName(""); setDeliveryAddress(""); setDeliveryFee(""); setSelectedCustomer(null); setDiscountType("value"); setShowDiscountField(false); setExtraOpen(null); }
 
   // ── Atalhos ──

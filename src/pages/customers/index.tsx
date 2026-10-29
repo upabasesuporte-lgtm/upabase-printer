@@ -5,6 +5,7 @@ import { fetchAll } from "../../lib/fetchAll";
 import { matchesSearch } from "../../lib/search";
 import { recalcFiadoBalance, computeFiadoLedger, fetchFiadoMovs, fetchOpenFiado, type FiadoMov } from "../../lib/fiado";
 import { getStoreSettings } from "../settings";
+import { CustomerBilling } from "../../components/CustomerBilling";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import { PageHeader, btnPrimary, WHITE_TEXT } from "../../components/PageHeader";
@@ -1314,6 +1315,9 @@ export default function CustomersPage() {
               )}
             </div>
           </div>
+
+          {/* Empresa: preço combinado e fatura do mês */}
+          <CustomerBilling customer={selected} card={card} isLight={isLight} />
 
           {/* Movement history */}
           <div className="rounded-2xl overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
