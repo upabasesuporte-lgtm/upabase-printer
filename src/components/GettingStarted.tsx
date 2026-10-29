@@ -47,8 +47,8 @@ const STEPS: Step[] = [
     optional: true,
   },
   {
-    key: "costs", title: "Ver o custo e o lucro das marmitas", hint: "Diga quais produtos são pratos e lance as compras do dia.", to: "/costs",
-    check: async () => has(supabase.from("cost_product_rules").select("id", { count: "exact", head: true })),
+    key: "costs", title: "Ver o custo e o lucro das marmitas", hint: "Em Custo e Lucro, lance as compras do mercado ou fornecedor.", to: "/costs",
+    check: async () => has(supabase.from("purchase_order_items").select("id", { count: "exact", head: true }).not("stock_item_id", "is", null)),
     optional: true,
   },
 ];

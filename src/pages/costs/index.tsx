@@ -1,31 +1,28 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../../lib/supabase";
 import { fetchAll, fetchAllIn } from "../../lib/fetchAll";
-import { matchesSearch } from "../../lib/search";
-import { useEscapeKey } from "../../hooks/useEscapeKey";
 import { PURCHASE_PAY_METHODS } from "../purchases/PurchaseScreen";
 import {
-  RefreshCw, PiggyBank, ShoppingBasket, SlidersHorizontal, Plus, Trash2, Check, X, ChevronDown, AlertCircle, Search, TrendingUp, TrendingDown,
+  RefreshCw, PiggyBank, ShoppingBasket, Plus, Trash2, Check, ChevronDown, TrendingUp, TrendingDown, UtensilsCrossed, CupSoda,
 } from "lucide-react";
 
-// Custo e Lucro: soma as compras de insumos do período, divide pelo que foi
-// vendido no caixa (sem ninguém pesar nada) e mostra custo, venda e lucro de
-// cada produto. Só lê vendas/compras; grava apenas as regras próprias
-// (cost_item_rules, cost_product_rules, cost_counts) e compras pelo mesmo
-// register_purchase da aba Compras.
+// Custo e Lucro (modelo simples): tudo que é lançado em compras de insumos vira
+// o custo da cozinha, dividido entre os pratos vendidos na proporção do preço
+// de venda (a G leva mais que a P). Bebidas/revenda: venda − preço pago.
+// Escolhas de R$ 0,00 dentro da marmita e a taxa de entrega ficam de fora.
+// Só lê vendas/compras; grava compras pelo mesmo register_purchase da aba
+// Compras e, opcionalmente, o que sobrou no fim do período (cost_counts).
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
 interface StockItem { id: string; name: string; unit: string; cost_price: number | null; is_active: boolean | null }
 interface Product { id: string; name: string; sale_price: number | null; cost_price: number | null; category_id: string | null; is_active: boolean | null }
 interface Category { id: string; name: string }
-interface ItemRule { stock_item_id: string; mode: "all" | "some" | "none"; product_ids: string[] }
-interface ProductRule { product_id: string; in_general: boolean; weight: number }
 interface Count { stock_item_id: string; count_date: string; qty: number }
-interface PurchaseLine { day: string; stock_item_id: string; qty: number; cost: number }
+interface PurchaseLine { day: string; stock_item_id: string | null; product_id: string | null; qty: number; cost: number }
 interface SaleLine { day: string; product_id: string; qty: number; revenue: number }
 
-type View = "result" | "buy" | "setup";
+type View = "result" | "buy";
 type Preset = "week" | "lastweek" | "month" | "lastmonth" | "custom";
 
 // ─── Estilos (mesmo padrão da aba Estoque) ────────────────────────────────────
@@ -87,112 +84,125 @@ function presetRange(p: Preset, today: string): { from: string; to: string; prev
   return { from, to, prevFrom, prevTo };
 }
 
-// Sugestão inicial do que é "prato" (só usada enquanto nada foi configurado)
-const DISH_RX = /marmit|prato|refei|almo[cç]|quentinha|executiv|self|jantar|\bpf\b|feijoada|parmegian|strogonof|frango|bife|carne|peixe/i;
+// Bebida/revenda: categoria ou nome de bebida, ou produto comprado pronto (compra de produto)
+const DRINK_RX = /bebida|refri|refrigerante|coca|guaran|fanta|sprite|soda|suco|água|agua|cerveja|chopp|vinho|energ|lata\b|\b600 ?ml|\b2 ?l\b/i;
+// Taxa de entrega lançada como produto: não é comida nem lucro da cozinha
+const DELIVERY_RX = /entrega|frete|taxa de servi/i;
 
 // ─── Cálculo ──────────────────────────────────────────────────────────────────
 
 interface ItemResult {
-  item: StockItem; mode: ItemRule["mode"]; targets: string[];
+  item: StockItem;
   boughtQty: number; boughtCost: number; avg: number;
   opening: number | null; closing: number | null;
   usedQty: number; usedCost: number;
-  basis: number;          // porções vendidas (já com o peso de cada tamanho)
-  perPortion: number;     // quantidade estimada por porção normal
-  allocated: boolean;
+  perDish: number;      // quantidade estimada por prato vendido
+  perDishCost: number;  // R$ por prato vendido
 }
 interface ProductResult {
-  product: Product; qty: number; revenue: number; cost: number; source: "calc" | "cadastro" | "none";
-  parts: { item: StockItem; cost: number; qtyEach: number }[];
+  product: Product; kind: "food" | "resale";
+  qty: number; revenue: number; cost: number; hasCost: boolean;
 }
 interface Result {
-  items: ItemResult[]; products: ProductResult[];
-  revenue: number; cost: number; notDivided: number; unallocated: number; bought: number;
+  items: ItemResult[]; food: ProductResult[]; resale: ProductResult[];
+  foodRevenue: number; foodCost: number; dishes: number;
+  resaleRevenue: number; resaleCost: number;
+  bought: number; deliveryFees: number;
 }
 
 function compute(
   from: string, to: string,
   purchases: PurchaseLine[], sales: SaleLine[], counts: Count[],
-  stockItems: StockItem[], products: Product[], itemRules: Map<string, ItemRule>, productRules: Map<string, ProductRule>,
+  stockItems: StockItem[], products: Product[], catName: (id: string | null) => string,
 ): Result {
   const inRange = (d: string) => d >= from && d <= to;
   const itemById = new Map(stockItems.map(i => [i.id, i]));
   const productById = new Map(products.map(p => [p.id, p]));
 
-  // Vendas por produto
+  // Produtos comprados prontos (revenda) e o preço médio pago por eles
+  const resaleBought = new Map<string, { qty: number; cost: number }>();
+  for (const p of purchases) {
+    if (!p.product_id) continue;
+    const cur = resaleBought.get(p.product_id) ?? { qty: 0, cost: 0 };
+    cur.qty += p.qty; cur.cost += p.qty * p.cost;
+    resaleBought.set(p.product_id, cur);
+  }
+
+  // Vendas por produto (só o que teve preço; escolhas de R$ 0,00 ficam de fora)
   const sold = new Map<string, { qty: number; revenue: number }>();
+  let deliveryFees = 0;
   for (const s of sales) {
     if (!inRange(s.day)) continue;
+    const prod = productById.get(s.product_id);
+    if (!prod) continue;
+    if (DELIVERY_RX.test(prod.name)) { deliveryFees += s.revenue; continue; }
+    if (s.revenue <= 0.0001) continue;
     const cur = sold.get(s.product_id) ?? { qty: 0, revenue: 0 };
     cur.qty += s.qty; cur.revenue += s.revenue;
     sold.set(s.product_id, cur);
   }
-  const weight = (pid: string) => productRules.get(pid)?.weight ?? 1;
-  const general = products.filter(p => productRules.get(p.id)?.in_general).map(p => p.id);
 
-  // Compras por insumo
+  const isResale = (p: Product) =>
+    DRINK_RX.test(catName(p.category_id)) || DRINK_RX.test(p.name) || resaleBought.has(p.id);
+
+  const food: ProductResult[] = [], resale: ProductResult[] = [];
+  for (const [pid, s] of sold) {
+    const product = productById.get(pid)!;
+    if (isResale(product)) {
+      const b = resaleBought.get(pid);
+      const unitCost = b && b.qty > 0 ? b.cost / b.qty : Number(product.cost_price ?? 0);
+      resale.push({ product, kind: "resale", qty: s.qty, revenue: s.revenue, cost: unitCost * s.qty, hasCost: unitCost > 0 });
+    } else {
+      food.push({ product, kind: "food", qty: s.qty, revenue: s.revenue, cost: 0, hasCost: true });
+    }
+  }
+  const foodRevenue = food.reduce((x, p) => x + p.revenue, 0);
+  // Pratos = itens de comida com preço de prato (adicional de R$ 5 não conta como marmita)
+  const maxAvg = Math.max(0, ...food.map(p => (p.qty > 0 ? p.revenue / p.qty : 0)));
+  const dishes = food.filter(p => p.qty > 0 && p.revenue / p.qty >= maxAvg * 0.4).reduce((x, p) => x + p.qty, 0);
+
+  // Compras de insumos (± o que sobrou) = custo da cozinha
   const bought = new Map<string, { qty: number; cost: number }>();
+  let totalBought = 0;
   for (const p of purchases) {
-    if (!inRange(p.day)) continue;
+    if (!p.stock_item_id || !inRange(p.day)) continue;
     const cur = bought.get(p.stock_item_id) ?? { qty: 0, cost: 0 };
     cur.qty += p.qty; cur.cost += p.qty * p.cost;
     bought.set(p.stock_item_id, cur);
+    totalBought += p.qty * p.cost;
   }
+  for (const p of purchases) if (p.product_id && inRange(p.day)) totalBought += p.qty * p.cost;
   const openDay = addDays(from, -1);
   const countOf = (id: string, day: string) => counts.find(c => c.stock_item_id === id && c.count_date === day)?.qty ?? null;
-
   const ids = new Set<string>([...bought.keys(), ...counts.filter(c => c.count_date === openDay || c.count_date === to).map(c => c.stock_item_id)]);
-  const items: ItemResult[] = [];
-  const productParts = new Map<string, ProductResult["parts"]>();
-  let notDivided = 0, unallocated = 0, totalBought = 0;
 
+  const items: ItemResult[] = [];
   for (const id of ids) {
     const item = itemById.get(id);
     if (!item) continue;
     const b = bought.get(id) ?? { qty: 0, cost: 0 };
-    totalBought += b.cost;
     const avg = b.qty > 0 ? b.cost / b.qty : Number(item.cost_price ?? 0);
     const opening = countOf(id, openDay), closing = countOf(id, to);
     const usedQty = Math.max(0, (opening ?? 0) + b.qty - (closing ?? 0));
     const usedCost = Math.max(0, b.cost + ((opening ?? 0) - (closing ?? 0)) * avg);
-    const rule = itemRules.get(id);
-    const mode = rule?.mode ?? "all";
-    const targets = mode === "some" ? rule!.product_ids.filter(pid => productById.has(pid)) : mode === "all" ? general : [];
-    const basis = targets.reduce((s, pid) => s + (sold.get(pid)?.qty ?? 0) * weight(pid), 0);
-    const allocated = mode !== "none" && basis > 0;
-    if (mode === "none") notDivided += usedCost;
-    else if (!allocated) unallocated += usedCost;
-    else {
-      for (const pid of targets) {
-        const q = sold.get(pid)?.qty ?? 0;
-        if (q <= 0) continue;
-        const share = (q * weight(pid)) / basis;
-        const list = productParts.get(pid) ?? [];
-        list.push({ item, cost: usedCost * share, qtyEach: (usedQty * weight(pid)) / basis });
-        productParts.set(pid, list);
-      }
-    }
-    items.push({ item, mode, targets, boughtQty: b.qty, boughtCost: b.cost, avg, opening, closing, usedQty, usedCost, basis, perPortion: basis > 0 ? usedQty / basis : 0, allocated });
+    items.push({
+      item, boughtQty: b.qty, boughtCost: b.cost, avg, opening, closing, usedQty, usedCost,
+      perDish: dishes > 0 ? usedQty / dishes : 0, perDishCost: dishes > 0 ? usedCost / dishes : 0,
+    });
   }
-
-  const productsOut: ProductResult[] = [];
-  for (const [pid, s] of sold) {
-    const product = productById.get(pid);
-    if (!product) continue;
-    const parts = (productParts.get(pid) ?? []).sort((a, b) => b.cost - a.cost);
-    let cost = parts.reduce((x, p) => x + p.cost, 0);
-    let source: ProductResult["source"] = parts.length ? "calc" : "none";
-    // Produto de revenda (refrigerante etc.): usa o custo do cadastro
-    if (!parts.length && Number(product.cost_price ?? 0) > 0) { cost = Number(product.cost_price) * s.qty; source = "cadastro"; }
-    productsOut.push({ product, qty: s.qty, revenue: s.revenue, cost, source, parts });
-  }
-  productsOut.sort((a, b) => b.revenue - a.revenue);
   items.sort((a, b) => b.usedCost - a.usedCost);
+  const foodCost = items.reduce((x, i) => x + i.usedCost, 0);
+
+  // Divide o custo da cozinha entre os pratos na proporção do que cada um vendeu em R$
+  for (const p of food) p.cost = foodRevenue > 0 ? foodCost * (p.revenue / foodRevenue) : 0;
+  food.sort((a, b) => b.revenue - a.revenue);
+  resale.sort((a, b) => b.revenue - a.revenue);
+
   return {
-    items, products: productsOut,
-    revenue: productsOut.reduce((s, p) => s + p.revenue, 0),
-    cost: productsOut.reduce((s, p) => s + p.cost, 0),
-    notDivided, unallocated, bought: totalBought,
+    items, food, resale, foodRevenue, foodCost, dishes,
+    resaleRevenue: resale.reduce((x, p) => x + p.revenue, 0),
+    resaleCost: resale.reduce((x, p) => x + p.cost, 0),
+    bought: totalBought, deliveryFees,
   };
 }
 
@@ -206,31 +216,23 @@ export default function CostsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [suppliers, setSuppliers] = useState<{ id: string; name: string }[]>([]);
-  const [itemRules, setItemRules] = useState<Map<string, ItemRule>>(new Map());
-  const [productRules, setProductRules] = useState<Map<string, ProductRule>>(new Map());
 
   async function loadBase() {
-    const [{ data: u }, si, pr, ca, su, ir, prr] = await Promise.all([
+    const [{ data: u }, si, pr, ca, su] = await Promise.all([
       supabase.auth.getUser(),
       fetchAll(() => supabase.from("stock_items").select("id, name, unit, cost_price, is_active")),
       fetchAll(() => supabase.from("products").select("id, name, sale_price, cost_price, category_id, is_active")),
       fetchAll(() => supabase.from("categories").select("id, name")),
       fetchAll(() => supabase.from("suppliers").select("id, name")),
-      fetchAll(() => supabase.from("cost_item_rules").select("stock_item_id, mode, product_ids")),
-      fetchAll(() => supabase.from("cost_product_rules").select("product_id, in_general, weight")),
     ]);
     setUid(u.user?.id ?? null);
     setStockItems((si.data as StockItem[]).sort((a, b) => a.name.localeCompare(b.name)));
     setProducts((pr.data as Product[]).sort((a, b) => a.name.localeCompare(b.name)));
     setCategories(ca.data as Category[]);
     setSuppliers((su.data as any[]).sort((a, b) => a.name.localeCompare(b.name)));
-    setItemRules(new Map((ir.data as ItemRule[]).map(r => [r.stock_item_id, { ...r, product_ids: r.product_ids ?? [] }])));
-    setProductRules(new Map((prr.data as any[]).map(r => [r.product_id, { product_id: r.product_id, in_general: r.in_general, weight: Number(r.weight) || 1 }])));
     setLoading(false);
   }
   useEffect(() => { loadBase(); }, []);
-
-  const configured = productRules.size > 0 && [...productRules.values()].some(r => r.in_general);
 
   if (loading) {
     return (
@@ -245,13 +247,12 @@ export default function CostsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-gray-900 tracking-tight">Custo e Lucro</h1>
-          <p className="text-xs text-gray-500 mt-0.5">Quanto custa cada marmita, por quanto vende e quanto sobra, sem precisar pesar nada.</p>
+          <p className="text-xs text-gray-500 mt-0.5">Lance as compras do dia; o sistema cruza com as vendas e mostra o custo e o lucro de cada marmita.</p>
         </div>
         <div className="flex p-1 bg-gray-200/60 rounded-xl">
           {([
             { key: "result", label: "Resultado", icon: <PiggyBank className="w-4 h-4" /> },
             { key: "buy", label: "Lançar compras", icon: <ShoppingBasket className="w-4 h-4" /> },
-            { key: "setup", label: "Vai em quê", icon: <SlidersHorizontal className="w-4 h-4" /> },
           ] as const).map(t => (
             <button key={t.key} onClick={() => setView(t.key)}
               className={`flex flex-1 md:flex-none items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors ${view === t.key ? "bg-white text-brand-700 shadow-sm" : "text-gray-500 hover:text-gray-800"}`}>
@@ -261,36 +262,16 @@ export default function CostsPage() {
         </div>
       </div>
 
-      {!configured && view !== "setup" && (
-        <div className="flex items-start gap-3 p-3.5 rounded-2xl border border-amber-200 bg-amber-50">
-          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-          <div className="flex-1 text-sm text-amber-900">
-            <p className="font-semibold">Primeiro passo (uma vez só): diga quais produtos são marmitas/pratos.</p>
-            <p className="text-xs mt-0.5">É neles que arroz, feijão, tempero, embalagem etc. são divididos.</p>
-          </div>
-          <button onClick={() => setView("setup")} className={btnPrimary + " !py-2 shrink-0"} style={WHITE}>Configurar</button>
-        </div>
-      )}
-
-      {view === "result" && (
-        <ResultView stockItems={stockItems} products={products} itemRules={itemRules} productRules={productRules} uid={uid} />
-      )}
-      {view === "buy" && (
-        <BuyView stockItems={stockItems} suppliers={suppliers} uid={uid}
-          onItemsChanged={loadBase} goSetup={() => setView("setup")} />
-      )}
-      {view === "setup" && (
-        <SetupView stockItems={stockItems} products={products} categories={categories} uid={uid}
-          itemRules={itemRules} setItemRules={setItemRules} productRules={productRules} setProductRules={setProductRules} />
-      )}
+      {view === "result" && <ResultView stockItems={stockItems} products={products} categories={categories} uid={uid} goBuy={() => setView("buy")} />}
+      {view === "buy" && <BuyView stockItems={stockItems} suppliers={suppliers} uid={uid} onItemsChanged={loadBase} />}
     </div>
   );
 }
 
 // ─── Resultado ────────────────────────────────────────────────────────────────
 
-function ResultView({ stockItems, products, itemRules, productRules, uid }: {
-  stockItems: StockItem[]; products: Product[]; itemRules: Map<string, ItemRule>; productRules: Map<string, ProductRule>; uid: string | null;
+function ResultView({ stockItems, products, categories, uid, goBuy }: {
+  stockItems: StockItem[]; products: Product[]; categories: Category[]; uid: string | null; goBuy: () => void;
 }) {
   const today = dayStr(new Date());
   const [preset, setPreset] = useState<Preset>("month");
@@ -308,7 +289,6 @@ function ResultView({ stockItems, products, itemRules, productRules, uid }: {
   const [purchases, setPurchases] = useState<PurchaseLine[]>([]);
   const [sales, setSales] = useState<SaleLine[]>([]);
   const [counts, setCounts] = useState<Count[]>([]);
-  const [openProduct, setOpenProduct] = useState<string | null>(null);
   const [leftoverOpen, setLeftoverOpen] = useState(false);
 
   async function load() {
@@ -317,7 +297,7 @@ function ResultView({ stockItems, products, itemRules, productRules, uid }: {
     const [po, sa, co] = await Promise.all([
       // Compra conta no dia em que a mercadoria chegou (received_at)
       fetchAll(() => supabase.from("purchase_orders")
-        .select("id, status, created_at, received_at, purchase_order_items(stock_item_id, quantity, unit_cost)")
+        .select("id, status, created_at, received_at, purchase_order_items(stock_item_id, product_id, quantity, unit_cost)")
         .eq("status", "received")
         .lte("created_at", toISO)
         .or(`received_at.gte."${fromISO}",created_at.gte."${fromISO}"`)),
@@ -335,8 +315,8 @@ function ResultView({ stockItems, products, itemRules, productRules, uid }: {
     for (const o of po.data as any[]) {
       const day = dayOf(o.received_at ?? o.created_at);
       for (const it of o.purchase_order_items ?? []) {
-        if (!it.stock_item_id) continue;
-        lines.push({ day, stock_item_id: it.stock_item_id, qty: Number(it.quantity) || 0, cost: Number(it.unit_cost) || 0 });
+        if (!it.stock_item_id && !it.product_id) continue;
+        lines.push({ day, stock_item_id: it.stock_item_id ?? null, product_id: it.product_id ?? null, qty: Number(it.quantity) || 0, cost: Number(it.unit_cost) || 0 });
       }
     }
     const saleRows = sa.data as any[];
@@ -365,15 +345,21 @@ function ResultView({ stockItems, products, itemRules, productRules, uid }: {
   }
   useEffect(() => { load(); }, [range.from, range.to, range.prevFrom]);
 
-  const cur = useMemo(() => compute(range.from, range.to, purchases, sales, counts, stockItems, products, itemRules, productRules),
-    [range, purchases, sales, counts, stockItems, products, itemRules, productRules]);
-  const prev = useMemo(() => compute(range.prevFrom, range.prevTo, purchases, sales, counts, stockItems, products, itemRules, productRules),
-    [range, purchases, sales, counts, stockItems, products, itemRules, productRules]);
-  const prevPortion = new Map(prev.items.map(i => [i.item.id, i.perPortion]));
+  const catName = useMemo(() => {
+    const m = new Map(categories.map(c => [c.id, c.name]));
+    return (id: string | null) => (id ? m.get(id) ?? "" : "");
+  }, [categories]);
+  const cur = useMemo(() => compute(range.from, range.to, purchases, sales, counts, stockItems, products, catName),
+    [range, purchases, sales, counts, stockItems, products, catName]);
+  const prev = useMemo(() => compute(range.prevFrom, range.prevTo, purchases, sales, counts, stockItems, products, catName),
+    [range, purchases, sales, counts, stockItems, products, catName]);
+  const prevPerDish = new Map(prev.items.map(i => [i.item.id, i.perDish]));
 
-  const profit = cur.revenue - cur.cost;
-  const finalResult = profit - cur.notDivided - cur.unallocated;
-  const productName = (id: string) => products.find(p => p.id === id)?.name ?? "—";
+  const foodProfit = cur.foodRevenue - cur.foodCost;
+  const resaleProfit = cur.resaleRevenue - cur.resaleCost;
+  const revenue = cur.foodRevenue + cur.resaleRevenue;
+  const profit = foodProfit + resaleProfit;
+  const pct = (a: number, b: number) => (b > 0 ? `${fmtNum((a / b) * 100, 0)}%` : "—");
 
   return (
     <div className="space-y-4">
@@ -409,77 +395,85 @@ function ResultView({ stockItems, products, itemRules, productRules, uid }: {
         <>
           {/* Resumo */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <Kpi label="Vendeu" value={fmt(cur.revenue)} sub={`${fmtNum(cur.products.reduce((s, p) => s + p.qty, 0), 0)} itens vendidos`} />
-            <Kpi label="Custo do que vendeu" value={fmt(cur.cost)} sub={`compras no período: ${fmt(cur.bought)}`} />
-            <Kpi label="Lucro bruto" value={fmt(profit)} tone={profit >= 0 ? "green" : "red"} sub={cur.revenue > 0 ? `margem de ${fmtNum((profit / cur.revenue) * 100, 0)}%` : "sem vendas"} />
-            <Kpi label="Sobrou no fim" value={fmt(finalResult)} tone={finalResult >= 0 ? "green" : "red"}
-              sub={cur.notDivided + cur.unallocated > 0 ? `já tirando ${fmt(cur.notDivided + cur.unallocated)} de compras fora dos pratos` : "lucro bruto − outras compras"} />
+            <Kpi label="Vendeu" value={fmt(revenue)} sub={`${fmtNum(cur.dishes, 0)} pratos · sem taxa de entrega`} />
+            <Kpi label="Custo" value={fmt(cur.foodCost + cur.resaleCost)} sub={`compras no período: ${fmt(cur.bought)}`} />
+            <Kpi label="Lucro" value={fmt(profit)} tone={profit >= 0 ? "green" : "red"} sub={`margem de ${pct(profit, revenue)}`} />
+            <Kpi label="Custo por prato" value={cur.dishes > 0 ? fmt(cur.foodCost / cur.dishes) : "—"}
+              sub={cur.dishes > 0 ? `vende em média por ${fmt(cur.foodRevenue / cur.dishes)}` : "sem pratos vendidos"} />
           </div>
-          {cur.unallocated > 0 && (
-            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-              {fmt(cur.unallocated)} em compras não foram divididos porque os produtos onde eles entram não tiveram venda no período (ou nenhum produto foi marcado como prato em "Vai em quê").
-            </p>
+
+          {cur.foodCost === 0 && cur.foodRevenue > 0 && (
+            <div className="flex flex-wrap items-center gap-3 p-3.5 rounded-2xl border border-amber-200 bg-amber-50 text-sm text-amber-900">
+              <p className="flex-1">Nenhuma compra de mercado/fornecedor lançada neste período, então o custo da comida está zerado.</p>
+              <button onClick={goBuy} className={btnPrimary + " !py-2"} style={WHITE}>Lançar compras</button>
+            </div>
           )}
 
-          {/* Por produto */}
+          {/* Comida x Bebidas */}
           <div className={card}>
-            <div className="px-4 pt-4 pb-2 flex items-center justify-between">
-              <p className="text-sm font-bold text-gray-900">Lucro por produto</p>
-              <p className="text-[11px] text-gray-400">toque para ver de onde vem o custo</p>
+            <div className="px-4 pt-4 pb-2">
+              <p className="text-sm font-bold text-gray-900">Resumo</p>
             </div>
-            {cur.products.length === 0 ? (
+            <div className="divide-y divide-gray-100">
+              <div className="hidden md:grid grid-cols-[1fr_120px_120px_120px_70px] gap-2 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                <span /><span className="text-right">Vendeu</span><span className="text-right">Custo</span><span className="text-right">Lucro</span><span className="text-right">Margem</span>
+              </div>
+              {[
+                { icon: <UtensilsCrossed className="w-4 h-4 text-brand-600" />, label: "Comida", r: cur.foodRevenue, c: cur.foodCost },
+                { icon: <CupSoda className="w-4 h-4 text-brand-600" />, label: "Bebidas e revenda", r: cur.resaleRevenue, c: cur.resaleCost },
+              ].map(row => (
+                <div key={row.label} className="px-4 py-3 grid grid-cols-2 md:grid-cols-[1fr_120px_120px_120px_70px] gap-x-2 gap-y-1 items-center">
+                  <span className="col-span-2 md:col-span-1 flex items-center gap-2 font-semibold text-sm text-gray-900">{row.icon}{row.label}</span>
+                  <Cell label="Vendeu" value={fmt(row.r)} />
+                  <Cell label="Custo" value={fmt(row.c)} />
+                  <Cell label="Lucro" value={fmt(row.r - row.c)} tone={row.r - row.c >= 0 ? "green" : "red"} bold />
+                  <Cell label="Margem" value={pct(row.r - row.c, row.r)} />
+                </div>
+              ))}
+              <div className="px-4 py-3 grid grid-cols-2 md:grid-cols-[1fr_120px_120px_120px_70px] gap-x-2 gap-y-1 items-center bg-gray-50 rounded-b-2xl">
+                <span className="col-span-2 md:col-span-1 font-bold text-sm text-gray-900">Total</span>
+                <Cell label="Vendeu" value={fmt(revenue)} bold />
+                <Cell label="Custo" value={fmt(cur.foodCost + cur.resaleCost)} bold />
+                <Cell label="Lucro" value={fmt(profit)} tone={profit >= 0 ? "green" : "red"} bold />
+                <Cell label="Margem" value={pct(profit, revenue)} bold />
+              </div>
+            </div>
+            {cur.deliveryFees > 0 && (
+              <p className="px-4 py-2 text-[11px] text-gray-400">Taxas de entrega recebidas ({fmt(cur.deliveryFees)}) não entram no lucro: costumam ir para o motoboy.</p>
+            )}
+          </div>
+
+          {/* Por unidade */}
+          <div className={card}>
+            <div className="px-4 pt-4 pb-2">
+              <p className="text-sm font-bold text-gray-900">Custo e lucro de cada um</p>
+              <p className="text-[11px] text-gray-400">Pratos: o custo das compras é dividido pelo valor vendido de cada um (a G leva mais que a P). Bebidas: preço pago na compra.</p>
+            </div>
+            {cur.food.length + cur.resale.length === 0 ? (
               <p className="px-4 pb-4 text-sm text-gray-500">Nenhuma venda no período.</p>
             ) : (
               <div className="divide-y divide-gray-100">
-                <div className="hidden md:grid grid-cols-[1fr_70px_110px_110px_110px_110px_70px] gap-2 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-                  <span>Produto</span><span className="text-right">Vendidas</span><span className="text-right">Custo cada</span><span className="text-right">Vende por</span>
-                  <span className="text-right">Lucro cada</span><span className="text-right">Lucro total</span><span className="text-right">Margem</span>
+                <div className="hidden md:grid grid-cols-[1fr_70px_110px_110px_110px_110px] gap-2 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                  <span>Produto</span><span className="text-right">Vendidos</span><span className="text-right">Vende por</span><span className="text-right">Custo cada</span>
+                  <span className="text-right">Lucro cada</span><span className="text-right">Lucro total</span>
                 </div>
-                {cur.products.map(p => {
-                  const each = p.qty > 0 ? p.cost / p.qty : 0, price = p.qty > 0 ? p.revenue / p.qty : 0;
-                  const lp = p.revenue - p.cost, margin = p.revenue > 0 ? (lp / p.revenue) * 100 : 0;
-                  const open = openProduct === p.product.id;
-                  const noCost = p.source === "none";
+                {[...cur.food, ...cur.resale].map((p, idx, all) => {
+                  const price = p.qty > 0 ? p.revenue / p.qty : 0, each = p.qty > 0 ? p.cost / p.qty : 0;
+                  const firstResale = p.kind === "resale" && (idx === 0 || all[idx - 1].kind === "food");
                   return (
                     <div key={p.product.id}>
-                      <button onClick={() => setOpenProduct(open ? null : p.product.id)}
-                        className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors grid grid-cols-2 md:grid-cols-[1fr_70px_110px_110px_110px_110px_70px] gap-x-2 gap-y-1 items-center">
-                        <span className="col-span-2 md:col-span-1 flex items-center gap-1.5 min-w-0">
-                          <ChevronDown className={`w-4 h-4 text-gray-400 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
-                          <span className="font-semibold text-sm text-gray-900 truncate">{p.product.name}</span>
-                          {p.source === "cadastro" && <span className="text-[10px] font-semibold text-gray-400 shrink-0">custo do cadastro</span>}
-                          {noCost && <span className="text-[10px] font-semibold text-amber-600 shrink-0">sem custo</span>}
+                      {firstResale && <p className="px-4 pt-3 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Bebidas e revenda</p>}
+                      <div className="px-4 py-3 grid grid-cols-2 md:grid-cols-[1fr_70px_110px_110px_110px_110px] gap-x-2 gap-y-1 items-center">
+                        <span className="col-span-2 md:col-span-1 font-semibold text-sm text-gray-900 truncate">
+                          {p.product.name}
+                          {!p.hasCost && <span className="ml-1.5 text-[10px] font-semibold text-amber-600">sem preço de compra</span>}
                         </span>
-                        <Cell label="Vendidas" value={fmtNum(p.qty, 2)} />
-                        <Cell label="Custo cada" value={noCost ? "—" : fmt(each)} />
+                        <Cell label="Vendidos" value={fmtNum(p.qty, 2)} />
                         <Cell label="Vende por" value={fmt(price)} />
-                        <Cell label="Lucro cada" value={noCost ? "—" : fmt(price - each)} tone={noCost ? undefined : price - each >= 0 ? "green" : "red"} />
-                        <Cell label="Lucro total" value={noCost ? "—" : fmt(lp)} tone={noCost ? undefined : lp >= 0 ? "green" : "red"} bold />
-                        <Cell label="Margem" value={noCost ? "—" : `${fmtNum(margin, 0)}%`} />
-                      </button>
-                      {open && (
-                        <div className="px-4 pb-3 md:pl-10">
-                          {p.parts.length > 0 ? (
-                            <div className="rounded-xl bg-gray-50 border border-gray-100 divide-y divide-gray-100">
-                              {p.parts.map(part => (
-                                <div key={part.item.id} className="flex items-center gap-2 px-3 py-2 text-xs">
-                                  <span className="flex-1 truncate text-gray-700">{part.item.name}</span>
-                                  <span className="text-gray-500 tabular-nums">≈ {portionText(part.qtyEach, part.item.unit)} cada</span>
-                                  <span className="w-20 text-right font-semibold tabular-nums">{fmt(p.qty > 0 ? part.cost / p.qty : 0)}</span>
-                                </div>
-                              ))}
-                              <div className="flex items-center gap-2 px-3 py-2 text-xs font-bold">
-                                <span className="flex-1">Custo de cada um</span>
-                                <span className="w-20 text-right tabular-nums">{fmt(each)}</span>
-                              </div>
-                            </div>
-                          ) : p.source === "cadastro" ? (
-                            <p className="text-xs text-gray-500">Produto de revenda: usa o custo do cadastro ({fmt(Number(p.product.cost_price ?? 0))}).</p>
-                          ) : (
-                            <p className="text-xs text-amber-700">Nenhuma compra foi dividida neste produto. Marque-o como prato em "Vai em quê" ou coloque um custo no cadastro do produto.</p>
-                          )}
-                        </div>
-                      )}
+                        <Cell label="Custo cada" value={p.hasCost ? fmt(each) : "—"} />
+                        <Cell label="Lucro cada" value={p.hasCost ? fmt(price - each) : "—"} tone={p.hasCost ? (price - each >= 0 ? "green" : "red") : undefined} bold />
+                        <Cell label="Lucro total" value={p.hasCost ? fmt(p.revenue - p.cost) : "—"} tone={p.hasCost ? (p.revenue - p.cost >= 0 ? "green" : "red") : undefined} />
+                      </div>
                     </div>
                   );
                 })}
@@ -487,19 +481,22 @@ function ResultView({ stockItems, products, itemRules, productRules, uid }: {
             )}
           </div>
 
-          {/* Por insumo */}
+          {/* Por compra */}
           <div className={card}>
             <div className="px-4 pt-4 pb-2">
-              <p className="text-sm font-bold text-gray-900">O que foi gasto de cada compra</p>
-              <p className="text-[11px] text-gray-400">"Por porção" é a média estimada pelo total comprado ÷ vendido. Se subir muito sem você mudar nada, tem porção maior, desperdício ou sumiço.</p>
+              <p className="text-sm font-bold text-gray-900">Para onde foi o dinheiro das compras</p>
+              <p className="text-[11px] text-gray-400">"Por prato" é a média: total comprado ÷ pratos vendidos. Se subir muito sem você mudar nada, tem porção maior, desperdício ou sumiço.</p>
             </div>
             {cur.items.length === 0 ? (
-              <p className="px-4 pb-4 text-sm text-gray-500">Nenhuma compra de insumo lançada no período. Use "Lançar compras".</p>
+              <div className="px-4 pb-4 flex flex-wrap items-center gap-3">
+                <p className="text-sm text-gray-500 flex-1">Nenhuma compra lançada no período.</p>
+                <button onClick={goBuy} className={btnGhost + " !py-2"}><Plus className="w-4 h-4" /> Lançar compras</button>
+              </div>
             ) : (
               <div className="divide-y divide-gray-100">
                 {cur.items.map(r => {
-                  const before = prevPortion.get(r.item.id) ?? 0;
-                  const change = before > 0 && r.perPortion > 0 ? ((r.perPortion - before) / before) * 100 : null;
+                  const before = prevPerDish.get(r.item.id) ?? 0;
+                  const change = before > 0 && r.perDish > 0 ? ((r.perDish - before) / before) * 100 : null;
                   return (
                     <div key={r.item.id} className="px-4 py-3 flex flex-col md:flex-row md:items-center gap-1 md:gap-3">
                       <div className="flex-1 min-w-0">
@@ -511,21 +508,14 @@ function ResultView({ stockItems, products, itemRules, productRules, uid }: {
                           {r.opening !== null && ` · tinha ${fmtNum(r.opening, 3)}`}
                           {r.closing !== null && ` · sobrou ${fmtNum(r.closing, 3)}`}
                         </p>
-                        <p className="text-[11px] text-gray-400 truncate">
-                          {r.mode === "none" ? "não dividido (despesa à parte)"
-                            : r.mode === "some" ? `vai em: ${r.targets.map(productName).join(", ") || "nenhum produto escolhido"}`
-                            : "vai em todos os pratos"}
-                        </p>
                       </div>
                       <div className="flex items-center gap-3 md:gap-5 text-xs">
-                        {r.allocated ? (
-                          <span className="text-gray-700"><span className="text-gray-400">por porção </span><b className="tabular-nums">{portionText(r.perPortion, r.item.unit)}</b></span>
-                        ) : r.mode !== "none" ? (
-                          <span className="text-amber-600 font-semibold">sem venda para dividir</span>
-                        ) : null}
+                        {cur.dishes > 0 && (
+                          <span className="text-gray-700"><span className="text-gray-400">por prato </span><b className="tabular-nums">{portionText(r.perDish, r.item.unit)}</b> · {fmt(r.perDishCost)}</span>
+                        )}
                         {change !== null && Math.abs(change) >= 5 && (
                           <span className={`inline-flex items-center gap-0.5 font-bold ${change > 0 ? "text-red-600" : "text-emerald-600"}`}
-                            title={`Antes: ${portionText(before, r.item.unit)} por porção`}>
+                            title={`Antes: ${portionText(before, r.item.unit)} por prato`}>
                             {change > 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
                             {change > 0 ? "+" : ""}{fmtNum(change, 0)}%
                           </span>
@@ -636,9 +626,9 @@ function LeftoverForm({ day, uid, counts, items, onSaved }: {
 interface BuyRow { name: string; unit: string; qty: string; total: string }
 const emptyRow = (): BuyRow => ({ name: "", unit: "kg", qty: "", total: "" });
 
-function BuyView({ stockItems, suppliers, uid, onItemsChanged, goSetup }: {
+function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
   stockItems: StockItem[]; suppliers: { id: string; name: string }[]; uid: string | null;
-  onItemsChanged: () => Promise<void>; goSetup: () => void;
+  onItemsChanged: () => Promise<void>;
 }) {
   const today = dayStr(new Date());
   const [day, setDay] = useState(today);
@@ -815,8 +805,7 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged, goSetup }: {
         {error && <p className="text-sm text-red-600">{error}</p>}
         {done && (
           <p className="text-sm text-emerald-700 font-semibold">
-            ✓ {done}. Já entrou no estoque e em Contas a Pagar.{" "}
-            <button onClick={goSetup} className="underline font-normal">Item novo? Diga em "Vai em quê" onde ele entra.</button>
+            ✓ {done}. Já entrou no estoque, em Contas a Pagar e no Resultado.
           </p>
         )}
       </div>
@@ -843,222 +832,6 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged, goSetup }: {
             ))}
           </div>
         )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Vai em quê (configuração, uma vez só) ────────────────────────────────────
-
-function SetupView({ stockItems, products, categories, uid, itemRules, setItemRules, productRules, setProductRules }: {
-  stockItems: StockItem[]; products: Product[]; categories: Category[]; uid: string | null;
-  itemRules: Map<string, ItemRule>; setItemRules: (m: Map<string, ItemRule>) => void;
-  productRules: Map<string, ProductRule>; setProductRules: (m: Map<string, ProductRule>) => void;
-}) {
-  const activeProducts = products.filter(p => p.is_active !== false);
-  const catName = (id: string | null) => categories.find(c => c.id === id)?.name ?? "Sem categoria";
-  const nothingYet = productRules.size === 0;
-
-  // Rascunho dos pratos (com sugestão automática na primeira vez)
-  const [dish, setDish] = useState<Record<string, { on: boolean; weight: string }>>(() => Object.fromEntries(activeProducts.map(p => {
-    const r = productRules.get(p.id);
-    const on = r ? r.in_general : nothingYet && (DISH_RX.test(p.name) || DISH_RX.test(catName(p.category_id)));
-    return [p.id, { on, weight: String(r?.weight ?? 1).replace(".", ",") }];
-  })));
-  const [savingDish, setSavingDish] = useState(false);
-  const [dishMsg, setDishMsg] = useState<string | null>(null);
-  const [pickFor, setPickFor] = useState<StockItem | null>(null);
-  const [itemSearch, setItemSearch] = useState("");
-
-  const groups = useMemo(() => {
-    const m = new Map<string, Product[]>();
-    for (const p of activeProducts) { const k = catName(p.category_id); m.set(k, [...(m.get(k) ?? []), p]); }
-    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  }, [products, categories]);
-
-  const dirty = activeProducts.some(p => {
-    const r = productRules.get(p.id), d = dish[p.id];
-    if (!d) return false;
-    return (r?.in_general ?? false) !== d.on || (d.on && (r?.weight ?? 1) !== (parseNum(d.weight) || 1));
-  });
-
-  async function saveDishes() {
-    setSavingDish(true); setDishMsg(null);
-    const rows = activeProducts
-      .filter(p => dish[p.id] && (dish[p.id].on || productRules.has(p.id)))
-      .map(p => ({ user_id: uid, product_id: p.id, in_general: dish[p.id].on, weight: Math.max(0.1, parseNum(dish[p.id].weight) || 1), updated_at: new Date().toISOString() }));
-    const { error } = rows.length
-      ? await supabase.from("cost_product_rules").upsert(rows, { onConflict: "user_id,product_id" })
-      : { error: null };
-    setSavingDish(false);
-    if (error) { setDishMsg("Erro: " + error.message); return; }
-    const next = new Map(productRules);
-    for (const r of rows) next.set(r.product_id, { product_id: r.product_id, in_general: r.in_general, weight: r.weight });
-    setProductRules(next);
-    setDishMsg("Salvo!");
-  }
-
-  async function saveItemRule(item: StockItem, mode: ItemRule["mode"], product_ids: string[]) {
-    const prevRules = itemRules;
-    const next = new Map(itemRules);
-    next.set(item.id, { stock_item_id: item.id, mode, product_ids });
-    setItemRules(next);
-    const { error } = await supabase.from("cost_item_rules").upsert(
-      { user_id: uid, stock_item_id: item.id, mode, product_ids, updated_at: new Date().toISOString() },
-      { onConflict: "user_id,stock_item_id" });
-    if (error) { setItemRules(prevRules); alert("Não foi possível salvar: " + error.message); }
-  }
-
-  const items = stockItems.filter(i => i.is_active !== false && (!itemSearch || matchesSearch(i.name, itemSearch)));
-  const productName = (id: string) => products.find(p => p.id === id)?.name ?? "—";
-
-  return (
-    <div className="space-y-4">
-      {/* 1. Pratos */}
-      <div className={`${card} p-4 space-y-3`}>
-        <div>
-          <p className="text-sm font-bold text-gray-900">1. Quais produtos são marmitas/pratos?</p>
-          <p className="text-xs text-gray-500">Os itens marcados como "todos os pratos" (arroz, feijão, tempero, embalagem…) são divididos entre esses produtos. Refrigerante e outros de revenda ficam de fora.</p>
-          <p className="text-xs text-gray-500 mt-1"><b>Tamanho:</b> 1 = porção normal. Marmita grande que leva 50% a mais, coloque 1,5; pequena, 0,7.</p>
-          {nothingYet && <p className="text-xs text-brand-700 font-semibold mt-1">Já deixamos marcados os que parecem pratos. Confira e salve.</p>}
-        </div>
-        <div className="grid md:grid-cols-2 gap-3">
-          {groups.map(([cat, list]) => {
-            const allOn = list.every(p => dish[p.id]?.on);
-            return (
-              <div key={cat} className="rounded-xl border border-gray-100">
-                <label className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-t-xl text-xs font-bold text-gray-700 cursor-pointer">
-                  <input type="checkbox" checked={allOn} className="w-4 h-4 accent-brand-600"
-                    onChange={e => setDish(d => ({ ...d, ...Object.fromEntries(list.map(p => [p.id, { ...d[p.id], on: e.target.checked }])) }))} />
-                  {cat}
-                </label>
-                <div className="divide-y divide-gray-50">
-                  {list.map(p => (
-                    <div key={p.id} className="flex items-center gap-2 px-3 py-1.5">
-                      <label className="flex-1 flex items-center gap-2 text-sm text-gray-800 cursor-pointer min-w-0">
-                        <input type="checkbox" checked={dish[p.id]?.on ?? false} className="w-4 h-4 accent-brand-600"
-                          onChange={e => setDish(d => ({ ...d, [p.id]: { ...d[p.id], on: e.target.checked } }))} />
-                        <span className="truncate">{p.name}</span>
-                      </label>
-                      {dish[p.id]?.on && (
-                        <label className="flex items-center gap-1 text-[11px] text-gray-400">
-                          tamanho
-                          <input inputMode="decimal" value={dish[p.id].weight}
-                            onChange={e => setDish(d => ({ ...d, [p.id]: { ...d[p.id], weight: e.target.value } }))}
-                            className={fieldCls + " !w-14 !py-1 !px-2 text-center"} />
-                        </label>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        <div className="flex items-center gap-3">
-          <button onClick={saveDishes} disabled={savingDish || (!dirty && !nothingYet)} className={btnPrimary} style={WHITE}>
-            {savingDish ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Salvar pratos
-          </button>
-          {dishMsg && <span className={`text-xs font-semibold ${dishMsg.startsWith("Erro") ? "text-red-600" : "text-emerald-600"}`}>{dishMsg}</span>}
-        </div>
-      </div>
-
-      {/* 2. Insumos */}
-      <div className={`${card} p-4 space-y-3`}>
-        <div>
-          <p className="text-sm font-bold text-gray-900">2. Cada compra vai em quê?</p>
-          <p className="text-xs text-gray-500">Bife só nas marmitas de bife? Escolha "Só em alguns". Arroz, alho, tempero, embalagem: "Todos os pratos". Produto de limpeza, gás que você não quer dividir: "Não dividir". Salva sozinho.</p>
-        </div>
-        <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input value={itemSearch} onChange={e => setItemSearch(e.target.value)} placeholder="Buscar insumo..." className={fieldCls + " pl-10 bg-gray-50"} />
-        </div>
-        {items.length === 0 ? (
-          <p className="text-sm text-gray-500">Nenhum insumo ainda. Eles aparecem aqui quando você lança as compras.</p>
-        ) : (
-          <div className="divide-y divide-gray-100">
-            {items.map(it => {
-              const r = itemRules.get(it.id);
-              const mode = r?.mode ?? "all";
-              return (
-                <div key={it.id} className="py-2.5 flex flex-col md:flex-row md:items-center gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{it.name} <span className="font-normal text-xs text-gray-400">{it.unit}</span></p>
-                    {mode === "some" && (
-                      <p className="text-[11px] text-gray-500 truncate">
-                        {r!.product_ids.length ? r!.product_ids.map(productName).join(", ") : <span className="text-amber-600 font-semibold">escolha os produtos</span>}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex p-1 bg-gray-100 rounded-xl">
-                      {([
-                        { v: "all", l: "Todos os pratos" }, { v: "some", l: "Só em alguns" }, { v: "none", l: "Não dividir" },
-                      ] as const).map(o => (
-                        <button key={o.v}
-                          onClick={() => {
-                            if (o.v === "some") { setPickFor(it); return; }
-                            saveItemRule(it, o.v, r?.product_ids ?? []);
-                          }}
-                          className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${mode === o.v ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-800"}`}>
-                          {o.l}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {pickFor && (
-        <PickProducts item={pickFor} products={activeProducts} catName={catName}
-          initial={itemRules.get(pickFor.id)?.product_ids ?? []}
-          onClose={() => setPickFor(null)}
-          onSave={ids => { saveItemRule(pickFor, "some", ids); setPickFor(null); }} />
-      )}
-    </div>
-  );
-}
-
-function PickProducts({ item, products, catName, initial, onClose, onSave }: {
-  item: StockItem; products: Product[]; catName: (id: string | null) => string; initial: string[];
-  onClose: () => void; onSave: (ids: string[]) => void;
-}) {
-  useEscapeKey(onClose, true);
-  const [sel, setSel] = useState<Set<string>>(new Set(initial));
-  const [q, setQ] = useState("");
-  const list = products.filter(p => !q || matchesSearch(p.name, q) || matchesSearch(catName(p.category_id), q));
-  const toggle = (id: string) => setSel(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4" onClick={onClose}>
-      <div className="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-xl flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
-        <div className="p-4 border-b border-gray-100 flex items-start gap-2">
-          <div className="flex-1">
-            <p className="font-bold text-gray-900">{item.name} vai em quais produtos?</p>
-            <p className="text-xs text-gray-500">O custo é dividido só entre os marcados, pelo que cada um vendeu.</p>
-          </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100"><X className="w-5 h-5" /></button>
-        </div>
-        <div className="p-3 border-b border-gray-100">
-          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar produto..." className={fieldCls} autoFocus />
-        </div>
-        <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
-          {list.map(p => (
-            <label key={p.id} className="flex items-center gap-2 px-4 py-2 text-sm cursor-pointer hover:bg-gray-50">
-              <input type="checkbox" checked={sel.has(p.id)} onChange={() => toggle(p.id)} className="w-4 h-4 accent-brand-600" />
-              <span className="flex-1 truncate text-gray-800">{p.name}</span>
-              <span className="text-[11px] text-gray-400 truncate max-w-[40%]">{catName(p.category_id)}</span>
-            </label>
-          ))}
-        </div>
-        <div className="p-3 border-t border-gray-100 flex items-center gap-2">
-          <span className="text-xs text-gray-500 flex-1">{sel.size} selecionado{sel.size === 1 ? "" : "s"}</span>
-          <button onClick={onClose} className={btnGhost}>Cancelar</button>
-          <button onClick={() => onSave([...sel])} disabled={sel.size === 0} className={btnPrimary} style={WHITE}><Check className="w-4 h-4" /> Salvar</button>
-        </div>
       </div>
     </div>
   );
