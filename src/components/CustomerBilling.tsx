@@ -1,9 +1,11 @@
 // Cliente empresa: preço combinado por produto e fatura do mês (imprimir / WhatsApp).
 import { useEffect, useMemo, useState } from "react";
-import { Tag, Trash2, Plus, FileText, Printer, MessageCircle, RefreshCw } from "lucide-react";
+import { Tag, Trash2, Plus, FileText, Printer, MessageCircle, RefreshCw, Download, X } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { fetchAll } from "../lib/fetchAll";
 import { getStoreSettings } from "../pages/settings";
+import { printDocument } from "../lib/printing";
+import { RECEIPT_CSS, fmtPhone, fmtCnpj } from "../lib/receipt";
 
 interface Props {
   customer: { id: string; name: string; phone?: string | null; fiado_balance?: number | null };
@@ -20,6 +22,21 @@ const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).pad
 const monthLabel = (k: string) => { const [y, m] = k.split("-").map(Number); return new Date(y, m - 1, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" }); };
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
 const qtyTxt = (q: number) => (Number.isInteger(q) ? String(q) : String(q).replace(".", ","));
+
+// Gerador de PDF carregado só quando precisa (não pesa no sistema)
+let jsPdfLoad: Promise<any> | null = null;
+function loadJsPdf(): Promise<any> {
+  const w = window as any;
+  if (w.jspdf?.jsPDF) return Promise.resolve(w.jspdf.jsPDF);
+  jsPdfLoad ??= new Promise((resolve, reject) => {
+    const sc = document.createElement("script");
+    sc.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+    sc.onload = () => (w.jspdf?.jsPDF ? resolve(w.jspdf.jsPDF) : reject(new Error("PDF indisponível")));
+    sc.onerror = () => { jsPdfLoad = null; sc.remove(); reject(new Error("Sem internet para gerar o PDF")); };
+    document.head.appendChild(sc);
+  });
+  return jsPdfLoad;
+}
 
 export function CustomerBilling({ customer, card, isLight }: Props) {
   const box = { background: card.bg, border: card.border, boxShadow: card.shadow };
@@ -99,34 +116,113 @@ export function CustomerBilling({ customer, card, isLight }: Props) {
   const dayTxt = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
   const itemsTxt = (s: MonthSale) => s.items.filter(i => i.price > 0).map(i => `${qtyTxt(i.qty)}x ${i.name}`).join(", ") || "—";
 
-  function printInvoice() {
+  const [printMenu, setPrintMenu] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [printMsg, setPrintMsg] = useState<string | null>(null);
+  const fileBase = `Fatura ${customer.name} - ${monthLabel(month)}`.replace(/[\\/:*?"<>|]/g, "");
+
+  // PDF em folha A4: baixa o arquivo (no celular abre para compartilhar)
+  async function downloadPdf() {
+    setBusy("pdf"); setPrintMsg(null);
+    try {
+      const JsPDF = await loadJsPdf();
+      const store = getStoreSettings();
+      const doc = new JsPDF({ unit: "mm", format: "a4" });
+      const W = 210, L = 14, R = W - 14;
+      let y = 18;
+      doc.setFont("helvetica", "bold"); doc.setFontSize(17);
+      doc.text(store.name || "Fatura", L, y); y += 6;
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9.5); doc.setTextColor(100);
+      const contact = [store.address, store.phone ? fmtPhone(store.phone) : "", store.show_cnpj && store.cnpj ? "CNPJ " + fmtCnpj(store.cnpj) : ""].filter(Boolean).join("  ·  ");
+      if (contact) { const cl: string[] = doc.splitTextToSize(contact, R - L); doc.text(cl, L, y); y += cl.length * 4.5; }
+      doc.setTextColor(0); y += 5;
+      doc.setFont("helvetica", "bold"); doc.setFontSize(13);
+      doc.text(`Fatura de ${monthLabel(month)}`, L, y); y += 6;
+      doc.setFont("helvetica", "normal"); doc.setFontSize(11);
+      doc.text(`Cliente: ${customer.name}`, L, y); y += 9;
+
+      const col = { data: L, ped: L + 16, itens: L + 38, valor: R - 22, sit: R };
+      const header = () => {
+        doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(110);
+        doc.text("DATA", col.data, y); doc.text("PEDIDO", col.ped, y); doc.text("ITENS", col.itens, y);
+        doc.text("VALOR", col.valor, y, { align: "right" }); doc.text("SITUAÇÃO", col.sit, y, { align: "right" });
+        doc.setTextColor(0); y += 2; doc.setDrawColor(200); doc.line(L, y, R, y); y += 5;
+      };
+      header();
+      for (const sl of sales) {
+        doc.setFont("helvetica", "normal"); doc.setFontSize(9.5);
+        const lines: string[] = doc.splitTextToSize(itemsTxt(sl), col.valor - 26 - col.itens);
+        const h = lines.length * 4.2 + 2.6;
+        if (y + h > 282) { doc.addPage(); y = 18; header(); doc.setFont("helvetica", "normal"); doc.setFontSize(9.5); }
+        doc.text(dayTxt(sl.created_at), col.data, y);
+        doc.text("#" + sl.id.slice(-6).toUpperCase(), col.ped, y);
+        doc.text(lines, col.itens, y);
+        doc.text(fmt(sl.total), col.valor, y, { align: "right" });
+        const due = sl.fiado > 0.009;
+        doc.setTextColor(due ? 180 : 20, due ? 110 : 140, due ? 0 : 60);
+        doc.text(due ? "a pagar" : "pago", col.sit, y, { align: "right" });
+        doc.setTextColor(0);
+        y += h - 3.4; doc.setDrawColor(230); doc.line(L, y, R, y); y += 4.6;
+      }
+
+      if (y + 48 > 282) { doc.addPage(); y = 18; }
+      y += 4;
+      const tl = R - 80;
+      const row = (a: string, b: string, big = false) => {
+        doc.setFont("helvetica", big ? "bold" : "normal"); doc.setFontSize(big ? 13 : 10.5);
+        doc.text(a, tl, y); doc.text(b, R, y, { align: "right" }); y += big ? 8 : 6;
+      };
+      row("Pedidos", String(sales.length));
+      row("Itens (marmitas e outros)", qtyTxt(units));
+      row("Total do mês", fmt(total));
+      row("Já pago", fmt(paidNow));
+      doc.setDrawColor(0); doc.setLineWidth(0.5); doc.line(tl, y - 3, R, y - 3); doc.setLineWidth(0.2); y += 3;
+      row("A pagar", fmt(onFiado), true);
+      if (store.pix) { doc.setFont("helvetica", "normal"); doc.setFontSize(10.5); doc.text(`Pix: ${store.pix}`, tl, y); }
+
+      const fileName = fileBase + ".pdf";
+      const file = new File([doc.output("blob")], fileName, { type: "application/pdf" });
+      const nav = navigator as any;
+      if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) && nav.canShare?.({ files: [file] })) {
+        await nav.share({ files: [file], title: fileName }).catch(() => {});
+      } else {
+        doc.save(fileName);
+      }
+      setPrintMenu(false);
+    } catch (e) {
+      setPrintMsg(e instanceof Error ? e.message : "Não foi possível gerar o PDF");
+    }
+    setBusy(null);
+  }
+
+  // Resumo do mês na impressora térmica (mesma impressora dos cupons)
+  async function printThermal() {
+    setBusy("thermal"); setPrintMsg(null);
     const store = getStoreSettings();
-    const win = window.open("", "_blank", "width=800,height=900");
-    if (!win) return;
-    win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Fatura ${esc(customer.name)} - ${esc(monthLabel(month))}</title>
-    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;color:#111;padding:32px;font-size:13px}
-    h1{font-size:20px}h2{font-size:15px;margin-top:4px;color:#374151}table{width:100%;border-collapse:collapse;margin-top:18px}
-    th,td{text-align:left;padding:7px 6px;border-bottom:1px solid #e5e7eb;vertical-align:top}th{font-size:11px;text-transform:uppercase;color:#6b7280}
-    td.v,th.v{text-align:right;white-space:nowrap}.tot{margin-top:18px;margin-left:auto;width:300px}.tot div{display:flex;justify-content:space-between;padding:4px 0}
-    .big{font-size:17px;font-weight:800;border-top:2px solid #111;margin-top:4px;padding-top:8px!important}
-    .pbtn{position:fixed;top:16px;right:16px;background:#315DFB;color:#fff;border:none;padding:10px 22px;border-radius:8px;font-weight:700;cursor:pointer}
-    @media print{.pbtn{display:none}body{padding:0}}</style></head><body>
-    <button class="pbtn" onclick="window.print()">Imprimir</button>
-    <h1>${esc(store.name || "Fatura")}</h1>
-    <div style="color:#6b7280">${[store.address, store.phone, store.show_cnpj && store.cnpj ? "CNPJ " + store.cnpj : ""].filter(Boolean).map(esc).join(" · ")}</div>
-    <h2 style="margin-top:22px">Fatura de ${esc(monthLabel(month))} — ${esc(customer.name)}</h2>
-    <table><thead><tr><th>Data</th><th>Pedido</th><th>Itens</th><th class="v">Valor</th><th class="v">Situação</th></tr></thead><tbody>
-    ${sales.map(s => `<tr><td>${dayTxt(s.created_at)}</td><td>#${s.id.slice(-6).toUpperCase()}</td><td>${esc(itemsTxt(s))}</td><td class="v">${fmt(s.total)}</td><td class="v">${s.fiado > 0.009 ? "a pagar" : "pago"}</td></tr>`).join("")}
-    </tbody></table>
-    <div class="tot">
-      <div><span>Pedidos</span><span>${sales.length}</span></div>
-      <div><span>Itens (marmitas e outros)</span><span>${qtyTxt(units)}</span></div>
-      <div><span>Total do mês</span><span>${fmt(total)}</span></div>
-      <div><span>Já pago</span><span>${fmt(paidNow)}</span></div>
-      <div class="big"><span>A pagar</span><span>${fmt(onFiado)}</span></div>
-      ${store.pix ? `<div style="margin-top:8px"><span>Pix: ${esc(store.pix)}</span></div>` : ""}
-    </div></body></html>`);
-    win.document.close();
+    const contact = [store.address, store.phone ? fmtPhone(store.phone) : ""].filter(Boolean);
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(fileBase)}</title><style>${RECEIPT_CSS}
+      .ln{display:flex;gap:6px;margin-top:6px;font-size:13px}.ln .dt{font-weight:700;white-space:nowrap}.ln .tx{flex:1}.ln .vl{white-space:nowrap}
+      .st{font-size:12px;padding-left:46px}</style></head><body>
+      <button class="pbtn" onclick="window.print()">Imprimir</button>
+      <div class="c"><div class="store">${esc(store.name || "Minha Loja")}</div>
+      ${contact.map(c => `<div class="sub">${esc(c)}</div>`).join("")}
+      ${store.show_cnpj && store.cnpj ? `<div class="sub">CNPJ ${esc(fmtCnpj(store.cnpj))}</div>` : ""}</div>
+      <div class="sep"></div>
+      <div class="big">FATURA ${esc(monthLabel(month).toUpperCase())}</div>
+      <div class="info"><b>Cliente:</b> ${esc(customer.name)}</div>
+      <div class="sep"></div>
+      ${sales.map(sl => `<div class="ln"><span class="dt">${dayTxt(sl.created_at)}</span><span class="tx">${esc(itemsTxt(sl))}</span><span class="vl">${fmt(sl.total)}</span></div>${sl.fiado > 0.009 ? "" : `<div class="st">pago</div>`}`).join("")}
+      <div class="sep"></div>
+      <div class="row"><span>Pedidos</span><span>${sales.length}</span></div>
+      <div class="row"><span>Itens</span><span>${qtyTxt(units)}</span></div>
+      <div class="row"><span>Total do mês</span><span>${fmt(total)}</span></div>
+      <div class="row"><span>Já pago</span><span>${fmt(paidNow)}</span></div>
+      <div class="row t"><span>A PAGAR</span><span>${fmt(onFiado)}</span></div>
+      ${store.pix ? `<div class="note">Pix: ${esc(store.pix)}</div>` : ""}
+      </body></html>`;
+    try { await printDocument(html, { kind: "receipt", title: fileBase }); setPrintMenu(false); }
+    catch { setPrintMsg("Não foi possível imprimir"); }
+    setBusy(null);
   }
 
   function sendWhatsApp() {
@@ -228,13 +324,34 @@ export function CustomerBilling({ customer, card, isLight }: Props) {
               ))}
             </div>
             <div className="flex flex-wrap gap-2">
-              <button onClick={printInvoice} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold border border-zinc-700 hover:bg-zinc-800/30">
+              <button onClick={() => { setPrintMenu(v => !v); setPrintMsg(null); }} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold border border-zinc-700 hover:bg-zinc-800/30">
                 <Printer className="w-4 h-4" /> Imprimir / PDF
               </button>
               <button onClick={sendWhatsApp} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold" style={{ background: "#25D366", color: "#fff" }}>
                 <MessageCircle className="w-4 h-4" /> Enviar no WhatsApp
               </button>
             </div>
+            {printMenu && (
+              <div className={`rounded-xl p-3 space-y-2 border ${isLight ? "bg-gray-50 border-gray-200" : "bg-zinc-950 border-zinc-800"}`}>
+                <div className="flex items-center">
+                  <p className="text-xs font-semibold flex-1">Como você quer a fatura?</p>
+                  <button onClick={() => setPrintMenu(false)} className="p-1 text-zinc-500 hover:text-zinc-300"><X className="w-4 h-4" /></button>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-2">
+                  <button onClick={downloadPdf} disabled={!!busy}
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-left" style={{ color: "#fff" }}>
+                    {busy === "pdf" ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                    <span>Baixar PDF<span className="block text-[11px] font-normal opacity-80">Folha A4 para mandar ao cliente</span></span>
+                  </button>
+                  <button onClick={printThermal} disabled={!!busy}
+                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold border disabled:opacity-50 text-left ${isLight ? "border-gray-300 hover:bg-gray-100" : "border-zinc-700 hover:bg-zinc-800/40"}`}>
+                    {busy === "thermal" ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+                    <span>Impressora térmica<span className="block text-[11px] font-normal text-zinc-500">Resumo no papel do cupom</span></span>
+                  </button>
+                </div>
+                {printMsg && <p className="text-xs text-red-500">{printMsg}</p>}
+              </div>
+            )}
             {onFiado > 0.009 && (
               <p className="text-[11px] text-zinc-500">"A pagar" são os pedidos lançados no fiado. Quando a empresa pagar, use "Pagar Fiado" aqui em cima.</p>
             )}
