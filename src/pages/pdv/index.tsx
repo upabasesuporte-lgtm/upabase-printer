@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { printDocument } from "../../lib/printing";
 import { receiptHtml, receiptDate, brl } from "../../lib/receipt";
+import { isNetworkError, saveCache, readCache, enqueueSale } from "../../lib/offline";
 import { requireApproval } from "../../lib/operators";
 import { matchesSearch } from "../../lib/search";
 import { recalcFiadoBalance } from "../../lib/fiado";
@@ -377,6 +378,23 @@ export default function PdvPage() {
         : Promise.resolve(null),
     ]);
 
+    // Sem internet: abre com produtos, clientes e caixa da última vez (modo offline)
+    const cacheKey = "pdv_" + (user?.id ?? "anon");
+    if (prodsRes.error && isNetworkError(prodsRes.error)) {
+      const c = readCache<{ products: any[]; categories: any[]; customers: any[]; registerId: string | null }>(cacheKey);
+      if (c) {
+        setProducts(c.products ?? []);
+        setCategoryNames(Object.fromEntries((c.categories ?? []).map((x: any) => [x.id, x.name])));
+        setCustomers(c.customers ?? []);
+        if (user) setCashRegisterId(c.registerId ?? null);
+        setLoadingProducts(false);
+        return;
+      }
+    }
+    if (!prodsRes.error && !catsRes.error && !custsRes.error && !(regRes as any)?.error) {
+      saveCache(cacheKey, { products: prodsRes.data ?? [], categories: catsRes.data ?? [], customers: custsRes.data ?? [], registerId: regRes?.data?.id ?? null });
+    }
+
     setProducts(prodsRes.data ?? []);
     setCategoryNames(Object.fromEntries((catsRes.data ?? []).map((c: any) => [c.id, c.name])));
     setCustomers(custsRes.data ?? []);
@@ -693,7 +711,7 @@ export default function PdvPage() {
       ...(houseAmt > 0 ? [{ customer_id: selectedCustomer!.id, type: "saldo", amount: houseAmt, description: `Saldo usado - Venda #${orderNum}` }] : []),
     ];
 
-    const { data: result, error } = await supabase.rpc("finalize_sale", { p: {
+    const finalizePayload = {
       mode: "insert", sale_id: saleId,
       send_kitchen: true, // itens vão para a estação do setor da categoria (se tiver)
       sale: {
@@ -715,10 +733,27 @@ export default function PdvPage() {
       cash: cashEntries,
       customer_movements: customerMovs,
       house_amount: houseAmt, house_customer_id: houseAmt > 0 ? selectedCustomer!.id : null,
-    } });
+    };
+    const { data: result, error } = await supabase.rpc("finalize_sale", { p: finalizePayload });
 
-    const sale = (result as any)?.sale as Sale | undefined;
-    if (error || !sale) {
+    let sale = (result as any)?.sale as Sale | undefined;
+    // Sem internet: a venda fica guardada neste computador e sobe sozinha depois
+    // (mesmo id: se ela chegou a gravar e só a resposta se perdeu, não duplica)
+    if (error && isNetworkError(error)) {
+      try {
+        enqueueSale({ id: saleId, userId, orderNum, total, createdAt: new Date().toISOString(), payload: finalizePayload });
+        sale = {
+          id: saleId, created_at: new Date().toISOString(), status: "paid", total_amount: total, total,
+          discount: discountVal, payments: normalizedPayments, customer_id: selectedCustomer?.id ?? null,
+          delivery_fee: deliveryFeeVal, origin: saleChannel,
+        } as unknown as Sale;
+      } catch {
+        setCheckoutError("Sem internet e não foi possível guardar a venda neste computador. Nada foi gravado — tente de novo.");
+        setCheckoutLoading(false);
+        return;
+      }
+    }
+    if (!sale) {
       setCheckoutError("Erro ao salvar venda" + (error?.message ? `: ${error.message}` : ".") + " Nada foi gravado — pode tentar de novo.");
       setCheckoutLoading(false);
       return;

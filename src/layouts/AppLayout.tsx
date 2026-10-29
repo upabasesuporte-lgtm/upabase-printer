@@ -5,6 +5,8 @@ import { useTheme } from "../contexts/ThemeContext";
 import type { UserPlanRecord, PlanType } from "../lib/plans";
 import { isPlanValid, isRouteAllowed, PLAN_ROUTES } from "../lib/plans";
 import { TrialBanner } from "../components/TrialBanner";
+import { OfflineBanner } from "../components/OfflineBanner";
+import { isNetworkError, saveCache, readCache } from "../lib/offline";
 import { supportWhatsAppUrl } from "../lib/support";
 import { PlanBlock } from "../components/PlanBlock";
 import { unlockAudio, playAlertBeep } from "../lib/audio";
@@ -208,11 +210,14 @@ export function AppLayout() {
   // ── Auth
   useEffect(() => {
     async function checkAuth() {
-      const { data } = await supabase.auth.getUser();
-      if (!data.user) { navigate("/auth"); return; }
-      setUserEmail(data.user.email ?? null);
-      setAvatarUrl(data.user.user_metadata?.avatar_url ?? null);
-      const uid = data.user.id;
+      const { data, error: userErr } = await supabase.auth.getUser();
+      // Sem internet: usa a sessão guardada neste aparelho em vez de mandar para o login
+      let user = data.user;
+      if (!user && userErr && isNetworkError(userErr)) user = (await supabase.auth.getSession()).data.session?.user ?? null;
+      if (!user) { navigate("/auth"); return; }
+      setUserEmail(user.email ?? null);
+      setAvatarUrl(user.user_metadata?.avatar_url ?? null);
+      const uid = user.id;
       setUserId(uid);
       loadOperators(uid);
 
@@ -300,6 +305,10 @@ export function AppLayout() {
 
     if (planRes.data) {
       setUserPlan(planRes.data as UserPlanRecord);
+      saveCache("plan_" + uid, planRes.data);
+    } else if (planRes.error && isNetworkError(planRes.error)) {
+      // Sem internet: vale o plano da última vez (não bloqueia a loja por queda de rede)
+      setUserPlan(readCache<UserPlanRecord>("plan_" + uid));
     } else {
       setUserPlan(null);
     }
@@ -735,6 +744,7 @@ export function AppLayout() {
 
         <div className="flex-1 overflow-auto min-h-0">
           <div className="p-3 sm:p-6 min-h-full">
+            <OfflineBanner />
             {!isAdmin && planReady && <TrialBanner plan={userPlan} />}
             {opBlocked
                 ? (!planReady ? null : firstAllowedPath && firstAllowedPath !== currentPath
