@@ -4,12 +4,15 @@ import { accentInsensitivePattern } from "../../lib/search";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import { PageHeader, btnPrimary, btnSecondary, WHITE_TEXT } from "../../components/PageHeader";
+import { useBusinessType } from "../../lib/business";
+import { newInternalEan } from "../../lib/barcode";
+import { LabelsModal } from "../../components/LabelsModal";
 import {
   Plus, Search, X, Edit2, Copy, Trash2, ChevronDown, ChevronUp,
   Package, Tag, Boxes, Monitor, UtensilsCrossed,
   ShoppingBag, Printer, RefreshCw, AlertTriangle, CheckCircle2,
   AlertCircle, ToggleLeft, ToggleRight, FolderOpen,
-  BarChart2, Infinity, Upload, Camera,
+  BarChart2, Infinity, Upload, Camera, Grid3x3, Barcode,
 } from "lucide-react";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -308,8 +311,35 @@ function CategoryModal({ categories, onClose, onRefresh }: {
 
 // ─── Modal de produto ─────────────────────────────────────────────────────────
 
-const TABS = ["Geral", "Preços", "Estoque", "Variações", "Canais"] as const;
-type TabName = typeof TABS[number];
+const TABS = ["Geral", "Preços", "Estoque", "Variações", "Fiscal", "Canais"] as const;
+// Loja/varejo: "Grade" (tamanho × cor) no lugar das variações antigas
+const RETAIL_TABS = ["Geral", "Preços", "Grade", "Estoque", "Fiscal", "Canais"] as const;
+type TabName = typeof TABS[number] | typeof RETAIL_TABS[number];
+
+// ── Grade (varejo) ──
+// Cada tamanho/cor vira um produto "filho" (variant_of = produto principal) com
+// código de barras, preço e estoque próprios: vende, baixa estoque e aparece nos
+// relatórios como qualquer produto.
+interface VariantRow { id?: string; size: string; color: string; barcode: string; price: number; stock: number }
+const SIZE_PRESETS: { label: string; sizes: string[] }[] = [
+  { label: "PP ao GG", sizes: ["PP", "P", "M", "G", "GG"] },
+  { label: "P ao XGG", sizes: ["P", "M", "G", "GG", "XG", "XGG"] },
+  { label: "Roupa 34–48", sizes: ["34", "36", "38", "40", "42", "44", "46", "48"] },
+  { label: "Calçado 33–44", sizes: ["33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44"] },
+  { label: "Infantil 1–16", sizes: ["1", "2", "3", "4", "6", "8", "10", "12", "14", "16"] },
+  { label: "Único", sizes: ["U"] },
+];
+const variantKey = (size: string, color: string) => `${size.trim().toLowerCase()}|${color.trim().toLowerCase()}`;
+export const variantName = (base: string, size: string | null, color: string | null) =>
+  [size, color].filter(x => x && x.trim()).length ? `${base} - ${[size, color].filter(x => x && x.trim()).join(" / ")}` : base;
+const uniq = (arr: string[]) => { const seen = new Set<string>(); return arr.map(x => x.trim()).filter(x => x && !seen.has(x.toLowerCase()) && seen.add(x.toLowerCase())); };
+
+// Campos novos (marca, coleção, fiscais) — guardados à parte para não mexer no formulário antigo
+interface ExtraForm { brand: string; collection: string; ncm: string; cest: string; cfop: string; origem: string; csosn: string }
+const extraFrom = (p: any): ExtraForm => ({
+  brand: p?.brand ?? "", collection: p?.collection ?? "", ncm: p?.ncm ?? "", cest: p?.cest ?? "",
+  cfop: p?.cfop ?? "", origem: p?.origem != null ? String(p.origem) : "", csosn: p?.csosn ?? "",
+});
 
 export function ProductModal({ product, categories, onClose, onSave, initialName }: {
   product: Product | null; categories: Category[]; onClose: () => void; onSave: (id?: string) => void; initialName?: string;
@@ -321,6 +351,51 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
     : { ...DEFAULT_FORM, name: initialName ?? "" });
   const [variations, setVariations] = useState<Variation[]>([]);
   const [newVar, setNewVar] = useState<Variation>({ type: "tamanho", name: "", additional_price: 0, stock: 1, is_active: true });
+  const retail = useBusinessType() === "retail";
+  const tabs: readonly TabName[] = retail ? RETAIL_TABS : TABS;
+  const [extra, setExtra] = useState<ExtraForm>(() => extraFrom(null));
+  // Edição: só grava marca/fiscais depois de lê-los do banco (outras telas abrem com o produto parcial)
+  const [extraLoaded, setExtraLoaded] = useState(!product);
+  const setX = (k: keyof ExtraForm, v: string) => setExtra(prev => ({ ...prev, [k]: v }));
+  // Grade
+  const [sizes, setSizes] = useState<string[]>([]);
+  const [colors, setColors] = useState<string[]>([]);
+  const [rows, setRows] = useState<VariantRow[]>([]);
+  const [removedRows, setRemovedRows] = useState<VariantRow[]>([]);
+  const [sizeInput, setSizeInput] = useState("");
+  const [colorInput, setColorInput] = useState("");
+
+  useEffect(() => {
+    if (!product) return;
+    supabase.from("products").select("brand, collection, ncm, cest, cfop, origem, csosn").eq("id", product.id).maybeSingle()
+      .then(({ data, error: e }) => { if (!e && data) { setExtra(extraFrom(data)); setExtraLoaded(true); } });
+    supabase.from("products").select("id, variant_size, variant_color, barcode, sale_price, stock")
+      .eq("variant_of", product.id).neq("is_active", false).order("created_at")
+      .then(({ data }) => {
+        const list = ((data ?? []) as any[]).map(r => ({ id: r.id, size: r.variant_size ?? "", color: r.variant_color ?? "", barcode: r.barcode ?? "", price: Number(r.sale_price ?? 0), stock: Number(r.stock ?? 0) }));
+        setRows(list); setRemovedRows([]);
+        setSizes(uniq(list.map(r => r.size))); setColors(uniq(list.map(r => r.color)));
+      });
+  }, [product]);
+
+  // Monta uma linha para cada tamanho × cor (mantém o que já existia)
+  function syncGrid(nextSizes: string[], nextColors: string[]) {
+    setSizes(nextSizes); setColors(nextColors);
+    const combos: [string, string][] = [];
+    if (nextSizes.length && nextColors.length) nextColors.forEach(c => nextSizes.forEach(z => combos.push([z, c])));
+    else if (nextSizes.length) nextSizes.forEach(z => combos.push([z, ""]));
+    else nextColors.forEach(c => combos.push(["", c]));
+    const pool = [...rows, ...removedRows];
+    const next: VariantRow[] = combos.map(([z, c]) => pool.find(r => variantKey(r.size, r.color) === variantKey(z, c))
+      ?? { size: z, color: c, barcode: newInternalEan(), price: form.sale_price, stock: 0 });
+    const keep = new Set(next.map(r => variantKey(r.size, r.color)));
+    setRemovedRows(pool.filter(r => r.id && !keep.has(variantKey(r.size, r.color))));
+    setRows(next);
+  }
+  const addSizes = (list: string[]) => syncGrid(uniq([...sizes, ...list]), colors);
+  const addColors = (list: string[]) => syncGrid(sizes, uniq([...colors, ...list]));
+  const splitInput = (v: string) => v.split(/[,;]/).map(x => x.trim()).filter(Boolean);
+  const setRow = (i: number, patch: Partial<VariantRow>) => setRows(prev => prev.map((r, j) => j === i ? { ...r, ...patch } : r));
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -387,6 +462,18 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
 
   async function handleSave() {
     if (!form.name.trim()) { setError("Nome do produto é obrigatório."); setTab("Geral"); return; }
+    const hasGrid = retail && rows.length > 0;
+    if (hasGrid) {
+      const codes = rows.map(r => r.barcode.trim()).filter(Boolean);
+      const dup = codes.find((c, i) => codes.indexOf(c) !== i);
+      if (dup) { setError(`O código de barras ${dup} está repetido na grade.`); setTab("Grade"); return; }
+      if (codes.length) {
+        const own = new Set(rows.map(r => r.id).filter(Boolean));
+        const { data: used } = await supabase.from("products").select("id, name, barcode").in("barcode", codes).neq("is_active", false);
+        const clash = ((used ?? []) as any[]).find(u => !own.has(u.id) && u.id !== product?.id);
+        if (clash) { setError(`O código ${clash.barcode} já é usado em "${clash.name}".`); setTab("Grade"); return; }
+      }
+    }
     setSaving(true); setError(null);
 
     try {
@@ -414,6 +501,17 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
         item_type: form.item_type,
         status: form.status,
         is_active: form.status === "active",
+        ...(extraLoaded ? {
+          brand: extra.brand.trim() || null,
+          collection: extra.collection.trim() || null,
+          ncm: extra.ncm.replace(/\D/g, "") || null,
+          cest: extra.cest.replace(/\D/g, "") || null,
+          cfop: extra.cfop.replace(/\D/g, "") || null,
+          origem: extra.origem !== "" ? Number(extra.origem) : null,
+          csosn: extra.csosn.trim() || null,
+        } : {}),
+        // Com grade, o estoque fica em cada tamanho/cor; o principal não bloqueia venda
+        ...(hasGrid ? { stock_type: "unlimited", stock: 0 } : {}),
       };
 
       let savedId = product?.id;
@@ -431,6 +529,37 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
         const { data, error: err } = await supabase.from("products").insert(payload).select("id").single();
         if (err || !data) throw err || new Error("Sem dados retornados");
         savedId = data.id;
+      }
+
+      if (savedId && retail && (rows.length > 0 || removedRows.length > 0)) {
+        const base = {
+          variant_of: savedId, cost_price: form.cost_price, category_id: form.category_id, subcategory_id: form.subcategory_id,
+          unit: form.unit, image_url: payload.image_url, stock_type: "controlled", stock_min: form.stock_min,
+          visible_pdv: true, visible_tables: false, visible_digital_menu: false, printer_destination: "nenhuma", item_type: "principal",
+          status: payload.status, is_active: payload.is_active, description: payload.description,
+          ...(extraLoaded ? {
+            brand: (payload as any).brand, collection: (payload as any).collection, ncm: (payload as any).ncm, cest: (payload as any).cest,
+            cfop: (payload as any).cfop, origem: (payload as any).origem, csosn: (payload as any).csosn,
+          } : {}),
+        };
+        const rowData = (r: VariantRow) => ({
+          ...base, name: variantName(payload.name, r.size, r.color), variant_size: r.size.trim() || null, variant_color: r.color.trim() || null,
+          barcode: r.barcode.trim() || null, sale_price: r.price, stock: r.stock,
+        });
+        const fresh = rows.filter(r => !r.id);
+        if (fresh.length) {
+          const { error: insErr } = await supabase.from("products").insert(fresh.map(rowData));
+          if (insErr) throw insErr;
+        }
+        for (const r of rows.filter(r => r.id)) {
+          const { error: upErr } = await supabase.from("products").update(rowData(r)).eq("id", r.id!);
+          if (upErr) throw upErr;
+        }
+        for (const r of removedRows) {
+          const { error: delErr } = await supabase.from("products").delete().eq("id", r.id!);
+          // Já vendido: some da grade mas fica no histórico
+          if (delErr) await supabase.from("products").update({ is_active: false, status: "inactive" }).eq("id", r.id!);
+        }
       }
 
       if (savedId) {
@@ -464,7 +593,7 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
 
         {/* Tabs */}
         <div className="flex gap-0.5 px-6 pt-3 border-b border-zinc-800 flex-shrink-0">
-          {TABS.map(t => (
+          {tabs.map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-3 py-2 text-xs font-medium rounded-t-lg border-b-2 transition-colors ${tab === t ? "border-brand-500 text-brand-600" : "border-transparent text-zinc-500 hover:text-zinc-300"}`}>
               {t}
@@ -507,6 +636,16 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
                     {subCats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </Field>
+                {retail && (
+                  <>
+                    <Field label="Marca">
+                      <input value={extra.brand} onChange={e => setX("brand", e.target.value)} placeholder="Ex: Nike, Hering..." className={inputCls} />
+                    </Field>
+                    <Field label="Coleção">
+                      <input value={extra.collection} onChange={e => setX("collection", e.target.value)} placeholder="Ex: Verão 2026" className={inputCls} />
+                    </Field>
+                  </>
+                )}
                 <Field label="Unidade de medida">
                   <select value={form.unit} onChange={e => set("unit", e.target.value)} className={selectCls}>
                     {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
@@ -620,7 +759,13 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
           )}
 
           {/* ── Tab Estoque ── */}
-          {tab === "Estoque" && (
+          {tab === "Estoque" && retail && rows.length > 0 && (
+            <div className="flex items-start gap-2 bg-brand-500/10 border border-brand-500/20 text-sm p-3 rounded-xl">
+              <Grid3x3 className="w-4 h-4 flex-shrink-0 mt-0.5 text-brand-600" />
+              <span>Este produto tem grade: a quantidade fica em cada tamanho/cor, na aba <b>Grade</b>. Entradas e balanço pela tela Estoque.</span>
+            </div>
+          )}
+          {tab === "Estoque" && !(retail && rows.length > 0) && (
             <div className="space-y-5">
               {/* Tipo de estoque */}
               <div className="grid grid-cols-2 gap-3">
@@ -731,6 +876,120 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
             </div>
           )}
 
+          {/* ── Tab Grade (varejo) ── */}
+          {tab === "Grade" && (
+            <div className="space-y-4">
+              <p className="text-xs text-zinc-500">Escolha os tamanhos e as cores: o sistema cria uma linha para cada combinação, com código de barras próprio (já gerado — pode trocar pelo código da etiqueta de fábrica), preço e quantidade.</p>
+
+              <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-3">
+                <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Tamanhos</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {SIZE_PRESETS.map(pr => (
+                    <button key={pr.label} type="button" onClick={() => addSizes(pr.sizes)}
+                      className="px-2.5 py-1 rounded-lg text-xs font-medium border border-zinc-700 hover:border-brand-500 hover:text-brand-600 transition-colors">
+                      + {pr.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input value={sizeInput} onChange={e => setSizeInput(e.target.value)} placeholder="Outro tamanho (ex.: 50, XXG)"
+                    onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addSizes(splitInput(sizeInput)); setSizeInput(""); } }} className={inputCls} />
+                  <button type="button" onClick={() => { addSizes(splitInput(sizeInput)); setSizeInput(""); }} disabled={!sizeInput.trim()}
+                    className="px-3 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 rounded-xl" style={{ color: "#fff" }}><Plus className="w-4 h-4" /></button>
+                </div>
+                {sizes.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {sizes.map(z => (
+                      <span key={z} className="inline-flex items-center gap-1 pl-2.5 pr-1 py-1 rounded-lg text-xs font-bold bg-brand-500/10 text-brand-600 border border-brand-500/20">
+                        {z}
+                        <button type="button" onClick={() => syncGrid(sizes.filter(x => x !== z), colors)} className="p-0.5 hover:text-red-500"><X className="w-3 h-3" /></button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-3">
+                <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Cores <span className="normal-case font-normal text-zinc-500">(opcional)</span></p>
+                <div className="flex gap-2">
+                  <input value={colorInput} onChange={e => setColorInput(e.target.value)} placeholder="Ex.: Preto, Branco, Azul (separe por vírgula)"
+                    onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addColors(splitInput(colorInput)); setColorInput(""); } }} className={inputCls} />
+                  <button type="button" onClick={() => { addColors(splitInput(colorInput)); setColorInput(""); }} disabled={!colorInput.trim()}
+                    className="px-3 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 rounded-xl" style={{ color: "#fff" }}><Plus className="w-4 h-4" /></button>
+                </div>
+                {colors.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {colors.map(c => (
+                      <span key={c} className="inline-flex items-center gap-1 pl-2.5 pr-1 py-1 rounded-lg text-xs font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                        {c}
+                        <button type="button" onClick={() => syncGrid(sizes, colors.filter(x => x !== c))} className="p-0.5 hover:text-red-500"><X className="w-3 h-3" /></button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {rows.length > 0 ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <p className="text-xs text-zinc-500">{rows.length} combinaç{rows.length === 1 ? "ão" : "ões"} · {rows.reduce((n, r) => n + (r.stock || 0), 0)} peças</p>
+                    <button type="button" onClick={() => setRows(prev => prev.map(r => ({ ...r, price: form.sale_price })))}
+                      className="text-xs font-semibold text-brand-600 hover:text-brand-700">Usar {fmt(form.sale_price)} em todos</button>
+                  </div>
+                  <div className="border border-zinc-800 rounded-xl overflow-hidden">
+                    <div className="grid grid-cols-[1fr_1.6fr_0.9fr_0.7fr] gap-2 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-zinc-500 bg-zinc-950">
+                      <span>Tamanho / Cor</span><span>Código de barras</span><span>Preço</span><span>Qtd</span>
+                    </div>
+                    <div className="max-h-72 overflow-y-auto divide-y divide-zinc-800/60">
+                      {rows.map((r, i) => (
+                        <div key={variantKey(r.size, r.color)} className="grid grid-cols-[1fr_1.6fr_0.9fr_0.7fr] gap-2 px-3 py-1.5 items-center">
+                          <span className="text-sm font-semibold truncate">{[r.size, r.color].filter(Boolean).join(" / ")}</span>
+                          <input value={r.barcode} onChange={e => setRow(i, { barcode: e.target.value.trim() })} className="w-full px-2 py-1.5 bg-zinc-950 border border-zinc-800 rounded-lg text-xs font-mono" />
+                          <input type="number" step="0.01" min="0" value={r.price || ""} onChange={e => setRow(i, { price: parseFloat(e.target.value) || 0 })} className="w-full px-2 py-1.5 bg-zinc-950 border border-zinc-800 rounded-lg text-xs" />
+                          <input type="number" min="0" value={r.stock || ""} placeholder="0" onChange={e => setRow(i, { stock: parseInt(e.target.value) || 0 })} className="w-full px-2 py-1.5 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-center" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {removedRows.length > 0 && (
+                    <p className="text-[11px] text-amber-500">{removedRows.length} combinação(ões) sairá(ão) da grade ao salvar. Se já tiver venda, fica guardada no histórico.</p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-zinc-500 text-center py-4">Sem grade: o produto é vendido como item único. Adicione tamanhos e/ou cores para criar a grade.</p>
+              )}
+            </div>
+          )}
+
+          {/* ── Tab Fiscal (preparado para a NFC-e) ── */}
+          {tab === "Fiscal" && (
+            <div className="space-y-4">
+              <p className="text-xs text-zinc-500">Opcional por enquanto. São os dados que a nota fiscal (NFC-e) vai usar quando o emissor for ligado — se tiver dúvida, peça ao seu contador. {retail && rows.length > 0 && "Valem para todos os tamanhos/cores da grade."}</p>
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="NCM" hint="8 dígitos — classificação do produto (ex.: camiseta 6109.10.00)">
+                  <input inputMode="numeric" value={extra.ncm} onChange={e => setX("ncm", e.target.value)} placeholder="00000000" className={inputCls} />
+                </Field>
+                <Field label="CEST" hint="Só para produtos com substituição tributária">
+                  <input inputMode="numeric" value={extra.cest} onChange={e => setX("cest", e.target.value)} placeholder="Opcional" className={inputCls} />
+                </Field>
+                <Field label="CFOP" hint="Venda dentro do estado: normalmente 5102">
+                  <input inputMode="numeric" value={extra.cfop} onChange={e => setX("cfop", e.target.value)} placeholder="5102" className={inputCls} />
+                </Field>
+                <Field label="Origem da mercadoria">
+                  <select value={extra.origem} onChange={e => setX("origem", e.target.value)} className={selectCls}>
+                    <option value="">Não informado</option>
+                    <option value="0">0 — Nacional</option>
+                    <option value="1">1 — Estrangeira (importação direta)</option>
+                    <option value="2">2 — Estrangeira (comprada no Brasil)</option>
+                  </select>
+                </Field>
+                <Field label="CSOSN / CST" hint="Simples Nacional: normalmente 102">
+                  <input value={extra.csosn} onChange={e => setX("csosn", e.target.value)} placeholder="102" className={inputCls} />
+                </Field>
+              </div>
+            </div>
+          )}
+
           {/* ── Tab Canais ── */}
           {tab === "Canais" && (
             <div className="space-y-5">
@@ -825,9 +1084,14 @@ export default function ProductsPage() {
     setCategories(data ?? []);
   }, []);
 
+  const retailMode = useBusinessType() === "retail";
+  const [gridInfo, setGridInfo] = useState<Record<string, { count: number; stock: number }>>({});
+  const [showLabels, setShowLabels] = useState(false);
+
   const loadProducts = useCallback(async () => {
     setLoading(true);
-    let q = supabase.from("products").select("*", { count: "exact" });
+    // Tamanhos/cores (filhos da grade) não aparecem soltos: ficam dentro do produto principal
+    let q = supabase.from("products").select("*", { count: "exact" }).is("variant_of", null);
 
     if (search.trim()) {
       // Nome sem diferença de acento ("oleo" acha "Óleo"); SKU e código de barras como digitado
@@ -843,9 +1107,30 @@ export default function ProductsPage() {
     q = q.order(sortBy, { ascending: sortAsc }).range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
     const { data, count } = await q;
-    setProducts(data ?? []);
+    let list = (data ?? []) as Product[];
+    // Busca pelo código de barras de um tamanho/cor: mostra o produto principal
+    if (search.trim()) {
+      const raw = search.trim().replace(/[,()"\\]/g, " ");
+      const { data: kids } = await supabase.from("products").select("variant_of").not("variant_of", "is", null).ilike("barcode", `%${raw}%`).limit(20);
+      const parentIds = [...new Set(((kids ?? []) as any[]).map(k => k.variant_of))].filter(id => !list.some(p => p.id === id));
+      if (parentIds.length) {
+        const { data: parents } = await supabase.from("products").select("*").in("id", parentIds);
+        list = [...list, ...((parents ?? []) as Product[])];
+      }
+    }
+    setProducts(list);
     setTotal(count ?? 0);
     setLoading(false);
+    const ids = list.map(p => p.id);
+    if (ids.length) {
+      const { data: kids } = await supabase.from("products").select("variant_of, stock").in("variant_of", ids).neq("is_active", false);
+      const info: Record<string, { count: number; stock: number }> = {};
+      for (const k of (kids ?? []) as any[]) {
+        const it = (info[k.variant_of] ??= { count: 0, stock: 0 });
+        it.count++; it.stock += Number(k.stock ?? 0);
+      }
+      setGridInfo(info);
+    } else setGridInfo({});
   }, [search, filterCat, filterStatus, filterStock, sortBy, sortAsc, page]);
 
   useEffect(() => { loadCategories(); }, [loadCategories]);
@@ -875,6 +1160,8 @@ export default function ProductsPage() {
       .from("products")
       .update({ status: newStatus, is_active: newStatus === "active" })
       .eq("id", p.id);
+    // Grade: os tamanhos/cores acompanham o principal
+    if (!error && gridInfo[p.id]) await supabase.from("products").update({ status: newStatus, is_active: newStatus === "active" }).eq("variant_of", p.id);
 
     console.log("Toggle resultado:", { error, status });
 
@@ -905,6 +1192,7 @@ export default function ProductsPage() {
             .eq("id", p.id);
 
           if (updateError) throw updateError;
+          await supabase.from("products").update({ status: "inactive", is_active: false }).eq("variant_of", p.id);
 
           setActionError("Produto desativado e removido do Estoque (tem compras, vendas ou movimentações vinculadas - não pode ser totalmente excluído, pra não corromper o histórico)");
           setTimeout(() => setActionError(null), 4000);
@@ -942,6 +1230,11 @@ export default function ProductsPage() {
         </div>
       )}
       <PageHeader title="Produtos" actions={<>
+        {retailMode && (
+          <button onClick={() => setShowLabels(true)} className={btnSecondary}>
+            <Barcode className="w-4 h-4" /> Etiquetas
+          </button>
+        )}
         <button onClick={() => setShowCatModal(true)} className={btnSecondary}>
           <FolderOpen className="w-4 h-4" /> Categorias
         </button>
@@ -1042,6 +1335,9 @@ export default function ProductsPage() {
                         {p.item_type === "adicional" && (
                           <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border border-amber-500/30 text-amber-400 bg-amber-500/10 uppercase tracking-wide">Adicional</span>
                         )}
+                        {gridInfo[p.id] && (
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border border-brand-500/30 text-brand-600 bg-brand-500/10 uppercase tracking-wide">Grade · {gridInfo[p.id].count}</span>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 text-xs text-zinc-500 mt-0.5">
                         {p.sku && <span>SKU: {p.sku}</span>}
@@ -1065,7 +1361,11 @@ export default function ProductsPage() {
                       </span>
                     </td>
                     {/* Estoque */}
-                    <td className="px-4 py-3"><StockBadge product={p} /></td>
+                    <td className="px-4 py-3">
+                      {gridInfo[p.id]
+                        ? <span className="text-xs font-semibold">{gridInfo[p.id].stock} peças</span>
+                        : <StockBadge product={p} />}
+                    </td>
                     {/* Canais */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
@@ -1146,6 +1446,7 @@ export default function ProductsPage() {
           onSave={loadProducts}
         />
       )}
+      {showLabels && <LabelsModal onClose={() => setShowLabels(false)} />}
       {showCatModal && (
         <CategoryModal
           categories={categories}

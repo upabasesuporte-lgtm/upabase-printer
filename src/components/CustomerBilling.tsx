@@ -7,6 +7,7 @@ import { fetchAll } from "../lib/fetchAll";
 import { getStoreSettings } from "../pages/settings";
 import { printDocument } from "../lib/printing";
 import { RECEIPT_CSS, fmtPhone, fmtCnpj } from "../lib/receipt";
+import { loadJsPdf, savePdf } from "../lib/pdf";
 
 interface Props {
   customer: { id: string; name: string; phone?: string | null; fiado_balance?: number | null };
@@ -23,21 +24,6 @@ const parseNum = (s: string) => { const t = s.trim(); return parseFloat(t.includ
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
 const qtyTxt = (q: number) => (Number.isInteger(q) ? String(q) : String(q).replace(".", ","));
 const PAY_LABEL: Record<string, string> = { cash: "Dinheiro", pix: "PIX", credit: "Crédito", debit: "Débito", fiado: "Fiado" };
-
-// Gerador de PDF carregado só quando precisa (não pesa no sistema)
-let jsPdfLoad: Promise<any> | null = null;
-function loadJsPdf(): Promise<any> {
-  const w = window as any;
-  if (w.jspdf?.jsPDF) return Promise.resolve(w.jspdf.jsPDF);
-  jsPdfLoad ??= new Promise((resolve, reject) => {
-    const sc = document.createElement("script");
-    sc.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
-    sc.onload = () => (w.jspdf?.jsPDF ? resolve(w.jspdf.jsPDF) : reject(new Error("PDF indisponível")));
-    sc.onerror = () => { jsPdfLoad = null; sc.remove(); reject(new Error("Sem internet para gerar o PDF")); };
-    document.head.appendChild(sc);
-  });
-  return jsPdfLoad;
-}
 
 export function CustomerBilling({ customer, card, isLight }: Props) {
   const box = { background: card.bg, border: card.border, boxShadow: card.shadow };
@@ -256,14 +242,7 @@ export function CustomerInvoice({ customer, range, label, reloadKey, isLight }: 
       row("A pagar (hoje)", fmt(owes), true);
       if (store.pix) { doc.setFont("helvetica", "normal"); doc.setFontSize(10.5); doc.text(`Pix: ${store.pix}`, tl, y); }
 
-      const fileName = fileBase + ".pdf";
-      const file = new File([doc.output("blob")], fileName, { type: "application/pdf" });
-      const nav = navigator as any;
-      if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) && nav.canShare?.({ files: [file] })) {
-        await nav.share({ files: [file], title: fileName }).catch(() => {});
-      } else {
-        doc.save(fileName);
-      }
+      await savePdf(doc, fileBase + ".pdf");
       setPrintMenu(false);
     } catch (e) {
       setPrintMsg(e instanceof Error ? e.message : "Não foi possível gerar o PDF");

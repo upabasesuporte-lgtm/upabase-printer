@@ -30,7 +30,14 @@ interface Product {
   category_id: string | null;
   item_type: string | null;
   is_active: boolean;
+  variant_of?: string | null;   // grade (varejo): este é um tamanho/cor do produto principal
+  variant_size?: string | null;
+  variant_color?: string | null;
 }
+
+// Ordem natural dos tamanhos na escolha da grade (PP, P, M, G… e números crescentes)
+const SIZE_ORDER = ["PP", "P", "M", "G", "GG", "XG", "XGG", "EG", "EGG", "U"];
+const sizeRank = (z: string) => { const i = SIZE_ORDER.indexOf(z.toUpperCase()); if (i >= 0) return i; const n = parseFloat(z.replace(",", ".")); return isNaN(n) ? 500 : 100 + n; };
 
 interface CartItem {
   cartId: string;
@@ -341,9 +348,11 @@ export default function PdvPage() {
   const change = Math.max(0, cashPaid - (total - otherPaid));
 
   // ── Produtos filtrados ──
+  // Tamanhos/cores da grade só aparecem pelo código de barras (pelo nome, aparece o produto principal)
   const filtered = products.filter(p =>
-    p.is_active &&
-    (matchesSearch(p.name, search) || (p.barcode && p.barcode.includes(search)))
+    p.is_active && (p.variant_of
+      ? !!p.barcode && search.trim().length >= 4 && p.barcode.includes(search.trim())
+      : (matchesSearch(p.name, search) || (p.barcode && p.barcode.includes(search))))
   );
   const allShortcutIds = shortcutGroups.flatMap(g => g.productIds);
   const filteredCustomers = customers.filter(c =>
@@ -503,7 +512,12 @@ export default function PdvPage() {
     return p.stock_type === "unlimited" || p.unlimited_stock === true;
   }
 
+  // Grade (varejo): produto principal abre a escolha de tamanho/cor
+  const [variantPicker, setVariantPicker] = useState<Product | null>(null);
+  const variantKids = (id: string) => products.filter(p => p.variant_of === id && p.is_active);
+
   function addToCart(product: Product) {
+    if (variantKids(product.id).length > 0) { setVariantPicker(product); return; }
     if (!isUnlimited(product) && product.stock === 0) return;
     // Sempre cria nova linha — permite lançar o mesmo produto múltiplas vezes
     const cartId = `${product.id}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
@@ -523,6 +537,7 @@ export default function PdvPage() {
 
   // Toque no produto (celular): a foto voa até o carrinho e o botão pula
   function addFromTap(e: React.MouseEvent, product: Product) {
+    if (variantKids(product.id).length > 0) { setVariantPicker(product); return; }
     if (!isUnlimited(product) && product.stock === 0) return;
     addToCart(product);
     if (window.innerWidth >= 768) return;
@@ -1331,7 +1346,9 @@ export default function PdvPage() {
                   onKeyDown={e => {
                     if (e.key === "Enter" && filtered.length > 0) {
                       e.preventDefault();
-                      addToCart(filtered[0]);
+                      // Leitor de código de barras: o código exato tem prioridade
+                      const exact = filtered.find(p => p.barcode && p.barcode === search.trim());
+                      addToCart(exact ?? filtered[0]);
                       setSearch("");
                     }
                   }}
@@ -1912,6 +1929,48 @@ export default function PdvPage() {
           </div>
         </Modal>
       )}
+
+      {/* Grade: escolher tamanho/cor */}
+      {variantPicker && (() => {
+        const kids = variantKids(variantPicker.id);
+        const colors = [...new Set(kids.map(k => (k.variant_color ?? "").trim()))];
+        return (
+          <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4" onClick={() => setVariantPicker(null)}>
+            <div className="w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl p-5 space-y-4 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}
+              style={{ background: isLight ? "#fff" : "#18181b", border: card.border }}>
+              <div className="flex items-start gap-3">
+                {variantPicker.image_url && <img src={variantPicker.image_url} alt="" className="w-14 h-14 rounded-xl object-cover" />}
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold leading-tight">{variantPicker.name}</p>
+                  <p className="text-xs text-zinc-500 mt-0.5">Escolha o tamanho{colors.some(Boolean) ? " e a cor" : ""}</p>
+                </div>
+                <button onClick={() => setVariantPicker(null)} className="p-1 text-zinc-500 hover:text-zinc-300"><X className="w-5 h-5" /></button>
+              </div>
+              {colors.map(color => (
+                <div key={color || "_"}>
+                  {color && <p className="text-xs font-bold uppercase tracking-wide text-zinc-500 mb-2">{color}</p>}
+                  <div className="flex flex-wrap gap-2">
+                    {kids.filter(k => (k.variant_color ?? "").trim() === color)
+                      .sort((a, b) => sizeRank(a.variant_size ?? "") - sizeRank(b.variant_size ?? ""))
+                      .map(k => {
+                        const out = !isUnlimited(k) && k.stock <= 0;
+                        return (
+                          <button key={k.id} disabled={out}
+                            onClick={() => { setVariantPicker(null); addToCart(k); try { navigator.vibrate?.(15); } catch { /* sem vibração */ } }}
+                            className="min-w-[64px] px-3 py-2 rounded-xl border-2 text-center transition-all disabled:opacity-35 disabled:cursor-not-allowed hover:border-brand-500 active:scale-95"
+                            style={{ borderColor: isLight ? "#e5e7eb" : "#3f3f46" }}>
+                            <span className="block text-base font-black">{k.variant_size || k.variant_color || "Único"}</span>
+                            <span className="block text-[10px] text-zinc-500">{out ? "esgotado" : isUnlimited(k) ? fmt(k.sale_price) : `${k.stock} un · ${fmt(k.sale_price)}`}</span>
+                          </button>
+                        );
+                      })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {showPending && (
         <Modal title="Vendas em Pausa" onClose={() => setShowPending(false)} wide>

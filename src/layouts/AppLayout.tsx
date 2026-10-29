@@ -1,3 +1,4 @@
+import { refreshBusinessType, useBusinessType, FOOD_ONLY_ROUTES } from "../lib/business";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Outlet, NavLink, useNavigate, useLocation, Navigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
@@ -220,6 +221,7 @@ export function AppLayout() {
       const uid = user.id;
       setUserId(uid);
       loadOperators(uid);
+      refreshBusinessType(uid).catch(() => {});
 
       // Handle pending invite from sessionStorage (expires on session end)
       const pendingInvite = sessionStorage.getItem("pending_invite");
@@ -416,6 +418,7 @@ export function AppLayout() {
     navigate("/auth");
   }
 
+  const businessType = useBusinessType(); // antes do retorno de "carregando" (ordem dos hooks)
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center"
@@ -444,7 +447,8 @@ export function AppLayout() {
     if (userPlan.is_lifetime || userPlan.plan === "trial") return true;
     if (!userPlan.plan_type) return true;
     return PLAN_ROUTES[userPlan.plan_type as PlanType]?.includes(item.path) ?? false;
-  }).filter(item => canAccessRoute(item.path, ops)); // abas da função do operador (sem operadores = todas)
+  }).filter(item => canAccessRoute(item.path, ops))
+    .filter(item => businessType !== "retail" || !FOOD_ONLY_ROUTES.includes(item.path)); // varejo: sem mesas/cozinha/custo por prato // abas da função do operador (sem operadores = todas)
 
   // Funcionários com PIN: sem operador escolhido a tela fica travada; aba fora
   // da função manda para a primeira aba liberada.

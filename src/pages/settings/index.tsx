@@ -7,6 +7,8 @@ import { StoreLocationCard } from "../../components/StoreLocationCard";
 import { DataExport } from "../../components/DataExport";
 import { PrintAgentCard } from "../../components/PrintAgentCard";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useBusinessType, saveBusinessType, type BusinessType } from "../../lib/business";
+import { UtensilsCrossed, Shirt, FileText } from "lucide-react";
 
 // ── Storage keys (cache local para impressão síncrona) ────────────────────────
 
@@ -298,6 +300,9 @@ export default function SettingsPage() {
         </Field>
       </SectionCard>
 
+      {/* Tipo de negócio: muda as abas e o cadastro de produtos */}
+      {userId && <BusinessTypeCard userId={userId} isLight={isLight} />}
+
       {/* Localização da loja (Mapa de entregas) */}
       <SectionCard icon={<Store className="w-4 h-4" />} title="Localização da Loja (Mapa de Entregas)" color="#315DFB">
         <StoreLocationCard isLight={isLight} inputCls={inputCls}
@@ -443,6 +448,9 @@ export default function SettingsPage() {
           </div>
         )}
       </div>
+
+      {/* Dados para a nota fiscal (NFC-e) — preparado para quando ligar o emissor */}
+      {userId && <FiscalCard userId={userId} />}
 
       {/* Exportar os dados da loja */}
       <SectionCard icon={<Download className="w-4 h-4" />} title="Seus dados" color="#315DFB">
@@ -784,6 +792,141 @@ function OperatorsSection({ userId, isLight }: { userId: string; isLight: boolea
               style={{ color: "#fff", background: "#315DFB" }}>Já anotei</button>
           </div>
         </div>
+      )}
+    </SectionCard>
+  );
+}
+
+// ── Tipo de negócio ───────────────────────────────────────────────────────────
+function BusinessTypeCard({ userId, isLight }: { userId: string; isLight: boolean }) {
+  const current = useBusinessType();
+  const [saving, setSaving] = useState<BusinessType | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  async function choose(t: BusinessType) {
+    if (t === current || saving) return;
+    setSaving(t); setErr(null);
+    const e = await saveBusinessType(userId, t);
+    setSaving(null);
+    if (e) setErr("Não foi possível salvar: " + e);
+  }
+  const opts: { t: BusinessType; icon: React.ReactNode; title: string; desc: string }[] = [
+    { t: "food", icon: <UtensilsCrossed className="w-5 h-5" />, title: "Restaurante / Marmitaria", desc: "Mesas, cozinha, cardápio digital e custo por prato." },
+    { t: "retail", icon: <Shirt className="w-5 h-5" />, title: "Loja / Varejo", desc: "Roupas, calçados e varejo: grade de tamanho e cor, código de barras e etiquetas." },
+  ];
+  return (
+    <SectionCard icon={<Store className="w-4 h-4" />} title="Tipo de negócio" color="#315DFB">
+      <div className="grid sm:grid-cols-2 gap-3">
+        {opts.map(o => {
+          const on = current === o.t;
+          return (
+            <button key={o.t} onClick={() => choose(o.t)} disabled={!!saving}
+              className="text-left rounded-xl p-4 border-2 transition-all disabled:opacity-60"
+              style={{ borderColor: on ? "#315DFB" : (isLight ? "#e5e7eb" : "#3f3f46"), background: on ? "rgba(49,93,251,0.08)" : "transparent" }}>
+              <div className="flex items-center gap-2 mb-1" style={{ color: on ? "#315DFB" : undefined }}>
+                {saving === o.t ? <Loader2 className="w-5 h-5 animate-spin" /> : o.icon}
+                <span className="text-sm font-bold">{o.title}</span>
+                {on && <CheckCircle2 className="w-4 h-4 ml-auto" />}
+              </div>
+              <p className="text-xs text-zinc-500">{o.desc}</p>
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-xs text-zinc-500">Dá para trocar quando quiser: nenhum produto, venda ou dado é apagado — só muda o que aparece no menu e no cadastro.</p>
+      {err && <p className="text-xs text-red-500">{err}</p>}
+    </SectionCard>
+  );
+}
+
+// ── Dados fiscais (NFC-e) ─────────────────────────────────────────────────────
+interface FiscalForm {
+  razao_social: string; inscricao_estadual: string; regime_tributario: string;
+  nfce_ambiente: string; nfce_serie: string; nfce_proximo_numero: string; nfce_csc_id: string;
+}
+function FiscalCard({ userId }: { userId: string }) {
+  const [f, setF] = useState<FiscalForm>({ razao_social: "", inscricao_estadual: "", regime_tributario: "simples", nfce_ambiente: "homologacao", nfce_serie: "1", nfce_proximo_numero: "1", nfce_csc_id: "" });
+  const [open, setOpen] = useState(false);
+  const [state, setState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  useEffect(() => {
+    supabase.from("store_settings").select("razao_social, inscricao_estadual, regime_tributario, nfce_ambiente, nfce_serie, nfce_proximo_numero, nfce_csc_id")
+      .eq("user_id", userId).maybeSingle().then(({ data }) => {
+        if (!data) return;
+        setF({
+          razao_social: data.razao_social ?? "", inscricao_estadual: data.inscricao_estadual ?? "",
+          regime_tributario: data.regime_tributario ?? "simples", nfce_ambiente: data.nfce_ambiente ?? "homologacao",
+          nfce_serie: String(data.nfce_serie ?? 1), nfce_proximo_numero: String(data.nfce_proximo_numero ?? 1), nfce_csc_id: data.nfce_csc_id ?? "",
+        });
+      });
+  }, [userId]);
+  const set = (k: keyof FiscalForm, v: string) => setF(prev => ({ ...prev, [k]: v }));
+  async function save() {
+    setState("saving");
+    const { error } = await supabase.from("store_settings").upsert({
+      user_id: userId,
+      razao_social: f.razao_social.trim() || null,
+      inscricao_estadual: f.inscricao_estadual.trim() || null,
+      regime_tributario: f.regime_tributario,
+      nfce_ambiente: f.nfce_ambiente,
+      nfce_serie: Math.max(1, parseInt(f.nfce_serie) || 1),
+      nfce_proximo_numero: Math.max(1, parseInt(f.nfce_proximo_numero) || 1),
+      nfce_csc_id: f.nfce_csc_id.trim() || null,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "user_id" });
+    setState(error ? "error" : "saved");
+    if (!error) setTimeout(() => setState("idle"), 2500);
+  }
+  return (
+    <SectionCard icon={<FileText className="w-4 h-4" />} title="Nota fiscal (NFC-e)" color="#315DFB">
+      <p className="text-xs text-zinc-500">
+        Deixe estes dados prontos. A emissão da NFC-e será ligada quando você contratar um emissor de notas e tiver o
+        certificado digital da loja — aí é só conectar, sem recadastrar nada. Os dados fiscais de cada produto (NCM, CFOP…)
+        ficam na aba <b>Fiscal</b> do cadastro de produtos.
+      </p>
+      {!open ? (
+        <button onClick={() => setOpen(true)} className="text-sm font-semibold text-brand-600 hover:text-brand-700">Preencher dados fiscais</button>
+      ) : (
+        <>
+          <Field label="Razão social">
+            <input value={f.razao_social} onChange={e => set("razao_social", e.target.value)} placeholder="Nome da empresa no CNPJ" className={inputCls} />
+          </Field>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Inscrição estadual">
+              <input value={f.inscricao_estadual} onChange={e => set("inscricao_estadual", e.target.value)} placeholder="Ex.: 123.456.789.110" className={inputCls} />
+            </Field>
+            <Field label="Regime tributário">
+              <select value={f.regime_tributario} onChange={e => set("regime_tributario", e.target.value)} className={inputCls}>
+                <option value="mei">MEI</option>
+                <option value="simples">Simples Nacional</option>
+                <option value="normal">Lucro Presumido / Real</option>
+              </select>
+            </Field>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <Field label="Série">
+              <input inputMode="numeric" value={f.nfce_serie} onChange={e => set("nfce_serie", e.target.value.replace(/\D/g, ""))} className={inputCls} />
+            </Field>
+            <Field label="Próximo nº">
+              <input inputMode="numeric" value={f.nfce_proximo_numero} onChange={e => set("nfce_proximo_numero", e.target.value.replace(/\D/g, ""))} className={inputCls} />
+            </Field>
+            <Field label="Ambiente">
+              <select value={f.nfce_ambiente} onChange={e => set("nfce_ambiente", e.target.value)} className={inputCls}>
+                <option value="homologacao">Teste</option>
+                <option value="producao">Produção</option>
+              </select>
+            </Field>
+          </div>
+          <Field label="ID do CSC" hint="Código de segurança da NFC-e, gerado no site da Sefaz do seu estado. O token do CSC e o certificado são informados só no emissor.">
+            <input value={f.nfce_csc_id} onChange={e => set("nfce_csc_id", e.target.value)} placeholder="Ex.: 000001" className={inputCls} />
+          </Field>
+          <div className="flex items-center gap-3">
+            <button onClick={save} disabled={state === "saving"}
+              className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-sm font-semibold rounded-xl" style={{ color: "#fff" }}>
+              {state === "saving" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Salvar dados fiscais
+            </button>
+            {state === "saved" && <span className="text-sm font-semibold" style={{ color: "#10b981" }}>Salvo!</span>}
+            {state === "error" && <span className="text-sm text-red-500">Erro ao salvar</span>}
+          </div>
+        </>
       )}
     </SectionCard>
   );
