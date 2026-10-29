@@ -278,6 +278,60 @@ ipcMain.handle("agent:takePairCode", e => { if (!fromPanel(e)) return null; cons
 ipcMain.handle("agent:getAutoStart", e => fromPanel(e) ? isAutoStart() : false);
 ipcMain.handle("agent:setAutoStart", (e, on) => fromPanel(e) ? setAutoStart(on) : false);
 
+// ── Impressão direta pelo próprio computador (funciona sem internet) ─────────
+// O PDV aberto neste computador manda o cupom para http://127.0.0.1:17777/print
+// e ele sai na impressora escolhida no painel para "Cupons" — sem passar pela
+// internet. Só aceita pedidos do endereço do sistema e só deste computador.
+const LOCAL_PORT = 17777;
+let localCfg = { enabled: false, printer: "", paperMm: DEFAULT_PAPER_MM };
+ipcMain.handle("agent:setLocalConfig", (e, cfg) => {
+  if (!fromPanel(e) || !cfg || typeof cfg !== "object") return false;
+  localCfg = {
+    enabled: !!cfg.enabled,
+    printer: typeof cfg.printer === "string" ? cfg.printer : "",
+    paperMm: Number(cfg.paperMm) || DEFAULT_PAPER_MM,
+  };
+  return true;
+});
+
+function startLocalServer() {
+  const http = require("http");
+  const srv = http.createServer((req, res) => {
+    const origin = String(req.headers.origin || "");
+    const allowed = origin === appOrigin();
+    const headers = {
+      "Access-Control-Allow-Origin": allowed ? origin : "null",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "content-type",
+      "Access-Control-Allow-Private-Network": "true",
+      "Vary": "Origin",
+      "Content-Type": "application/json",
+    };
+    const reply = (code, body) => { res.writeHead(code, headers); res.end(JSON.stringify(body)); };
+    if (req.method === "OPTIONS") { res.writeHead(204, headers); res.end(); return; }
+    if (!allowed) { reply(403, { ok: false, error: "Origem não permitida" }); return; }
+    if (req.method === "GET" && req.url === "/status") { reply(200, { ok: true, version: app.getVersion(), receipts: localCfg.enabled }); return; }
+    if (req.method !== "POST" || req.url !== "/print") { reply(404, { ok: false }); return; }
+    let body = "", size = 0;
+    req.on("data", chunk => {
+      size += chunk.length;
+      if (size > 600_000) { reply(413, { ok: false, error: "Documento grande demais" }); req.destroy(); return; }
+      body += chunk;
+    });
+    req.on("end", async () => {
+      if (res.writableEnded) return;
+      if (!localCfg.enabled) { reply(409, { ok: false, error: "Este computador não imprime cupons" }); return; }
+      let html = "";
+      try { html = String(JSON.parse(body).html || ""); } catch { /* corpo inválido */ }
+      if (!html) { reply(400, { ok: false, error: "Documento vazio" }); return; }
+      const r = await printHtml(html, localCfg.printer, localCfg.paperMm).catch(e => ({ ok: false, error: String(e) }));
+      reply(r.ok ? 200 : 500, r);
+    });
+  });
+  srv.on("error", () => { /* porta ocupada (outro programa): segue só pela internet */ });
+  srv.listen(LOCAL_PORT, "127.0.0.1");
+}
+
 // ── Início ────────────────────────────────────────────────────────────────────
 app.whenReady().then(() => {
   const firstRun = !fs.existsSync(configFile());
@@ -292,6 +346,7 @@ app.whenReady().then(() => {
   const afterUpdate = !!cfg.hiddenAfterUpdate;
   if (afterUpdate) { delete cfg.hiddenAfterUpdate; writeConfig(cfg); }
   createTray();
+  startLocalServer();
   createWindow((process.argv.includes("--hidden") || afterUpdate) && !pendingCode);
 
   // Atualização automática pelo GitHub (só no programa instalado)

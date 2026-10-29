@@ -30,16 +30,20 @@ export async function receiptStationOnline(agentOnly = false): Promise<boolean> 
   let q = supabase.from("print_stations").select("device_id", { count: "exact", head: true })
     .eq("receipts", true).gte("seen_at", since).neq("device_id", deviceId());
   if (agentOnly) q = q.eq("is_agent", true);
-  const { count } = await q;
+  const { count, error } = await q;
+  if (error) throw error;
   return (count ?? 0) > 0;
 }
 
 // Mesma consulta guardada por 20 s: o cupom não espera a ida ao banco a cada venda
 const onlineCache: Record<string, { at: number; v: boolean }> = {};
+let lastCheckFailed = false; // a consulta não chegou ao servidor (sem internet)
 async function stationOnlineCached(agentOnly: boolean): Promise<boolean> {
   const k = String(agentOnly), c = onlineCache[k];
   if (c && Date.now() - c.at < 20_000) return c.v;
-  const v = await receiptStationOnline(agentOnly).catch(() => false);
+  let v = false;
+  try { v = await receiptStationOnline(agentOnly); lastCheckFailed = false; }
+  catch { lastCheckFailed = true; return false; }
   onlineCache[k] = { at: Date.now(), v };
   return v;
 }
@@ -82,10 +86,32 @@ async function sendToStation(html: string, kind: string, title?: string): Promis
   return !error;
 }
 
+// Programa de impressão neste mesmo computador: imprime direto, sem internet.
+// Se não houver programa aqui, a conexão é recusada na hora e segue o caminho normal.
+async function printViaLocalAgent(html: string): Promise<boolean> {
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 20_000);
+    const r = await fetch("http://127.0.0.1:17777/print", {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ html }), signal: ctrl.signal,
+    });
+    clearTimeout(t);
+    const j = await r.json().catch(() => ({}));
+    return r.ok && !!j.ok;
+  } catch { return false; }
+}
+
 // Ponto único de impressão de documentos (cupom, pré-conta, pedido).
 // Devolve onde foi impresso.
 export async function printDocument(html: string, opts: { kind: "receipt" | "prebill" | "order"; title?: string }): Promise<"here" | "station"> {
   const target = getPrintTarget();
+  // Sem internet: tenta o programa de impressão deste computador (sai sem janela)
+  const tryLocalAgent = async () => !isMobileDevice() && await printViaLocalAgent(html);
+  if (typeof navigator !== "undefined" && navigator.onLine === false) {
+    if (await tryLocalAgent()) { toast("Impresso sem internet"); return "here"; }
+    printLocal(html);
+    return "here";
+  }
   // Este aparelho é a estação de impressão: imprime aqui
   const isStation = getStationPrefs().autoPrint;
   let useStation = false;
@@ -103,7 +129,12 @@ export async function printDocument(html: string, opts: { kind: "receipt" | "pre
       if (isMobileDevice() || target === "station") toast("Enviado para a impressora do caixa");
       return "station";
     }
+    if (await tryLocalAgent()) { toast("Impresso sem internet"); return "here"; }
     toast("Não foi possível enviar para o caixa. Imprimindo aqui.", false);
+  } else if (lastCheckFailed && await tryLocalAgent()) {
+    // Wi-Fi ligado mas sem internet: o programa deste computador imprime direto
+    toast("Impresso sem internet");
+    return "here";
   }
   printLocal(html);
   return "here";

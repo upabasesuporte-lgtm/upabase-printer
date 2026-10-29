@@ -19,6 +19,7 @@ interface AgentApi {
   getPrinters: () => Promise<{ name: string; displayName?: string; isDefault?: boolean }[]>;
   print: (html: string, printer: string, opts?: { paperMm: number }) => Promise<{ ok: boolean; error?: string }>;
   getAutoStart: () => Promise<boolean>;
+  setLocalConfig?: (cfg: { enabled: boolean; printer: string; paperMm: number }) => Promise<boolean>;
   setAutoStart: (v: boolean) => Promise<boolean>;
 }
 const agentApi = (): AgentApi | null => (window as any).upabaseAgent?.isAgent ? (window as any).upabaseAgent as AgentApi : null;
@@ -189,6 +190,11 @@ function AgentPanel({ api, email, uid }: { api: AgentApi; email: string; uid: st
     api.getPrinters().then(list => setPrinters(list.map(p => ({ name: p.name, label: p.displayName || p.name, isDefault: !!p.isDefault })))).catch(() => {});
     api.info().then(i => setVersion(i.version)).catch(() => {});
   }, []);
+
+  // Cupons enviados direto deste computador (sem internet) usam a mesma impressora/papel
+  useEffect(() => {
+    api.setLocalConfig?.({ enabled: config.receipts !== null, printer: config.receipts ?? "", paperMm: config.paperMm }).catch(() => {});
+  }, [config.receipts, config.paperMm]);
 
   function updateConfig(c: AgentConfig) {
     setConfig(c); configRef.current = c;
