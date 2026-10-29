@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate, useRouteError } from "react-router-dom";
+import { createBrowserRouter, Navigate, useRouteError, useNavigate } from "react-router-dom";
 
 function RouteErrorPage() {
   const error = useRouteError() as any;
@@ -7,11 +7,46 @@ function RouteErrorPage() {
       <div style={{ fontSize:48, marginBottom:16 }}>⚠️</div>
       <h1 style={{ fontSize:20, fontWeight:700, marginBottom:8 }}>Algo deu errado</h1>
       <p style={{ color:"#71717a", fontSize:14, marginBottom:24 }}>Ocorreu um erro inesperado. Recarregue a página para continuar.</p>
+      <div style={{ display:"flex", gap:10, flexWrap:"wrap", justifyContent:"center" }}>
       <button onClick={() => window.location.reload()} style={{ padding:"10px 24px", background:"#f59e0b", color:"#000", border:"none", borderRadius:12, fontWeight:700, fontSize:14, cursor:"pointer" }}>
         Recarregar página
       </button>
+      <button onClick={() => { window.location.href = "/pdv"; }} style={{ padding:"10px 24px", background:"#315DFB", color:"#fff", border:"none", borderRadius:12, fontWeight:700, fontSize:14, cursor:"pointer" }}>
+        Ir para o PDV
+      </button>
+      </div>
       {error?.message && (
         <pre style={{ marginTop:16, color:"#ef4444", fontSize:11, maxWidth:600, textAlign:"left", background:"#1c1917", padding:12, borderRadius:8 }}>{String(error.message)}</pre>
+      )}
+    </div>
+  );
+}
+
+// Erro dentro de uma tela do sistema: o menu continua na tela e dá para ir
+// para outra (ex.: sem internet, voltar ao PDV, que funciona offline).
+function PageErrorPage() {
+  const error = useRouteError() as any;
+  const navigate = useNavigate();
+  const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+  return (
+    <div style={{ minHeight:"60vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"2rem", textAlign:"center" }}>
+      <div style={{ fontSize:44, marginBottom:12 }}>{offline ? "📡" : "⚠️"}</div>
+      <h1 style={{ fontSize:19, fontWeight:700, marginBottom:8 }}>{offline ? "Esta tela precisa de internet" : "Algo deu errado nesta tela"}</h1>
+      <p style={{ color:"#71717a", fontSize:14, marginBottom:22, maxWidth:420 }}>
+        {offline
+          ? "Sem internet, use o PDV: as vendas ficam guardadas e sobem sozinhas quando a internet voltar."
+          : "Volte ao PDV ou tente abrir esta tela de novo."}
+      </p>
+      <div style={{ display:"flex", gap:10, flexWrap:"wrap", justifyContent:"center" }}>
+        <button onClick={() => navigate("/pdv")} style={{ padding:"10px 24px", background:"#315DFB", color:"#fff", border:"none", borderRadius:12, fontWeight:700, fontSize:14, cursor:"pointer" }}>
+          Voltar ao PDV
+        </button>
+        <button onClick={() => window.location.reload()} style={{ padding:"10px 24px", background:"transparent", color:"#71717a", border:"1px solid #71717a55", borderRadius:12, fontWeight:600, fontSize:14, cursor:"pointer" }}>
+          Tentar de novo
+        </button>
+      </div>
+      {!offline && error?.message && (
+        <pre style={{ marginTop:16, color:"#ef4444", fontSize:11, maxWidth:600, whiteSpace:"pre-wrap", textAlign:"left" }}>{String(error.message)}</pre>
       )}
     </div>
   );
@@ -50,6 +85,9 @@ export const router = createBrowserRouter([
     path: "/",
     element: <AppLayout />,
     errorElement: <RouteErrorPage />,
+    children: [{
+    // Erro de uma tela aparece dentro do layout (menu continua funcionando)
+    errorElement: <PageErrorPage />,
     children: [
       {
         index: true,
@@ -120,6 +158,7 @@ export const router = createBrowserRouter([
         element: <AdminAvaliacoesPage />,
       },
     ],
+    }],
   },
 
   {
