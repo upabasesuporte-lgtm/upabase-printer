@@ -5,7 +5,7 @@ import { fetchAll } from "../../lib/fetchAll";
 import { matchesSearch } from "../../lib/search";
 import { recalcFiadoBalance, computeFiadoLedger, fetchFiadoMovs, fetchOpenFiado, type FiadoMov } from "../../lib/fiado";
 import { getStoreSettings } from "../settings";
-import { CustomerBilling } from "../../components/CustomerBilling";
+import { CustomerBilling, CustomerInvoice } from "../../components/CustomerBilling";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import { PageHeader, btnPrimary, WHITE_TEXT } from "../../components/PageHeader";
@@ -108,6 +108,18 @@ function getDateRange(filter: DateFilter, from?: string, to?: string) {
     };
   }
   return { from: start.toISOString(), to: end.toISOString() };
+}
+
+// Nome do período do filtro (vai no título da fatura e no nome do PDF)
+function periodLabel(filter: DateFilter, from?: string, to?: string) {
+  const now = new Date();
+  const d = (x: Date) => x.toLocaleDateString("pt-BR");
+  if (filter === "today") return d(now);
+  if (filter === "week") { const s = new Date(now); s.setDate(s.getDate() - 6); return `${d(s)} a ${d(now)}`; }
+  if (filter === "month") return now.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  if (filter === "year") return String(now.getFullYear());
+  const r = getDateRange(filter, from, to);
+  return `${d(new Date(r.from))} a ${d(new Date(r.to))}`;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -1326,10 +1338,6 @@ export default function CustomersPage() {
                 <FileText className="w-4 h-4 text-brand-600" />
                 <h2 className="text-sm font-semibold">Histórico de Movimentações</h2>
               </div>
-              <button onClick={printHistory}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl text-xs font-medium transition-colors">
-                <Printer className="w-3.5 h-3.5" /> Imprimir
-              </button>
             </div>
 
             {/* Date filter tabs */}
@@ -1360,17 +1368,14 @@ export default function CustomersPage() {
             {/* Summary row — "Débitos" é o total debitado NO PERÍODO filtrado (quanto
                 ela gastou); "Deve atualmente" é o saldo devedor de hoje, igual ao do
                 topo da tela, e NÃO muda com o filtro — evita confundir os dois. */}
-            {!movLoading && movements.length > 0 && (
-              <div className="grid grid-cols-2 border-b border-zinc-800 divide-x divide-zinc-800">
-                <div className="px-5 py-3">
-                  <p className="text-xs text-zinc-500">Débitos no período</p>
-                  <p className="text-sm font-bold text-red-400">-{fmt(totalDebits)}</p>
-                </div>
-                <div className="px-5 py-3">
-                  <p className="text-xs text-zinc-500">Deve atualmente</p>
-                  <p className="text-sm font-bold text-amber-400">{fmt(selected?.fiado_balance ?? 0)}</p>
-                </div>
-              </div>
+            {selected && (
+              <CustomerInvoice
+                customer={selected}
+                range={getDateRange(dateFilter, customFrom, customTo)}
+                label={periodLabel(dateFilter, customFrom, customTo)}
+                reloadKey={movements}
+                isLight={isLight}
+              />
             )}
 
             {/* Movement list */}
