@@ -102,6 +102,8 @@ interface ItemResult {
 interface ProductResult {
   product: Product; kind: "food" | "resale";
   qty: number; revenue: number; cost: number; hasCost: boolean;
+  listPrice: number;   // preço do cadastro (ou a média vendida, se o produto não tem preço)
+  avgPrice: number;    // média do que entrou no caixa (descontos, preços alterados)
 }
 interface Result {
   items: ItemResult[]; food: ProductResult[]; resale: ProductResult[];
@@ -151,15 +153,19 @@ function compute(
     if (isResale(product)) {
       const b = resaleBought.get(pid);
       const unitCost = b && b.qty > 0 ? b.cost / b.qty : Number(product.cost_price ?? 0);
-      resale.push({ product, kind: "resale", qty: s.qty, revenue: s.revenue, cost: unitCost * s.qty, hasCost: unitCost > 0 });
+      const avgPrice = s.qty > 0 ? s.revenue / s.qty : 0;
+      resale.push({ product, kind: "resale", qty: s.qty, revenue: s.revenue, cost: unitCost * s.qty, hasCost: unitCost > 0,
+        listPrice: Number(product.sale_price ?? 0) > 0 ? Number(product.sale_price) : avgPrice, avgPrice });
     } else {
-      food.push({ product, kind: "food", qty: s.qty, revenue: s.revenue, cost: 0, hasCost: true });
+      const avgPrice = s.qty > 0 ? s.revenue / s.qty : 0;
+      food.push({ product, kind: "food", qty: s.qty, revenue: s.revenue, cost: 0, hasCost: true,
+        listPrice: Number(product.sale_price ?? 0) > 0 ? Number(product.sale_price) : avgPrice, avgPrice });
     }
   }
   const foodRevenue = food.reduce((x, p) => x + p.revenue, 0);
   // Pratos = itens de comida com preço de prato (adicional de R$ 5 não conta como marmita)
-  const maxAvg = Math.max(0, ...food.map(p => (p.qty > 0 ? p.revenue / p.qty : 0)));
-  const dishes = food.filter(p => p.qty > 0 && p.revenue / p.qty >= maxAvg * 0.4).reduce((x, p) => x + p.qty, 0);
+  const maxPrice = Math.max(0, ...food.map(p => p.listPrice));
+  const dishes = food.filter(p => p.qty > 0 && p.listPrice >= maxPrice * 0.4).reduce((x, p) => x + p.qty, 0);
 
   // Compras de insumos (± o que sobrou) = custo da cozinha
   const bought = new Map<string, { qty: number; cost: number }>();
@@ -193,8 +199,10 @@ function compute(
   items.sort((a, b) => b.usedCost - a.usedCost);
   const foodCost = items.reduce((x, i) => x + i.usedCost, 0);
 
-  // Divide o custo da cozinha entre os pratos na proporção do que cada um vendeu em R$
-  for (const p of food) p.cost = foodRevenue > 0 ? foodCost * (p.revenue / foodRevenue) : 0;
+  // Divide o custo da cozinha entre os pratos pelo preço do cadastro × quantidade
+  // (a G leva mais que a P; preço alterado numa venda não distorce o custo)
+  const weightTotal = food.reduce((x, p) => x + p.qty * p.listPrice, 0);
+  for (const p of food) p.cost = weightTotal > 0 ? foodCost * (p.qty * p.listPrice) / weightTotal : 0;
   food.sort((a, b) => b.revenue - a.revenue);
   resale.sort((a, b) => b.revenue - a.revenue);
 
@@ -447,7 +455,7 @@ function ResultView({ stockItems, products, categories, uid, goBuy }: {
           <div className={card}>
             <div className="px-4 pt-4 pb-2">
               <p className="text-sm font-bold text-gray-900">Custo e lucro de cada um</p>
-              <p className="text-[11px] text-gray-400">Pratos: o custo das compras é dividido pelo valor vendido de cada um (a G leva mais que a P). Bebidas: preço pago na compra.</p>
+              <p className="text-[11px] text-gray-400">"Vende por" é o preço do cadastro; "média" aparece quando o caixa recebeu diferente (desconto ou preço alterado). O lucro total usa o que realmente entrou. Pratos: o custo das compras é dividido pelo preço de cada um (a G leva mais que a P). Bebidas: preço pago na compra.</p>
             </div>
             {cur.food.length + cur.resale.length === 0 ? (
               <p className="px-4 pb-4 text-sm text-gray-500">Nenhuma venda no período.</p>
@@ -458,7 +466,8 @@ function ResultView({ stockItems, products, categories, uid, goBuy }: {
                   <span className="text-right">Lucro cada</span><span className="text-right">Lucro total</span>
                 </div>
                 {[...cur.food, ...cur.resale].map((p, idx, all) => {
-                  const price = p.qty > 0 ? p.revenue / p.qty : 0, each = p.qty > 0 ? p.cost / p.qty : 0;
+                  const price = p.listPrice, each = p.qty > 0 ? p.cost / p.qty : 0;
+                  const avgDiffers = p.avgPrice > 0 && Math.abs(p.avgPrice - price) / Math.max(price, 0.01) > 0.01;
                   const firstResale = p.kind === "resale" && (idx === 0 || all[idx - 1].kind === "food");
                   return (
                     <div key={p.product.id}>
@@ -469,7 +478,12 @@ function ResultView({ stockItems, products, categories, uid, goBuy }: {
                           {!p.hasCost && <span className="ml-1.5 text-[10px] font-semibold text-amber-600">sem preço de compra</span>}
                         </span>
                         <Cell label="Vendidos" value={fmtNum(p.qty, 2)} />
-                        <Cell label="Vende por" value={fmt(price)} />
+                        <span className="flex md:block items-center justify-between md:text-right text-xs tabular-nums">
+                          <span className="md:hidden text-gray-400">Vende por</span>
+                          <span className="font-semibold text-gray-800">{fmt(price)}
+                            {avgDiffers && <span className="block text-[10px] font-normal text-gray-400" title="Média do que entrou no caixa (descontos ou preço alterado na venda)">média {fmt(p.avgPrice)}</span>}
+                          </span>
+                        </span>
                         <Cell label="Custo cada" value={p.hasCost ? fmt(each) : "—"} />
                         <Cell label="Lucro cada" value={p.hasCost ? fmt(price - each) : "—"} tone={p.hasCost ? (price - each >= 0 ? "green" : "red") : undefined} bold />
                         <Cell label="Lucro total" value={p.hasCost ? fmt(p.revenue - p.cost) : "—"} tone={p.hasCost ? (p.revenue - p.cost >= 0 ? "green" : "red") : undefined} />
