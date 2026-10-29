@@ -227,7 +227,21 @@ function AgentPanel({ api, email, uid }: { api: AgentApi; email: string; uid: st
 
         if (sectors.length) {
           const { data, error } = await supabase.rpc("claim_kitchen_print", { p_sectors: sectors });
-          if (!error && data?.length) await printTickets(await ticketsFromRows(data as ClaimRow[]), c, "Comanda");
+          if (!error && data?.length) {
+            const rows = data as ClaimRow[];
+            // Uma impressora para cupom e comanda: venda de PDV/Cardápio já sai no cupom
+            // (um papel por pedido). Mesa não tem cupom ao enviar, então a comanda sai.
+            const shared = SECTORS.filter(sec => c.receipts !== null && c.sectors[sec] === c.receipts);
+            let skip = new Set<string>();
+            if (shared.length) {
+              const saleIds = [...new Set(rows.map(r => r.sale_id).filter(Boolean))] as string[];
+              const { data: ss } = await supabase.from("sales").select("id, table_id").in("id", saleIds);
+              skip = new Set(((ss ?? []) as { id: string; table_id: string | null }[])
+                .filter(x => !x.table_id).map(x => x.id.slice(-6).toUpperCase()));
+            }
+            const tickets = (await ticketsFromRows(rows)).filter(t => !(shared.includes(t.sector) && skip.has(t.orderNum)));
+            if (tickets.length) await printTickets(tickets, c, "Comanda");
+          }
 
           const { data: cx } = await supabase.rpc("claim_kitchen_cancellations", { p_sectors: sectors });
           const rows = (cx ?? []) as { sale_id: string | null; origin_label: string | null; sector: Sector; product_name: string | null; quantity: number }[];
