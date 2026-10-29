@@ -7,7 +7,7 @@ import { StoreLocationCard } from "../../components/StoreLocationCard";
 import { DataExport } from "../../components/DataExport";
 import { PrintAgentCard } from "../../components/PrintAgentCard";
 import { useTheme } from "../../contexts/ThemeContext";
-import { useBusinessType, saveBusinessType, type BusinessType } from "../../lib/business";
+import { useBusinessType, saveBusinessType, routeFitsBusiness, type BusinessType } from "../../lib/business";
 import { UtensilsCrossed, Shirt, FileText } from "lucide-react";
 
 // ── Storage keys (cache local para impressão síncrona) ────────────────────────
@@ -477,6 +477,7 @@ interface OpDraft { id: string | null; name: string; pin: string; routes: string
 const emptyDraft = (): OpDraft => ({ id: null, name: "", pin: "", routes: [], canApprove: false, lockMinutes: null });
 
 function PermissionPicker({ draft, setDraft, isLight }: { draft: OpDraft; setDraft: (d: OpDraft) => void; isLight: boolean }) {
+  const businessType = useBusinessType();
   const toggle = (path: string) => setDraft({
     ...draft,
     routes: draft.routes.includes(path) ? draft.routes.filter(r => r !== path) : [...draft.routes, path],
@@ -501,7 +502,7 @@ function PermissionPicker({ draft, setDraft, isLight }: { draft: OpDraft; setDra
       </div>
       <p className="text-xs font-semibold text-zinc-500">Abas que pode acessar</p>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-        {TAB_OPTIONS.map(t => {
+        {TAB_OPTIONS.filter(t => routeFitsBusiness(t.path, businessType)).map(t => {
           const on = draft.routes.includes(t.path);
           return (
             <label key={t.path} className="flex items-center gap-2 px-3 py-2 rounded-xl cursor-pointer select-none text-sm transition-colors" style={chip(on)}>

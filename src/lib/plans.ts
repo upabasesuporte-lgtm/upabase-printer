@@ -16,17 +16,17 @@ export const PLAN_ROUTES: Record<PlanType, string[]> = {
   loja: [
     '/', '/cash', '/pdv', '/digital-menu', '/tables', '/kitchen', '/products', '/stock',
     '/purchases', '/costs', '/suppliers',
-    '/customers', '/accounts-payable', '/reports', '/settings',
+    '/customers', '/consignments', '/accounts-payable', '/reports', '/settings',
   ],
   delivery: [
     '/', '/cash', '/pdv', '/digital-menu', '/kitchen', '/products', '/stock',
     '/purchases', '/costs', '/suppliers',
-    '/customers', '/accounts-payable', '/reports', '/settings',
+    '/customers', '/consignments', '/accounts-payable', '/reports', '/settings',
   ],
   pro: [
     '/', '/cash', '/pdv', '/digital-menu', '/tables', '/kitchen', '/products', '/stock',
     '/purchases', '/costs', '/suppliers',
-    '/customers', '/accounts-payable', '/reports', '/settings',
+    '/customers', '/consignments', '/accounts-payable', '/reports', '/settings',
   ],
 };
 

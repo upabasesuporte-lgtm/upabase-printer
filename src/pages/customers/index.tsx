@@ -32,6 +32,8 @@ interface Customer {
   fiado_balance: number;
   credit_limit: number;
   created_at: string;
+  cpf?: string | null;
+  birthday?: string | null; // aaaa-mm-dd
 }
 
 interface CustomerMovement {
@@ -172,6 +174,8 @@ export default function CustomersPage() {
   const [fEmail, setFEmail] = useState("");
   const [fAddress, setFAddress] = useState("");
   const [fNotes, setFNotes] = useState("");
+  const [fCpf, setFCpf] = useState("");
+  const [fBirthday, setFBirthday] = useState("");
   const [fLimit, setFLimit] = useState("0");
   const [fBalance, setFBalance] = useState("0");
 
@@ -391,6 +395,7 @@ export default function CustomersPage() {
     setEditing(null);
     setFormError(null);
     setFName(""); setFPhone(""); setFEmail(""); setFAddress(""); setFNotes(""); setFLimit("0"); setFBalance("0");
+    setFCpf(""); setFBirthday("");
     setModal("createEdit");
   }
 
@@ -400,6 +405,7 @@ export default function CustomersPage() {
     setFormError(null);
     setFName(c.name); setFPhone(c.phone ?? ""); setFEmail(c.email ?? "");
     setFAddress(c.address ?? ""); setFNotes(c.notes ?? ""); setFLimit(String(c.credit_limit ?? 0));
+    setFCpf(c.cpf ?? ""); setFBirthday(c.birthday ?? "");
     setFBalance("0");
     setModal("createEdit");
   }
@@ -413,6 +419,7 @@ export default function CustomersPage() {
       name: fName.trim(), phone: fPhone || null, email: fEmail || null,
       address: fAddress || null, notes: fNotes || null,
       credit_limit: parseFloat(fLimit.replace(",", ".")) || 0,
+      cpf: fCpf.trim() || null, birthday: fBirthday || null,
     };
     if (editing) {
       const { error } = await supabase.from("customers").update(payload).eq("id", editing.id);
@@ -1147,6 +1154,43 @@ export default function CustomersPage() {
               className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm placeholder-zinc-600 focus:outline-none focus:border-brand-500 transition-all" />
           </div>
 
+          {listView === "list" && (() => {
+            // Aniversário nos próximos 7 dias (inclui hoje)
+            const today = new Date(); today.setHours(0, 0, 0, 0);
+            const soon = customers.flatMap(c => {
+              if (!c.birthday) return [];
+              const [, m, d] = c.birthday.split("-").map(Number);
+              let next = new Date(today.getFullYear(), m - 1, d);
+              if (next < today) next = new Date(today.getFullYear() + 1, m - 1, d);
+              const days = Math.round((next.getTime() - today.getTime()) / 86_400_000);
+              return days <= 6 ? [{ c, days, label: next.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) }] : [];
+            }).sort((a, b) => a.days - b.days);
+            if (!soon.length) return null;
+            const congrats = (c: Customer) => {
+              const store = getStoreSettings();
+              const first = c.name.trim().split(/\s+/)[0] ?? "";
+              const text = `Feliz aniversário, ${first.charAt(0).toUpperCase() + first.slice(1).toLowerCase()}! 🎉 A equipe${store.name ? ` da ${store.name}` : ""} deseja um dia incrível pra você. Passa aqui pra gente comemorar junto!`;
+              let phone = (c.phone ?? "").replace(/\D/g, "");
+              if (phone.length === 10 || phone.length === 11) phone = "55" + phone;
+              window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, "_blank");
+            };
+            return (
+              <div className="rounded-2xl px-4 py-3 space-y-2" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+                <p className="text-sm font-semibold">🎂 Aniversariantes da semana</p>
+                <div className="flex flex-wrap gap-2">
+                  {soon.map(({ c, days, label }) => (
+                    <button key={c.id} onClick={() => congrats(c)} title="Mandar parabéns no WhatsApp"
+                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border"
+                      style={{ borderColor: days === 0 ? "#f59e0b" : (isLight ? "#e5e7eb" : "#3f3f46"), background: days === 0 ? "rgba(245,158,11,0.12)" : "transparent" }}>
+                      {c.name.split(" ")[0]} · {days === 0 ? "hoje!" : label}
+                      <MessageCircle className="w-3.5 h-3.5" style={{ color: "#25D366" }} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
           {listView === "crediario" && (
             <CrediarioOverview customers={customers} card={card}
               onOpen={id => { const c = customers.find(x => x.id === id); if (c) openDetail(c); }} />
@@ -1538,6 +1582,16 @@ export default function CustomersPage() {
                 <div>
                   <label className="block text-xs font-medium text-zinc-400 mb-1.5">E-mail</label>
                   <input value={fEmail} onChange={e => setFEmail(e.target.value)} placeholder="email@exemplo.com" className={inputCls} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">CPF</label>
+                  <input value={fCpf} onChange={e => setFCpf(e.target.value)} inputMode="numeric" placeholder="000.000.000-00 (opcional)" className={inputCls} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-zinc-400 mb-1.5">Data de nascimento</label>
+                  <input type="date" value={fBirthday} onChange={e => setFBirthday(e.target.value)} className={inputCls} />
                 </div>
               </div>
               <div>

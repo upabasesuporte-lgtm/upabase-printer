@@ -10,6 +10,12 @@ const EVENT = "business-type-change";
 
 // Abas que só fazem sentido em restaurante (somem no varejo)
 export const FOOD_ONLY_ROUTES = ["/tables", "/kitchen", "/costs"];
+// Abas que só aparecem no varejo
+export const RETAIL_ONLY_ROUTES = ["/consignments"];
+
+export function routeFitsBusiness(path: string, t: BusinessType) {
+  return t === "retail" ? !FOOD_ONLY_ROUTES.includes(path) : !RETAIL_ONLY_ROUTES.includes(path);
+}
 
 export function getBusinessType(): BusinessType {
   try { return localStorage.getItem(KEY) === "retail" ? "retail" : "food"; } catch { return "food"; }

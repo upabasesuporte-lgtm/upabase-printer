@@ -11,6 +11,7 @@ import { useTheme } from "../../contexts/ThemeContext";
 import { useBusinessType } from "../../lib/business";
 import { buildPlan } from "../../lib/crediario";
 import { ReturnModal, ReturnFinder } from "../../components/ReturnModal";
+import { PDV_INJECT_KEY } from "../consignments";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import {
   Search, ShoppingCart, ChevronLeft, Plus, Minus, Trash2, X, User, UserPlus,
@@ -50,6 +51,7 @@ interface CartItem {
   notes: string;
   customPrice?: number;
   autoPrice?: boolean; // preço veio do combinado com o cliente (troca sozinho se mudar o cliente)
+  noStock?: boolean;   // peça da condicional: já saiu do estoque, a venda não baixa de novo
 }
 
 interface ShortcutGroup {
@@ -191,6 +193,8 @@ export default function PdvPage() {
   // Troca / devolução (varejo)
   const [returnTarget, setReturnTarget] = useState<{ sale: Sale; items: SaleItem[] } | null>(null);
   const [showReturnFinder, setShowReturnFinder] = useState(false);
+  // Condicional: compra vinda do acerto (liga a venda à condicional)
+  const consignmentRef = useRef<string | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [categoryNames, setCategoryNames] = useState<Record<string, string>>({});
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -374,6 +378,37 @@ export default function PdvPage() {
   );
 
   useEffect(() => { loadAll(); loadPending(); }, []);
+
+  // Acerto da condicional: monta o carrinho com o que a cliente ficou
+  useEffect(() => {
+    if (products.length === 0) return;
+    let raw: string | null = null;
+    try { raw = localStorage.getItem(PDV_INJECT_KEY); localStorage.removeItem(PDV_INJECT_KEY); } catch { /* sem armazenamento */ }
+    if (!raw) return;
+    (async () => {
+      try {
+        const inj = JSON.parse(raw!) as { consignmentId: string; customerId: string; items: { product_id: string; qty: number; unit_price: number }[] };
+        const ids = inj.items.map(i => i.product_id);
+        const [{ data: prods }, { data: cust }] = await Promise.all([
+          supabase.from("products").select("*").in("id", ids),
+          supabase.from("customers").select("*").eq("id", inj.customerId).maybeSingle(),
+        ]);
+        const byId = Object.fromEntries(((prods ?? []) as Product[]).map(p => [p.id, p]));
+        const items: CartItem[] = inj.items.filter(i => byId[i.product_id]).map((i, n) => ({
+          cartId: `${i.product_id}_cond_${n}_${Date.now()}`, product: byId[i.product_id], quantity: i.qty, notes: "",
+          ...(Number(i.unit_price) !== Number(byId[i.product_id].sale_price) ? { customPrice: Number(i.unit_price) } : {}),
+          noStock: true,
+        }));
+        if (!items.length) return;
+        setCart(items);
+        if (cust) setSelectedCustomer(cust as Customer);
+        consignmentRef.current = inj.consignmentId;
+        setTab("venda");
+        setMobileCartOpen(true);
+      } catch { /* dado inválido: ignora */ }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [products.length > 0]);
 
   const loadAll = useCallback(async () => {
     // Sessão local (sem ida ao servidor); a segurança continua garantida pelo RLS no banco
@@ -644,7 +679,7 @@ export default function PdvPage() {
       return changed ? next : prev;
     });
   }, [specialPrices, cart]);
-  function clearCart() { setCart([]); setDiscount(""); setOrderNotes(""); setSellerName(""); setDeliveryAddress(""); setDeliveryFee(""); setSelectedCustomer(null); setDiscountType("value"); setShowDiscountField(false); setExtraOpen(null); }
+  function clearCart() { consignmentRef.current = null; setCart([]); setDiscount(""); setOrderNotes(""); setSellerName(""); setDeliveryAddress(""); setDeliveryFee(""); setSelectedCustomer(null); setDiscountType("value"); setShowDiscountField(false); setExtraOpen(null); }
 
   // ── Atalhos ──
   async function persistShortcuts(groups: ShortcutGroup[]) {
@@ -807,7 +842,7 @@ export default function PdvPage() {
 
     const stockQty: Record<string, number> = {};
     for (const item of cart) {
-      if (!isUnlimited(item.product)) stockQty[item.product.id] = (stockQty[item.product.id] ?? 0) + item.quantity;
+      if (!isUnlimited(item.product) && !item.noStock) stockQty[item.product.id] = (stockQty[item.product.id] ?? 0) + item.quantity;
     }
 
     const validMethods = ["cash", "credit", "debit", "pix", "voucher", "fiado", "house_credit", "ifood_receivable"] as const;
@@ -895,6 +930,8 @@ export default function PdvPage() {
     const notesSnapshot = orderNotes;
     const sellerSnapshot = sellerName;
 
+    const consId = consignmentRef.current;
+    if (consId) supabase.from("consignments").update({ sale_id: sale.id }).eq("id", consId).then(() => {}, () => {});
     setShowCheckout(false);
     clearCart();
     setCrediarioN(0);

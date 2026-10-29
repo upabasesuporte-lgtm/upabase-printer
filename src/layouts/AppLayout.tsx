@@ -1,4 +1,4 @@
-import { refreshBusinessType, useBusinessType, FOOD_ONLY_ROUTES } from "../lib/business";
+import { refreshBusinessType, useBusinessType, routeFitsBusiness } from "../lib/business";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Outlet, NavLink, useNavigate, useLocation, Navigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
@@ -23,6 +23,7 @@ import {
   BarChart3,
   Settings,
   Store,
+  ShoppingBag,
   LogOut,
   TrendingUp,
   LockOpen,
@@ -57,6 +58,7 @@ const menuItems = [
   { label: "Caixa",           icon: Wallet,          path: "/cash",            color: "#3b82f6" },
   { label: "Vendas",          icon: ShoppingCart,    path: "/pdv",             color: "#3b82f6" },
   { label: "Clientes",        icon: Users,           path: "/customers",       color: "#3b82f6" },
+  { label: "Condicional",     icon: ShoppingBag,     path: "/consignments",    color: "#3b82f6" },
   { label: "Catálogo Digital",icon: Store,           path: "/digital-menu",    color: "#3b82f6" },
   { label: "Mesas",           icon: UtensilsCrossed, path: "/tables",          color: "#3b82f6" },
   { label: "Cozinha",         icon: ChefHat,         path: "/kitchen",         color: "#3b82f6" },
@@ -448,7 +450,7 @@ export function AppLayout() {
     if (!userPlan.plan_type) return true;
     return PLAN_ROUTES[userPlan.plan_type as PlanType]?.includes(item.path) ?? false;
   }).filter(item => canAccessRoute(item.path, ops))
-    .filter(item => businessType !== "retail" || !FOOD_ONLY_ROUTES.includes(item.path)); // varejo: sem mesas/cozinha/custo por prato // abas da função do operador (sem operadores = todas)
+    .filter(item => routeFitsBusiness(item.path, businessType)); // varejo: sem mesas/cozinha/custo por prato; restaurante: sem condicional // abas da função do operador (sem operadores = todas)
 
   // Funcionários com PIN: sem operador escolhido a tela fica travada; aba fora
   // da função manda para a primeira aba liberada.

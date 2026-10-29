@@ -36,6 +36,7 @@ export const TAB_OPTIONS: { path: string; label: string }[] = [
   { path: "/cash",             label: "Caixa" },
   { path: "/pdv",              label: "Vendas (PDV)" },
   { path: "/customers",        label: "Clientes" },
+  { path: "/consignments",     label: "Condicional" },
   { path: "/digital-menu",     label: "Catálogo Digital" },
   { path: "/tables",           label: "Mesas" },
   { path: "/kitchen",          label: "Cozinha" },

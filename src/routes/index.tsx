@@ -66,6 +66,7 @@ import CostsPage from "../pages/costs";
 import PrintAgentPage from "../pages/print-agent";
 import SuppliersPage from "../pages/suppliers";
 import CustomersPage from "../pages/customers";
+import ConsignmentsPage from "../pages/consignments";
 import CashPage from "../pages/cash";
 import TablesPage from "../pages/tables";
 import KitchenPage from "../pages/kitchen";
@@ -120,6 +121,10 @@ export const router = createBrowserRouter([
       {
         path: "customers",
         element: <CustomersPage />,
+      },
+      {
+        path: "consignments",
+        element: <ConsignmentsPage />,
       },
       {
         path: "cash",
