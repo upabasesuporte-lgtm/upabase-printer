@@ -10,7 +10,7 @@ import { getStoreSettings, getSellers, refreshStoreCache } from "../settings";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import {
-  Search, ShoppingCart, Plus, Minus, Trash2, X, User, UserPlus,
+  Search, ShoppingCart, ChevronLeft, Plus, Minus, Trash2, X, User, UserPlus,
   Clock, CheckCircle2, AlertCircle, Printer, CreditCard, Banknote,
   Smartphone, Ticket, Star, StarOff, ChevronRight, Edit2, History,
   Package, RefreshCw, Receipt, MapPin, FileText, UserCog,
@@ -509,6 +509,64 @@ export default function PdvPage() {
     const cartId = `${product.id}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     setCart(prev => [...prev, { cartId, product, quantity: 1, notes: "" }]);
     setSearch(""); // Limpa o campo de busca após adicionar produto
+  }
+
+  // Celular: produtos na tela toda; o carrinho abre por cima ao tocar no botão de baixo
+  const [mobileCartOpen, setMobileCartOpen] = useState(false);
+  const mobileCartBtnRef = useRef<HTMLButtonElement>(null);
+  const prevCartLen = useRef(0);
+  useEffect(() => {
+    // Venda finalizada / limpa: volta para os produtos
+    if (prevCartLen.current > 0 && cart.length === 0) setMobileCartOpen(false);
+    prevCartLen.current = cart.length;
+  }, [cart.length]);
+
+  // Toque no produto (celular): a foto voa até o carrinho e o botão pula
+  function addFromTap(e: React.MouseEvent, product: Product) {
+    if (!isUnlimited(product) && product.stock === 0) return;
+    addToCart(product);
+    if (window.innerWidth >= 768) return;
+    try { navigator.vibrate?.(15); } catch { /* sem vibração */ }
+    const target = mobileCartBtnRef.current?.getBoundingClientRect();
+    if (!target) return;
+    const src = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const size = 56;
+    const x0 = src.left + src.width / 2 - size / 2, y0 = src.top + src.height / 2 - size / 2;
+    const x1 = target.left + 34 - size / 2, y1 = target.top + target.height / 2 - size / 2;
+    const el = document.createElement("div");
+    el.style.cssText = `position:fixed;left:${x0}px;top:${y0}px;width:${size}px;height:${size}px;border-radius:14px;z-index:60;pointer-events:none;`
+      + "box-shadow:0 6px 18px rgba(0,0,0,.25);border:2px solid #fff;display:flex;align-items:center;justify-content:center;"
+      + "background:linear-gradient(135deg,#7B2FBE,#00B4D8);color:#fff;font-weight:900;font-size:22px;overflow:hidden";
+    if (product.image_url) {
+      const img = document.createElement("img");
+      img.src = product.image_url; img.style.cssText = "width:100%;height:100%;object-fit:cover";
+      el.appendChild(img);
+    } else el.textContent = "+1";
+    document.body.appendChild(el);
+    const dx = x1 - x0, dy = y1 - y0;
+    const fly = el.animate([
+      { transform: "translate(0,0) scale(1) rotate(0deg)", opacity: 1 },
+      { transform: `translate(${dx * 0.35}px,${dy * 0.35 - 70}px) scale(1.12) rotate(-8deg)`, opacity: 1, offset: 0.35 },
+      { transform: `translate(${dx}px,${dy}px) scale(.25) rotate(10deg)`, opacity: 0.6 },
+    ], { duration: 560, easing: "cubic-bezier(.45,0,.55,1)" });
+    fly.onfinish = () => {
+      el.remove();
+      mobileCartBtnRef.current?.animate(
+        [{ transform: "scale(1)" }, { transform: "scale(1.08)" }, { transform: "scale(.97)" }, { transform: "scale(1)" }],
+        { duration: 320, easing: "ease-out" });
+      // estrelinhas saindo do carrinho
+      for (let i = 0; i < 6; i++) {
+        const sp = document.createElement("div");
+        sp.textContent = "✦";
+        sp.style.cssText = `position:fixed;left:${target.left + 26}px;top:${target.top + target.height / 2 - 10}px;z-index:60;pointer-events:none;font-size:14px;color:${i % 2 ? "#f59e0b" : "#00B4D8"}`;
+        document.body.appendChild(sp);
+        const ang = (Math.PI * 2 * i) / 6 - Math.PI / 2, r = 30 + (i % 3) * 6;
+        sp.animate([
+          { transform: "translate(0,0) scale(.6)", opacity: 1 },
+          { transform: `translate(${Math.cos(ang) * r}px,${Math.sin(ang) * r}px) scale(1.1)`, opacity: 0 },
+        ], { duration: 480, easing: "ease-out" }).onfinish = () => sp.remove();
+      }
+    };
   }
 
   function updateQty(cartId: string, delta: number) {
@@ -1285,7 +1343,7 @@ export default function PdvPage() {
 
             {/* Atalhos por categoria — preenche espaço restante e rola verticalmente */}
             {search === "" && (
-              <div className="flex px-4 py-3 flex-1 overflow-y-auto flex-col">
+              <div className="flex px-4 py-3 pb-24 md:pb-3 flex-1 overflow-y-auto flex-col">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-xs text-zinc-500 flex items-center gap-1">
                     <Star className="w-3 h-3 fill-amber-400 text-amber-400" /> Atalhos rápidos
@@ -1314,8 +1372,8 @@ export default function PdvPage() {
                           </p>
                           <div className="flex flex-wrap gap-2">
                             {groupProds.map(p => (
-                              <button key={p.id} onClick={() => addToCart(p)}
-                                className="flex flex-col items-center gap-1 hover:border-brand-500/50 rounded-xl p-2.5 w-20 transition-all"
+                              <button key={p.id} onClick={e => addFromTap(e, p)}
+                                className="flex flex-col items-center gap-1 hover:border-brand-500/50 active:scale-95 rounded-xl p-2.5 w-20 transition-all"
                                 style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
                                 {p.image_url
                                   ? <img src={p.image_url} alt={p.name} className="w-10 h-10 min-w-[40px] rounded-md object-cover" style={{aspectRatio:"1/1"}} />
@@ -1335,7 +1393,7 @@ export default function PdvPage() {
 
             {/* Resultados de busca — só aparece quando o usuário digita algo */}
             {search !== "" && (
-              <div className="flex-1 overflow-y-auto p-4">
+              <div className="flex-1 overflow-y-auto p-4 pb-24 md:pb-4">
                 {loadingProducts ? (
                   <div className="flex justify-center py-12"><RefreshCw className="w-5 h-5 animate-spin text-brand-600" /></div>
                 ) : filtered.length === 0 ? (
@@ -1346,7 +1404,7 @@ export default function PdvPage() {
                       const sem = !isUnlimited(p) && p.stock === 0;
                       return (
                         <div key={p.id}
-                          onClick={() => addToCart(p)}
+                          onClick={e => addFromTap(e, p)}
                           className={`group rounded-xl overflow-hidden transition-all hover:border-brand-500/50 ${sem ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
                           style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
                           <div className="relative">
@@ -1386,10 +1444,13 @@ export default function PdvPage() {
           </div>
 
           {/* DIREITA — Carrinho */}
-          <div className="w-full md:w-[380px] flex flex-col flex-shrink-0 overflow-hidden max-h-[45vh] md:max-h-none" style={{ background: isLight ? "#f9fafb" : "#09090b" }}>
+          <div className={`${mobileCartOpen ? "flex fixed inset-0 z-40 h-[100dvh]" : "hidden"} md:static md:z-auto md:h-auto md:flex w-full md:w-[380px] flex-col flex-shrink-0 overflow-hidden md:max-h-none`} style={{ background: isLight ? "#f9fafb" : "#09090b" }}>
 
             <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 flex-shrink-0">
               <div className="flex items-center gap-2">
+                <button onClick={() => setMobileCartOpen(false)} className="md:hidden flex items-center gap-1 -ml-1 mr-1 pr-2 py-1 text-sm font-semibold text-brand-600">
+                  <ChevronLeft className="w-5 h-5" /> Produtos
+                </button>
                 <ShoppingCart className="w-4 h-4 text-zinc-400" />
                 <span className="text-sm font-semibold">Carrinho</span>
                 {cart.length > 0 && <span className="text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold" style={{ background: isLight ? "#10b981" : "linear-gradient(135deg,#7B2FBE,#00B4D8)", color: "#fff" }}>{cart.reduce((s, i) => s + i.quantity, 0)}</span>}
@@ -1594,6 +1655,29 @@ export default function PdvPage() {
             {/* fecha flex-1 overflow-y-auto (scroll do carrinho) */}
             </div>
           </div>
+
+          {/* Celular: botão do carrinho sempre à mão, embaixo */}
+          {!mobileCartOpen && (
+            <button ref={mobileCartBtnRef} onClick={() => setMobileCartOpen(true)}
+              className="md:hidden fixed left-3 right-3 bottom-3 z-30 flex items-center gap-3 pl-3 pr-4 py-3 rounded-2xl shadow-xl"
+              style={{ background: cart.length ? "linear-gradient(135deg,#7B2FBE,#315DFB)" : (isLight ? "#fff" : "#18181b"), color: cart.length ? "#fff" : undefined, border: cart.length ? "none" : card.border, paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}>
+              <span className="relative flex items-center justify-center w-10 h-10 rounded-xl" style={{ background: cart.length ? "rgba(255,255,255,0.18)" : "rgba(59,130,246,0.12)" }}>
+                <ShoppingCart className="w-5 h-5" />
+                {cart.length > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full text-[11px] font-black flex items-center justify-center" style={{ background: "#f59e0b", color: "#fff" }}>
+                    {cart.reduce((n, i) => n + i.quantity, 0)}
+                  </span>
+                )}
+              </span>
+              <span className="flex-1 text-left leading-tight">
+                <span className="block text-sm font-bold">{cart.length ? "Ver carrinho" : "Carrinho vazio"}</span>
+                <span className="block text-[11px] opacity-80">
+                  {cart.length ? "Cliente, entrega e finalizar" : (pendingSales.length ? `${pendingSales.length} venda(s) em pausa — toque para ver` : "Toque nos produtos para lançar")}
+                </span>
+              </span>
+              {cart.length > 0 && <span className="text-base font-black">{fmt(total)}</span>}
+            </button>
+          )}
         </div>
       )}
 
