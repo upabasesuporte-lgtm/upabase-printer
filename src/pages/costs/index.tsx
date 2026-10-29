@@ -89,6 +89,19 @@ const DRINK_RX = /bebida|refri|refrigerante|coca|guaran|fanta|sprite|soda|suco|�
 // Taxa de entrega lançada como produto: não é comida nem lucro da cozinha
 const DELIVERY_RX = /entrega|frete|taxa de servi/i;
 
+// Contas a Pagar pagas no período: comida comprada por lá (mercado, verdura…) e
+// despesas do negócio (combustível, aluguel…). Contas geradas por compra lançada
+// (purchase_order_id) já estão no custo e não entram de novo; conta pessoal fica de fora.
+interface PaidBill { category: string; value: number }
+const FOOD_BILL_RX = /aliment|mercado|verdura|legume|hortifruti|feira|embalag|g[aá]s|carne|a[cç]ougue|fornecedor|bebida|padaria|frango|peixe/i;
+const PERSONAL_BILL_RX = /pessoal/i;
+const BILL_LABEL: Record<string, string> = {
+  alimentacao: "Alimentação", transporte: "Transporte / combustível", aluguel: "Aluguel", utilities: "Contas (luz, água, internet)",
+  saude: "Saúde", salarios: "Salários", impostos: "Impostos", marketing: "Marketing", fornecedores: "Fornecedores",
+  manutencao: "Manutenção", escritorio: "Escritório", outros: "Outros",
+};
+const billLabel = (k: string) => BILL_LABEL[k] ?? (k ? k.charAt(0).toUpperCase() + k.slice(1).replace(/_/g, " ") : "Sem categoria");
+
 // ─── Cálculo ──────────────────────────────────────────────────────────────────
 
 interface ItemResult {
@@ -297,12 +310,14 @@ function ResultView({ stockItems, products, categories, uid, goBuy }: {
   const [purchases, setPurchases] = useState<PurchaseLine[]>([]);
   const [sales, setSales] = useState<SaleLine[]>([]);
   const [counts, setCounts] = useState<Count[]>([]);
+  const [bills, setBills] = useState<PaidBill[]>([]);
   const [leftoverOpen, setLeftoverOpen] = useState(false);
+  const [billsOpen, setBillsOpen] = useState(false);
 
   async function load() {
     setLoading(true); setError(null);
     const fromISO = startISO(range.prevFrom), toISO = endISO(range.to);
-    const [po, sa, co] = await Promise.all([
+    const [po, sa, co, ap] = await Promise.all([
       // Compra conta no dia em que a mercadoria chegou (received_at)
       fetchAll(() => supabase.from("purchase_orders")
         .select("id, status, created_at, received_at, purchase_order_items(stock_item_id, product_id, quantity, unit_cost)")
@@ -317,6 +332,9 @@ function ResultView({ stockItems, products, categories, uid, goBuy }: {
         .lte("created_at", toISO)),
       fetchAll(() => supabase.from("cost_counts").select("stock_item_id, count_date, qty")
         .gte("count_date", addDays(range.prevFrom, -1)).lte("count_date", range.to)),
+      fetchAll(() => supabase.from("accounts_payable").select("id, category, paid_amount, amount, purchase_order_id")
+        .eq("status", "paid").is("purchase_order_id", null)
+        .gte("paid_date", range.from).lte("paid_date", range.to)),
     ]);
     const err = po.error || sa.error || co.error;
     const lines: PurchaseLine[] = [];
@@ -348,6 +366,7 @@ function ResultView({ stockItems, products, categories, uid, goBuy }: {
     }
     setPurchases(lines); setSales(saleLines);
     setCounts((co.data as any[]).map(c => ({ stock_item_id: c.stock_item_id, count_date: c.count_date, qty: Number(c.qty) })));
+    setBills(ap.error ? [] : (ap.data as any[]).map(b => ({ category: String(b.category ?? ""), value: Number(b.paid_amount ?? b.amount ?? 0) })));
     setError(err || items.error ? (err || items.error).message : null);
     setLoading(false);
   }
@@ -368,6 +387,21 @@ function ResultView({ stockItems, products, categories, uid, goBuy }: {
   const revenue = cur.foodRevenue + cur.resaleRevenue;
   const profit = foodProfit + resaleProfit;
   const pct = (a: number, b: number) => (b > 0 ? `${fmtNum((a / b) * 100, 0)}%` : "—");
+
+  // Lucro líquido: lucro da comida e bebidas − compras de comida feitas por Contas a Pagar − despesas
+  const billGroups = useMemo(() => {
+    const food = new Map<string, number>(), expense = new Map<string, number>();
+    let personal = 0;
+    for (const b of bills) {
+      if (PERSONAL_BILL_RX.test(b.category)) { personal += b.value; continue; }
+      const m = FOOD_BILL_RX.test(b.category) ? food : expense;
+      m.set(b.category, (m.get(b.category) ?? 0) + b.value);
+    }
+    const sum = (m: Map<string, number>) => [...m.values()].reduce((x, v) => x + v, 0);
+    const list = (m: Map<string, number>) => [...m.entries()].sort((a, b) => b[1] - a[1]);
+    return { food: list(food), foodTotal: sum(food), expense: list(expense), expenseTotal: sum(expense), personal };
+  }, [bills]);
+  const netProfit = profit - billGroups.foodTotal - billGroups.expenseTotal;
 
   return (
     <div className="space-y-4">
@@ -449,6 +483,46 @@ function ResultView({ stockItems, products, categories, uid, goBuy }: {
             {cur.deliveryFees > 0 && (
               <p className="px-4 py-2 text-[11px] text-gray-400">Taxas de entrega recebidas ({fmt(cur.deliveryFees)}) não entram no lucro: costumam ir para o motoboy.</p>
             )}
+          </div>
+
+          {/* Lucro líquido (com Contas a Pagar) */}
+          <div className={card}>
+            <div className="px-4 pt-4 pb-2 flex items-start justify-between gap-2">
+              <div>
+                <p className="text-sm font-bold text-gray-900">Quanto sobrou de verdade</p>
+                <p className="text-[11px] text-gray-400">Puxa sozinho as contas pagas em Contas a Pagar no período (pela data do pagamento).</p>
+              </div>
+              {(billGroups.food.length + billGroups.expense.length) > 0 && (
+                <button onClick={() => setBillsOpen(o => !o)} className="text-xs font-semibold text-brand-700 whitespace-nowrap">
+                  {billsOpen ? "Esconder detalhes" : "Ver detalhes"}
+                </button>
+              )}
+            </div>
+            <div className="px-4 pb-4 space-y-1.5 text-sm">
+              <div className="flex justify-between"><span className="text-gray-600">Lucro da comida e bebidas</span><span className="font-semibold tabular-nums">{fmt(profit)}</span></div>
+              {billGroups.foodTotal > 0 && (
+                <>
+                  <div className="flex justify-between"><span className="text-gray-600">− Compras de comida pagas em Contas a Pagar</span><span className="font-semibold tabular-nums text-red-600">{fmt(billGroups.foodTotal)}</span></div>
+                  {billsOpen && billGroups.food.map(([k, v]) => (
+                    <div key={"f" + k} className="flex justify-between pl-4 text-xs text-gray-500"><span>{billLabel(k)}</span><span className="tabular-nums">{fmt(v)}</span></div>
+                  ))}
+                </>
+              )}
+              <div className="flex justify-between"><span className="text-gray-600">− Despesas do negócio (combustível, aluguel, luz, salários…)</span><span className="font-semibold tabular-nums text-red-600">{fmt(billGroups.expenseTotal)}</span></div>
+              {billsOpen && billGroups.expense.map(([k, v]) => (
+                <div key={"e" + k} className="flex justify-between pl-4 text-xs text-gray-500"><span>{billLabel(k)}</span><span className="tabular-nums">{fmt(v)}</span></div>
+              ))}
+              <div className="flex justify-between pt-2 mt-1 border-t border-gray-100 text-base">
+                <span className="font-bold text-gray-900">= Lucro líquido</span>
+                <span className={`font-black tabular-nums ${netProfit >= 0 ? "text-emerald-600" : "text-red-600"}`}>{fmt(netProfit)}</span>
+              </div>
+              {billGroups.foodTotal > 0 && (
+                <p className="text-[11px] text-gray-400 pt-1">Dica: compras de comida lançadas aqui em "Lançar compras" entram no custo de cada marmita; as lançadas direto em Contas a Pagar só aparecem neste total.</p>
+              )}
+              {billGroups.personal > 0 && (
+                <p className="text-[11px] text-gray-400">Contas pessoais pagas ({fmt(billGroups.personal)}) não entram no lucro da empresa.</p>
+              )}
+            </div>
           </div>
 
           {/* Por unidade */}
