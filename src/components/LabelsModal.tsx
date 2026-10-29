@@ -33,7 +33,7 @@ export function LabelsModal({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     fetchAll(() => supabase.from("products")
       .select("id, name, barcode, sale_price, stock, variant_of, variant_size, variant_color")
-      .neq("is_active", false).order("name"))
+      .or("is_active.eq.true,and(variant_of.not.is.null,status.neq.inactive)").order("name")) // tamanhos esgotados também
       .then(r => {
         setAll(((r.data ?? []) as any[]).map(x => ({ ...x, sale_price: Number(x.sale_price ?? 0), stock: Number(x.stock ?? 0) })));
         setLoading(false);

@@ -6,6 +6,9 @@ import { matchesSearch } from "../../lib/search";
 import { recalcFiadoBalance, computeFiadoLedger, fetchFiadoMovs, fetchOpenFiado, type FiadoMov } from "../../lib/fiado";
 import { getStoreSettings } from "../settings";
 import { CustomerBilling, CustomerInvoice } from "../../components/CustomerBilling";
+import { CrediarioCard } from "../../components/CrediarioCard";
+import { CrediarioOverview } from "../../components/CrediarioOverview";
+import { useBusinessType } from "../../lib/business";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import { PageHeader, btnPrimary, WHITE_TEXT } from "../../components/PageHeader";
@@ -212,7 +215,8 @@ export default function CustomersPage() {
   const [saleItemsMap, setSaleItemsMap] = useState<Record<string, SaleItemInfo[]>>({});
 
   // Ranking
-  const [listView, setListView] = useState<"list" | "ranking">("list");
+  const [listView, setListView] = useState<"list" | "ranking" | "crediario">("list");
+  const retail = useBusinessType() === "retail";
   const [rankingData, setRankingData] = useState<(Customer & { purchase_count: number; total_spent: number })[]>([]);
   const [rankingLoading, setRankingLoading] = useState(false);
 
@@ -466,6 +470,42 @@ export default function CustomersPage() {
   }
 
   // ── Balance ops ─────────────────────────────────────────────────────────────
+
+  // Abre o "Pagar Fiado" (prefill: valor já preenchido, ex.: uma parcela do crediário)
+  async function startPayDebt(prefill?: number) {
+    if (!selected) return;
+    // Reconsulta agora — cashRegisterId é carregado só uma vez ao abrir
+    // a página e fica desatualizado se o caixa foi aberto depois disso.
+    const { data: reg } = await supabase.from("cash_registers")
+      .select("id").eq("user_id", userId).eq("status", "open")
+      .order("opened_at", { ascending: false }).limit(1).maybeSingle();
+    const regId = reg?.id ?? null;
+    setCashRegisterId(regId);
+    if (!regId) {
+      alert("Caixa deve estar aberto para quitar fiado.");
+      return;
+    }
+    const d = selected.fiado_balance ?? 0;
+    const v = prefill != null ? Math.min(prefill, d) : d;
+    setPayEntries([]); setPayInput(v > 0 ? v.toFixed(2) : ""); setModal("payDebt");
+  }
+
+  // Crediário: lança juros/multa (se escolhido) e abre o pagamento com o valor da parcela
+  async function receiveInstallment(amount: number, charge: number, label: string) {
+    if (!selected || !userId) return;
+    if (charge > 0) {
+      const { error } = await supabase.from("customer_movements").insert({
+        customer_id: selected.id, user_id: userId, type: "debit", amount: charge,
+        description: `Juros/multa - ${label}`, payment_methods: [],
+      });
+      if (error) { alert("Não foi possível lançar os juros: " + error.message); return; }
+      await recalcFiadoBalance(selected.id).catch(() => {});
+      const { data } = await supabase.from("customers").select("*").eq("id", selected.id).single();
+      if (data) { setSelected(data as Customer); setCustomers(prev => prev.map(c => c.id === data.id ? data as Customer : c)); selected.fiado_balance = (data as Customer).fiado_balance; }
+      await loadMovements(selected.id);
+    }
+    await startPayDebt(amount + charge);
+  }
 
   async function refreshSelected(id: string) {
     const { data } = await supabase.from("customers").select("*").eq("id", id).single();
@@ -1087,6 +1127,12 @@ export default function CustomersPage() {
                 className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${listView === "ranking" ? "bg-white text-brand-700 shadow-sm" : "text-gray-500 hover:text-gray-800"}`}>
                 Ranking
               </button>
+              {retail && (
+                <button onClick={() => setListView("crediario")}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${listView === "crediario" ? "bg-white text-brand-700 shadow-sm" : "text-gray-500 hover:text-gray-800"}`}>
+                  Crediário
+                </button>
+              )}
             </div>
             <button onClick={openCreate} className={btnPrimary} style={WHITE_TEXT}>
               <Plus className="w-4 h-4" /> Novo Cliente
@@ -1100,6 +1146,11 @@ export default function CustomersPage() {
               style={{ background: card.bg, border: card.border, color: isLight ? "#111" : "#fff" }}
               className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm placeholder-zinc-600 focus:outline-none focus:border-brand-500 transition-all" />
           </div>
+
+          {listView === "crediario" && (
+            <CrediarioOverview customers={customers} card={card}
+              onOpen={id => { const c = customers.find(x => x.id === id); if (c) openDetail(c); }} />
+          )}
 
           {listView === "ranking" && (
             <div className="rounded-2xl overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
@@ -1295,20 +1346,7 @@ export default function CustomersPage() {
                   <p className="text-xs text-emerald-400/60">Pré-pago / crédito</p>
                 </div>
               </button>
-              <button onClick={async () => {
-                // Reconsulta agora — cashRegisterId é carregado só uma vez ao abrir
-                // a página e fica desatualizado se o caixa foi aberto depois disso.
-                const { data: reg } = await supabase.from("cash_registers")
-                  .select("id").eq("user_id", userId).eq("status", "open")
-                  .order("opened_at", { ascending: false }).limit(1).maybeSingle();
-                const regId = reg?.id ?? null;
-                setCashRegisterId(regId);
-                if (!regId) {
-                  alert("Caixa deve estar aberto para quitar fiado.");
-                  return;
-                }
-                setPayEntries([]); const d = selected.fiado_balance ?? 0; setPayInput(d > 0 ? d.toFixed(2) : ""); setModal("payDebt");
-              }}
+              <button onClick={() => startPayDebt()}
                 className="flex flex-col items-center justify-center gap-2 p-4 bg-brand-500/10 border border-brand-500/20 hover:bg-brand-500/20 rounded-2xl transition-colors text-brand-600">
                 <DollarSign className="w-6 h-6" />
                 <div className="text-center">
@@ -1330,6 +1368,9 @@ export default function CustomersPage() {
 
           {/* Empresa: preço combinado e fatura do mês */}
           <CustomerBilling customer={selected} card={card} isLight={isLight} />
+
+          {/* Crediário: parcelas (só aparece se o cliente tiver) */}
+          <CrediarioCard customer={selected} card={card} isLight={isLight} reloadKey={movements} onReceive={receiveInstallment} />
 
           {/* Movement history */}
           <div className="rounded-2xl overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>

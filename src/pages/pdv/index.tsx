@@ -8,12 +8,15 @@ import { matchesSearch } from "../../lib/search";
 import { recalcFiadoBalance } from "../../lib/fiado";
 import { getStoreSettings, getSellers, refreshStoreCache } from "../settings";
 import { useTheme } from "../../contexts/ThemeContext";
+import { useBusinessType } from "../../lib/business";
+import { buildPlan } from "../../lib/crediario";
+import { ReturnModal, ReturnFinder } from "../../components/ReturnModal";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import {
   Search, ShoppingCart, ChevronLeft, Plus, Minus, Trash2, X, User, UserPlus,
   Clock, CheckCircle2, AlertCircle, Printer, CreditCard, Banknote,
   Smartphone, Ticket, Star, StarOff, ChevronRight, Edit2, History,
-  Package, RefreshCw, Receipt, MapPin, FileText, UserCog,
+  Package, RefreshCw, Receipt, MapPin, FileText, UserCog, Undo2,
 } from "lucide-react";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -31,6 +34,7 @@ interface Product {
   item_type: string | null;
   is_active: boolean;
   variant_of?: string | null;   // grade (varejo): este é um tamanho/cor do produto principal
+  has_variants?: boolean | null; // grade (varejo): produto principal (abre a escolha de tamanho/cor)
   variant_size?: string | null;
   variant_color?: string | null;
 }
@@ -177,6 +181,16 @@ export default function PdvPage() {
     shadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
   };
   const [tab, setTab] = useState<"venda" | "historico">("venda");
+  const retail = useBusinessType() === "retail";
+  // Crediário (varejo): parte no fiado dividida em parcelas (0 = sem parcelar)
+  const [crediarioN, setCrediarioN] = useState(0);
+  const [crediarioFirst, setCrediarioFirst] = useState(() => {
+    const d = new Date(); d.setMonth(d.getMonth() + 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  });
+  // Troca / devolução (varejo)
+  const [returnTarget, setReturnTarget] = useState<{ sale: Sale; items: SaleItem[] } | null>(null);
+  const [showReturnFinder, setShowReturnFinder] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [categoryNames, setCategoryNames] = useState<Record<string, string>>({});
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -517,7 +531,7 @@ export default function PdvPage() {
   const variantKids = (id: string) => products.filter(p => p.variant_of === id && p.is_active);
 
   function addToCart(product: Product) {
-    if (variantKids(product.id).length > 0) { setVariantPicker(product); return; }
+    if (product.has_variants || variantKids(product.id).length > 0) { setVariantPicker(product); return; }
     if (!isUnlimited(product) && product.stock === 0) return;
     // Sempre cria nova linha — permite lançar o mesmo produto múltiplas vezes
     const cartId = `${product.id}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
@@ -537,7 +551,7 @@ export default function PdvPage() {
 
   // Toque no produto (celular): a foto voa até o carrinho e o botão pula
   function addFromTap(e: React.MouseEvent, product: Product) {
-    if (variantKids(product.id).length > 0) { setVariantPicker(product); return; }
+    if (product.has_variants || variantKids(product.id).length > 0) { setVariantPicker(product); return; }
     if (!isUnlimited(product) && product.stock === 0) return;
     addToCart(product);
     if (window.innerWidth >= 768) return;
@@ -819,6 +833,10 @@ export default function PdvPage() {
       ...(houseAmt > 0 ? [{ customer_id: selectedCustomer!.id, type: "saldo", amount: houseAmt, description: `Saldo usado - Venda #${orderNum}` }] : []),
     ];
 
+    const installments = retail && fiadoAmt > 0 && crediarioN > 0 && selectedCustomer
+      ? buildPlan(fiadoAmt, crediarioN, crediarioFirst).map(x => ({ ...x, customer_id: selectedCustomer.id }))
+      : [];
+
     const finalizePayload = {
       mode: "insert", sale_id: saleId,
       send_kitchen: true, // itens vão para a estação do setor da categoria (se tiver)
@@ -841,6 +859,7 @@ export default function PdvPage() {
       cash: cashEntries,
       customer_movements: customerMovs,
       house_amount: houseAmt, house_customer_id: houseAmt > 0 ? selectedCustomer!.id : null,
+      ...(installments.length ? { installments } : {}),
     };
     const { data: result, error } = await supabase.rpc("finalize_sale", { p: finalizePayload });
 
@@ -878,6 +897,7 @@ export default function PdvPage() {
 
     setShowCheckout(false);
     clearCart();
+    setCrediarioN(0);
     setCheckoutLoading(false);
     if (tab === "historico") loadHistory();
 
@@ -1709,6 +1729,13 @@ export default function PdvPage() {
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm placeholder-zinc-500 focus:outline-none focus:border-brand-500"
                 style={{ background: card.bg, border: card.border, color: isLight ? "#111" : "#fff" }} />
             </div>
+            {retail && (
+              <button onClick={() => setShowReturnFinder(true)} title="Troca de venda de outro dia"
+                className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold flex-shrink-0"
+                style={{ background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.35)", color: "#d97706" }}>
+                <Undo2 className="w-4 h-4" /> Troca
+              </button>
+            )}
             <button onClick={loadHistory} className="p-2.5 rounded-xl text-zinc-400 hover:text-white transition-colors" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
               <RefreshCw className={`w-4 h-4 ${loadingHistory ? "animate-spin" : ""}`} />
             </button>
@@ -1790,6 +1817,14 @@ export default function PdvPage() {
                               title="Reimprimir">
                               <Printer className="w-4 h-4" />
                             </button>
+                            {retail && (
+                              <button onClick={() => setReturnTarget({ sale, items: saleItems })}
+                                className="p-1.5 hover:bg-opacity-20 border rounded-lg transition-colors"
+                                style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.35)", color: "#d97706" }}
+                                title="Troca / devolução">
+                                <Undo2 className="w-4 h-4" />
+                              </button>
+                            )}
                             <button onClick={() => deleteSale(sale.id)}
                               className="p-1.5 hover:bg-opacity-20 border rounded-lg transition-colors"
                               style={isLight ? { background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.3)", color:"#ef4444" } : { background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.3)", color:"#fca5a5" }}
@@ -1930,6 +1965,31 @@ export default function PdvPage() {
         </Modal>
       )}
 
+      {showReturnFinder && (
+        <ReturnFinder customers={customers} isLight={isLight} onClose={() => setShowReturnFinder(false)}
+          onPick={(sale, items) => { setShowReturnFinder(false); setReturnTarget({ sale, items }); }} />
+      )}
+
+      {/* Troca / devolução (varejo) */}
+      {returnTarget && (
+        <ReturnModal
+          sale={returnTarget.sale as any} items={returnTarget.items as any} customers={customers}
+          cashRegisterId={cashRegisterId} isLight={isLight}
+          onClose={() => setReturnTarget(null)}
+          onDone={() => { loadHistory(); }}
+          onUseNow={async cid => {
+            // Vale-troca: começa a nova venda já com o cliente (o crédito aparece como "Saldo")
+            const { data } = await supabase.from("customers").select("*").eq("id", cid).maybeSingle();
+            if (data) {
+              setCustomers(prev => prev.some(c => c.id === cid) ? prev.map(c => c.id === cid ? data as Customer : c) : [...prev, data as Customer]);
+              setSelectedCustomer(data as Customer);
+            }
+            setReturnTarget(null);
+            setTab("venda");
+          }}
+        />
+      )}
+
       {/* Grade: escolher tamanho/cor */}
       {variantPicker && (() => {
         const kids = variantKids(variantPicker.id);
@@ -1967,6 +2027,7 @@ export default function PdvPage() {
                   </div>
                 </div>
               ))}
+              {kids.length === 0 && <p className="text-sm text-zinc-500 text-center py-4">Todos os tamanhos estão esgotados.</p>}
             </div>
           </div>
         );
@@ -2545,6 +2606,29 @@ export default function PdvPage() {
                       </div>
                       <button onClick={() => removePayment(p.method)} className="text-zinc-600 hover:text-red-400 transition-colors flex-shrink-0"><X className="w-4 h-4" /></button>
                     </div>
+                    {/* Crediário (varejo): dividir a parte do fiado em parcelas */}
+                    {p.method === "fiado" && retail && p.amount > 0 && (
+                      <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-semibold flex-1">Crediário</span>
+                          <select value={crediarioN} onChange={e => setCrediarioN(Number(e.target.value))}
+                            className="px-2 py-1.5 bg-zinc-950 border border-zinc-800 rounded-lg text-xs">
+                            <option value={0}>Sem parcelas (fiado comum)</option>
+                            {Array.from({ length: 12 }, (_, i) => i + 1).map(n => (
+                              <option key={n} value={n}>{n}x de {fmt(buildPlan(p.amount, n, crediarioFirst)[0].amount)}</option>
+                            ))}
+                          </select>
+                        </div>
+                        {crediarioN > 0 && (
+                          <div className="flex items-center gap-2 text-xs">
+                            <span className="text-zinc-500">1º vencimento</span>
+                            <input type="date" value={crediarioFirst} onChange={e => e.target.value && setCrediarioFirst(e.target.value)}
+                              className="px-2 py-1 bg-zinc-950 border border-zinc-800 rounded-lg text-xs" />
+                            <span className="text-zinc-500">· depois todo mês</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     {/* Botões rápidos só para dinheiro */}
                     {p.method === "cash" && (
                       <div className="flex gap-1.5 pl-34">

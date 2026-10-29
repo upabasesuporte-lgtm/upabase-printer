@@ -364,17 +364,19 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
   const [removedRows, setRemovedRows] = useState<VariantRow[]>([]);
   const [sizeInput, setSizeInput] = useState("");
   const [colorInput, setColorInput] = useState("");
+  const [gridLoaded, setGridLoaded] = useState(!product);
 
   useEffect(() => {
     if (!product) return;
     supabase.from("products").select("brand, collection, ncm, cest, cfop, origem, csosn").eq("id", product.id).maybeSingle()
       .then(({ data, error: e }) => { if (!e && data) { setExtra(extraFrom(data)); setExtraLoaded(true); } });
     supabase.from("products").select("id, variant_size, variant_color, barcode, sale_price, stock")
-      .eq("variant_of", product.id).neq("is_active", false).order("created_at")
+      .eq("variant_of", product.id).or("status.is.null,status.neq.inactive").order("created_at") // esgotados (inativos sozinhos) continuam na grade
       .then(({ data }) => {
         const list = ((data ?? []) as any[]).map(r => ({ id: r.id, size: r.variant_size ?? "", color: r.variant_color ?? "", barcode: r.barcode ?? "", price: Number(r.sale_price ?? 0), stock: Number(r.stock ?? 0) }));
         setRows(list); setRemovedRows([]);
         setSizes(uniq(list.map(r => r.size))); setColors(uniq(list.map(r => r.color)));
+        setGridLoaded(true);
       });
   }, [product]);
 
@@ -512,6 +514,8 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
         } : {}),
         // Com grade, o estoque fica em cada tamanho/cor; o principal não bloqueia venda
         ...(hasGrid ? { stock_type: "unlimited", stock: 0 } : {}),
+        // Marca de produto principal da grade (só no varejo e depois de ler a grade)
+        ...(retail && gridLoaded ? { has_variants: rows.length > 0 } : {}),
       };
 
       let savedId = product?.id;
@@ -1123,7 +1127,7 @@ export default function ProductsPage() {
     setLoading(false);
     const ids = list.map(p => p.id);
     if (ids.length) {
-      const { data: kids } = await supabase.from("products").select("variant_of, stock").in("variant_of", ids).neq("is_active", false);
+      const { data: kids } = await supabase.from("products").select("variant_of, stock").in("variant_of", ids).or("status.is.null,status.neq.inactive");
       const info: Record<string, { count: number; stock: number }> = {};
       for (const k of (kids ?? []) as any[]) {
         const it = (info[k.variant_of] ??= { count: 0, stock: 0 });

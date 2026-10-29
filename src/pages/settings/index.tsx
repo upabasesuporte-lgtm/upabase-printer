@@ -302,6 +302,7 @@ export default function SettingsPage() {
 
       {/* Tipo de negócio: muda as abas e o cadastro de produtos */}
       {userId && <BusinessTypeCard userId={userId} isLight={isLight} />}
+      {userId && <CrediarioRulesCard userId={userId} />}
 
       {/* Localização da loja (Mapa de entregas) */}
       <SectionCard icon={<Store className="w-4 h-4" />} title="Localização da Loja (Mapa de Entregas)" color="#315DFB">
@@ -928,6 +929,53 @@ function FiscalCard({ userId }: { userId: string }) {
           </div>
         </>
       )}
+    </SectionCard>
+  );
+}
+
+// ── Crediário (varejo): multa e juros das parcelas atrasadas ─────────────────
+function CrediarioRulesCard({ userId }: { userId: string }) {
+  const retail = useBusinessType() === "retail";
+  const [multa, setMulta] = useState("2");
+  const [juros, setJuros] = useState("1");
+  const [state, setState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  useEffect(() => {
+    if (!retail) return;
+    supabase.from("store_settings").select("crediario_multa_pct, crediario_juros_mes_pct").eq("user_id", userId).maybeSingle()
+      .then(({ data }) => {
+        if (data?.crediario_multa_pct != null) setMulta(String(data.crediario_multa_pct).replace(".", ","));
+        if (data?.crediario_juros_mes_pct != null) setJuros(String(data.crediario_juros_mes_pct).replace(".", ","));
+      });
+  }, [userId, retail]);
+  if (!retail) return null;
+  const num = (v: string) => Math.max(0, Math.min(20, parseFloat(v.replace(",", ".")) || 0));
+  async function save() {
+    setState("saving");
+    const { error } = await supabase.from("store_settings").upsert({
+      user_id: userId, crediario_multa_pct: num(multa), crediario_juros_mes_pct: num(juros), updated_at: new Date().toISOString(),
+    }, { onConflict: "user_id" });
+    setState(error ? "error" : "saved");
+    if (!error) setTimeout(() => setState("idle"), 2500);
+  }
+  return (
+    <SectionCard icon={<CreditCard className="w-4 h-4" />} title="Crediário" color="#315DFB">
+      <p className="text-xs text-zinc-500">Cobrados nas parcelas atrasadas (você escolhe na hora de receber se cobra ou não). Pelo Código de Defesa do Consumidor a multa máxima é 2%.</p>
+      <div className="grid grid-cols-2 gap-4">
+        <Field label="Multa por atraso (%)">
+          <input inputMode="decimal" value={multa} onChange={e => setMulta(e.target.value)} className={inputCls} />
+        </Field>
+        <Field label="Juros ao mês (%)">
+          <input inputMode="decimal" value={juros} onChange={e => setJuros(e.target.value)} className={inputCls} />
+        </Field>
+      </div>
+      <div className="flex items-center gap-3">
+        <button onClick={save} disabled={state === "saving"}
+          className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-sm font-semibold rounded-xl" style={{ color: "#fff" }}>
+          {state === "saving" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Salvar
+        </button>
+        {state === "saved" && <span className="text-sm font-semibold" style={{ color: "#10b981" }}>Salvo!</span>}
+        {state === "error" && <span className="text-sm text-red-500">Erro ao salvar</span>}
+      </div>
     </SectionCard>
   );
 }
