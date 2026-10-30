@@ -4,6 +4,7 @@ import { fetchAll } from "../../lib/fetchAll";
 import { useTheme } from "../../contexts/ThemeContext";
 import { PageHeader, btnSecondary } from "../../components/PageHeader";
 import { StatCard, toneFor } from "../../components/StatCard";
+import { SellerCommissions } from "../../components/SellerCommissions";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
   BarChart, Bar, CartesianGrid, PieChart, Pie, Cell, ComposedChart, Line,
@@ -1168,6 +1169,8 @@ export default function ReportsPage() {
                 from="#f59e0b" to="#d946ef" glow="rgba(245,158,11,0.1)"
                 icon={<Zap className="w-4 h-4" style={{color:"#f59e0b"}} />} />
             </div>
+
+            <SellerCommissions isLight={isLight} card={card} />
 
             <Card className="p-6">
               <CardTitle sub="Ranking completo por faturamento">Performance por Vendedor</CardTitle>
