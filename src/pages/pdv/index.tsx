@@ -12,6 +12,7 @@ import { useBusinessType } from "../../lib/business";
 import { buildPlan } from "../../lib/crediario";
 import { ReturnModal, ReturnFinder } from "../../components/ReturnModal";
 import { PDV_INJECT_KEY } from "../consignments";
+import { applyPromotions, type Promotion } from "../../lib/promotions";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import {
   Search, ShoppingCart, ChevronLeft, Plus, Minus, Trash2, X, User, UserPlus,
@@ -36,6 +37,8 @@ interface Product {
   is_active: boolean;
   variant_of?: string | null;   // grade (varejo): este é um tamanho/cor do produto principal
   has_variants?: boolean | null; // grade (varejo): produto principal (abre a escolha de tamanho/cor)
+  list_price?: number;           // promoção: preço normal (sale_price já é o da promoção)
+  promo_label?: string;
   variant_size?: string | null;
   variant_color?: string | null;
 }
@@ -417,7 +420,7 @@ export default function PdvPage() {
     if (user) { setUserId(user.id); refreshStoreCache(user.id); }
 
     // Todas as buscas em paralelo (antes eram feitas uma de cada vez)
-    const [prodsRes, catsRes, custsRes, regRes, settingsRes] = await Promise.all([
+    const [prodsRes, catsRes, custsRes, regRes, settingsRes, promosRes] = await Promise.all([
       supabase.from("products").select("*").neq("is_active", false).order("name"),
       supabase.from("categories").select("id,name"),
       supabase.from("customers").select("id,name,phone,address,balance,fiado_balance,credit_limit").order("name"),
@@ -435,14 +438,17 @@ export default function PdvPage() {
             .eq("user_id", user.id)
             .maybeSingle()
         : Promise.resolve(null),
+      // Promoções ativas (preço aplicado nos produtos)
+      supabase.from("promotions").select("*").eq("active", true),
     ]);
+    const promos = (promosRes.error ? [] : (promosRes.data ?? [])) as Promotion[];
 
     // Sem internet: abre com produtos, clientes e caixa da última vez (modo offline)
     const cacheKey = "pdv_" + (user?.id ?? "anon");
     if (prodsRes.error && isNetworkError(prodsRes.error)) {
-      const c = readCache<{ products: any[]; categories: any[]; customers: any[]; registerId: string | null }>(cacheKey);
+      const c = readCache<{ products: any[]; categories: any[]; customers: any[]; registerId: string | null; promotions?: Promotion[] }>(cacheKey);
       if (c) {
-        setProducts(c.products ?? []);
+        setProducts(applyPromotions(c.products ?? [], c.promotions ?? []));
         setCategoryNames(Object.fromEntries((c.categories ?? []).map((x: any) => [x.id, x.name])));
         setCustomers(c.customers ?? []);
         if (user) setCashRegisterId(c.registerId ?? null);
@@ -451,10 +457,10 @@ export default function PdvPage() {
       }
     }
     if (!prodsRes.error && !catsRes.error && !custsRes.error && !(regRes as any)?.error) {
-      saveCache(cacheKey, { products: prodsRes.data ?? [], categories: catsRes.data ?? [], customers: custsRes.data ?? [], registerId: regRes?.data?.id ?? null });
+      saveCache(cacheKey, { products: prodsRes.data ?? [], categories: catsRes.data ?? [], customers: custsRes.data ?? [], registerId: regRes?.data?.id ?? null, promotions: promos });
     }
 
-    setProducts(prodsRes.data ?? []);
+    setProducts(applyPromotions(prodsRes.data ?? [], promos));
     setCategoryNames(Object.fromEntries((catsRes.data ?? []).map((c: any) => [c.id, c.name])));
     setCustomers(custsRes.data ?? []);
     if (user) {
@@ -1453,6 +1459,7 @@ export default function PdvPage() {
                                   ? <img src={p.image_url} alt={p.name} className="w-10 h-10 min-w-[40px] rounded-md object-cover" style={{aspectRatio:"1/1"}} />
                                   : <div className="w-10 h-10 rounded-md bg-zinc-800 flex items-center justify-center"><Package className="w-5 h-5 text-zinc-600" /></div>}
                                 <span className="text-xs text-center text-zinc-300 leading-tight line-clamp-2">{p.name}</span>
+                                {p.list_price != null && <span className="text-[10px] text-zinc-500 line-through leading-none">{fmt(p.list_price)}</span>}
                                 <span className="text-xs font-semibold text-brand-600">{fmt(p.sale_price)}</span>
                               </button>
                             ))}
@@ -1494,7 +1501,10 @@ export default function PdvPage() {
                           <div className="p-2.5">
                             <p className="text-sm font-medium text-white leading-tight line-clamp-2 mb-1.5">{p.name}</p>
                             <div className="flex items-center justify-between">
-                              <span className="text-sm font-bold text-brand-600">{fmt(p.sale_price)}</span>
+                              <span className="text-sm font-bold text-brand-600">
+                                {p.list_price != null && <span className="text-[11px] font-normal text-zinc-500 line-through mr-1">{fmt(p.list_price)}</span>}
+                                {fmt(p.sale_price)}
+                              </span>
                               <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
                                 <button onClick={() => toggleShortcut(p.id)} title={allShortcutIds.includes(p.id) ? "Remover atalho" : "Adicionar atalho"}
                                   className="p-1 text-zinc-600 hover:text-amber-400 transition-colors">

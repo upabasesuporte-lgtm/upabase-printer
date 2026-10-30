@@ -7,12 +7,13 @@ import { PageHeader, btnPrimary, btnSecondary, WHITE_TEXT } from "../../componen
 import { useBusinessType } from "../../lib/business";
 import { newInternalEan } from "../../lib/barcode";
 import { LabelsModal } from "../../components/LabelsModal";
+import { PromotionsModal } from "../../components/PromotionsModal";
 import {
   Plus, Search, X, Edit2, Copy, Trash2, ChevronDown, ChevronUp,
   Package, Tag, Boxes, Monitor, UtensilsCrossed,
   ShoppingBag, Printer, RefreshCw, AlertTriangle, CheckCircle2,
   AlertCircle, ToggleLeft, ToggleRight, FolderOpen,
-  BarChart2, Infinity, Upload, Camera, Grid3x3, Barcode,
+  BarChart2, Infinity, Upload, Camera, Grid3x3, Barcode, BadgePercent,
 } from "lucide-react";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -1091,6 +1092,7 @@ export default function ProductsPage() {
   const retailMode = useBusinessType() === "retail";
   const [gridInfo, setGridInfo] = useState<Record<string, { count: number; stock: number }>>({});
   const [showLabels, setShowLabels] = useState(false);
+  const [showPromos, setShowPromos] = useState(false);
 
   const loadProducts = useCallback(async () => {
     setLoading(true);
@@ -1239,6 +1241,9 @@ export default function ProductsPage() {
             <Barcode className="w-4 h-4" /> Etiquetas
           </button>
         )}
+        <button onClick={() => setShowPromos(true)} className={btnSecondary}>
+          <BadgePercent className="w-4 h-4" /> Promoções
+        </button>
         <button onClick={() => setShowCatModal(true)} className={btnSecondary}>
           <FolderOpen className="w-4 h-4" /> Categorias
         </button>
@@ -1451,6 +1456,7 @@ export default function ProductsPage() {
         />
       )}
       {showLabels && <LabelsModal onClose={() => setShowLabels(false)} />}
+      {showPromos && <PromotionsModal categories={categories.filter(c => !c.parent_id)} isLight={isLight} onClose={() => setShowPromos(false)} />}
       {showCatModal && (
         <CategoryModal
           categories={categories}
