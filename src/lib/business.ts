@@ -9,7 +9,7 @@ const KEY = "business_type";
 const EVENT = "business-type-change";
 
 // Abas que só fazem sentido em restaurante (somem no varejo)
-export const FOOD_ONLY_ROUTES = ["/tables", "/kitchen", "/costs"];
+export const FOOD_ONLY_ROUTES = ["/tables", "/kitchen", "/costs", "/digital-menu"];
 // Abas que só aparecem no varejo
 export const RETAIL_ONLY_ROUTES = ["/consignments"];
 

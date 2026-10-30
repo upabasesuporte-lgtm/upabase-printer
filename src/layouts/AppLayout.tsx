@@ -59,7 +59,7 @@ const menuItems = [
   { label: "Vendas",          icon: ShoppingCart,    path: "/pdv",             color: "#3b82f6" },
   { label: "Clientes",        icon: Users,           path: "/customers",       color: "#3b82f6" },
   { label: "Condicional",     icon: ShoppingBag,     path: "/consignments",    color: "#3b82f6" },
-  { label: "Catálogo Digital",icon: Store,           path: "/digital-menu",    color: "#3b82f6" },
+  { label: "Cardápio Digital",icon: Store,           path: "/digital-menu",    color: "#3b82f6" },
   { label: "Mesas",           icon: UtensilsCrossed, path: "/tables",          color: "#3b82f6" },
   { label: "Cozinha",         icon: ChefHat,         path: "/kitchen",         color: "#3b82f6" },
   { label: "Produtos",        icon: Package,         path: "/products",        color: "#3b82f6" },

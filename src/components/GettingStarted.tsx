@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { CheckCircle2, Circle, ChevronRight, X, Rocket, PartyPopper } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { supportWhatsAppUrl } from "../lib/support";
+import { getBusinessType, routeFitsBusiness } from "../lib/business";
 
 // Guia "Comece por aqui" no Dashboard: cada passo se marca sozinho quando a
 // loja faz aquilo de verdade. Só lê contagens; o que fica gravado (ocultar,
@@ -57,6 +58,8 @@ const read = (k: string) => { try { return localStorage.getItem(k); } catch { re
 const write = (k: string, v: string | null) => { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch { /* sem storage */ } };
 
 export function GettingStarted() {
+  // Só os passos das telas que este tipo de negócio vê (loja não tem Cozinha, Cardápio, Custo)
+  const [steps] = useState(() => STEPS.filter(st => routeFitsBusiness(st.to, getBusinessType())));
   const [uid, setUid] = useState<string | null>(null);
   const [done, setDone] = useState<Record<string, boolean> | null>(null);
   const [skipped, setSkipped] = useState<string[]>([]);
@@ -71,11 +74,11 @@ export function GettingStarted() {
       setUid(id);
       if (read(`onboarding_hidden_${id}`) === "1") return;
       setSkipped(JSON.parse(read(`onboarding_skipped_${id}`) ?? "[]"));
-      const results = await Promise.all(STEPS.map(s => s.check(id).catch(() => false)));
+      const results = await Promise.all(steps.map(s => s.check(id).catch(() => false)));
       if (!alive) return;
-      const map = Object.fromEntries(STEPS.map((s, i) => [s.key, results[i]]));
+      const map = Object.fromEntries(steps.map((s, i) => [s.key, results[i]]));
       // Loja que já usa tudo (cliente antigo): o guia nem aparece
-      if (STEPS.every(s => map[s.key])) { write(`onboarding_hidden_${id}`, "1"); return; }
+      if (steps.every(s => map[s.key])) { write(`onboarding_hidden_${id}`, "1"); return; }
       setDone(map);
       setHidden(false);
     })();
@@ -85,9 +88,9 @@ export function GettingStarted() {
   if (hidden || !done || !uid) return null;
 
   const isDone = (s: Step) => done[s.key] || skipped.includes(s.key);
-  const total = STEPS.length, count = STEPS.filter(isDone).length;
+  const total = steps.length, count = steps.filter(isDone).length;
   const allDone = count === total;
-  const next = STEPS.find(s => !isDone(s));
+  const next = steps.find(s => !isDone(s));
   const hide = () => { write(`onboarding_hidden_${uid}`, "1"); setHidden(true); };
   const skip = (key: string) => {
     const list = [...skipped, key];
@@ -113,7 +116,7 @@ export function GettingStarted() {
       </div>
       {!allDone && (
         <div className="divide-y divide-gray-100 border-t border-gray-100">
-          {STEPS.map(s => {
+          {steps.map(s => {
             const ok = isDone(s), isNext = next?.key === s.key;
             return (
               <div key={s.key} className={`flex items-center gap-3 px-4 py-2.5 ${isNext ? "bg-brand-50/50" : ""}`}>
