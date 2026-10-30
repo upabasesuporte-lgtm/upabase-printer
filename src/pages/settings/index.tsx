@@ -4,6 +4,7 @@ import { supabase } from "../../lib/supabase";
 import { loadOperators, setCurrentOperator, saveLockMinutes, setDeviceNoLock, useOperators, TAB_OPTIONS, PRESETS, describeOperator, operatorRoutes, operatorCanApprove, type Operator } from "../../lib/operators";
 import { PageHeader } from "../../components/PageHeader";
 import { StoreLocationCard } from "../../components/StoreLocationCard";
+import { DELIVERY_MAP_ENABLED } from "../../lib/geo";
 import { DataExport } from "../../components/DataExport";
 import { PrintAgentCard } from "../../components/PrintAgentCard";
 import { useTheme } from "../../contexts/ThemeContext";
@@ -304,13 +305,13 @@ export default function SettingsPage() {
       {userId && <BusinessTypeCard userId={userId} isLight={isLight} />}
       {userId && <CrediarioRulesCard userId={userId} />}
 
-      {/* Localização da loja (Mapa de entregas) */}
-      <SectionCard icon={<Store className="w-4 h-4" />} title="Localização da Loja (Mapa de Entregas)" color="#315DFB">
+      {/* Localização da loja (Mapa de entregas) — escondida enquanto o mapa estiver desligado */}
+      {DELIVERY_MAP_ENABLED && <SectionCard icon={<Store className="w-4 h-4" />} title="Localização da Loja (Mapa de Entregas)" color="#315DFB">
         <StoreLocationCard isLight={isLight} inputCls={inputCls}
           value={{ cep: form.cep, city: form.city, state: form.state, lat: form.lat, lng: form.lng }}
           onChange={v => setForm(prev => ({ ...prev, ...v }))}
           onAddressSuggestion={addr => setForm(prev => (prev.address.trim() ? prev : { ...prev, address: addr }))} />
-      </SectionCard>
+      </SectionCard>}
 
       {/* Vendedores / Garçons */}
       <SectionCard icon={<Users className="w-4 h-4" />} title="Vendedores / Garçons" color="#315DFB">

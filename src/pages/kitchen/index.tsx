@@ -14,6 +14,7 @@ import {
 } from "../../lib/kitchen";
 import { getPrintTarget, setPrintTarget, type PrintTarget } from "../../lib/printing";
 import type { MapOrder } from "./DeliveryMap";
+import { DELIVERY_MAP_ENABLED } from "../../lib/geo";
 // Mapa de entregas: carregado só quando aberto
 const DeliveryMap = lazy(() => import("./DeliveryMap"));
 import {
@@ -334,15 +335,15 @@ function OrdersBoard({ isLight, card }: { isLight: boolean; card: React.CSSPrope
         </div>
       )}
 
-      <div className="flex gap-2">
+      {DELIVERY_MAP_ENABLED && <div className="flex gap-2">
         {(["list", "map"] as const).map(v => (
           <button key={v} onClick={() => changeView(v)} className="px-4 py-2 rounded-xl text-sm font-bold" style={chip(view === v)}>
             {v === "list" ? "Lista" : `Mapa de entregas${mapOrders.length ? ` (${mapOrders.length})` : ""}`}
           </button>
         ))}
-      </div>
+      </div>}
 
-      {view === "map" ? (
+      {view === "map" && DELIVERY_MAP_ENABLED ? (
         <Suspense fallback={<div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-brand-600" /></div>}>
           <DeliveryMap orders={mapOrders} couriers={couriers} isLight={isLight} card={card}
             onDispatch={(saleId, ids, courierId) => dispatch(saleId, ids, "delivery", courierId)} />

@@ -5,6 +5,11 @@
 
 export type LatLng = { lat: number; lng: number };
 
+// Mapa de entregas desligado por enquanto: a busca gratuita (Nominatim) erra muito
+// endereço brasileiro. Volta a ligar (true) quando trocar pela busca do Google.
+// Desligado some só o mapa — pedidos, motoboys e a localização salva continuam.
+export const DELIVERY_MAP_ENABLED = false;
+
 // ── Mapa (carregado da CDN só quando aparece na tela) ────────────────────────
 let leafletPromise: Promise<any> | null = null;
 export function loadLeaflet(): Promise<any> {
