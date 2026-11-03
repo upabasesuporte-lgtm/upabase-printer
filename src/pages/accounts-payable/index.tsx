@@ -212,6 +212,7 @@ export default function AccountsPayablePage() {
   const [bills,   setBills]   = useState<Bill[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab,     setTab]     = useState<"bills" | "reports">("bills");
+  const [reportPeriod, setReportPeriod] = useState<"month" | "lastmonth" | "3months" | "year">("month");
 
   // Quick input
   const [quickText,     setQuickText]     = useState("");
@@ -340,25 +341,40 @@ export default function AccountsPayablePage() {
   }, [bills, periodF]);
 
   // ── Report data
+  // Período dos relatórios (pelo vencimento); conta cancelada não entra
+  const inReportPeriod = useCallback((due: string) => {
+    const now = new Date(), d = new Date(due + "T12:00:00");
+    const months = (now.getFullYear() - d.getFullYear()) * 12 + now.getMonth() - d.getMonth();
+    if (reportPeriod === "month") return months === 0;
+    if (reportPeriod === "lastmonth") return months === 1;
+    if (reportPeriod === "3months") return months >= 0 && months <= 2;
+    return d.getFullYear() === now.getFullYear() && months >= 0;
+  }, [reportPeriod]);
+  const reportLabel = { month: "Este Mês", lastmonth: "Mês Passado", "3months": "Últimos 3 Meses", year: "Este Ano" }[reportPeriod];
+
   const reportByCat = useMemo(() => {
-    const now = new Date();
-    const map: Record<string, number> = {};
-    bills.filter(b => {
-      const d = new Date(b.due_date + "T12:00:00");
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    }).forEach(b => { map[b.category] = (map[b.category] || 0) + finalAmt(b); });
-    return CATS.filter(c => map[c.key]).map(c => ({ name: c.label, value: map[c.key], color: c.color }));
-  }, [bills]);
+    const map: Record<string, { value: number; count: number }> = {};
+    bills.filter(b => b.status !== "cancelled" && inReportPeriod(b.due_date)).forEach(b => {
+      const m = map[b.category] ?? (map[b.category] = { value: 0, count: 0 });
+      m.value += finalAmt(b); m.count += 1;
+    });
+    const custom = ["#a78bfa", "#14b8a6", "#e11d48", "#0ea5e9", "#ca8a04", "#7c3aed", "#059669", "#db2777"];
+    let ci = 0;
+    return Object.entries(map).filter(([, v]) => v.value > 0)
+      .map(([k, v]) => {
+        const std = CATS.find(c => c.key === k);
+        return { key: k, name: catOf(k).label, value: v.value, count: v.count, color: std ? std.color : custom[ci++ % custom.length] };
+      })
+      .sort((a, b) => b.value - a.value);
+  }, [bills, inReportPeriod]);
+  const reportCatTotal = reportByCat.reduce((s, c) => s + c.value, 0);
 
   const reportBySupplier = useMemo(() => {
-    const now = new Date();
     const map: Record<string, number> = {};
-    bills.filter(b => {
-      const d = new Date(b.due_date + "T12:00:00");
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() && b.supplier;
-    }).forEach(b => { if (b.supplier) map[b.supplier] = (map[b.supplier] || 0) + finalAmt(b); });
+    bills.filter(b => b.status !== "cancelled" && inReportPeriod(b.due_date) && b.supplier)
+      .forEach(b => { if (b.supplier) map[b.supplier] = (map[b.supplier] || 0) + finalAmt(b); });
     return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([name, value]) => ({ name, value }));
-  }, [bills]);
+  }, [bills, inReportPeriod]);
 
   // ── Voice input
   function toggleVoice() {
@@ -650,6 +666,7 @@ export default function AccountsPayablePage() {
               className="px-3 py-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-sm text-white focus:outline-none focus:border-brand-500 cursor-pointer">
               <option value="all">Todas as categorias</option>
               {CATS.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+              {customCats.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
             </select>
             {selected.size > 0 && (
               <button onClick={bulkPay}
@@ -851,11 +868,24 @@ export default function AccountsPayablePage() {
 
       {/* ════ RELATÓRIOS TAB ════ */}
       <div className="space-y-5" style={{ display: tab === "reports" ? "block" : "none" }}>
+          <div className="flex flex-wrap gap-2">
+            {([
+              { v: "month", l: "Este mês" }, { v: "lastmonth", l: "Mês passado" }, { v: "3months", l: "Últimos 3 meses" }, { v: "year", l: "Este ano" },
+            ] as const).map(o => (
+              <button key={o.v} onClick={() => setReportPeriod(o.v)}
+                className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all"
+                style={reportPeriod === o.v
+                  ? { background: "#2547D6", color: "#fff" }
+                  : isLight ? { background: "#f3f4f6", color: "#6b7280" } : { background: "#27272a", color: "#a1a1aa" }}>
+                {o.l}
+              </button>
+            ))}
+          </div>
           <div className="rounded-2xl p-5" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
-            <p className="text-sm font-bold mb-4">Gastos por Categoria — Este Mês</p>
+            <p className="text-sm font-bold mb-4">Gastos por Categoria — {reportLabel}</p>
             {reportByCat.length === 0 ? (
-              <p className="text-zinc-600 text-sm text-center py-10">Sem dados para este mês.</p>
-            ) : (
+              <p className="text-zinc-600 text-sm text-center py-10">Sem dados neste período.</p>
+            ) : (<>
               <ResponsiveContainer width="100%" height={260}>
                 <BarChart data={reportByCat} margin={{top:0,right:0,left:0,bottom:0}}>
                   <XAxis dataKey="name" tick={{fontSize:11,fill:"#71717a"}} axisLine={false} tickLine={false} />
@@ -869,13 +899,36 @@ export default function AccountsPayablePage() {
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
-            )}
+              {/* Ranking: de onde vem o maior gasto */}
+              <div className="mt-4 space-y-2.5">
+                {reportByCat.map((c, i) => {
+                  const pct = reportCatTotal > 0 ? (c.value / reportCatTotal) * 100 : 0;
+                  return (
+                    <button key={c.key} onClick={() => { setCategoryF(c.key); setTab("bills"); }}
+                      className="w-full flex items-center gap-3 text-left" title="Ver as contas desta categoria">
+                      <span className="text-xs text-zinc-600 w-5 text-right">{i + 1}</span>
+                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: c.color }} />
+                      <span className="text-xs font-semibold flex-shrink-0 w-32 sm:w-40 truncate">{c.name}</span>
+                      <div className="flex-1 bg-zinc-800 rounded-full h-2 overflow-hidden">
+                        <div className="h-2 rounded-full" style={{ width: `${pct.toFixed(0)}%`, background: c.color }} />
+                      </div>
+                      <span className="text-[11px] text-zinc-500 flex-shrink-0 w-10 text-right">{pct.toFixed(0)}%</span>
+                      <span className="text-xs font-bold flex-shrink-0 w-24 text-right tabular-nums">{fmt(c.value)}</span>
+                    </button>
+                  );
+                })}
+                <div className="flex justify-between pt-2 border-t border-zinc-800 text-xs">
+                  <span className="text-zinc-500">Total no período</span>
+                  <span className="font-bold tabular-nums">{fmt(reportCatTotal)}</span>
+                </div>
+              </div>
+            </>)}
           </div>
 
           <div className="rounded-2xl p-5" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
-            <p className="text-sm font-bold mb-4">Top Fornecedores — Este Mês</p>
+            <p className="text-sm font-bold mb-4">Top Fornecedores — {reportLabel}</p>
             {reportBySupplier.length === 0 ? (
-              <p className="text-zinc-600 text-sm text-center py-10">Nenhum fornecedor cadastrado este mês.</p>
+              <p className="text-zinc-600 text-sm text-center py-10">Nenhum fornecedor neste período.</p>
             ) : (
               <div className="space-y-3">
                 {reportBySupplier.map((s, i) => (

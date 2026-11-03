@@ -100,6 +100,7 @@ const BILL_LABEL: Record<string, string> = {
   saude: "Saúde", salarios: "Salários", impostos: "Impostos", marketing: "Marketing", fornecedores: "Fornecedores",
   manutencao: "Manutenção", escritorio: "Escritório", outros: "Outros",
 };
+const BUY_CAT_KEY = "costs_buy_category";
 const billLabel = (k: string) => BILL_LABEL[k] ?? (k ? k.charAt(0).toUpperCase() + k.slice(1).replace(/_/g, " ") : "Sem categoria");
 
 // ─── Cálculo ──────────────────────────────────────────────────────────────────
@@ -726,6 +727,10 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
   const [supplierId, setSupplierId] = useState("");
   const [payMethod, setPayMethod] = useState("cash");
   const [paid, setPaid] = useState(true);
+  // Categoria da conta em Contas a Pagar (lembra a última escolhida neste aparelho)
+  const [category, setCategory] = useState(() => { try { return localStorage.getItem(BUY_CAT_KEY) || "fornecedores"; } catch { return "fornecedores"; } });
+  const [newCat, setNewCat] = useState<string | null>(null);
+  const [usedCats, setUsedCats] = useState<string[]>([]);
   const [rows, setRows] = useState<BuyRow[]>([emptyRow(), emptyRow(), emptyRow()]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -760,6 +765,19 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
   }
   useEffect(() => { loadRecent(); }, []);
 
+  // Categorias que já existem em Contas a Pagar (inclusive as criadas lá)
+  async function loadCats() {
+    const { data } = await fetchAll(() => supabase.from("accounts_payable").select("category"));
+    setUsedCats([...new Set(((data ?? []) as any[]).map(b => String(b.category ?? "")).filter(Boolean))]);
+  }
+  useEffect(() => { loadCats(); }, []);
+  const catOptions = useMemo(() => {
+    const keys = [...Object.keys(BILL_LABEL), ...usedCats.filter(k => !(k in BILL_LABEL)).sort()];
+    if (category && !keys.includes(category)) keys.push(category);
+    return keys;
+  }, [usedCats, category]);
+  const catSlug = (t: string) => t.toLowerCase().trim().replace(/\s+/g, "_");
+
   const setRow = (idx: number, patch: Partial<BuyRow>) => setRows(rs => rs.map((r, i) => i === idx ? { ...r, ...patch } : r));
   const filled = rows.filter(r => r.name.trim() || r.qty || r.total);
   const total = filled.reduce((s, r) => s + (parseNum(r.total) || 0), 0);
@@ -783,6 +801,8 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
       if (!(parseNum(r.total) >= 0)) { setError(`Valor inválido em "${r.name}".`); return; }
     }
     if (day > today) { setError("A data não pode ser no futuro."); return; }
+    const cat = newCat !== null ? catSlug(newCat) : category;
+    if (!cat) { setError("Digite o nome da nova categoria."); return; }
     setSaving(true);
     try {
       const sup = await supplierForDay();
@@ -814,9 +834,12 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
       const { data: bills } = await supabase.from("accounts_payable").select("id, amount").eq("purchase_order_id", poId as string);
       for (const b of bills ?? []) {
         await supabase.from("accounts_payable").update(paid
-          ? { payment_method: payMethod, status: "paid", paid_date: day, paid_amount: b.amount, updated_at: new Date().toISOString() }
-          : { payment_method: payMethod, updated_at: new Date().toISOString() }).eq("id", b.id);
+          ? { payment_method: payMethod, category: cat, status: "paid", paid_date: day, paid_amount: b.amount, updated_at: new Date().toISOString() }
+          : { payment_method: payMethod, category: cat, updated_at: new Date().toISOString() }).eq("id", b.id);
       }
+      setCategory(cat); setNewCat(null);
+      try { localStorage.setItem(BUY_CAT_KEY, cat); } catch { /* sem armazenamento */ }
+      if (!usedCats.includes(cat)) setUsedCats(c => [...c, cat]);
       // Histórico do estoque (aparece na aba Estoque); falhar aqui não desfaz a compra
       const { data: bal } = await supabase.from("stock_items").select("id, current_qty").in("id", ids);
       const balance = new Map(((bal ?? []) as any[]).map(b => [b.id, Number(b.current_qty)]));
@@ -880,7 +903,7 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
   return (
     <div className="space-y-4">
       <div className={`${card} p-4 space-y-3`}>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
           <label className="text-xs text-gray-500">Data da compra
             <input type="date" value={day} max={today} onChange={e => setDay(e.target.value)} className={fieldCls + " mt-1"} />
           </label>
@@ -889,6 +912,18 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
               <option value="">Diversos (mercado, feira…)</option>
               {suppliers.filter(s => norm(s.name) !== "diversos").map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
+          </label>
+          <label className="text-xs text-gray-500">Categoria (Contas a Pagar)
+            <select value={newCat !== null ? "__new__" : category}
+              onChange={e => { if (e.target.value === "__new__") setNewCat(""); else { setNewCat(null); setCategory(e.target.value); } }}
+              className={fieldCls + " mt-1"}>
+              {catOptions.map(k => <option key={k} value={k}>{billLabel(k)}</option>)}
+              <option value="__new__">✚ Nova categoria...</option>
+            </select>
+            {newCat !== null && (
+              <input autoFocus value={newCat} onChange={e => setNewCat(e.target.value)}
+                placeholder="Ex.: Carnes, Hortifruti, Embalagens…" className={fieldCls + " mt-1"} />
+            )}
           </label>
           <label className="text-xs text-gray-500">Pagou com
             <select value={payMethod} onChange={e => { setPayMethod(e.target.value); setPaid(PURCHASE_PAY_METHODS.find(m => m.key === e.target.value)?.paidByDefault ?? true); }} className={fieldCls + " mt-1"}>
