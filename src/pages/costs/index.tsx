@@ -832,10 +832,13 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
       }
       // Forma de pagamento em Contas a Pagar (mesmo que a aba Compras faz)
       const { data: bills } = await supabase.from("accounts_payable").select("id, amount").eq("purchase_order_id", poId as string);
+      // Título da conta = categoria escolhida (ex.: "Verdura"), e o fornecedor quando não é "Diversos"
+      const supLabel = supplierId ? suppliers.find(s => s.id === supplierId)?.name : null;
+      const description = billLabel(cat) + (supLabel ? " - " + supLabel : "");
       for (const b of bills ?? []) {
         await supabase.from("accounts_payable").update(paid
-          ? { payment_method: payMethod, category: cat, status: "paid", paid_date: day, paid_amount: b.amount, updated_at: new Date().toISOString() }
-          : { payment_method: payMethod, category: cat, updated_at: new Date().toISOString() }).eq("id", b.id);
+          ? { payment_method: payMethod, category: cat, description, status: "paid", paid_date: day, paid_amount: b.amount, updated_at: new Date().toISOString() }
+          : { payment_method: payMethod, category: cat, description, updated_at: new Date().toISOString() }).eq("id", b.id);
       }
       setCategory(cat); setNewCat(null);
       try { localStorage.setItem(BUY_CAT_KEY, cat); } catch { /* sem armazenamento */ }
