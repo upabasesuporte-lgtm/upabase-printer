@@ -96,6 +96,18 @@ const fmt  = (v: number) => v.toLocaleString("pt-BR", { style: "currency", curre
 const fmtD = (d: string) => new Date(d + "T12:00:00").toLocaleDateString("pt-BR");
 const catOf = (key: string) => CATS.find(c => c.key === key) ??
   { key, label: key.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase()), color: "#a78bfa" };
+// Título automático: quando a conta se chama só pela categoria ("Verdura",
+// "Verdura - Ceasa") ou veio de compra ("Compra - Diversos"), trocar a categoria
+// troca o título junto. Título escrito à mão fica como está.
+const ALT_CAT_LABEL: Record<string, string> = { transporte: "Transporte / combustível", utilities: "Contas (luz, água, internet)" };
+function autoTitle(b: { description: string; category: string; supplier?: string | null; purchase_order_id?: string | null }, newCat: string): string | null {
+  const d = (b.description ?? "").trim().toLowerCase();
+  const labels = [catOf(b.category).label, b.category.replace(/_/g, " "), ALT_CAT_LABEL[b.category] ?? ""].filter(Boolean).map(l => l.toLowerCase());
+  const isAuto = labels.some(l => d === l || d.startsWith(l + " - ")) || (!!b.purchase_order_id && /^compra( - |$)/.test(d));
+  if (!isAuto) return null;
+  const sup = b.supplier && b.supplier.trim().toLowerCase() !== "diversos" ? " - " + b.supplier.trim() : "";
+  return catOf(newCat).label + sup;
+}
 const finalAmt = (b: Pick<Bill, "amount" | "discount" | "interest" | "fine">) =>
   b.amount - (b.discount || 0) + (b.interest || 0) + (b.fine || 0);
 
@@ -474,11 +486,15 @@ export default function AccountsPayablePage() {
     const fine  = parseFloat(form.fine)     || 0;
     const installN = parseInt(form.installments) || 1;
     const tags  = form.tags ? form.tags.split(",").map(t => t.trim()).filter(Boolean) : null;
+    // Categoria trocada sem mexer no título automático: o título acompanha
+    const retitle = editBill && form.category !== editBill.category && form.description === editBill.description
+      ? autoTitle({ ...editBill, supplier: form.supplier || null }, form.category) : null;
     const base  = {
-      user_id: userId, description: form.description, supplier: form.supplier || null,
+      user_id: userId, description: retitle ?? form.description, supplier: form.supplier || null,
       category: form.category, cost_center: form.cost_center || null,
       document_number: form.document_number || null, competence_date: form.competence_date || null,
-      amount: amt, discount: disc, interest: intr, fine, paid_amount: 0,
+      amount: amt, discount: disc, interest: intr, fine,
+      paid_amount: form.status === "paid" ? amt - disc + intr + fine : (editBill?.paid_amount ?? 0),
       status: form.status, payment_method: form.payment_method || null,
       bank_account: form.bank_account || null, recurrence: form.recurrence,
       notes: form.notes || null, tags: tags?.length ? tags : null,
@@ -495,7 +511,8 @@ export default function AccountsPayablePage() {
         const d = new Date(form.due_date + "T12:00:00"); d.setMonth(d.getMonth() + i);
         return { ...base, installment_number: i + 1, total_installments: installN,
           installment_group_id: groupId, due_date: d.toISOString().split("T")[0],
-          amount: Math.round((amt / installN) * 100) / 100 };
+          amount: Math.round((amt / installN) * 100) / 100,
+          paid_amount: base.paid_amount ? Math.round((base.paid_amount / installN) * 100) / 100 : 0 };
       });
       const { data } = await supabase.from("accounts_payable").insert(rows).select("*");
       if (data) setBills(prev => [...(data as Bill[]), ...prev]);
@@ -546,8 +563,11 @@ export default function AccountsPayablePage() {
   }
 
   async function updateCategory(id: string, category: string) {
-    await supabase.from("accounts_payable").update({ category }).eq("id", id);
-    setBills(prev => prev.map(b => b.id === id ? { ...b, category } : b));
+    const bill = bills.find(b => b.id === id);
+    const title = bill && bill.category !== category ? autoTitle(bill, category) : null;
+    const patch = title ? { category, description: title } : { category };
+    await supabase.from("accounts_payable").update(patch).eq("id", id);
+    setBills(prev => prev.map(b => b.id === id ? { ...b, ...patch } : b));
     setEditCatId(null);
   }
 

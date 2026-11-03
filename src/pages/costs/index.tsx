@@ -713,9 +713,15 @@ function LeftoverForm({ day, uid, counts, items, onSaved }: {
 // ─── Lançar compras do dia ────────────────────────────────────────────────────
 
 interface BuyRow { name: string; unit: string; qty: string; total: string }
-interface RecentLine { id: string; name: string; unit: string; qty: number; cost: number }
-interface RecentBuy { id: string; day: string; editable: boolean; items: RecentLine[] }
-interface EditLine { id: string; name: string; unit: string; qty: string; total: string; removed: boolean }
+interface RecentLine { id: string; stockItemId: string; name: string; unit: string; qty: number; cost: number }
+interface RecentBuy {
+  id: string; day: string; editable: boolean; items: RecentLine[];
+  supplierId: string | null; supplierName: string | null;
+  category: string | null; title: string | null; billStatus: string | null;
+}
+// Linha da correção: id nulo = item acrescentado agora
+interface EditLine { key: string; id: string | null; name: string; unit: string; qty: string; total: string; removed: boolean }
+interface EditState { id: string; day: string; supplierId: string; category: string; newCat: string | null; lines: EditLine[] }
 const emptyRow = (): BuyRow => ({ name: "", unit: "kg", qty: "", total: "" });
 
 function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
@@ -737,7 +743,7 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
   const [done, setDone] = useState<string | null>(null);
   const [recent, setRecent] = useState<RecentBuy[]>([]);
   // Corrigir uma compra já lançada
-  const [editing, setEditing] = useState<{ id: string; day: string; lines: EditLine[] } | null>(null);
+  const [editing, setEditing] = useState<EditState | null>(null);
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -748,18 +754,21 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
 
   async function loadRecent() {
     const { data } = await supabase.from("purchase_orders")
-      .select("id, created_at, received_at, purchase_order_items(id, quantity, unit_cost, stock_items(name, unit))")
+      .select("id, created_at, received_at, supplier_id, suppliers(name), accounts_payable(category, description, status), purchase_order_items(id, stock_item_id, quantity, unit_cost, stock_items(name, unit))")
       .eq("status", "received").gte("created_at", startISO(addDays(today, -6)))
       .order("created_at", { ascending: false }).limit(30);
     setRecent(((data ?? []) as any[]).map(o => {
       const all = (o.purchase_order_items ?? []) as any[];
+      const bills = ((o.accounts_payable ?? []) as any[]).filter(b => b.status !== "cancelled");
       return {
         id: o.id, day: dayOf(o.received_at ?? o.created_at),
-        // Só corrige aqui compra só de insumos (as com produto de revenda ficam na aba Compras)
-        editable: all.length > 0 && all.every(i => i.stock_items),
+        // Só corrige aqui compra só de insumos e à vista (as outras ficam na aba Compras)
+        editable: all.length > 0 && all.every(i => i.stock_items) && bills.length <= 1,
         items: all.filter(i => i.stock_items).map(i => ({
-          id: i.id, name: i.stock_items.name, unit: i.stock_items.unit, qty: Number(i.quantity), cost: Number(i.unit_cost),
+          id: i.id, stockItemId: i.stock_item_id, name: i.stock_items.name, unit: i.stock_items.unit, qty: Number(i.quantity), cost: Number(i.unit_cost),
         })),
+        supplierId: o.supplier_id ?? null, supplierName: o.suppliers?.name ?? null,
+        category: bills[0]?.category ?? null, title: bills[0]?.description ?? null, billStatus: bills[0]?.status ?? null,
       };
     }).filter(o => o.items.length));
   }
@@ -782,8 +791,8 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
   const filled = rows.filter(r => r.name.trim() || r.qty || r.total);
   const total = filled.reduce((s, r) => s + (parseNum(r.total) || 0), 0);
 
-  async function supplierForDay(): Promise<string> {
-    if (supplierId) return supplierId;
+  async function supplierForDay(chosen: string = supplierId): Promise<string> {
+    if (chosen) return chosen;
     // Compra de mercado/feira sem fornecedor: usa (ou cria) "Diversos"
     const found = suppliers.find(s => norm(s.name) === "diversos");
     if (found) return found.id;
@@ -863,43 +872,80 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
 
   function startEdit(o: RecentBuy) {
     setEditError(null); setConfirmDelete(false); setEditDone(null);
+    const diversos = o.supplierName && norm(o.supplierName) === "diversos";
     setEditing({
       id: o.id, day: o.day,
+      supplierId: o.supplierId && !diversos ? o.supplierId : "",
+      category: o.category || "fornecedores", newCat: null,
       lines: o.items.map(i => ({
-        id: i.id, name: i.name, unit: i.unit, removed: false,
+        key: i.id, id: i.id, name: i.name, unit: i.unit, removed: false,
         qty: String(i.qty).replace(".", ","), total: (Math.round(i.qty * i.cost * 100) / 100).toFixed(2).replace(".", ","),
       })),
     });
   }
-  const setEditLine = (id: string, patch: Partial<EditLine>) =>
-    setEditing(e => e && { ...e, lines: e.lines.map(l => l.id === id ? { ...l, ...patch } : l) });
+  const setEditLine = (key: string, patch: Partial<EditLine>) =>
+    setEditing(e => e && { ...e, lines: e.lines.map(l => l.key === key ? { ...l, ...patch } : l) });
+  const addEditLine = () =>
+    setEditing(e => e && { ...e, lines: [...e.lines, { key: "n" + Date.now(), id: null, name: "", unit: "kg", qty: "", total: "", removed: false }] });
 
   // Grava a correção (ou exclui, sem linhas): estoque, Contas a Pagar e o Resultado se ajustam juntos
   async function saveEdit(removeAll = false) {
     if (!editing) return;
     setEditError(null);
-    const keep = removeAll ? [] : editing.lines.filter(l => !l.removed);
+    // Linha nova deixada em branco não conta
+    const keep = removeAll ? [] : editing.lines.filter(l => !l.removed && (l.id || l.name.trim() || l.qty || l.total));
     for (const l of keep) {
+      if (!l.name.trim()) { setEditError("Tem item sem nome."); return; }
       if (!(parseNum(l.qty) > 0)) { setEditError(`Quantidade inválida em "${l.name}".`); return; }
       if (!(parseNum(l.total) >= 0)) { setEditError(`Valor inválido em "${l.name}".`); return; }
     }
     if (editing.day > today) { setEditError("A data não pode ser no futuro."); return; }
     if (!removeAll && keep.length === 0) { setConfirmDelete(true); return; }
+    const cat = editing.newCat !== null ? catSlug(editing.newCat) : editing.category;
+    if (keep.length && !cat) { setEditError("Digite o nome da nova categoria."); return; }
     setEditSaving(true);
-    const { error } = await supabase.rpc("edit_purchase_lines", {
-      p_purchase_order_id: editing.id,
-      p_items: keep.map(l => {
+    try {
+      // Nome trocado ou item acrescentado: usa o insumo com esse nome ou cria (igual ao lançamento)
+      const items: { id?: string; stock_item_id?: string; quantity: number; unit_cost: number }[] = [];
+      const original = new Map((recent.find(r => r.id === editing.id)?.items ?? []).map(i => [i.id, i]));
+      for (const l of keep) {
         const q = parseNum(l.qty), t = parseNum(l.total) || 0;
-        return { id: l.id, quantity: q, unit_cost: Math.round((t / q) * 10000) / 10000 };
-      }),
-      p_day: keep.length ? editing.day : null,
-      p_when: keep.length ? new Date(parseDay(editing.day).setHours(12)).toISOString() : null,
-    });
+        const orig = l.id ? original.get(l.id) : undefined;
+        let itemId: string | undefined;
+        if (!orig || norm(orig.name) !== norm(l.name)) {
+          const ex = findItem(l.name);
+          if (ex) itemId = ex.id;
+          else {
+            const { data, error } = await supabase.from("stock_items").insert({
+              name: l.name.trim(), unit: l.unit, current_qty: 0, min_qty: 0, cost_price: 0, supplier_id: editing.supplierId || null,
+            }).select("id").single();
+            if (error || !data) throw new Error(error?.message ?? "Erro ao criar insumo");
+            itemId = data.id;
+          }
+        }
+        items.push({ ...(l.id ? { id: l.id } : {}), ...(itemId ? { stock_item_id: itemId } : {}), quantity: q, unit_cost: Math.round((t / q) * 10000) / 10000 });
+      }
+      const sup = keep.length ? await supplierForDay(editing.supplierId) : null;
+      const supLabel = editing.supplierId ? suppliers.find(x => x.id === editing.supplierId)?.name : null;
+      const { error } = await supabase.rpc("edit_purchase_lines", {
+        p_purchase_order_id: editing.id,
+        p_items: items,
+        p_day: keep.length ? editing.day : null,
+        p_when: keep.length ? new Date(parseDay(editing.day).setHours(12)).toISOString() : null,
+        p_supplier_id: sup,
+        p_category: keep.length ? cat : null,
+        // Título da conta acompanha a categoria (ex.: "Verdura - Ceasa")
+        p_description: keep.length ? billLabel(cat) + (supLabel ? " - " + supLabel : "") : null,
+      });
+      if (error) throw new Error(error.message);
+      if (cat && !usedCats.includes(cat)) setUsedCats(c => [...c, cat]);
+      setEditDone(keep.length ? "✓ Compra corrigida: estoque, Contas a Pagar e Resultado ajustados." : "✓ Compra excluída: o estoque voltou e a conta saiu de Contas a Pagar.");
+      setEditing(null); setConfirmDelete(false);
+      await Promise.all([onItemsChanged(), loadRecent()]);
+    } catch (e: any) {
+      setEditError(e?.message ?? String(e));
+    }
     setEditSaving(false);
-    if (error) { setEditError(error.message); return; }
-    setEditDone(keep.length ? "✓ Compra corrigida: estoque, Contas a Pagar e Resultado ajustados." : "✓ Compra excluída: o estoque voltou e a conta saiu de Contas a Pagar.");
-    setEditing(null); setConfirmDelete(false);
-    await Promise.all([onItemsChanged(), loadRecent()]);
   }
 
   void uid;
@@ -994,7 +1040,7 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
       <div className={card}>
         <div className="px-4 pt-4 pb-2">
           <p className="text-sm font-bold text-gray-900">Compras dos últimos 7 dias</p>
-          <p className="text-[11px] text-gray-400">Lançou errado? Toque em "Corrigir" para mudar quantidade, valor, data ou excluir.</p>
+          <p className="text-[11px] text-gray-400">Lançou errado? Toque em "Corrigir" para mudar itens, valores, data, onde comprou, categoria ou excluir.</p>
           {editDone && <p className="text-xs font-semibold text-emerald-700 mt-1">{editDone}</p>}
         </div>
         {recent.length === 0 ? (
@@ -1002,32 +1048,78 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
         ) : (
           <div className="divide-y divide-gray-100">
             {recent.map(o => editing?.id === o.id ? (
-              <div key={o.id} className="px-4 py-3 space-y-2 bg-gray-50">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-bold text-gray-900 flex-1">Corrigir compra</p>
-                  <label className="text-xs text-gray-500 flex items-center gap-2">Data
-                    <input type="date" value={editing.day} max={today} onChange={e => setEditing(ed => ed && { ...ed, day: e.target.value })} className={fieldCls + " !w-auto !py-1.5"} />
-                  </label>
-                  <button onClick={() => { setEditing(null); setConfirmDelete(false); }} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100" title="Fechar sem salvar">
+              <div key={o.id} className="m-2 rounded-2xl border-2 border-brand-200 bg-brand-50/40 p-3 sm:p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="w-8 h-8 rounded-xl bg-brand-100 text-brand-700 flex items-center justify-center"><Pencil className="w-4 h-4" /></span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-gray-900">Corrigir compra</p>
+                    <p className="text-[11px] text-gray-500">Muda o estoque, Contas a Pagar e o Resultado juntos.</p>
+                  </div>
+                  <button onClick={() => { setEditing(null); setConfirmDelete(false); }} className="p-2 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-white" title="Fechar sem salvar">
                     <X className="w-4 h-4" />
                   </button>
                 </div>
-                {editing.lines.map(l => {
-                  const q = parseNum(l.qty), t = parseNum(l.total);
-                  return (
-                    <div key={l.id} className={`grid grid-cols-2 md:grid-cols-[1fr_110px_130px_110px_36px] gap-2 items-center ${l.removed ? "opacity-50" : ""}`}>
-                      <span className={`col-span-2 md:col-span-1 text-sm font-semibold text-gray-800 truncate ${l.removed ? "line-through" : ""}`}>{l.name}</span>
-                      <input inputMode="decimal" value={l.qty} disabled={l.removed} onChange={e => setEditLine(l.id, { qty: e.target.value })} placeholder={`Qtd (${l.unit})`} className={fieldCls + " !py-1.5"} />
-                      <input inputMode="decimal" value={l.total} disabled={l.removed} onChange={e => setEditLine(l.id, { total: e.target.value })} placeholder="R$ 0,00" className={fieldCls + " !py-1.5"} />
-                      <span className="text-xs text-gray-500 md:text-right tabular-nums">{l.removed ? "sai da compra" : q > 0 && t >= 0 ? `${fmt(t / q)}/${l.unit}` : ""}</span>
-                      <button onClick={() => setEditLine(l.id, { removed: !l.removed })}
-                        className={`justify-self-end p-2 rounded-lg ${l.removed ? "text-brand-600 hover:bg-brand-50" : "text-gray-400 hover:text-red-600 hover:bg-red-50"}`}
-                        title={l.removed ? "Manter este item" : "Tirar este item da compra"}>
-                        {l.removed ? <RefreshCw className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  );
-                })}
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <label className="text-xs text-gray-500">Data da compra
+                    <input type="date" value={editing.day} max={today} onChange={e => setEditing(ed => ed && { ...ed, day: e.target.value })} className={fieldCls + " mt-1"} />
+                  </label>
+                  <label className="text-xs text-gray-500">Onde comprou
+                    <select value={editing.supplierId} onChange={e => setEditing(ed => ed && { ...ed, supplierId: e.target.value })} className={fieldCls + " mt-1"}>
+                      <option value="">Diversos (mercado, feira…)</option>
+                      {suppliers.filter(x => norm(x.name) !== "diversos").map(x => <option key={x.id} value={x.id}>{x.name}</option>)}
+                    </select>
+                  </label>
+                  <label className="text-xs text-gray-500">Categoria (Contas a Pagar)
+                    <select value={editing.newCat !== null ? "__new__" : editing.category}
+                      onChange={e => { const v = e.target.value; setEditing(ed => ed && (v === "__new__" ? { ...ed, newCat: "" } : { ...ed, newCat: null, category: v })); }}
+                      className={fieldCls + " mt-1"}>
+                      {[...catOptions, ...(catOptions.includes(editing.category) ? [] : [editing.category])].map(k => <option key={k} value={k}>{billLabel(k)}</option>)}
+                      <option value="__new__">✚ Nova categoria...</option>
+                    </select>
+                    {editing.newCat !== null && (
+                      <input autoFocus value={editing.newCat} onChange={e => setEditing(ed => ed && { ...ed, newCat: e.target.value })}
+                        placeholder="Ex.: Carnes, Hortifruti, Embalagens…" className={fieldCls + " mt-1"} />
+                    )}
+                  </label>
+                </div>
+
+                <div className="rounded-xl bg-white border border-gray-100 p-2 space-y-2">
+                  <div className="hidden md:grid grid-cols-[1fr_100px_110px_130px_110px_36px] gap-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-1">
+                    <span>Item</span><span>Unidade</span><span>Quantidade</span><span>Valor pago (total)</span><span className="text-right">Preço por un.</span><span />
+                  </div>
+                  {editing.lines.map(l => {
+                    const q = parseNum(l.qty), t = parseNum(l.total);
+                    const ex = l.name.trim() ? findItem(l.name) : undefined;
+                    const unit = ex?.unit ?? l.unit;
+                    return (
+                      <div key={l.key} className={`grid grid-cols-2 md:grid-cols-[1fr_100px_110px_130px_110px_36px] gap-2 items-center p-2 md:p-0 rounded-xl border border-gray-100 md:border-0 ${l.removed ? "opacity-50" : ""}`}>
+                        <input list="cost-items" value={l.name} disabled={l.removed} onChange={e => setEditLine(l.key, { name: e.target.value })}
+                          placeholder="Ex.: Bife, Alho, Arroz…" className={fieldCls + " col-span-2 md:col-span-1 !py-2" + (l.removed ? " line-through" : "")} />
+                        {ex ? (
+                          <span className="text-sm text-gray-600 px-1">{ex.unit}</span>
+                        ) : (
+                          <select value={l.unit} disabled={l.removed} onChange={e => setEditLine(l.key, { unit: e.target.value })} className={fieldCls + " !py-2"} title="Unidade do item novo">
+                            {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                          </select>
+                        )}
+                        <input inputMode="decimal" value={l.qty} disabled={l.removed} onChange={e => setEditLine(l.key, { qty: e.target.value })} placeholder={`Qtd (${unit})`} className={fieldCls + " !py-2"} />
+                        <input inputMode="decimal" value={l.total} disabled={l.removed} onChange={e => setEditLine(l.key, { total: e.target.value })} placeholder="R$ 0,00" className={fieldCls + " !py-2"} />
+                        <span className="text-xs text-gray-500 md:text-right tabular-nums">
+                          {l.removed ? "sai da compra" : q > 0 && t >= 0 ? `${fmt(t / q)}/${unit}` : ""}
+                          {!l.removed && l.name.trim() && !ex && <span className="block text-[10px] font-semibold text-brand-600">item novo</span>}
+                        </span>
+                        <button onClick={() => l.id ? setEditLine(l.key, { removed: !l.removed }) : setEditing(ed => ed && { ...ed, lines: ed.lines.filter(x => x.key !== l.key) })}
+                          className={`justify-self-end p-2 rounded-lg ${l.removed ? "text-brand-600 hover:bg-brand-50" : "text-gray-400 hover:text-red-600 hover:bg-red-50"}`}
+                          title={l.removed ? "Manter este item" : "Tirar este item da compra"}>
+                          {l.removed ? <RefreshCw className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    );
+                  })}
+                  <button onClick={addEditLine} className={btnGhost + " !py-2"}><Plus className="w-4 h-4" /> Mais um item</button>
+                </div>
+
                 {confirmDelete ? (
                   <div className="flex flex-wrap items-center gap-2 p-2.5 rounded-xl border border-red-200 bg-red-50">
                     <p className="text-xs text-red-800 flex-1">Excluir a compra inteira? O estoque volta e a conta sai de Contas a Pagar e do Resultado.</p>
@@ -1038,9 +1130,12 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
                   </div>
                 ) : (
                   <div className="flex flex-wrap items-center gap-2">
-                    <button onClick={() => setConfirmDelete(true)} className="text-xs font-semibold text-red-600 hover:underline">Excluir compra inteira</button>
+                    <button onClick={() => setConfirmDelete(true)} className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 hover:underline">
+                      <Trash2 className="w-3.5 h-3.5" /> Excluir compra inteira
+                    </button>
                     <div className="flex-1" />
-                    <span className="text-sm text-gray-600">Total: <b className="text-gray-900">{fmt(editing.lines.filter(l => !l.removed).reduce((x, l) => x + (parseNum(l.total) || 0), 0))}</b></span>
+                    <span className="text-sm text-gray-600">Total: <b className="text-gray-900 text-base">{fmt(editing.lines.filter(l => !l.removed).reduce((x, l) => x + (parseNum(l.total) || 0), 0))}</b></span>
+                    <button onClick={() => { setEditing(null); setConfirmDelete(false); }} className={btnGhost + " !py-2"}>Cancelar</button>
                     <button onClick={() => saveEdit()} disabled={editSaving} className={btnPrimary + " !py-2"} style={WHITE}>
                       {editSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Salvar correção
                     </button>
@@ -1049,19 +1144,29 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
                 {editError && <p className="text-sm text-red-600">{editError}</p>}
               </div>
             ) : (
-              <div key={o.id} className="px-4 py-2.5">
-                <div className="flex items-center justify-between gap-2 text-xs">
-                  <span className="font-semibold text-gray-700">{fmtDay(o.day)}</span>
-                  <span className="flex items-center gap-3">
-                    <span className="font-bold tabular-nums">{fmt(o.items.reduce((s, i) => s + i.qty * i.cost, 0))}</span>
+              <div key={o.id} className="px-4 py-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 truncate">
+                      {o.title && !/^compra( - |$)/i.test(o.title) ? o.title : o.category ? billLabel(o.category) : "Compra"}
+                    </p>
+                    <p className="text-[11px] text-gray-500 flex flex-wrap items-center gap-x-2">
+                      <span>{fmtDay(o.day)}</span>
+                      {o.supplierName && <span>· {o.supplierName}</span>}
+                      {o.category && <span className="px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-600 font-semibold">{billLabel(o.category)}</span>}
+                      {o.billStatus && <span className={o.billStatus === "paid" ? "text-emerald-600 font-semibold" : "text-amber-600 font-semibold"}>{o.billStatus === "paid" ? "pago" : "a pagar"}</span>}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <span className="text-sm font-bold tabular-nums">{fmt(o.items.reduce((s, i) => s + i.qty * i.cost, 0))}</span>
                     {o.editable && (
-                      <button onClick={() => startEdit(o)} className="inline-flex items-center gap-1 font-semibold text-brand-700 hover:underline">
+                      <button onClick={() => startEdit(o)} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-brand-200 text-xs font-semibold text-brand-700 hover:bg-brand-50">
                         <Pencil className="w-3.5 h-3.5" /> Corrigir
                       </button>
                     )}
-                  </span>
+                  </div>
                 </div>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 mt-1">
                   {o.items.map(i => `${i.name} ${fmtNum(i.qty, 3)} ${i.unit} (${fmt(i.qty * i.cost)})`).join(" · ")}
                 </p>
               </div>
