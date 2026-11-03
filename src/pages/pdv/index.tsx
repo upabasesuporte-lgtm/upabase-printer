@@ -583,6 +583,7 @@ export default function PdvPage() {
   // Celular: produtos na tela toda; o carrinho abre por cima ao tocar no botão de baixo
   const [mobileCartOpen, setMobileCartOpen] = useState(false);
   const mobileCartBtnRef = useRef<HTMLButtonElement>(null);
+  const desktopCartRef = useRef<HTMLDivElement>(null); // título "Carrinho" (computador): destino da animação
   const prevCartLen = useRef(0);
   useEffect(() => {
     // Venda finalizada / limpa: volta para os produtos
@@ -590,19 +591,21 @@ export default function PdvPage() {
     prevCartLen.current = cart.length;
   }, [cart.length]);
 
-  // Toque no produto (celular): a foto voa até o carrinho e o botão pula
+  // Toque no produto: a foto voa até o carrinho e ele pula (celular: botão de baixo; computador: título do carrinho)
   function addFromTap(e: React.MouseEvent, product: Product) {
     if (product.has_variants || variantKids(product.id).length > 0) { setVariantPicker(product); return; }
     if (!isUnlimited(product) && product.stock === 0) return;
     addToCart(product);
-    if (window.innerWidth >= 768) return;
-    try { navigator.vibrate?.(15); } catch { /* sem vibração */ }
-    const target = mobileCartBtnRef.current?.getBoundingClientRect();
-    if (!target) return;
+    const desktop = window.innerWidth >= 768;
+    if (!desktop) { try { navigator.vibrate?.(15); } catch { /* sem vibração */ } }
+    const targetEl: HTMLElement | null = desktop ? desktopCartRef.current : mobileCartBtnRef.current;
+    const target = targetEl?.getBoundingClientRect();
+    if (!target || !target.width) return;
     const src = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const size = 56;
+    const anchorX = desktop ? target.left + 8 : target.left + 34; // ícone do carrinho
     const x0 = src.left + src.width / 2 - size / 2, y0 = src.top + src.height / 2 - size / 2;
-    const x1 = target.left + 34 - size / 2, y1 = target.top + target.height / 2 - size / 2;
+    const x1 = anchorX - size / 2, y1 = target.top + target.height / 2 - size / 2;
     const el = document.createElement("div");
     el.style.cssText = `position:fixed;left:${x0}px;top:${y0}px;width:${size}px;height:${size}px;border-radius:14px;z-index:60;pointer-events:none;`
       + "box-shadow:0 6px 18px rgba(0,0,0,.25);border:2px solid #fff;display:flex;align-items:center;justify-content:center;"
@@ -618,17 +621,17 @@ export default function PdvPage() {
       { transform: "translate(0,0) scale(1) rotate(0deg)", opacity: 1 },
       { transform: `translate(${dx * 0.35}px,${dy * 0.35 - 70}px) scale(1.12) rotate(-8deg)`, opacity: 1, offset: 0.35 },
       { transform: `translate(${dx}px,${dy}px) scale(.25) rotate(10deg)`, opacity: 0.6 },
-    ], { duration: 560, easing: "cubic-bezier(.45,0,.55,1)" });
+    ], { duration: desktop ? 620 : 560, easing: "cubic-bezier(.45,0,.55,1)" });
     fly.onfinish = () => {
       el.remove();
-      mobileCartBtnRef.current?.animate(
+      targetEl?.animate(
         [{ transform: "scale(1)" }, { transform: "scale(1.08)" }, { transform: "scale(.97)" }, { transform: "scale(1)" }],
         { duration: 320, easing: "ease-out" });
       // estrelinhas saindo do carrinho
       for (let i = 0; i < 6; i++) {
         const sp = document.createElement("div");
         sp.textContent = "✦";
-        sp.style.cssText = `position:fixed;left:${target.left + 26}px;top:${target.top + target.height / 2 - 10}px;z-index:60;pointer-events:none;font-size:14px;color:${i % 2 ? "#f59e0b" : "#00B4D8"}`;
+        sp.style.cssText = `position:fixed;left:${anchorX - 8}px;top:${target.top + target.height / 2 - 10}px;z-index:60;pointer-events:none;font-size:14px;color:${i % 2 ? "#f59e0b" : "#00B4D8"}`;
         document.body.appendChild(sp);
         const ang = (Math.PI * 2 * i) / 6 - Math.PI / 2, r = 30 + (i % 3) * 6;
         sp.animate([
@@ -1510,7 +1513,7 @@ export default function PdvPage() {
                                   className="p-1 text-zinc-600 hover:text-amber-400 transition-colors">
                                   {allShortcutIds.includes(p.id) ? <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" /> : <StarOff className="w-3.5 h-3.5" />}
                                 </button>
-                                <button onClick={() => addToCart(p)} disabled={sem}
+                                <button onClick={e => addFromTap(e, p)} disabled={sem}
                                   className="p-1.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-40 rounded-lg transition-colors"
                                   style={{ color: "#fff" }}>
                                   <Plus className="w-3.5 h-3.5" />
@@ -1531,7 +1534,7 @@ export default function PdvPage() {
           <div className={`${mobileCartOpen ? "flex fixed inset-0 z-40 h-[100dvh]" : "hidden"} md:static md:z-auto md:h-auto md:flex w-full md:w-[380px] flex-col flex-shrink-0 overflow-hidden md:max-h-none`} style={{ background: isLight ? "#f9fafb" : "#09090b" }}>
 
             <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 flex-shrink-0">
-              <div className="flex items-center gap-2">
+              <div ref={desktopCartRef} className="flex items-center gap-2">
                 <button onClick={() => setMobileCartOpen(false)} className="md:hidden flex items-center gap-1 -ml-1 mr-1 pr-2 py-1 text-sm font-semibold text-brand-600">
                   <ChevronLeft className="w-5 h-5" /> Produtos
                 </button>
