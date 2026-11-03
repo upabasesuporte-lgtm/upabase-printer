@@ -3,7 +3,7 @@ import { supabase } from "../../lib/supabase";
 import { fetchAll, fetchAllIn } from "../../lib/fetchAll";
 import { PURCHASE_PAY_METHODS } from "../purchases/PurchaseScreen";
 import {
-  RefreshCw, PiggyBank, ShoppingBasket, Plus, Trash2, Check, ChevronDown, TrendingUp, TrendingDown, UtensilsCrossed, CupSoda,
+  RefreshCw, PiggyBank, ShoppingBasket, Plus, Trash2, Check, ChevronDown, TrendingUp, TrendingDown, UtensilsCrossed, CupSoda, Pencil, X,
 } from "lucide-react";
 
 // Custo e Lucro (modelo simples): tudo que é lançado em compras de insumos vira
@@ -712,6 +712,9 @@ function LeftoverForm({ day, uid, counts, items, onSaved }: {
 // ─── Lançar compras do dia ────────────────────────────────────────────────────
 
 interface BuyRow { name: string; unit: string; qty: string; total: string }
+interface RecentLine { id: string; name: string; unit: string; qty: number; cost: number }
+interface RecentBuy { id: string; day: string; editable: boolean; items: RecentLine[] }
+interface EditLine { id: string; name: string; unit: string; qty: string; total: string; removed: boolean }
 const emptyRow = (): BuyRow => ({ name: "", unit: "kg", qty: "", total: "" });
 
 function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
@@ -727,22 +730,33 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
-  const [recent, setRecent] = useState<{ id: string; day: string; items: { name: string; unit: string; qty: number; cost: number }[] }[]>([]);
+  const [recent, setRecent] = useState<RecentBuy[]>([]);
+  // Corrigir uma compra já lançada
+  const [editing, setEditing] = useState<{ id: string; day: string; lines: EditLine[] } | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editDone, setEditDone] = useState<string | null>(null);
 
   const activeItems = stockItems.filter(i => i.is_active !== false);
   const findItem = (name: string) => activeItems.find(i => norm(i.name) === norm(name));
 
   async function loadRecent() {
     const { data } = await supabase.from("purchase_orders")
-      .select("id, created_at, received_at, purchase_order_items(quantity, unit_cost, stock_items(name, unit))")
+      .select("id, created_at, received_at, purchase_order_items(id, quantity, unit_cost, stock_items(name, unit))")
       .eq("status", "received").gte("created_at", startISO(addDays(today, -6)))
       .order("created_at", { ascending: false }).limit(30);
-    setRecent(((data ?? []) as any[]).map(o => ({
-      id: o.id, day: dayOf(o.received_at ?? o.created_at),
-      items: (o.purchase_order_items ?? []).filter((i: any) => i.stock_items).map((i: any) => ({
-        name: i.stock_items.name, unit: i.stock_items.unit, qty: Number(i.quantity), cost: Number(i.unit_cost),
-      })),
-    })).filter(o => o.items.length));
+    setRecent(((data ?? []) as any[]).map(o => {
+      const all = (o.purchase_order_items ?? []) as any[];
+      return {
+        id: o.id, day: dayOf(o.received_at ?? o.created_at),
+        // Só corrige aqui compra só de insumos (as com produto de revenda ficam na aba Compras)
+        editable: all.length > 0 && all.every(i => i.stock_items),
+        items: all.filter(i => i.stock_items).map(i => ({
+          id: i.id, name: i.stock_items.name, unit: i.stock_items.unit, qty: Number(i.quantity), cost: Number(i.unit_cost),
+        })),
+      };
+    }).filter(o => o.items.length));
   }
   useEffect(() => { loadRecent(); }, []);
 
@@ -819,6 +833,47 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
       setError(e?.message ?? String(e));
     }
     setSaving(false);
+  }
+
+  function startEdit(o: RecentBuy) {
+    setEditError(null); setConfirmDelete(false); setEditDone(null);
+    setEditing({
+      id: o.id, day: o.day,
+      lines: o.items.map(i => ({
+        id: i.id, name: i.name, unit: i.unit, removed: false,
+        qty: String(i.qty).replace(".", ","), total: (Math.round(i.qty * i.cost * 100) / 100).toFixed(2).replace(".", ","),
+      })),
+    });
+  }
+  const setEditLine = (id: string, patch: Partial<EditLine>) =>
+    setEditing(e => e && { ...e, lines: e.lines.map(l => l.id === id ? { ...l, ...patch } : l) });
+
+  // Grava a correção (ou exclui, sem linhas): estoque, Contas a Pagar e o Resultado se ajustam juntos
+  async function saveEdit(removeAll = false) {
+    if (!editing) return;
+    setEditError(null);
+    const keep = removeAll ? [] : editing.lines.filter(l => !l.removed);
+    for (const l of keep) {
+      if (!(parseNum(l.qty) > 0)) { setEditError(`Quantidade inválida em "${l.name}".`); return; }
+      if (!(parseNum(l.total) >= 0)) { setEditError(`Valor inválido em "${l.name}".`); return; }
+    }
+    if (editing.day > today) { setEditError("A data não pode ser no futuro."); return; }
+    if (!removeAll && keep.length === 0) { setConfirmDelete(true); return; }
+    setEditSaving(true);
+    const { error } = await supabase.rpc("edit_purchase_lines", {
+      p_purchase_order_id: editing.id,
+      p_items: keep.map(l => {
+        const q = parseNum(l.qty), t = parseNum(l.total) || 0;
+        return { id: l.id, quantity: q, unit_cost: Math.round((t / q) * 10000) / 10000 };
+      }),
+      p_day: keep.length ? editing.day : null,
+      p_when: keep.length ? new Date(parseDay(editing.day).setHours(12)).toISOString() : null,
+    });
+    setEditSaving(false);
+    if (error) { setEditError(error.message); return; }
+    setEditDone(keep.length ? "✓ Compra corrigida: estoque, Contas a Pagar e Resultado ajustados." : "✓ Compra excluída: o estoque voltou e a conta saiu de Contas a Pagar.");
+    setEditing(null); setConfirmDelete(false);
+    await Promise.all([onItemsChanged(), loadRecent()]);
   }
 
   void uid;
@@ -901,17 +956,72 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
       <div className={card}>
         <div className="px-4 pt-4 pb-2">
           <p className="text-sm font-bold text-gray-900">Compras dos últimos 7 dias</p>
-          <p className="text-[11px] text-gray-400">Para corrigir ou cancelar uma compra, use a aba Compras.</p>
+          <p className="text-[11px] text-gray-400">Lançou errado? Toque em "Corrigir" para mudar quantidade, valor, data ou excluir.</p>
+          {editDone && <p className="text-xs font-semibold text-emerald-700 mt-1">{editDone}</p>}
         </div>
         {recent.length === 0 ? (
           <p className="px-4 pb-4 text-sm text-gray-500">Nada lançado ainda.</p>
         ) : (
           <div className="divide-y divide-gray-100">
-            {recent.map(o => (
+            {recent.map(o => editing?.id === o.id ? (
+              <div key={o.id} className="px-4 py-3 space-y-2 bg-gray-50">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-bold text-gray-900 flex-1">Corrigir compra</p>
+                  <label className="text-xs text-gray-500 flex items-center gap-2">Data
+                    <input type="date" value={editing.day} max={today} onChange={e => setEditing(ed => ed && { ...ed, day: e.target.value })} className={fieldCls + " !w-auto !py-1.5"} />
+                  </label>
+                  <button onClick={() => { setEditing(null); setConfirmDelete(false); }} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100" title="Fechar sem salvar">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                {editing.lines.map(l => {
+                  const q = parseNum(l.qty), t = parseNum(l.total);
+                  return (
+                    <div key={l.id} className={`grid grid-cols-2 md:grid-cols-[1fr_110px_130px_110px_36px] gap-2 items-center ${l.removed ? "opacity-50" : ""}`}>
+                      <span className={`col-span-2 md:col-span-1 text-sm font-semibold text-gray-800 truncate ${l.removed ? "line-through" : ""}`}>{l.name}</span>
+                      <input inputMode="decimal" value={l.qty} disabled={l.removed} onChange={e => setEditLine(l.id, { qty: e.target.value })} placeholder={`Qtd (${l.unit})`} className={fieldCls + " !py-1.5"} />
+                      <input inputMode="decimal" value={l.total} disabled={l.removed} onChange={e => setEditLine(l.id, { total: e.target.value })} placeholder="R$ 0,00" className={fieldCls + " !py-1.5"} />
+                      <span className="text-xs text-gray-500 md:text-right tabular-nums">{l.removed ? "sai da compra" : q > 0 && t >= 0 ? `${fmt(t / q)}/${l.unit}` : ""}</span>
+                      <button onClick={() => setEditLine(l.id, { removed: !l.removed })}
+                        className={`justify-self-end p-2 rounded-lg ${l.removed ? "text-brand-600 hover:bg-brand-50" : "text-gray-400 hover:text-red-600 hover:bg-red-50"}`}
+                        title={l.removed ? "Manter este item" : "Tirar este item da compra"}>
+                        {l.removed ? <RefreshCw className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  );
+                })}
+                {confirmDelete ? (
+                  <div className="flex flex-wrap items-center gap-2 p-2.5 rounded-xl border border-red-200 bg-red-50">
+                    <p className="text-xs text-red-800 flex-1">Excluir a compra inteira? O estoque volta e a conta sai de Contas a Pagar e do Resultado.</p>
+                    <button onClick={() => setConfirmDelete(false)} className={btnGhost + " !py-1.5"}>Não</button>
+                    <button onClick={() => saveEdit(true)} disabled={editSaving} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-semibold bg-red-600 hover:bg-red-700 disabled:opacity-40" style={WHITE}>
+                      {editSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />} Sim, excluir
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button onClick={() => setConfirmDelete(true)} className="text-xs font-semibold text-red-600 hover:underline">Excluir compra inteira</button>
+                    <div className="flex-1" />
+                    <span className="text-sm text-gray-600">Total: <b className="text-gray-900">{fmt(editing.lines.filter(l => !l.removed).reduce((x, l) => x + (parseNum(l.total) || 0), 0))}</b></span>
+                    <button onClick={() => saveEdit()} disabled={editSaving} className={btnPrimary + " !py-2"} style={WHITE}>
+                      {editSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Salvar correção
+                    </button>
+                  </div>
+                )}
+                {editError && <p className="text-sm text-red-600">{editError}</p>}
+              </div>
+            ) : (
               <div key={o.id} className="px-4 py-2.5">
-                <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center justify-between gap-2 text-xs">
                   <span className="font-semibold text-gray-700">{fmtDay(o.day)}</span>
-                  <span className="font-bold tabular-nums">{fmt(o.items.reduce((s, i) => s + i.qty * i.cost, 0))}</span>
+                  <span className="flex items-center gap-3">
+                    <span className="font-bold tabular-nums">{fmt(o.items.reduce((s, i) => s + i.qty * i.cost, 0))}</span>
+                    {o.editable && (
+                      <button onClick={() => startEdit(o)} className="inline-flex items-center gap-1 font-semibold text-brand-700 hover:underline">
+                        <Pencil className="w-3.5 h-3.5" /> Corrigir
+                      </button>
+                    )}
+                  </span>
                 </div>
                 <p className="text-xs text-gray-500">
                   {o.items.map(i => `${i.name} ${fmtNum(i.qty, 3)} ${i.unit} (${fmt(i.qty * i.cost)})`).join(" · ")}
