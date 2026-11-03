@@ -191,7 +191,34 @@ function parseQuickInput(text: string) {
   }
   if (!description) description = text.trim();
 
+  // "bolacha 8,00 salgadinho 10,00" → uma conta de R$ 18,00 "Bolacha + Salgadinho".
+  // Só entra quando há 2+ itens, cada um com nome seguido do preço.
+  const multi = parseMultiItems(text);
+  if (multi) return { description: multi.description, amount: multi.amount, due_date, category };
+
   return { description, amount, due_date, category };
+}
+
+function parseMultiItems(text: string): { description: string; amount: string } | null {
+  const clean = text
+    .replace(/\bdia\s+\d{1,2}\b/gi, " ")
+    .replace(/\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\b/g, " ")
+    .replace(/pr[oó]ximo\s*m[eê]s/gi, " ").replace(/amanh[aã]/gi, " ")
+    .replace(/\s*(?:reais?|real|brl|conto|pila)\b/gi, " ");
+  const rx = /([A-Za-zÀ-ÿ][^\d]*?)\s*(?:r\$\s*)?(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)(?=[\s,;+]|$)/gi;
+  const items: { name: string; value: number }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = rx.exec(clean))) {
+    const name = m[1].replace(/r\$\s*$/i, "").replace(/^[\s,;+\-–]+|[\s,;+\-–:=]+$/g, "").replace(/^e\s+/i, "").trim();
+    const raw = /\.\d{3}/.test(m[2]) ? m[2].replace(/\./g, "").replace(",", ".") : m[2].replace(",", ".");
+    const value = parseFloat(raw);
+    if (!name || !/[A-Za-zÀ-ÿ]/.test(name) || isNaN(value) || value <= 0) continue;
+    items.push({ name, value });
+  }
+  if (items.length < 2) return null;
+  const total = items.reduce((t, i) => t + i.value, 0);
+  const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+  return { description: items.map(i => cap(i.name)).join(" + "), amount: total.toFixed(2) };
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -801,7 +828,7 @@ export default function AccountsPayablePage() {
                       {/* Valor */}
                       <div className="pt-1">
                         <p className="font-black text-lg tabular-nums" style={{
-                          color: b.status === "paid" ? "#10b981" : b.status === "overdue" ? "#f43f5e" : "#fff"
+                          color: b.status === "paid" ? "#10b981" : b.status === "overdue" ? "#f43f5e" : isLight ? "#111827" : "#fff"
                         }}>{fmt(fin)}</p>
                         {b.status === "partial" && (
                           <p className="text-[10px] text-zinc-500 mt-1">Pago: {fmt(b.paid_amount)}</p>
