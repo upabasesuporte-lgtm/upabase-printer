@@ -837,6 +837,7 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
   const [scanOpen, setScanOpen] = useState(false);
   const [notaLink, setNotaLink] = useState<string | null>(null);
   const [notaWaiting, setNotaWaiting] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
 
   const activeItems = stockItems.filter(i => i.is_active !== false);
   const findItem = (name: string) => activeItems.find(i => norm(i.name) === norm(name));
@@ -1074,7 +1075,7 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
         const uniq = [...new Map(learn.map(l => [l.nota_name, l])).values()];
         try { await supabase.from("nfce_item_alias").upsert(uniq, { onConflict: "user_id,nota_name" }); } catch { /* ok */ }
       }
-      setNotaKey(null); setNotaMsg(null);
+      setNotaKey(null); setNotaMsg(null); setConfirmClear(false);
       setRows([emptyRow(), emptyRow(), emptyRow()]);
       setDone(`${filled.length} ite${filled.length === 1 ? "m lançado" : "ns lançados"} · ${fmt(total)}`);
       await Promise.all([onItemsChanged(), loadRecent()]);
@@ -1297,6 +1298,17 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button onClick={() => setRows(rs => [...rs, emptyRow()])} className={btnGhost}><Plus className="w-4 h-4" /> Mais um item</button>
+          {/* Desistir do lançamento (ex.: nota lida só para testar): limpa tudo, nada é salvo */}
+          {filled.length > 0 && (confirmClear ? (
+            <span className="inline-flex items-center gap-1.5 text-xs text-gray-600">
+              Apagar todos os itens da tela?
+              <button onClick={() => { setRows([emptyRow(), emptyRow(), emptyRow()]); setNotaKey(null); setNotaMsg(null); setNotaLink(null); setNotaWaiting(false); setError(null); setConfirmClear(false); }}
+                className="px-2.5 py-1.5 rounded-lg font-semibold bg-red-600 hover:bg-red-700" style={WHITE}>Sim, cancelar</button>
+              <button onClick={() => setConfirmClear(false)} className="px-2.5 py-1.5 rounded-lg font-semibold border border-gray-200 bg-white">Não</button>
+            </span>
+          ) : (
+            <button onClick={() => setConfirmClear(true)} className={btnGhost + " text-red-600"}><X className="w-4 h-4" /> Cancelar lançamento</button>
+          ))}
           <div className="flex-1" />
           <span className="text-sm text-gray-600">Total: <b className="text-gray-900">{fmt(total)}</b></span>
           <button onClick={save} disabled={saving || filled.length === 0} className={btnPrimary} style={WHITE}>
