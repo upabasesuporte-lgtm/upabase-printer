@@ -3,8 +3,9 @@ import { supabase } from "../../lib/supabase";
 import { fetchAll, fetchAllIn } from "../../lib/fetchAll";
 import { PURCHASE_PAY_METHODS } from "../purchases/PurchaseScreen";
 import {
-  RefreshCw, PiggyBank, ShoppingBasket, Plus, Trash2, Check, ChevronDown, TrendingUp, TrendingDown, UtensilsCrossed, CupSoda, Pencil, X,
+  RefreshCw, PiggyBank, ShoppingBasket, Plus, Trash2, Check, ChevronDown, TrendingUp, TrendingDown, UtensilsCrossed, CupSoda, Pencil, X, ScanLine, ClipboardPaste,
 } from "lucide-react";
+import { parseNfceText, nfceUnit } from "../../lib/nfceText";
 
 // Custo e Lucro (modelo simples): tudo que é lançado em compras de insumos vira
 // o custo da cozinha, dividido entre os pratos vendidos na proporção do preço
@@ -712,7 +713,8 @@ function LeftoverForm({ day, uid, counts, items, onSaved }: {
 
 // ─── Lançar compras do dia ────────────────────────────────────────────────────
 
-interface BuyRow { name: string; unit: string; qty: string; total: string }
+// nota: nome do item como veio na notinha (para o sistema aprender a ligação)
+interface BuyRow { name: string; unit: string; qty: string; total: string; nota?: string }
 interface RecentLine { id: string; stockItemId: string; name: string; unit: string; qty: number; cost: number }
 interface RecentBuy {
   id: string; day: string; editable: boolean; items: RecentLine[];
@@ -748,6 +750,12 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
   const [editError, setEditError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editDone, setEditDone] = useState<string | null>(null);
+  // Colar a notinha (texto da página do QR Code)
+  const [notaOpen, setNotaOpen] = useState(false);
+  const [notaText, setNotaText] = useState("");
+  const [notaBusy, setNotaBusy] = useState(false);
+  const [notaMsg, setNotaMsg] = useState<{ ok: boolean; lines: string[] } | null>(null);
+  const [notaKey, setNotaKey] = useState<string | null>(null);
 
   const activeItems = stockItems.filter(i => i.is_active !== false);
   const findItem = (name: string) => activeItems.find(i => norm(i.name) === norm(name));
@@ -803,6 +811,93 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
     return data.id;
   }
 
+  // Lê o texto copiado da página da nota e pré-preenche as linhas (nada é salvo aqui)
+  async function readNota(text: string) {
+    setNotaMsg(null);
+    const t = text.trim();
+    if (!t) return;
+    if (/^https?:\/\/\S+$/i.test(t)) {
+      setNotaMsg({ ok: false, lines: ["Isso é só o link. Abra o link no navegador, toque em Selecionar tudo → Copiar e cole aqui o texto da página."] });
+      return;
+    }
+    const n = parseNfceText(t);
+    if (n.items.length === 0) {
+      setNotaMsg({ ok: false, lines: ["Não achei os itens nesse texto. Copie a página inteira da nota (Selecionar tudo → Copiar) e cole de novo.", "Se continuar, me avise de qual estado é a nota."] });
+      return;
+    }
+    setNotaBusy(true);
+    try {
+      // Mesmo item em linhas separadas na nota vira uma linha só
+      const merged: typeof n.items = [];
+      for (const it of n.items) {
+        const same = merged.find(m => norm(m.name) === norm(it.name) && m.unit === it.unit);
+        if (same) { same.qty += it.qty; same.total += it.total; } else merged.push({ ...it });
+      }
+      // Desconto da nota: reparte nos itens para a conta bater com o que foi pago
+      const paidTotal = n.toPay ?? (n.discount > 0 ? n.itemsTotal - n.discount : null);
+      const sum = merged.reduce((a, i) => a + i.total, 0);
+      let totals = merged.map(i => Math.round(i.total * 100) / 100);
+      const discounted = paidTotal != null && paidTotal > 0 && paidTotal < sum - 0.009;
+      if (discounted) {
+        totals = merged.map(i => Math.round(i.total * (paidTotal! / sum) * 100) / 100);
+        const diff = Math.round((paidTotal! - totals.reduce((a, v) => a + v, 0)) * 100) / 100;
+        const big = totals.indexOf(Math.max(...totals));
+        totals[big] = Math.round((totals[big] + diff) * 100) / 100;
+      }
+      // Nomes que o sistema já aprendeu (nome da nota → item do estoque)
+      const keys = merged.map(i => i.name.toUpperCase());
+      const { data: al } = await supabase.from("nfce_item_alias").select("nota_name, stock_item_id").in("nota_name", keys);
+      const alias = new Map(((al ?? []) as any[]).map(a => [a.nota_name as string, a.stock_item_id as string]));
+      const newRows: BuyRow[] = merged.map((it, k) => {
+        const known = activeItems.find(x => x.id === alias.get(it.name.toUpperCase())) ?? findItem(it.name);
+        return {
+          name: known?.name ?? it.name, unit: known?.unit ?? nfceUnit(it.unit), nota: it.name,
+          qty: String(Math.round(it.qty * 1000) / 1000).replace(".", ","),
+          total: totals[k].toFixed(2).replace(".", ","),
+        };
+      });
+      setRows(rs => [...rs.filter(r => r.name.trim() || r.qty || r.total), ...newRows]);
+      if (n.date && n.date <= today) setDay(n.date);
+      // Onde comprou: fornecedor já cadastrado com o mesmo CNPJ ou nome
+      let supFound: { id: string; name: string } | undefined;
+      if (n.cnpj) {
+        const { data: sc } = await supabase.from("suppliers").select("id, cnpj");
+        const hit = ((sc ?? []) as any[]).find(x => String(x.cnpj ?? "").replace(/\D/g, "") === n.cnpj);
+        if (hit) supFound = suppliers.find(x => x.id === hit.id);
+      }
+      if (!supFound && n.store) supFound = suppliers.find(x => norm(x.name) === norm(n.store!));
+      if (supFound) setSupplierId(supFound.id);
+      // Mesma nota lançada antes?
+      let dup: string | null = null;
+      if (n.key) {
+        const { data: d } = await supabase.from("purchase_orders").select("created_at").ilike("notes", `%${n.key}%`).neq("status", "cancelled").limit(1);
+        if (d && d.length) dup = new Date((d[0] as any).created_at).toLocaleDateString("pt-BR");
+      }
+      setNotaKey(n.key);
+      const known = newRows.filter(r => findItem(r.name)).length;
+      const lines = [
+        `Nota lida: ${newRows.length} ite${newRows.length === 1 ? "m" : "ns"} · ${fmt(paidTotal ?? sum)}${n.store ? " · " + n.store : ""}${n.date ? " · " + n.date.split("-").reverse().join("/") : ""}`,
+        "Confira os itens abaixo, corrija o que precisar e toque em Salvar compras.",
+      ];
+      if (discounted) lines.push(`A nota teve desconto de ${fmt(sum - paidTotal!)}: já reparti nos itens, o total bate com o que você pagou.`);
+      if (known < newRows.length) lines.push(`${newRows.length - known} ite${newRows.length - known === 1 ? "m está" : "ns estão"} como "item novo". Se já existe no seu estoque com outro nome, escolha o nome certo na lista: o sistema aprende para a próxima nota.`);
+      if (dup) lines.push(`⚠ Essa nota já foi lançada em ${dup}. Confira para não lançar duas vezes.`);
+      setNotaMsg({ ok: !dup, lines });
+      setNotaText(""); setNotaOpen(false);
+    } catch (e: any) {
+      setNotaMsg({ ok: false, lines: [e?.message ?? String(e)] });
+    }
+    setNotaBusy(false);
+  }
+
+  async function pasteNota() {
+    try {
+      const t = await navigator.clipboard.readText();
+      if (t.trim()) { setNotaText(t); await readNota(t); return; }
+    } catch { /* sem permissão: cola no campo */ }
+    document.getElementById("nota-text")?.focus();
+  }
+
   async function save() {
     setError(null); setDone(null);
     if (filled.length === 0) { setError("Preencha pelo menos um item."); return; }
@@ -833,7 +928,7 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
         return { ref_type: "ingredient", item_id: ids[i], quantity: q, unit_cost: Math.round((t / q) * 10000) / 10000 };
       });
       const { data: poId, error } = await supabase.rpc("register_purchase", {
-        p_supplier_id: sup, p_notes: "Compras do dia", p_due_date: day, p_installments: 1, p_items: items,
+        p_supplier_id: sup, p_notes: notaKey ? `Compras do dia · NFC-e ${notaKey}` : "Compras do dia", p_due_date: day, p_installments: 1, p_items: items,
       });
       if (error || !poId) throw new Error(error?.message ?? "Erro ao salvar a compra");
       // Data escolhida (compra de ontem lançada hoje, por exemplo)
@@ -863,6 +958,14 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
         balance_after: balance.get(i.item_id) ?? null, unit_cost: i.unit_cost || null,
         reference_type: "purchase", reference_id: poId, notes: `Compra${supName ? " - " + supName : ""}`,
       })));
+      // Aprende: nome da nota → item do estoque (falhar aqui não desfaz a compra)
+      const learn = filled.map((r, i) => r.nota ? { nota_name: r.nota.toUpperCase(), stock_item_id: ids[i], updated_at: new Date().toISOString() } : null)
+        .filter((x): x is { nota_name: string; stock_item_id: string; updated_at: string } => !!x);
+      if (learn.length) {
+        const uniq = [...new Map(learn.map(l => [l.nota_name, l])).values()];
+        try { await supabase.from("nfce_item_alias").upsert(uniq, { onConflict: "user_id,nota_name" }); } catch { /* ok */ }
+      }
+      setNotaKey(null); setNotaMsg(null);
       setRows([emptyRow(), emptyRow(), emptyRow()]);
       setDone(`${filled.length} ite${filled.length === 1 ? "m lançado" : "ns lançados"} · ${fmt(total)}`);
       await Promise.all([onItemsChanged(), loadRecent()]);
@@ -954,6 +1057,45 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
   return (
     <div className="space-y-4">
       <div className={`${card} p-4 space-y-3`}>
+        <div className="rounded-2xl border border-brand-200 bg-brand-50/50 p-3 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="w-9 h-9 rounded-xl bg-brand-100 text-brand-700 flex items-center justify-center shrink-0"><ScanLine className="w-5 h-5" /></span>
+            <div className="flex-1 min-w-[180px]">
+              <p className="text-sm font-bold text-gray-900">Lançar pela notinha (QR Code)</p>
+              <p className="text-[11px] text-gray-500">Os itens da nota entram sozinhos aqui embaixo. Você confere e salva.</p>
+            </div>
+            <button onClick={() => { setNotaOpen(o => !o); setNotaMsg(null); }} className={btnGhost}>
+              <ClipboardPaste className="w-4 h-4" /> {notaOpen ? "Fechar" : "Colar notinha"}
+            </button>
+          </div>
+          {notaOpen && (
+            <div className="space-y-2">
+              <ol className="text-xs text-gray-600 space-y-0.5 list-decimal pl-5">
+                <li>Aponte a câmera do celular para o QR Code da notinha e abra o link.</li>
+                <li>Na página da nota, toque em <b>Selecionar tudo</b> e depois em <b>Copiar</b>.</li>
+                <li>Volte aqui e toque em <b>Colar e ler</b> (ou cole no campo abaixo).</li>
+              </ol>
+              <textarea id="nota-text" value={notaText} rows={4}
+                onChange={e => setNotaText(e.target.value)}
+                onPaste={e => { const t = e.clipboardData.getData("text"); if (t.trim()) { e.preventDefault(); setNotaText(t); readNota(t); } }}
+                placeholder="Cole aqui o texto da página da nota…" className={fieldCls + " text-xs"} />
+              <div className="flex flex-wrap gap-2">
+                <button onClick={pasteNota} disabled={notaBusy} className={btnPrimary} style={WHITE}>
+                  {notaBusy ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ClipboardPaste className="w-4 h-4" />} Colar e ler
+                </button>
+                {notaText.trim() && (
+                  <button onClick={() => readNota(notaText)} disabled={notaBusy} className={btnGhost}>Ler o texto do campo</button>
+                )}
+              </div>
+            </div>
+          )}
+          {notaMsg && (
+            <div className={`rounded-xl px-3 py-2 text-xs space-y-0.5 ${notaMsg.ok ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800"}`}>
+              {notaMsg.lines.map((l, i) => <p key={i} className={i === 0 ? "font-semibold" : ""}>{l}</p>)}
+            </div>
+          )}
+        </div>
+
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
           <label className="text-xs text-gray-500">Data da compra
             <input type="date" value={day} max={today} onChange={e => setDay(e.target.value)} className={fieldCls + " mt-1"} />
@@ -1000,8 +1142,11 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
             const unit = ex?.unit ?? r.unit;
             return (
               <div key={idx} className="grid grid-cols-2 md:grid-cols-[1fr_120px_110px_130px_110px_36px] gap-2 items-center p-2 md:p-0 rounded-xl border border-gray-100 md:border-0">
-                <input list="cost-items" value={r.name} onChange={e => setRow(idx, { name: e.target.value })}
-                  placeholder="Ex.: Bife, Alho, Arroz…" className={fieldCls + " col-span-2 md:col-span-1"} />
+                <div className="col-span-2 md:col-span-1">
+                  <input list="cost-items" value={r.name} onChange={e => setRow(idx, { name: e.target.value })}
+                    placeholder="Ex.: Bife, Alho, Arroz…" className={fieldCls} />
+                  {r.nota && norm(r.nota) !== norm(r.name) && <p className="text-[10px] text-gray-400 px-1 mt-0.5 truncate">na nota: {r.nota}</p>}
+                </div>
                 {ex ? (
                   <span className="text-sm text-gray-600 px-1">{ex.unit}</span>
                 ) : (
