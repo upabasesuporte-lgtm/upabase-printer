@@ -308,7 +308,7 @@ export default function AccountsPayablePage() {
   const load = useCallback(async () => {
     if (!userId) return;
     const { data } = await supabase.from("accounts_payable")
-      .select("*").eq("user_id", userId).order("due_date", { ascending: true });
+      .select("*").eq("user_id", userId).order("due_date", { ascending: false }).order("created_at", { ascending: false });
     if (data) {
       const now = todayStr();
       setBills((data as Bill[]).map(b => ({
@@ -344,7 +344,8 @@ export default function AccountsPayablePage() {
         }
       }
       return true;
-    });
+    // Mais novo no topo (vencimento, depois a hora do lançamento)
+    }).sort((a, b) => b.due_date.localeCompare(a.due_date) || (b.created_at ?? "").localeCompare(a.created_at ?? ""));
   }, [bills, search, statusF, categoryF, periodF]);
 
   // ── Summary cards
