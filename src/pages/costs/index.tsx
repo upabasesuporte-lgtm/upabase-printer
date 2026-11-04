@@ -16,7 +16,8 @@ import { parseNfceText, nfceUnit } from "../../lib/nfceText";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
-interface StockItem { id: string; name: string; unit: string; cost_price: number | null; is_active: boolean | null }
+// category: "bebida" = fica fora do custo do prato; "cozinha" = entra; vazio = o sistema decide pelo nome
+interface StockItem { id: string; name: string; unit: string; cost_price: number | null; is_active: boolean | null; category?: string | null }
 interface Product { id: string; name: string; sale_price: number | null; cost_price: number | null; category_id: string | null; is_active: boolean | null }
 interface Category { id: string; name: string }
 interface Count { stock_item_id: string; count_date: string; qty: number }
@@ -87,6 +88,33 @@ function presetRange(p: Preset, today: string): { from: string; to: string; prev
 
 // Bebida/revenda: categoria ou nome de bebida, ou produto comprado pronto (compra de produto)
 const DRINK_RX = /bebida|refri|refrigerante|coca|guaran|fanta|sprite|soda|suco|água|agua|cerveja|chopp|vinho|energ|lata\b|\b600 ?ml|\b2 ?l\b/i;
+// Insumo que é bebida (comprado no mercado junto com a comida): não entra no custo
+// do prato, vira o custo da bebida vendida. Mais estrito que DRINK_RX para não
+// pegar "milho lata", "leite", "água sanitária"…
+const STOCK_DRINK_RX = /refri|refrigerante|coca[\s-]?cola|\bcoca\b|guaran[aá]|fanta|sprite|pepsi|kuat|schweppes|tubaina|itubaina|dolly|vencetex|cerveja|chopp|energ[eé]tico|red ?bull|monster|[aá]gua (mineral|com g[aá]s|sem g[aá]s)|\bh2oh?\b|del valle|suco .*(lata|caixa|cx|garrafa|\d+ ?ml)/i;
+const autoDrinkName = (name: string) => STOCK_DRINK_RX.test(name);
+const isDrinkItem = (i: { name: string; category?: string | null }) =>
+  i.category === "bebida" ? true : i.category === "cozinha" ? false : autoDrinkName(i.name);
+// Liga o produto vendido ("ZERO LATA") ao insumo comprado ("COCA COLA LATA ZERO")
+const GENERIC_TOKENS = new Set(["de", "da", "do", "com", "sem", "lata", "pet", "garrafa", "refri", "refrigerante", "ml", "l", "un", "und"]);
+const tokens = (t: string) => norm(t).split(/[^a-z0-9]+/).filter(w => w.length >= 2 || /\d/.test(w));
+function matchDrinkItem(productName: string, items: StockItem[]): StockItem | null {
+  const pt = tokens(productName);
+  if (pt.length === 0) return null;
+  let best: StockItem | null = null, bestScore = -Infinity;
+  for (const it of items) {
+    const it_t = new Set(tokens(it.name));
+    const all = pt.every(w => it_t.has(w));
+    // Tamanho (2l, 350ml) sozinho não liga: "VENCETEX 2L" não é "COCA COLA 2L"
+    const shared = pt.filter(w => !GENERIC_TOKENS.has(w) && !/^\d+([.,]\d+)?(ml|l)$/.test(w) && it_t.has(w)).length;
+    if (!all && shared === 0) continue;
+    // Todos os termos batendo vale mais; depois, menos sobra no nome do insumo
+    const score = (all ? 1000 : 0) + shared * 10 - (it_t.size - pt.filter(w => it_t.has(w)).length);
+    if (score > bestScore) { best = it; bestScore = score; }
+  }
+  return best;
+}
+
 // Taxa de entrega lançada como produto: não é comida nem lucro da cozinha
 const DELIVERY_RX = /entrega|frete|taxa de servi/i;
 
@@ -162,12 +190,27 @@ function compute(
   const isResale = (p: Product) =>
     DRINK_RX.test(catName(p.category_id)) || DRINK_RX.test(p.name) || resaleBought.has(p.id);
 
+  // Bebidas compradas como insumo (no mercado): preço médio pago por unidade
+  const drinkItems = stockItems.filter(i => isDrinkItem(i) && !/fardo|caixa|pacote|d[uú]zia/i.test(i.unit));
+  const drinkBought = new Map<string, { qty: number; cost: number }>();
+  for (const p of purchases) {
+    if (!p.stock_item_id || !drinkItems.some(i => i.id === p.stock_item_id)) continue;
+    const cur = drinkBought.get(p.stock_item_id) ?? { qty: 0, cost: 0 };
+    cur.qty += p.qty; cur.cost += p.qty * p.cost;
+    drinkBought.set(p.stock_item_id, cur);
+  }
+  const drinkUnitCost = (prod: Product): number => {
+    const it = matchDrinkItem(prod.name, drinkItems.filter(i => drinkBought.has(i.id)));
+    const b = it ? drinkBought.get(it.id) : undefined;
+    return b && b.qty > 0 ? b.cost / b.qty : 0;
+  };
+
   const food: ProductResult[] = [], resale: ProductResult[] = [];
   for (const [pid, s] of sold) {
     const product = productById.get(pid)!;
     if (isResale(product)) {
       const b = resaleBought.get(pid);
-      const unitCost = b && b.qty > 0 ? b.cost / b.qty : Number(product.cost_price ?? 0);
+      const unitCost = b && b.qty > 0 ? b.cost / b.qty : drinkUnitCost(product) || Number(product.cost_price ?? 0);
       const avgPrice = s.qty > 0 ? s.revenue / s.qty : 0;
       resale.push({ product, kind: "resale", qty: s.qty, revenue: s.revenue, cost: unitCost * s.qty, hasCost: unitCost > 0,
         listPrice: Number(product.sale_price ?? 0) > 0 ? Number(product.sale_price) : avgPrice, avgPrice });
@@ -200,7 +243,7 @@ function compute(
   const items: ItemResult[] = [];
   for (const id of ids) {
     const item = itemById.get(id);
-    if (!item) continue;
+    if (!item || isDrinkItem(item)) continue;
     const b = bought.get(id) ?? { qty: 0, cost: 0 };
     const avg = b.qty > 0 ? b.cost / b.qty : Number(item.cost_price ?? 0);
     const opening = countOf(id, openDay), closing = countOf(id, to);
@@ -243,7 +286,7 @@ export default function CostsPage() {
   async function loadBase() {
     const [{ data: u }, si, pr, ca, su] = await Promise.all([
       supabase.auth.getUser(),
-      fetchAll(() => supabase.from("stock_items").select("id, name, unit, cost_price, is_active")),
+      fetchAll(() => supabase.from("stock_items").select("id, name, unit, cost_price, is_active, category")),
       fetchAll(() => supabase.from("products").select("id, name, sale_price, cost_price, category_id, is_active")),
       fetchAll(() => supabase.from("categories").select("id, name")),
       fetchAll(() => supabase.from("suppliers").select("id, name")),
@@ -714,7 +757,8 @@ function LeftoverForm({ day, uid, counts, items, onSaved }: {
 // ─── Lançar compras do dia ────────────────────────────────────────────────────
 
 // nota: nome do item como veio na notinha (para o sistema aprender a ligação)
-interface BuyRow { name: string; unit: string; qty: string; total: string; nota?: string }
+// kind: escolha manual de bebida/cozinha na linha (sem escolha, o sistema decide pelo nome)
+interface BuyRow { name: string; unit: string; qty: string; total: string; nota?: string; kind?: "bebida" | "cozinha" }
 interface RecentLine { id: string; stockItemId: string; name: string; unit: string; qty: number; cost: number }
 interface RecentBuy {
   id: string; day: string; editable: boolean; items: RecentLine[];
@@ -1026,9 +1070,16 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
       const ids: string[] = [];
       for (const r of filled) {
         const ex = findItem(r.name);
-        if (ex) { ids.push(ex.id); continue; }
+        if (ex) {
+          ids.push(ex.id);
+          if (r.kind && r.kind !== (isDrinkItem(ex) ? "bebida" : "cozinha")) {
+            await supabase.from("stock_items").update({ category: r.kind }).eq("id", ex.id);
+          }
+          continue;
+        }
         const { data, error } = await supabase.from("stock_items").insert({
           name: r.name.trim(), unit: r.unit, current_qty: 0, min_qty: 0, cost_price: 0, supplier_id: supplierId || null,
+          category: r.kind ?? null,
         }).select("id").single();
         if (error || !data) throw new Error(error?.message ?? "Erro ao criar insumo");
         ids.push(data.id);
@@ -1287,6 +1338,15 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
                 <span className="text-xs text-gray-500 md:text-right tabular-nums">
                   {q > 0 && t >= 0 ? `${fmt(t / q)}/${unit}` : ""}
                   {r.name.trim() && !ex && <span className="block text-[10px] font-semibold text-brand-600">item novo</span>}
+                  {r.name.trim() && (() => {
+                    const drink = r.kind ? r.kind === "bebida" : ex ? isDrinkItem(ex) : autoDrinkName(r.name);
+                    return (
+                      <button type="button" onClick={() => setRow(idx, { kind: drink ? "cozinha" : "bebida" })}
+                        title="Toque para trocar" className={`mt-0.5 inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${drink ? "bg-sky-100 text-sky-700" : "bg-gray-100 text-gray-500"}`}>
+                        {drink ? "🥤 bebida · fora do prato" : "🍲 custo do prato"}
+                      </button>
+                    );
+                  })()}
                 </span>
                 <button onClick={() => setRows(rs => rs.length > 1 ? rs.filter((_, i) => i !== idx) : [emptyRow()])}
                   className="justify-self-end p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50" title="Remover linha">
