@@ -3,7 +3,7 @@ import { supabase } from "../../lib/supabase";
 import { fetchAll, fetchAllIn } from "../../lib/fetchAll";
 import { PURCHASE_PAY_METHODS } from "../purchases/PurchaseScreen";
 import {
-  RefreshCw, PiggyBank, ShoppingBasket, Plus, Trash2, Check, ChevronDown, TrendingUp, TrendingDown, UtensilsCrossed, CupSoda, Pencil, X, ScanLine, ClipboardPaste, Camera, ExternalLink,
+  RefreshCw, PiggyBank, ShoppingBasket, Plus, Trash2, Check, ChevronDown, TrendingUp, TrendingDown, UtensilsCrossed, CupSoda, Pencil, X, ScanLine, ClipboardPaste, Camera, ExternalLink, Wallet, Receipt,
 } from "lucide-react";
 import { parseNfceText, nfceUnit } from "../../lib/nfceText";
 
@@ -356,8 +356,6 @@ function ResultView({ stockItems, products, categories, uid, goBuy }: {
   const [sales, setSales] = useState<SaleLine[]>([]);
   const [counts, setCounts] = useState<Count[]>([]);
   const [bills, setBills] = useState<PaidBill[]>([]);
-  const [leftoverOpen, setLeftoverOpen] = useState(false);
-  const [billsOpen, setBillsOpen] = useState(false);
 
   async function load() {
     setLoading(true); setError(null);
@@ -447,6 +445,14 @@ function ResultView({ stockItems, products, categories, uid, goBuy }: {
     return { food: list(food), foodTotal: sum(food), expense: list(expense), expenseTotal: sum(expense), personal };
   }, [bills]);
   const netProfit = profit - billGroups.foodTotal - billGroups.expenseTotal;
+  // Para explicar o lucro: de cada R$ 100 vendidos, quanto foi para cada lado
+  const goodsCost = cur.foodCost + cur.resaleCost + billGroups.foodTotal;
+  const per100 = (v: number) => (revenue > 0 ? (v / revenue) * 100 : 0);
+  const prevProfit = prev.foodRevenue + prev.resaleRevenue - prev.foodCost - prev.resaleCost;
+  const profitChange = prevProfit > 0 ? ((profit - prevProfit) / prevProfit) * 100 : null;
+  const topExpense = billGroups.expense[0];
+  const maxItemCost = Math.max(0.01, ...cur.items.map(i => i.usedCost));
+  const itemsTotal = cur.items.reduce((x, i) => x + i.usedCost, 0);
 
   return (
     <div className="space-y-4">
@@ -482,10 +488,13 @@ function ResultView({ stockItems, products, categories, uid, goBuy }: {
         <>
           {/* Resumo */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <Kpi label="Vendeu" value={fmt(revenue)} sub={`${fmtNum(cur.dishes, 0)} pratos · sem taxa de entrega`} />
-            <Kpi label="Custo" value={fmt(cur.foodCost + cur.resaleCost)} sub={`compras no período: ${fmt(cur.bought)}`} />
-            <Kpi label="Lucro" value={fmt(profit)} tone={profit >= 0 ? "green" : "red"} sub={`margem de ${pct(profit, revenue)}`} />
-            <Kpi label="Custo por prato" value={cur.dishes > 0 ? fmt(cur.foodCost / cur.dishes) : "—"}
+            <Kpi label="Vendeu" value={fmt(revenue)} tone="sky" icon={<Wallet className="w-4 h-4" />}
+              sub={`${fmtNum(cur.dishes, 0)} pratos · sem taxa de entrega`} />
+            <Kpi label="Custo" value={fmt(cur.foodCost + cur.resaleCost)} tone="amber" icon={<ShoppingBasket className="w-4 h-4" />}
+              sub={`compras no período: ${fmt(cur.bought)}`} />
+            <Kpi label="Lucro" value={fmt(profit)} tone={profit >= 0 ? "emerald" : "red"} icon={<TrendingUp className="w-4 h-4" />}
+              sub={`margem de ${pct(profit, revenue)}`} />
+            <Kpi label="Custo por prato" value={cur.dishes > 0 ? fmt(cur.foodCost / cur.dishes) : "—"} tone="violet" icon={<UtensilsCrossed className="w-4 h-4" />}
               sub={cur.dishes > 0 ? `vende em média por ${fmt(cur.foodRevenue / cur.dishes)}` : "sem pratos vendidos"} />
           </div>
 
@@ -497,183 +506,247 @@ function ResultView({ stockItems, products, categories, uid, goBuy }: {
           )}
 
           {/* Comida x Bebidas */}
-          <div className={card}>
-            <div className="px-4 pt-4 pb-2">
-              <p className="text-sm font-bold text-gray-900">Resumo</p>
-            </div>
-            <div className="divide-y divide-gray-100">
-              <div className="hidden md:grid grid-cols-[1fr_120px_120px_120px_70px] gap-2 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-                <span /><span className="text-right">Vendeu</span><span className="text-right">Custo</span><span className="text-right">Lucro</span><span className="text-right">Margem</span>
-              </div>
+          <div className={`${card} p-4 space-y-3`}>
+            <SectionTitle title="Resumo" sub="Quanto entrou, quanto custou e quanto ficou de cada lado." />
+            <div className="grid md:grid-cols-2 gap-3">
               {[
-                { icon: <UtensilsCrossed className="w-4 h-4 text-brand-600" />, label: "Comida", r: cur.foodRevenue, c: cur.foodCost },
-                { icon: <CupSoda className="w-4 h-4 text-brand-600" />, label: "Bebidas e revenda", r: cur.resaleRevenue, c: cur.resaleCost },
-              ].map(row => (
-                <div key={row.label} className="px-4 py-3 grid grid-cols-2 md:grid-cols-[1fr_120px_120px_120px_70px] gap-x-2 gap-y-1 items-center">
-                  <span className="col-span-2 md:col-span-1 flex items-center gap-2 font-semibold text-sm text-gray-900">{row.icon}{row.label}</span>
-                  <Cell label="Vendeu" value={fmt(row.r)} />
-                  <Cell label="Custo" value={fmt(row.c)} />
-                  <Cell label="Lucro" value={fmt(row.r - row.c)} tone={row.r - row.c >= 0 ? "green" : "red"} bold />
-                  <Cell label="Margem" value={pct(row.r - row.c, row.r)} />
-                </div>
-              ))}
-              <div className="px-4 py-3 grid grid-cols-2 md:grid-cols-[1fr_120px_120px_120px_70px] gap-x-2 gap-y-1 items-center bg-gray-50 rounded-b-2xl">
-                <span className="col-span-2 md:col-span-1 font-bold text-sm text-gray-900">Total</span>
-                <Cell label="Vendeu" value={fmt(revenue)} bold />
-                <Cell label="Custo" value={fmt(cur.foodCost + cur.resaleCost)} bold />
-                <Cell label="Lucro" value={fmt(profit)} tone={profit >= 0 ? "green" : "red"} bold />
-                <Cell label="Margem" value={pct(profit, revenue)} bold />
-              </div>
+                { icon: <UtensilsCrossed className="w-4 h-4" />, label: "Comida", r: cur.foodRevenue, c: cur.foodCost },
+                { icon: <CupSoda className="w-4 h-4" />, label: "Bebidas e revenda", r: cur.resaleRevenue, c: cur.resaleCost },
+              ].map(row => {
+                const pr = row.r - row.c;
+                return (
+                  <div key={row.label} className="rounded-2xl border border-gray-100 bg-gradient-to-br from-white to-gray-50 p-3.5 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="w-8 h-8 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center">{row.icon}</span>
+                      <p className="flex-1 font-bold text-sm text-gray-900">{row.label}</p>
+                      <MarginBadge value={row.r > 0 ? (pr / row.r) * 100 : null} />
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <Stat label="Vendeu" value={fmt(row.r)} tone="sky" />
+                      <Stat label="Custo" value={fmt(row.c)} tone="amber" />
+                      <Stat label="Lucro" value={fmt(pr)} tone={pr >= 0 ? "emerald" : "red"} />
+                    </div>
+                    <SplitBar parts={[{ v: row.c, cls: "bg-amber-400", label: "custo" }, { v: Math.max(0, pr), cls: "bg-emerald-500", label: "lucro" }]} />
+                  </div>
+                );
+              })}
+            </div>
+            <div className="rounded-2xl bg-gradient-to-r from-sky-50 via-white to-emerald-50 border border-gray-100 p-3.5 grid grid-cols-2 md:grid-cols-4 gap-3">
+              <Stat label="Total vendido" value={fmt(revenue)} tone="sky" big />
+              <Stat label="Custo total" value={fmt(cur.foodCost + cur.resaleCost)} tone="amber" big />
+              <Stat label="Lucro total" value={fmt(profit)} tone={profit >= 0 ? "emerald" : "red"} big />
+              <Stat label="Margem" value={pct(profit, revenue)} tone="violet" big />
             </div>
             {cur.deliveryFees > 0 && (
-              <p className="px-4 py-2 text-[11px] text-gray-400">Taxas de entrega recebidas ({fmt(cur.deliveryFees)}) não entram no lucro: costumam ir para o motoboy.</p>
+              <p className="text-[11px] text-gray-400">Taxas de entrega recebidas ({fmt(cur.deliveryFees)}) não entram no lucro: costumam ir para o motoboy.</p>
+            )}
+          </div>
+
+          {/* Por unidade */}
+          <div className={`${card} p-4 space-y-3`}>
+            <SectionTitle title="Custo e lucro de cada um"
+              sub={'"Vende por" é o preço do cadastro; "média" aparece quando o caixa recebeu diferente (desconto ou preço alterado). O lucro total usa o que realmente entrou. Pratos: o custo das compras é dividido pelo preço de cada um (a G leva mais que a P). Bebidas: preço pago na compra.'} />
+            {cur.food.length + cur.resale.length === 0 ? (
+              <p className="text-sm text-gray-500">Nenhuma venda no período.</p>
+            ) : (
+              <div className="space-y-4">
+                {([["Pratos", <UtensilsCrossed key="i" className="w-3.5 h-3.5" />, cur.food], ["Bebidas e revenda", <CupSoda key="i" className="w-3.5 h-3.5" />, cur.resale]] as const)
+                  .filter(([, , list]) => list.length > 0).map(([title, icon, list]) => (
+                  <div key={title} className="space-y-2">
+                    <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-400">{icon}{title}</p>
+                    <div className="hidden md:grid grid-cols-[1fr_80px_110px_100px_100px_120px] gap-2 px-3 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                      <span>Produto</span><span className="text-right">Vendidos</span><span className="text-right">Vende por</span><span className="text-right">Custo cada</span>
+                      <span className="text-right">Lucro cada</span><span className="text-right">Lucro total</span>
+                    </div>
+                    {list.map(pr => {
+                      const price = pr.listPrice, each = pr.qty > 0 ? pr.cost / pr.qty : 0;
+                      const avgDiffers = pr.avgPrice > 0 && Math.abs(pr.avgPrice - price) / Math.max(price, 0.01) > 0.01;
+                      const totalProfit = pr.revenue - pr.cost;
+                      return (
+                        <div key={pr.product.id} className="rounded-xl border border-gray-100 hover:border-gray-200 bg-white px-3 py-2.5 grid grid-cols-2 md:grid-cols-[1fr_80px_110px_100px_100px_120px] gap-x-2 gap-y-1.5 items-center transition-colors">
+                          <div className="col-span-2 md:col-span-1 min-w-0 space-y-1">
+                            <p className="font-semibold text-sm text-gray-900 truncate">
+                              {pr.product.name}
+                              {!pr.hasCost && <span className="ml-1.5 text-[10px] font-semibold text-amber-600">sem preço de compra</span>}
+                            </p>
+                            {pr.hasCost && price > 0 && (
+                              <div className="flex items-center gap-2 max-w-[260px]">
+                                <SplitBar thin parts={[{ v: Math.min(each, price), cls: "bg-amber-400" }, { v: Math.max(0, price - each), cls: "bg-emerald-500" }]} />
+                                <span className={`text-[10px] font-bold tabular-nums ${price - each >= 0 ? "text-emerald-600" : "text-red-600"}`}>{pct(price - each, price)}</span>
+                              </div>
+                            )}
+                          </div>
+                          <span className="flex md:block items-center justify-between md:text-right text-xs">
+                            <span className="md:hidden text-gray-400">Vendidos</span>
+                            <span className="inline-block px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 font-bold tabular-nums">{fmtNum(pr.qty, 2)}×</span>
+                          </span>
+                          <span className="flex md:block items-center justify-between md:text-right text-xs tabular-nums">
+                            <span className="md:hidden text-gray-400">Vende por</span>
+                            <span className="font-semibold text-sky-700">{fmt(price)}
+                              {avgDiffers && <span className="block text-[10px] font-normal text-gray-400" title="Média do que entrou no caixa (descontos ou preço alterado na venda)">média {fmt(pr.avgPrice)}</span>}
+                            </span>
+                          </span>
+                          <Cell label="Custo cada" value={pr.hasCost ? fmt(each) : "—"} tone={pr.hasCost ? "amber" : undefined} />
+                          <Cell label="Lucro cada" value={pr.hasCost ? fmt(price - each) : "—"} tone={pr.hasCost ? (price - each >= 0 ? "green" : "red") : undefined} bold />
+                          <span className="flex md:block items-center justify-between md:text-right text-xs tabular-nums">
+                            <span className="md:hidden text-gray-400">Lucro total</span>
+                            {pr.hasCost ? (
+                              <span className={`inline-block px-2 py-1 rounded-lg font-black ${totalProfit >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>{fmt(totalProfit)}</span>
+                            ) : <span className="text-gray-400">—</span>}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
             )}
           </div>
 
           {/* Lucro líquido (com Contas a Pagar) */}
-          <div className={card}>
-            <div className="px-4 pt-4 pb-2 flex items-start justify-between gap-2">
-              <div>
-                <p className="text-sm font-bold text-gray-900">Quanto sobrou de verdade</p>
-                <p className="text-[11px] text-gray-400">Puxa sozinho as contas pagas em Contas a Pagar no período (pela data do pagamento).</p>
-              </div>
-              {(billGroups.food.length + billGroups.expense.length) > 0 && (
-                <button onClick={() => setBillsOpen(o => !o)} className="text-xs font-semibold text-brand-700 whitespace-nowrap">
-                  {billsOpen ? "Esconder detalhes" : "Ver detalhes"}
-                </button>
-              )}
-            </div>
-            <div className="px-4 pb-4 space-y-1.5 text-sm">
-              <div className="flex justify-between"><span className="text-gray-600">Lucro da comida e bebidas</span><span className="font-semibold tabular-nums">{fmt(profit)}</span></div>
-              {billGroups.foodTotal > 0 && (
-                <>
-                  <div className="flex justify-between"><span className="text-gray-600">− Compras de comida pagas em Contas a Pagar</span><span className="font-semibold tabular-nums text-red-600">{fmt(billGroups.foodTotal)}</span></div>
-                  {billsOpen && billGroups.food.map(([k, v]) => (
-                    <div key={"f" + k} className="flex justify-between pl-4 text-xs text-gray-500"><span>{billLabel(k)}</span><span className="tabular-nums">{fmt(v)}</span></div>
-                  ))}
-                </>
-              )}
-              <div className="flex justify-between"><span className="text-gray-600">− Despesas do negócio (combustível, aluguel, luz, salários…)</span><span className="font-semibold tabular-nums text-red-600">{fmt(billGroups.expenseTotal)}</span></div>
-              {billsOpen && billGroups.expense.map(([k, v]) => (
-                <div key={"e" + k} className="flex justify-between pl-4 text-xs text-gray-500"><span>{billLabel(k)}</span><span className="tabular-nums">{fmt(v)}</span></div>
-              ))}
-              <div className="flex justify-between pt-2 mt-1 border-t border-gray-100 text-base">
-                <span className="font-bold text-gray-900">= Lucro líquido</span>
-                <span className={`font-black tabular-nums ${netProfit >= 0 ? "text-emerald-600" : "text-red-600"}`}>{fmt(netProfit)}</span>
-              </div>
-              {billGroups.foodTotal > 0 && (
-                <p className="text-[11px] text-gray-400 pt-1">Dica: compras de comida lançadas aqui em "Lançar compras" entram no custo de cada marmita; as lançadas direto em Contas a Pagar só aparecem neste total.</p>
-              )}
-              {billGroups.personal > 0 && (
-                <p className="text-[11px] text-gray-400">Contas pessoais pagas ({fmt(billGroups.personal)}) não entram no lucro da empresa.</p>
-              )}
-            </div>
-          </div>
+          <div className={`${card} p-4 space-y-4`}>
+            <SectionTitle title="Quanto sobrou de verdade" sub="Puxa sozinho as contas pagas em Contas a Pagar no período (pela data do pagamento)." />
 
-          {/* Por unidade */}
-          <div className={card}>
-            <div className="px-4 pt-4 pb-2">
-              <p className="text-sm font-bold text-gray-900">Custo e lucro de cada um</p>
-              <p className="text-[11px] text-gray-400">"Vende por" é o preço do cadastro; "média" aparece quando o caixa recebeu diferente (desconto ou preço alterado). O lucro total usa o que realmente entrou. Pratos: o custo das compras é dividido pelo preço de cada um (a G leva mais que a P). Bebidas: preço pago na compra.</p>
+            {/* Destaque do lucro líquido */}
+            <div className={`rounded-2xl p-4 border ${netProfit >= 0 ? "bg-gradient-to-br from-emerald-50 to-white border-emerald-100" : "bg-gradient-to-br from-red-50 to-white border-red-100"}`}>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Lucro líquido do período</p>
+              <p className={`text-3xl font-black tabular-nums tracking-tight ${netProfit >= 0 ? "text-emerald-600" : "text-red-600"}`}>{fmt(netProfit)}</p>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                <Pill tone="violet">margem líquida {pct(netProfit, revenue)}</Pill>
+                {cur.dishes > 0 && <Pill tone="sky">{fmt(netProfit / cur.dishes)} por prato vendido</Pill>}
+                {profitChange !== null && (
+                  <Pill tone={profitChange >= 0 ? "emerald" : "red"}>
+                    lucro das vendas {profitChange >= 0 ? "+" : ""}{fmtNum(profitChange, 0)}% vs período anterior
+                  </Pill>
+                )}
+              </div>
             </div>
-            {cur.food.length + cur.resale.length === 0 ? (
-              <p className="px-4 pb-4 text-sm text-gray-500">Nenhuma venda no período.</p>
-            ) : (
-              <div className="divide-y divide-gray-100">
-                <div className="hidden md:grid grid-cols-[1fr_70px_110px_110px_110px_110px] gap-2 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-                  <span>Produto</span><span className="text-right">Vendidos</span><span className="text-right">Vende por</span><span className="text-right">Custo cada</span>
-                  <span className="text-right">Lucro cada</span><span className="text-right">Lucro total</span>
+
+            {/* De cada R$ 100 */}
+            {revenue > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-gray-800">De cada R$ 100,00 que você vendeu:</p>
+                <SplitBar tall parts={[
+                  { v: goodsCost, cls: "bg-amber-400", label: "compras" },
+                  { v: billGroups.expenseTotal, cls: "bg-rose-400", label: "despesas" },
+                  { v: Math.max(0, netProfit), cls: "bg-emerald-500", label: "sobrou" },
+                ]} />
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded-xl bg-amber-50 p-2"><p className="text-lg font-black text-amber-600 tabular-nums">{fmt(per100(goodsCost))}</p><p className="text-[10px] text-gray-500">foram para compras de comida e bebida</p></div>
+                  <div className="rounded-xl bg-rose-50 p-2"><p className="text-lg font-black text-rose-600 tabular-nums">{fmt(per100(billGroups.expenseTotal))}</p><p className="text-[10px] text-gray-500">foram para despesas do negócio</p></div>
+                  <div className={`rounded-xl p-2 ${netProfit >= 0 ? "bg-emerald-50" : "bg-red-50"}`}><p className={`text-lg font-black tabular-nums ${netProfit >= 0 ? "text-emerald-600" : "text-red-600"}`}>{fmt(per100(netProfit))}</p><p className="text-[10px] text-gray-500">{netProfit >= 0 ? "sobraram para você" : "faltaram"}</p></div>
                 </div>
-                {[...cur.food, ...cur.resale].map((p, idx, all) => {
-                  const price = p.listPrice, each = p.qty > 0 ? p.cost / p.qty : 0;
-                  const avgDiffers = p.avgPrice > 0 && Math.abs(p.avgPrice - price) / Math.max(price, 0.01) > 0.01;
-                  const firstResale = p.kind === "resale" && (idx === 0 || all[idx - 1].kind === "food");
-                  return (
-                    <div key={p.product.id}>
-                      {firstResale && <p className="px-4 pt-3 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Bebidas e revenda</p>}
-                      <div className="px-4 py-3 grid grid-cols-2 md:grid-cols-[1fr_70px_110px_110px_110px_110px] gap-x-2 gap-y-1 items-center">
-                        <span className="col-span-2 md:col-span-1 font-semibold text-sm text-gray-900 truncate">
-                          {p.product.name}
-                          {!p.hasCost && <span className="ml-1.5 text-[10px] font-semibold text-amber-600">sem preço de compra</span>}
-                        </span>
-                        <Cell label="Vendidos" value={fmtNum(p.qty, 2)} />
-                        <span className="flex md:block items-center justify-between md:text-right text-xs tabular-nums">
-                          <span className="md:hidden text-gray-400">Vende por</span>
-                          <span className="font-semibold text-gray-800">{fmt(price)}
-                            {avgDiffers && <span className="block text-[10px] font-normal text-gray-400" title="Média do que entrou no caixa (descontos ou preço alterado na venda)">média {fmt(p.avgPrice)}</span>}
-                          </span>
-                        </span>
-                        <Cell label="Custo cada" value={p.hasCost ? fmt(each) : "—"} />
-                        <Cell label="Lucro cada" value={p.hasCost ? fmt(price - each) : "—"} tone={p.hasCost ? (price - each >= 0 ? "green" : "red") : undefined} bold />
-                        <Cell label="Lucro total" value={p.hasCost ? fmt(p.revenue - p.cost) : "—"} tone={p.hasCost ? (p.revenue - p.cost >= 0 ? "green" : "red") : undefined} />
-                      </div>
-                    </div>
-                  );
-                })}
               </div>
             )}
+
+            {/* Conta passo a passo */}
+            <div className="rounded-2xl border border-gray-100 divide-y divide-gray-100 text-sm">
+              <Line label="Vendeu (comida e bebidas)" value={fmt(revenue)} tone="sky" />
+              <Line label="− Custo da comida (compras lançadas aqui)" value={fmt(cur.foodCost)} tone="amber" />
+              {cur.resaleCost > 0 && <Line label="− Custo das bebidas vendidas" value={fmt(cur.resaleCost)} tone="amber" />}
+              <Line label="= Lucro das vendas" value={fmt(profit)} tone={profit >= 0 ? "emerald" : "red"} strong
+                note={`margem de ${pct(profit, revenue)}`} />
+              {billGroups.foodTotal > 0 && (
+                <div>
+                  <Line label="− Compras de comida pagas em Contas a Pagar" value={fmt(billGroups.foodTotal)} tone="amber" />
+                  <BillBreakdown rows={billGroups.food} total={billGroups.foodTotal} cls="bg-amber-400" />
+                </div>
+              )}
+              <div>
+                <Line label="− Despesas do negócio" value={fmt(billGroups.expenseTotal)} tone="rose"
+                  note={billGroups.expense.length ? undefined : "nenhuma conta paga no período"} />
+                <BillBreakdown rows={billGroups.expense} total={billGroups.expenseTotal} cls="bg-rose-400" />
+              </div>
+              <Line label="= Lucro líquido" value={fmt(netProfit)} tone={netProfit >= 0 ? "emerald" : "red"} strong />
+            </div>
+
+            {/* Por que deu esse lucro */}
+            <div className="rounded-2xl bg-gray-50 p-3.5 space-y-1.5 text-xs text-gray-600">
+              <p className="font-bold text-gray-800 flex items-center gap-1.5"><Receipt className="w-3.5 h-3.5" /> Por que deu esse resultado</p>
+              {revenue > 0 && (
+                <p>• As vendas deram <b className="text-emerald-700">{fmt(profit)}</b> de lucro ({pct(profit, revenue)} do que entrou), depois de pagar o que foi comprado.</p>
+              )}
+              {cur.dishes > 0 && (
+                <p>• Cada prato custou em média <b className="text-violet-700">{fmt(cur.foodCost / cur.dishes)}</b> e foi vendido por <b className="text-sky-700">{fmt(cur.foodRevenue / cur.dishes)}</b>.</p>
+              )}
+              {topExpense && (
+                <p>• A maior despesa foi <b className="text-rose-700">{billLabel(topExpense[0])}</b>: {fmt(topExpense[1])} ({pct(topExpense[1], billGroups.expenseTotal)} das despesas).</p>
+              )}
+              {cur.items[0] && (
+                <p>• A compra que mais pesou foi <b className="text-amber-700">{cur.items[0].item.name}</b>: {fmt(cur.items[0].usedCost)} ({pct(cur.items[0].usedCost, itemsTotal)} das compras de comida).</p>
+              )}
+              {netProfit < 0 && revenue > 0 && (
+                <p className="text-red-700 font-semibold">• As despesas passaram o lucro das vendas em {fmt(-netProfit)}. Para fechar no azul, falta vender mais ou cortar despesas.</p>
+              )}
+              {billGroups.foodTotal > 0 && (
+                <p className="text-gray-400">Dica: compras de comida lançadas aqui em "Lançar compras" entram no custo de cada marmita; as lançadas direto em Contas a Pagar só aparecem neste total.</p>
+              )}
+              {billGroups.personal > 0 && (
+                <p className="text-gray-400">Contas pessoais pagas ({fmt(billGroups.personal)}) não entram no lucro da empresa.</p>
+              )}
+            </div>
           </div>
 
           {/* Por compra */}
-          <div className={card}>
-            <div className="px-4 pt-4 pb-2">
-              <p className="text-sm font-bold text-gray-900">Para onde foi o dinheiro das compras</p>
-              <p className="text-[11px] text-gray-400">"Por prato" é a média: total comprado ÷ pratos vendidos. Se subir muito sem você mudar nada, tem porção maior, desperdício ou sumiço.</p>
+          <div className={`${card} p-4 space-y-3`}>
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <SectionTitle title="Para onde foi o dinheiro das compras"
+                sub={'"Por prato" é a média: total comprado ÷ pratos vendidos. Se subir muito sem você mudar nada, tem porção maior, desperdício ou sumiço.'} />
+              {cur.items.length > 0 && (
+                <div className="text-right">
+                  <p className="text-xl font-black text-amber-600 tabular-nums">{fmt(itemsTotal)}</p>
+                  <p className="text-[11px] text-gray-400">{cur.items.length} ite{cur.items.length === 1 ? "m" : "ns"}</p>
+                </div>
+              )}
             </div>
             {cur.items.length === 0 ? (
-              <div className="px-4 pb-4 flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <p className="text-sm text-gray-500 flex-1">Nenhuma compra lançada no período.</p>
                 <button onClick={goBuy} className={btnGhost + " !py-2"}><Plus className="w-4 h-4" /> Lançar compras</button>
               </div>
             ) : (
-              <div className="divide-y divide-gray-100">
-                {cur.items.map(r => {
+              <div className="space-y-2">
+                {cur.items.map((r, idx) => {
                   const before = prevPerDish.get(r.item.id) ?? 0;
                   const change = before > 0 && r.perDish > 0 ? ((r.perDish - before) / before) * 100 : null;
                   return (
-                    <div key={r.item.id} className="px-4 py-3 flex flex-col md:flex-row md:items-center gap-1 md:gap-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm text-gray-900 truncate">{r.item.name}</p>
-                        <p className="text-[11px] text-gray-500">
-                          comprou {fmtNum(r.boughtQty, 3)} {r.item.unit} · {fmt(r.boughtCost)}
-                          {r.boughtQty > 0 && ` (${fmt(r.avg)}/${r.item.unit})`}
-                          {(r.opening !== null || r.closing !== null) && ` · usou ${fmtNum(r.usedQty, 3)} ${r.item.unit}`}
-                          {r.opening !== null && ` · tinha ${fmtNum(r.opening, 3)}`}
-                          {r.closing !== null && ` · sobrou ${fmtNum(r.closing, 3)}`}
-                        </p>
+                    <div key={r.item.id} className="rounded-xl border border-gray-100 hover:border-gray-200 bg-white px-3 py-2.5 space-y-1.5 transition-colors">
+                      <div className="flex items-center gap-2.5">
+                        <span className={`w-7 h-7 shrink-0 rounded-lg flex items-center justify-center text-[11px] font-black ${idx < 3 ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-500"}`}>{idx + 1}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm text-gray-900 truncate">{r.item.name}</p>
+                          <p className="text-[11px] text-gray-500">
+                            comprou {fmtNum(r.boughtQty, 3)} {r.item.unit}
+                            {r.boughtQty > 0 && <> · <span className="text-amber-700 font-semibold">{fmt(r.avg)}/{r.item.unit}</span></>}
+                            {(r.opening !== null || r.closing !== null) && ` · usou ${fmtNum(r.usedQty, 3)} ${r.item.unit}`}
+                            {r.opening !== null && ` · tinha ${fmtNum(r.opening, 3)}`}
+                            {r.closing !== null && ` · sobrou ${fmtNum(r.closing, 3)}`}
+                          </p>
+                        </div>
+                        <span className="text-right">
+                          <span className="block font-black text-sm text-amber-600 tabular-nums">{fmt(r.usedCost)}</span>
+                          <span className="block text-[10px] text-gray-400 tabular-nums">{pct(r.usedCost, itemsTotal)}</span>
+                        </span>
                       </div>
-                      <div className="flex items-center gap-3 md:gap-5 text-xs">
+                      <div className="flex flex-wrap items-center gap-2 pl-9">
+                        <div className="flex-1 min-w-[120px] h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                          <div className="h-full rounded-full bg-gradient-to-r from-amber-300 to-amber-500" style={{ width: `${Math.max(2, (r.usedCost / maxItemCost) * 100)}%` }} />
+                        </div>
                         {cur.dishes > 0 && (
-                          <span className="text-gray-700"><span className="text-gray-400">por prato </span><b className="tabular-nums">{portionText(r.perDish, r.item.unit)}</b> · {fmt(r.perDishCost)}</span>
+                          <span className="text-[11px] px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 font-semibold tabular-nums">por prato {portionText(r.perDish, r.item.unit)} · {fmt(r.perDishCost)}</span>
                         )}
                         {change !== null && Math.abs(change) >= 5 && (
-                          <span className={`inline-flex items-center gap-0.5 font-bold ${change > 0 ? "text-red-600" : "text-emerald-600"}`}
+                          <span className={`inline-flex items-center gap-0.5 text-[11px] font-bold px-1.5 py-0.5 rounded-full ${change > 0 ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-600"}`}
                             title={`Antes: ${portionText(before, r.item.unit)} por prato`}>
                             {change > 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
                             {change > 0 ? "+" : ""}{fmtNum(change, 0)}%
                           </span>
                         )}
-                        <span className="w-24 text-right font-bold tabular-nums">{fmt(r.usedCost)}</span>
                       </div>
                     </div>
                   );
                 })}
               </div>
-            )}
-          </div>
-
-          {/* Sobra no fim do período (opcional) */}
-          <div className={card}>
-            <button onClick={() => setLeftoverOpen(o => !o)} className="w-full px-4 py-3 flex items-center gap-2 text-left">
-              <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${leftoverOpen ? "rotate-180" : ""}`} />
-              <div className="flex-1">
-                <p className="text-sm font-bold text-gray-900">Informar o que sobrou em {fmtDay(range.to)} <span className="font-normal text-gray-400">(opcional)</span></p>
-                <p className="text-[11px] text-gray-500">Comprou muito no fim do período? Diga quanto ainda tem e o sistema desconta, e passa para o próximo período.</p>
-              </div>
-            </button>
-            {leftoverOpen && (
-              <LeftoverForm day={range.to} uid={uid} counts={counts} onSaved={load}
-                items={stockItems.filter(i => cur.items.some(r => r.item.id === i.id) || i.is_active !== false)} />
             )}
           </div>
         </>
@@ -682,19 +755,111 @@ function ResultView({ stockItems, products, categories, uid, goBuy }: {
   );
 }
 
-function Kpi({ label, value, sub, tone }: { label: string; value: string; sub: string; tone?: "green" | "red" }) {
-  const color = tone === "green" ? "text-emerald-600" : tone === "red" ? "text-red-600" : "text-gray-900";
+type Tone = "sky" | "amber" | "emerald" | "red" | "violet" | "rose";
+const TONES: Record<Tone, { text: string; chip: string; bar: string }> = {
+  sky: { text: "text-sky-600", chip: "bg-sky-50 text-sky-700", bar: "from-sky-400 to-sky-600" },
+  amber: { text: "text-amber-600", chip: "bg-amber-50 text-amber-700", bar: "from-amber-300 to-amber-500" },
+  emerald: { text: "text-emerald-600", chip: "bg-emerald-50 text-emerald-700", bar: "from-emerald-400 to-emerald-600" },
+  red: { text: "text-red-600", chip: "bg-red-50 text-red-700", bar: "from-red-400 to-red-600" },
+  violet: { text: "text-violet-600", chip: "bg-violet-50 text-violet-700", bar: "from-violet-400 to-violet-600" },
+  rose: { text: "text-rose-600", chip: "bg-rose-50 text-rose-700", bar: "from-rose-300 to-rose-500" },
+};
+
+function Kpi({ label, value, sub, tone, icon }: { label: string; value: string; sub: string; tone: Tone; icon: React.ReactNode }) {
+  const t = TONES[tone];
   return (
-    <div className={`${card} p-3 sm:p-4 min-w-0`}>
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{label}</p>
-      <p className={`text-xl sm:text-2xl font-black tabular-nums tracking-tight mt-1 whitespace-nowrap ${color}`}>{value}</p>
+    <div className={`${card} relative overflow-hidden p-3 sm:p-4 min-w-0`}>
+      <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${t.bar}`} />
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{label}</p>
+        <span className={`w-7 h-7 rounded-lg flex items-center justify-center ${t.chip}`}>{icon}</span>
+      </div>
+      <p className={`text-xl sm:text-2xl font-black tabular-nums tracking-tight mt-1 whitespace-nowrap ${t.text}`}>{value}</p>
       <p className="text-xs text-gray-400 mt-0.5">{sub}</p>
     </div>
   );
 }
 
-function Cell({ label, value, tone, bold }: { label: string; value: string; tone?: "green" | "red"; bold?: boolean }) {
-  const color = tone === "green" ? "text-emerald-600" : tone === "red" ? "text-red-600" : "text-gray-800";
+function SectionTitle({ title, sub }: { title: string; sub?: string }) {
+  return (
+    <div className="min-w-0 flex-1">
+      <p className="text-base font-black text-gray-900 tracking-tight">{title}</p>
+      {sub && <p className="text-[11px] text-gray-400 mt-0.5">{sub}</p>}
+    </div>
+  );
+}
+
+function Stat({ label, value, tone, big }: { label: string; value: string; tone: Tone; big?: boolean }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{label}</p>
+      <p className={`${big ? "text-lg" : "text-sm"} font-black tabular-nums tracking-tight truncate ${TONES[tone].text}`}>{value}</p>
+    </div>
+  );
+}
+
+function Pill({ tone, children }: { tone: Tone; children: React.ReactNode }) {
+  return <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${TONES[tone].chip}`}>{children}</span>;
+}
+
+function MarginBadge({ value }: { value: number | null }) {
+  if (value === null) return <span className="text-[11px] text-gray-400">sem vendas</span>;
+  return <Pill tone={value >= 0 ? "emerald" : "red"}>{fmtNum(value, 0)}% de margem</Pill>;
+}
+
+// Barra dividida (custo × lucro, compras × despesas × sobra)
+function SplitBar({ parts, thin, tall }: { parts: { v: number; cls: string; label?: string }[]; thin?: boolean; tall?: boolean }) {
+  const total = parts.reduce((x, p) => x + Math.max(0, p.v), 0);
+  const h = thin ? "h-1.5" : tall ? "h-4" : "h-2.5";
+  return (
+    <div className="w-full space-y-1">
+      <div className={`flex w-full ${h} rounded-full bg-gray-100 overflow-hidden`}>
+        {total > 0 && parts.map((p, i) => p.v > 0 && (
+          <div key={i} className={p.cls} style={{ width: `${(p.v / total) * 100}%` }} title={p.label} />
+        ))}
+      </div>
+      {!thin && parts.some(p => p.label) && total > 0 && (
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-gray-500">
+          {parts.filter(p => p.label).map((p, i) => (
+            <span key={i} className="inline-flex items-center gap-1"><span className={`w-2 h-2 rounded-full ${p.cls}`} />{p.label} {fmtNum((Math.max(0, p.v) / total) * 100, 0)}%</span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Line({ label, value, tone, strong, note }: { label: string; value: string; tone: Tone; strong?: boolean; note?: string }) {
+  return (
+    <div className={`flex items-center justify-between gap-3 px-3.5 py-2.5 ${strong ? "bg-gray-50" : ""}`}>
+      <span className={strong ? "font-bold text-gray-900" : "text-gray-600"}>
+        {label}
+        {note && <span className="block text-[10px] font-normal text-gray-400">{note}</span>}
+      </span>
+      <span className={`tabular-nums ${strong ? "font-black text-base" : "font-bold"} ${TONES[tone].text}`}>{value}</span>
+    </div>
+  );
+}
+
+function BillBreakdown({ rows, total, cls }: { rows: [string, number][]; total: number; cls: string }) {
+  if (rows.length === 0) return null;
+  return (
+    <div className="px-3.5 pb-2.5 space-y-1.5">
+      {rows.map(([k, v]) => (
+        <div key={k} className="grid grid-cols-[1fr_auto] gap-x-3 items-center text-xs">
+          <span className="text-gray-600 truncate">{billLabel(k)}</span>
+          <span className="tabular-nums font-semibold text-gray-700">{fmt(v)} <span className="text-[10px] font-normal text-gray-400">{total > 0 ? fmtNum((v / total) * 100, 0) : 0}%</span></span>
+          <div className="col-span-2 h-1 rounded-full bg-gray-100 overflow-hidden">
+            <div className={`h-full rounded-full ${cls}`} style={{ width: `${total > 0 ? Math.max(2, (v / total) * 100) : 0}%` }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Cell({ label, value, tone, bold }: { label: string; value: string; tone?: "green" | "red" | "amber"; bold?: boolean }) {
+  const color = tone === "green" ? "text-emerald-600" : tone === "red" ? "text-red-600" : tone === "amber" ? "text-amber-600" : "text-gray-800";
   return (
     <span className="flex md:block items-center justify-between md:text-right text-xs tabular-nums">
       <span className="md:hidden text-gray-400">{label}</span>
