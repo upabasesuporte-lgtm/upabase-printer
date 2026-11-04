@@ -759,7 +759,9 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
       .order("created_at", { ascending: false }).limit(30);
     setRecent(((data ?? []) as any[]).map(o => {
       const all = (o.purchase_order_items ?? []) as any[];
-      const bills = ((o.accounts_payable ?? []) as any[]).filter(b => b.status !== "cancelled");
+      // purchase_order_id é único na conta: o Supabase devolve objeto, não lista
+      const apRaw = o.accounts_payable;
+      const bills = (Array.isArray(apRaw) ? apRaw : apRaw ? [apRaw] : []).filter((b: any) => b.status !== "cancelled");
       return {
         id: o.id, day: dayOf(o.received_at ?? o.created_at),
         // Só corrige aqui compra só de insumos e à vista (as outras ficam na aba Compras)
