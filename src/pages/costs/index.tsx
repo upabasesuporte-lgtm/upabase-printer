@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { fetchAll, fetchAllIn } from "../../lib/fetchAll";
 import { PURCHASE_PAY_METHODS } from "../purchases/PurchaseScreen";
 import {
-  RefreshCw, PiggyBank, ShoppingBasket, Plus, Trash2, Check, ChevronDown, TrendingUp, TrendingDown, UtensilsCrossed, CupSoda, Pencil, X, ScanLine, ClipboardPaste,
+  RefreshCw, PiggyBank, ShoppingBasket, Plus, Trash2, Check, ChevronDown, TrendingUp, TrendingDown, UtensilsCrossed, CupSoda, Pencil, X, ScanLine, ClipboardPaste, Camera, ExternalLink,
 } from "lucide-react";
 import { parseNfceText, nfceUnit } from "../../lib/nfceText";
 
@@ -726,6 +726,84 @@ interface EditLine { key: string; id: string | null; name: string; unit: string;
 interface EditState { id: string; day: string; supplierId: string; category: string; newCat: string | null; lines: EditLine[] }
 const emptyRow = (): BuyRow => ({ name: "", unit: "kg", qty: "", total: "" });
 
+// Leitor de QR Code pela câmera: usa o leitor do próprio navegador (Android/Chrome);
+// onde não existe (iPhone, Firefox), carrega o jsQR na hora, só quando precisar.
+type JsQR = (d: Uint8ClampedArray, w: number, h: number, o?: { inversionAttempts?: string }) => { data: string } | null;
+let jsQRLoad: Promise<JsQR> | null = null;
+function loadJsQR(): Promise<JsQR> {
+  jsQRLoad ??= new Promise<JsQR>((resolve, reject) => {
+    const w = window as any;
+    if (w.jsQR) { resolve(w.jsQR); return; }
+    const el = document.createElement("script");
+    el.src = "https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js";
+    el.onload = () => w.jsQR ? resolve(w.jsQR) : reject(new Error("jsQR"));
+    el.onerror = () => { jsQRLoad = null; reject(new Error("jsQR")); };
+    document.head.appendChild(el);
+  });
+  return jsQRLoad;
+}
+
+function QrScanner({ onResult, onClose }: { onResult: (text: string) => void; onClose: () => void }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const resultRef = useRef(onResult);
+  resultRef.current = onResult;
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    let stream: MediaStream | null = null;
+    let stop = false;
+    let timer = 0;
+    (async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+        if (stop) { stream.getTracks().forEach(t => t.stop()); return; }
+        const v = videoRef.current!;
+        v.srcObject = stream;
+        await v.play();
+        const Det = (window as any).BarcodeDetector;
+        let det: any = null;
+        if (Det) { try { det = new Det({ formats: ["qr_code"] }); } catch { det = null; } }
+        const jsQR = det ? null : await loadJsQR();
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+        const tick = async () => {
+          if (stop) return;
+          if (v.readyState >= 2 && v.videoWidth) {
+            let found: string | null = null;
+            if (det) {
+              try { found = (await det.detect(v))[0]?.rawValue ?? null; } catch { /* tenta de novo */ }
+            } else if (jsQR) {
+              const k = Math.min(1, 900 / Math.max(v.videoWidth, v.videoHeight));
+              canvas.width = Math.round(v.videoWidth * k); canvas.height = Math.round(v.videoHeight * k);
+              ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+              const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+              found = jsQR(img.data, img.width, img.height, { inversionAttempts: "dontInvert" })?.data ?? null;
+            }
+            if (found && !stop) { stop = true; resultRef.current(found); return; }
+          }
+          timer = window.setTimeout(tick, 200);
+        };
+        tick();
+      } catch (e: any) {
+        setErr(e?.name === "NotAllowedError"
+          ? "Permita o uso da câmera para ler o QR Code (no cadeado ao lado do endereço do site)."
+          : "Não consegui abrir a câmera neste aparelho. Use a câmera do celular e cole o link aqui.");
+      }
+    })();
+    return () => { stop = true; clearTimeout(timer); stream?.getTracks().forEach(t => t.stop()); };
+  }, []);
+  return (
+    <div className="fixed inset-0 z-50 bg-black/85 flex flex-col items-center justify-center p-4 gap-3">
+      <p className="text-sm font-semibold" style={WHITE}>Aponte para o QR Code da notinha</p>
+      <div className="relative w-full max-w-sm aspect-[3/4] rounded-2xl overflow-hidden bg-black">
+        <video ref={videoRef} playsInline muted className="w-full h-full object-cover" />
+        <div className="absolute inset-[18%] border-4 border-white/80 rounded-2xl pointer-events-none" />
+      </div>
+      {err && <p className="text-sm text-amber-300 text-center max-w-sm">{err}</p>}
+      <button onClick={onClose} className={btnGhost}><X className="w-4 h-4" /> Fechar</button>
+    </div>
+  );
+}
+
 function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
   stockItems: StockItem[]; suppliers: { id: string; name: string }[]; uid: string | null;
   onItemsChanged: () => Promise<void>;
@@ -756,6 +834,9 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
   const [notaBusy, setNotaBusy] = useState(false);
   const [notaMsg, setNotaMsg] = useState<{ ok: boolean; lines: string[] } | null>(null);
   const [notaKey, setNotaKey] = useState<string | null>(null);
+  const [scanOpen, setScanOpen] = useState(false);
+  const [notaLink, setNotaLink] = useState<string | null>(null);
+  const [notaWaiting, setNotaWaiting] = useState(false);
 
   const activeItems = stockItems.filter(i => i.is_active !== false);
   const findItem = (name: string) => activeItems.find(i => norm(i.name) === norm(name));
@@ -816,10 +897,7 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
     setNotaMsg(null);
     const t = text.trim();
     if (!t) return;
-    if (/^https?:\/\/\S+$/i.test(t)) {
-      setNotaMsg({ ok: false, lines: ["Isso é só o link. Abra o link no navegador, toque em Selecionar tudo → Copiar e cole aqui o texto da página."] });
-      return;
-    }
+    if (/^https?:\/\/\S+$/i.test(t)) { gotLink(t); return; }
     const n = parseNfceText(t);
     if (n.items.length === 0) {
       setNotaMsg({ ok: false, lines: ["Não achei os itens nesse texto. Copie a página inteira da nota (Selecionar tudo → Copiar) e cole de novo.", "Se continuar, me avise de qual estado é a nota."] });
@@ -883,17 +961,48 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
       if (known < newRows.length) lines.push(`${newRows.length - known} ite${newRows.length - known === 1 ? "m está" : "ns estão"} como "item novo". Se já existe no seu estoque com outro nome, escolha o nome certo na lista: o sistema aprende para a próxima nota.`);
       if (dup) lines.push(`⚠ Essa nota já foi lançada em ${dup}. Confira para não lançar duas vezes.`);
       setNotaMsg({ ok: !dup, lines });
-      setNotaText(""); setNotaOpen(false);
+      setNotaText(""); setNotaOpen(false); setNotaLink(null); setNotaWaiting(false);
     } catch (e: any) {
       setNotaMsg({ ok: false, lines: [e?.message ?? String(e)] });
     }
     setNotaBusy(false);
   }
 
+  // QR Code lido (ou link colado): a página da nota precisa ser aberta pelo dono,
+  // a SEFAZ não deixa o sistema buscar sozinho
+  function gotLink(text: string) {
+    setScanOpen(false); setNotaText("");
+    const t = text.trim();
+    if (!/^https?:\/\//i.test(t) || !/\.gov\.br(?:[/?:]|$)/i.test(t)) {
+      setNotaMsg({ ok: false, lines: ["Esse QR Code não é de nota fiscal. Procure o QR Code que fica no fim da notinha."] });
+      return;
+    }
+    setNotaMsg(null); setNotaLink(t); setNotaWaiting(false); setNotaOpen(true);
+  }
+  function openNotaPage() {
+    if (!notaLink) return;
+    window.open(notaLink, "_blank", "noopener");
+    setNotaWaiting(true);
+  }
+  // Voltou da página da nota: lê sozinho o que foi copiado
+  useEffect(() => {
+    if (!notaWaiting) return;
+    const onBack = async () => {
+      if (document.visibilityState !== "visible") return;
+      try {
+        const t = await navigator.clipboard.readText();
+        if (t && t.trim() !== notaLink && /qtd|vl\.?\s*total|valor/i.test(t)) { setNotaText(t); await readNota(t); }
+      } catch { /* navegador pede um toque: botão Colar e ler */ }
+    };
+    document.addEventListener("visibilitychange", onBack);
+    window.addEventListener("focus", onBack);
+    return () => { document.removeEventListener("visibilitychange", onBack); window.removeEventListener("focus", onBack); };
+  }, [notaWaiting, notaLink]);
+
   async function pasteNota() {
     try {
       const t = await navigator.clipboard.readText();
-      if (t.trim()) { setNotaText(t); await readNota(t); return; }
+      if (t.trim()) { if (!/^https?:\/\/\S+$/i.test(t.trim())) setNotaText(t); await readNota(t); return; }
     } catch { /* sem permissão: cola no campo */ }
     document.getElementById("nota-text")?.focus();
   }
@@ -1064,21 +1173,39 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
               <p className="text-sm font-bold text-gray-900">Lançar pela notinha (QR Code)</p>
               <p className="text-[11px] text-gray-500">Os itens da nota entram sozinhos aqui embaixo. Você confere e salva.</p>
             </div>
-            <button onClick={() => { setNotaOpen(o => !o); setNotaMsg(null); }} className={btnGhost}>
-              <ClipboardPaste className="w-4 h-4" /> {notaOpen ? "Fechar" : "Colar notinha"}
+            <button onClick={() => { setNotaMsg(null); setScanOpen(true); }} className={btnPrimary} style={WHITE}>
+              <Camera className="w-4 h-4" /> Ler QR Code
+            </button>
+            <button onClick={() => { setNotaOpen(o => !o); setNotaMsg(null); setNotaLink(null); setNotaWaiting(false); }} className={btnGhost}>
+              <ClipboardPaste className="w-4 h-4" /> {notaOpen ? "Fechar" : "Colar link ou nota"}
             </button>
           </div>
-          {notaOpen && (
-            <div className="space-y-2">
-              <ol className="text-xs text-gray-600 space-y-0.5 list-decimal pl-5">
-                <li>Aponte a câmera do celular para o QR Code da notinha e abra o link.</li>
-                <li>Na página da nota, toque em <b>Selecionar tudo</b> e depois em <b>Copiar</b>.</li>
-                <li>Volte aqui e toque em <b>Colar e ler</b> (ou cole no campo abaixo).</li>
+          {scanOpen && <QrScanner onResult={gotLink} onClose={() => setScanOpen(false)} />}
+          {notaOpen && notaLink && (
+            <div className="rounded-xl bg-white border border-brand-200 p-3 space-y-2">
+              <p className="text-sm font-bold text-emerald-700">✓ QR Code da nota pronto</p>
+              <ol className="text-xs text-gray-700 space-y-1 list-decimal pl-5">
+                <li>Toque em <b>Abrir a nota</b>: a página da SEFAZ abre em outra aba.</li>
+                <li>Lá, toque em <b>Selecionar tudo</b> e depois em <b>Copiar</b>.</li>
+                <li><b>Volte para esta aba</b>: os itens aparecem sozinhos aqui embaixo. Se não aparecerem, toque em <b>Colar e ler</b>.</li>
               </ol>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={openNotaPage} className={btnPrimary} style={WHITE}><ExternalLink className="w-4 h-4" /> Abrir a nota</button>
+                <button onClick={pasteNota} disabled={notaBusy} className={btnGhost}>
+                  {notaBusy ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ClipboardPaste className="w-4 h-4" />} Colar e ler
+                </button>
+                <button onClick={() => { setNotaLink(null); setNotaWaiting(false); setNotaOpen(false); }} className={btnGhost}>Cancelar</button>
+              </div>
+              {notaWaiting && <p className="text-[11px] text-gray-500">Esperando você copiar a página da nota…</p>}
+            </div>
+          )}
+          {notaOpen && !notaLink && (
+            <div className="space-y-2">
+              <p className="text-xs text-gray-600">Cole aqui o <b>link do QR Code</b> ou o <b>texto da página da nota</b> (Selecionar tudo → Copiar).</p>
               <textarea id="nota-text" value={notaText} rows={4}
                 onChange={e => setNotaText(e.target.value)}
                 onPaste={e => { const t = e.clipboardData.getData("text"); if (t.trim()) { e.preventDefault(); setNotaText(t); readNota(t); } }}
-                placeholder="Cole aqui o texto da página da nota…" className={fieldCls + " text-xs"} />
+                placeholder="Cole aqui o link do QR Code ou o texto da página da nota…" className={fieldCls + " text-xs"} />
               <div className="flex flex-wrap gap-2">
                 <button onClick={pasteNota} disabled={notaBusy} className={btnPrimary} style={WHITE}>
                   {notaBusy ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ClipboardPaste className="w-4 h-4" />} Colar e ler
