@@ -316,7 +316,8 @@ export default function CostsPage() {
             { key: "buy", label: "Lançar compras", icon: <ShoppingBasket className="w-4 h-4" /> },
           ] as const).map(t => (
             <button key={t.key} onClick={() => setView(t.key)}
-              className={`flex flex-1 md:flex-none items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all ${view === t.key ? "neu-sm text-[#1e2235]" : "text-gray-500 hover:text-gray-800"}`}>
+              className={`flex flex-1 md:flex-none items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all ${view === t.key ? "bg-gradient-to-r from-[#4f5bd5] to-[#1e2235] shadow-[0_6px_14px_-6px_rgba(30,34,53,.55)]" : "text-gray-500 hover:text-gray-800"}`}
+              style={view === t.key ? WHITE : undefined}>
               {t.icon}{t.label}
             </button>
           ))}
@@ -463,7 +464,8 @@ function ResultView({ stockItems, products, categories, uid, goBuy }: {
         <div className="flex gap-1 p-1.5 neu-in rounded-2xl max-w-full overflow-x-auto">
           {([{ v: "month", l: "Mês" }, { v: "custom", l: "Escolher período" }] as const).map(o => (
             <button key={o.v} onClick={() => setPreset(o.v)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${preset === o.v ? "neu-sm text-brand-700" : "text-gray-500 hover:text-gray-800"}`}>
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${preset === o.v ? "bg-gradient-to-r from-[#4f5bd5] to-[#1e2235] shadow-[0_6px_14px_-6px_rgba(30,34,53,.55)]" : "text-gray-500 hover:text-gray-800"}`}
+              style={preset === o.v ? WHITE : undefined}>
               {o.l}
             </button>
           ))}
@@ -512,7 +514,7 @@ function ResultView({ stockItems, products, categories, uid, goBuy }: {
                 { l: "Bebidas", v: fmt(cur.resaleCost) },
                 { l: "Compras", v: fmt(cur.bought) },
               ]} />
-            <StatCard tone={profit >= 0 ? "emerald" : "red"} icon={TrendingUp} label="Lucro" value={fmt(profit)}
+            <StatCard tone={profit >= 0 ? "green" : "red"} icon={TrendingUp} label="Lucro" value={fmt(profit)}
               rating={pct(profit, revenue)} ratingLabel="margem"
               stats={[
                 { l: "Por prato", v: cur.dishes > 0 ? fmt(foodProfit / cur.dishes) : "—" },
@@ -803,7 +805,8 @@ const TONES: Record<Tone, { text: string; chip: string; bar: string }> = {
 
 // Cartão de indicador: claro, com sombra suave (efeito 3D), ícone num quadradinho
 // colorido e uma pílula com o número-chave (margem, % da venda…)
-const CARD_SKINS: Record<"sky" | "amber" | "emerald" | "red" | "violet", { tile: string; icon: string; pill: string; glow: string; value: string }> = {
+const CARD_SKINS: Record<"sky" | "amber" | "emerald" | "red" | "violet" | "green", { tile: string; icon: string; pill: string; glow: string; value: string }> = {
+  green: { tile: "linear-gradient(145deg,#e6f9ef,#c9f0dc)", icon: "#12b76a", pill: "linear-gradient(135deg,#4ade80,#12b76a)", glow: "rgba(18,183,106,.45)", value: "#0e9f5c" },
   sky: { tile: "linear-gradient(145deg,#eef0ff,#dfe3ff)", icon: "#4f5bd5", pill: "linear-gradient(135deg,#7b86f5,#4f5bd5)", glow: "rgba(79,91,213,.45)", value: "#3f4ab8" },
   amber: { tile: "linear-gradient(145deg,#fff0ee,#ffdcd8)", icon: "#f2545b", pill: "linear-gradient(135deg,#ff8a65,#f2545b)", glow: "rgba(242,84,91,.45)", value: "#e0484f" },
   emerald: { tile: "linear-gradient(145deg,#eceef5,#dadeea)", icon: "#1e2235", pill: "linear-gradient(135deg,#4b5578,#1e2235)", glow: "rgba(30,34,53,.45)", value: "#1e2235" },
