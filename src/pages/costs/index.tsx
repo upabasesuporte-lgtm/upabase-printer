@@ -316,8 +316,7 @@ export default function CostsPage() {
             { key: "buy", label: "Lançar compras", icon: <ShoppingBasket className="w-4 h-4" /> },
           ] as const).map(t => (
             <button key={t.key} onClick={() => setView(t.key)}
-              className={`flex flex-1 md:flex-none items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all ${view === t.key ? "bg-gradient-to-r from-[#4f5bd5] to-[#1e2235] shadow-[0_6px_14px_-6px_rgba(30,34,53,.55)]" : "text-gray-500 hover:text-gray-800"}`}
-              style={view === t.key ? WHITE : undefined}>
+              className={`flex flex-1 md:flex-none items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all ${view === t.key ? "neu-sm text-brand-700" : "text-gray-500 hover:text-gray-800"}`}>
               {t.icon}{t.label}
             </button>
           ))}
@@ -464,8 +463,7 @@ function ResultView({ stockItems, products, categories, uid, goBuy }: {
         <div className="flex gap-1 p-1.5 neu-in rounded-2xl max-w-full overflow-x-auto">
           {([{ v: "month", l: "Mês" }, { v: "custom", l: "Escolher período" }] as const).map(o => (
             <button key={o.v} onClick={() => setPreset(o.v)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${preset === o.v ? "bg-gradient-to-r from-[#4f5bd5] to-[#1e2235] shadow-[0_6px_14px_-6px_rgba(30,34,53,.55)]" : "text-gray-500 hover:text-gray-800"}`}
-              style={preset === o.v ? WHITE : undefined}>
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${preset === o.v ? "neu-sm text-brand-700" : "text-gray-500 hover:text-gray-800"}`}>
               {o.l}
             </button>
           ))}
