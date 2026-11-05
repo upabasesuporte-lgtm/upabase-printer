@@ -34,6 +34,17 @@ body {
 .g-text-blue   { background-image: linear-gradient(135deg,#93c5fd,#60a5fa); }
 .g-text-red    { background-image: linear-gradient(135deg,#fda4af,#fb7185); }
 
+/* Carta de indicador (Custos): brilho que atravessa ao passar o mouse */
+.kcard { transition: transform .25s ease, box-shadow .25s ease; }
+.kcard:hover { transform: translateY(-3px); }
+.kcard::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,.22) 45%, transparent 60%);
+  transform: translateX(-120%); transition: transform .9s ease;
+}
+.kcard:hover::after { transform: translateX(120%); }
+@media (prefers-reduced-motion: reduce) { .kcard, .kcard::after { transition: none; } .kcard:hover { transform: none; } }
+
 /* Sidebar desktop: esconde a barra de rolagem para não cortar os ícones no modo recolhido */
 @media (min-width: 768px) {
   .sidebar-nav { scrollbar-width: none; }

@@ -449,6 +449,12 @@ function ResultView({ stockItems, products, categories, uid, goBuy }: {
   const goodsCost = cur.foodCost + cur.resaleCost + billGroups.foodTotal;
   const per100 = (v: number) => (revenue > 0 ? (v / revenue) * 100 : 0);
   const prevProfit = prev.foodRevenue + prev.resaleRevenue - prev.foodCost - prev.resaleCost;
+  const prevRevenue = prev.foodRevenue + prev.resaleRevenue;
+  const dishCost = cur.dishes > 0 ? cur.foodCost / cur.dishes : 0;
+  const dishPrice = cur.dishes > 0 ? cur.foodRevenue / cur.dishes : 0;
+  const prevDishCost = prev.dishes > 0 ? prev.foodCost / prev.dishes : 0;
+  const change = (now: number, before: number) =>
+    before > 0 ? `${now >= before ? "+" : ""}${fmtNum(((now - before) / before) * 100, 0)}%` : "—";
   const profitChange = prevProfit > 0 ? ((profit - prevProfit) / prevProfit) * 100 : null;
   const topExpense = billGroups.expense[0];
   const maxItemCost = Math.max(0.01, ...cur.items.map(i => i.usedCost));
@@ -486,16 +492,38 @@ function ResultView({ stockItems, products, categories, uid, goBuy }: {
         <div className="flex items-center justify-center h-40"><RefreshCw className="w-5 h-5 animate-spin text-brand-500" /></div>
       ) : (
         <>
-          {/* Resumo */}
+          {/* Resumo: cartas */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <Kpi label="Vendeu" value={fmt(revenue)} tone="sky" icon={<Wallet className="w-4 h-4" />}
-              sub={`${fmtNum(cur.dishes, 0)} pratos · sem taxa de entrega`} />
-            <Kpi label="Custo" value={fmt(cur.foodCost + cur.resaleCost)} tone="amber" icon={<ShoppingBasket className="w-4 h-4" />}
-              sub={`compras no período: ${fmt(cur.bought)}`} />
-            <Kpi label="Lucro" value={fmt(profit)} tone={profit >= 0 ? "emerald" : "red"} icon={<TrendingUp className="w-4 h-4" />}
-              sub={`margem de ${pct(profit, revenue)}`} />
-            <Kpi label="Custo por prato" value={cur.dishes > 0 ? fmt(cur.foodCost / cur.dishes) : "—"} tone="violet" icon={<UtensilsCrossed className="w-4 h-4" />}
-              sub={cur.dishes > 0 ? `vende em média por ${fmt(cur.foodRevenue / cur.dishes)}` : "sem pratos vendidos"} />
+            <StatCard tone="sky" icon={Wallet} label="Vendeu" value={fmt(revenue)}
+              rating={fmtNum(cur.dishes, 0)} ratingLabel="pratos"
+              stats={[
+                { l: "Ticket", v: cur.dishes > 0 ? fmt(cur.foodRevenue / cur.dishes) : "—" },
+                { l: "Bebidas", v: fmt(cur.resaleRevenue) },
+                { l: "vs ant.", v: change(revenue, prevRevenue) },
+              ]} />
+            <StatCard tone="amber" icon={ShoppingBasket} label="Custo" value={fmt(cur.foodCost + cur.resaleCost)}
+              rating={pct(cur.foodCost + cur.resaleCost, revenue)} ratingLabel="da venda"
+              stats={[
+                { l: "Comida", v: fmt(cur.foodCost) },
+                { l: "Bebidas", v: fmt(cur.resaleCost) },
+                { l: "Compras", v: fmt(cur.bought) },
+              ]} />
+            <StatCard tone={profit >= 0 ? "emerald" : "red"} icon={TrendingUp} label="Lucro" value={fmt(profit)}
+              rating={pct(profit, revenue)} ratingLabel="margem"
+              stats={[
+                { l: "Por prato", v: cur.dishes > 0 ? fmt(foodProfit / cur.dishes) : "—" },
+                { l: "Comida", v: fmt(foodProfit) },
+                { l: "vs ant.", v: change(profit, prevProfit) },
+              ]} />
+            <StatCard tone="violet" icon={UtensilsCrossed} label="Custo por prato" value={dishCost > 0 ? fmt(dishCost) : "—"}
+              rating={dishPrice > 0 && dishCost > 0 ? pct(dishCost, dishPrice) : "—"} ratingLabel="do preço"
+              tier={dishPrice > 0 && dishCost > 0 ? (dishCost / dishPrice <= 0.35 ? "ouro" : dishCost / dishPrice <= 0.45 ? "prata" : "bronze") : undefined}
+              tierTitle="Custo do prato ÷ preço de venda. Até 35% = ouro, até 45% = prata, acima = bronze (restaurantes costumam mirar 30–35%)."
+              stats={[
+                { l: "Vende por", v: dishPrice > 0 ? fmt(dishPrice) : "—" },
+                { l: "Sobra", v: dishPrice > 0 ? fmt(dishPrice - dishCost) : "—" },
+                { l: "vs ant.", v: change(dishCost, prevDishCost) },
+              ]} />
           </div>
 
           {cur.foodCost === 0 && cur.foodRevenue > 0 && (
@@ -765,17 +793,66 @@ const TONES: Record<Tone, { text: string; chip: string; bar: string }> = {
   rose: { text: "text-rose-600", chip: "bg-rose-50 text-rose-700", bar: "from-rose-300 to-rose-500" },
 };
 
-function Kpi({ label, value, sub, tone, icon }: { label: string; value: string; sub: string; tone: Tone; icon: React.ReactNode }) {
-  const t = TONES[tone];
+// Carta de indicador (estilo carta colecionável): nota grande no canto, valor no meio, 3 atributos embaixo
+const CARD_SKINS: Record<"sky" | "amber" | "emerald" | "red" | "violet", { bg: string; glow: string }> = {
+  sky: { bg: "linear-gradient(150deg,#082f49 0%,#0369a1 55%,#38bdf8 100%)", glow: "rgba(14,165,233,.55)" },
+  amber: { bg: "linear-gradient(150deg,#431407 0%,#c2410c 55%,#fbbf24 100%)", glow: "rgba(249,115,22,.5)" },
+  emerald: { bg: "linear-gradient(150deg,#022c22 0%,#047857 55%,#34d399 100%)", glow: "rgba(16,185,129,.55)" },
+  red: { bg: "linear-gradient(150deg,#450a0a 0%,#b91c1c 55%,#f87171 100%)", glow: "rgba(239,68,68,.5)" },
+  violet: { bg: "linear-gradient(150deg,#2e1065 0%,#6d28d9 55%,#c084fc 100%)", glow: "rgba(139,92,246,.55)" },
+};
+const TIER_STYLE: Record<"ouro" | "prata" | "bronze", { bg: string; fg: string }> = {
+  ouro: { bg: "linear-gradient(90deg,#fde68a,#f59e0b)", fg: "#422006" },
+  prata: { bg: "linear-gradient(90deg,#f1f5f9,#94a3b8)", fg: "#1e293b" },
+  bronze: { bg: "linear-gradient(90deg,#fed7aa,#c2410c)", fg: "#431407" },
+};
+
+function StatCard({ tone, icon: Icon, label, value, rating, ratingLabel, stats, tier, tierTitle }: {
+  tone: keyof typeof CARD_SKINS; icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
+  label: string; value: string; rating: string; ratingLabel: string;
+  stats: { l: string; v: string }[]; tier?: "ouro" | "prata" | "bronze"; tierTitle?: string;
+}) {
+  const skin = CARD_SKINS[tone];
+  const W = "#fff";
   return (
-    <div className={`${card} relative overflow-hidden p-3 sm:p-4 min-w-0`}>
-      <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${t.bar}`} />
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{label}</p>
-        <span className={`w-7 h-7 rounded-lg flex items-center justify-center ${t.chip}`}>{icon}</span>
+    <div className="kcard relative overflow-hidden rounded-[20px] p-3.5 sm:p-4 min-h-[184px] flex flex-col min-w-0"
+      style={{
+        background: skin.bg, color: W, boxShadow: `0 12px 28px -14px ${skin.glow}`,
+        clipPath: "polygon(0 16px, 16px 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%)",
+      }}>
+      {/* textura: faixa de luz e ícone grande apagado */}
+      <div className="absolute -top-10 -right-8 w-40 h-40 rounded-full pointer-events-none" style={{ background: "radial-gradient(circle, rgba(255,255,255,.22), transparent 70%)" }} />
+      <Icon className="absolute -bottom-3 -right-3 w-24 h-24 pointer-events-none" style={{ color: W, opacity: 0.1 }} />
+
+      <div className="relative flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-[26px] sm:text-3xl font-black leading-none tabular-nums tracking-tight" style={{ color: W }}>{rating}</p>
+          <p className="text-[9px] font-bold uppercase tracking-[0.18em] mt-1" style={{ color: W, opacity: 0.75 }}>{ratingLabel}</p>
+        </div>
+        <div className="flex flex-col items-end gap-1.5">
+          <span className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,.16)", border: "1px solid rgba(255,255,255,.25)" }}>
+            <Icon className="w-4 h-4" style={{ color: W }} />
+          </span>
+          {tier && (
+            <span title={tierTitle} className="text-[8.5px] font-black uppercase tracking-[0.15em] px-1.5 py-0.5 rounded-md cursor-help"
+              style={{ background: TIER_STYLE[tier].bg, color: TIER_STYLE[tier].fg }}>{tier}</span>
+          )}
+        </div>
       </div>
-      <p className={`text-xl sm:text-2xl font-black tabular-nums tracking-tight mt-1 whitespace-nowrap ${t.text}`}>{value}</p>
-      <p className="text-xs text-gray-400 mt-0.5">{sub}</p>
+
+      <div className="relative mt-auto pt-3">
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: W, opacity: 0.8 }}>{label}</p>
+        <p className="text-lg sm:text-2xl font-black tabular-nums tracking-tight whitespace-nowrap leading-tight" style={{ color: W }}>{value}</p>
+      </div>
+
+      <div className="relative mt-2.5 pt-2 grid grid-cols-3" style={{ borderTop: "1px solid rgba(255,255,255,.22)" }}>
+        {stats.map((st, i) => (
+          <div key={st.l} className="text-center min-w-0 px-0.5" style={i ? { borderLeft: "1px solid rgba(255,255,255,.15)" } : undefined}>
+            <p className="text-[10.5px] sm:text-[11.5px] font-bold tabular-nums truncate" style={{ color: W }}>{st.v}</p>
+            <p className="text-[8px] sm:text-[8.5px] font-semibold uppercase tracking-wider truncate" style={{ color: W, opacity: 0.7 }}>{st.l}</p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
