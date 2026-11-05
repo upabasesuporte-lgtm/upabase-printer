@@ -591,6 +591,27 @@ export default function PdvPage() {
     prevCartLen.current = cart.length;
   }, [cart.length]);
 
+  // Item novo no carrinho: se ele ficou fora da vista (lista grande), rola só a lista
+  // do carrinho até ele aparecer. Com poucos itens nada se mexe.
+  const lastCartLen = useRef(0);
+  useEffect(() => {
+    const grew = cart.length > lastCartLen.current;
+    lastCartLen.current = cart.length;
+    if (!grew || cart.length === 0) return;
+    const id = cart[cart.length - 1].cartId;
+    requestAnimationFrame(() => {
+      const els = Array.from(document.querySelectorAll<HTMLElement>('[data-cart-item]')).filter(el => el.dataset.cartItem === id && el.offsetParent !== null);
+      for (const el of els) {
+        let box = el.parentElement;
+        while (box && !(/(auto|scroll)/.test(getComputedStyle(box).overflowY) && box.scrollHeight > box.clientHeight)) box = box.parentElement;
+        if (!box || box === document.body || box === document.documentElement) continue;
+        const r = el.getBoundingClientRect(), b = box.getBoundingClientRect();
+        if (r.bottom > b.bottom) box.scrollTo({ top: box.scrollTop + (r.bottom - b.bottom) + 12, behavior: 'smooth' });
+        else if (r.top < b.top) box.scrollTo({ top: box.scrollTop - (b.top - r.top) - 12, behavior: 'smooth' });
+      }
+    });
+  }, [cart]);
+
   // Toque no produto: a foto voa até o carrinho e ele pula (celular: botão de baixo; computador: título do carrinho)
   function addFromTap(e: React.MouseEvent, product: Product) {
     if (product.has_variants || variantKids(product.id).length > 0) { setVariantPicker(product); return; }
@@ -1564,7 +1585,7 @@ export default function PdvPage() {
               {cart.length > 0 && (
                 <div className="p-3 space-y-2">
                   {cart.map(item => (
-                    <div key={item.cartId} className="rounded-lg px-2.5 py-2" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+                    <div key={item.cartId} data-cart-item={item.cartId} className="rounded-lg px-2.5 py-2" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
                       {/* Linha 1: nome + qty +/- + total + lixo */}
                       <div className="flex items-center gap-1.5">
                         <p className="flex-1 text-xs font-semibold text-white truncate">{item.product.name}</p>
