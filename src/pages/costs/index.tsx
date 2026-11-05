@@ -492,8 +492,8 @@ function ResultView({ stockItems, products, categories, uid, goBuy }: {
         <div className="flex items-center justify-center h-40"><RefreshCw className="w-5 h-5 animate-spin text-brand-500" /></div>
       ) : (
         <>
-          {/* Resumo: cartas */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Resumo: cartões */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 p-1">
             <StatCard tone="sky" icon={Wallet} label="Vendeu" value={fmt(revenue)}
               rating={fmtNum(cur.dishes, 0)} ratingLabel="pratos"
               stats={[
@@ -793,18 +793,19 @@ const TONES: Record<Tone, { text: string; chip: string; bar: string }> = {
   rose: { text: "text-rose-600", chip: "bg-rose-50 text-rose-700", bar: "from-rose-300 to-rose-500" },
 };
 
-// Carta de indicador (estilo carta colecionável): nota grande no canto, valor no meio, 3 atributos embaixo
-const CARD_SKINS: Record<"sky" | "amber" | "emerald" | "red" | "violet", { bg: string; glow: string }> = {
-  sky: { bg: "linear-gradient(150deg,#082f49 0%,#0369a1 55%,#38bdf8 100%)", glow: "rgba(14,165,233,.55)" },
-  amber: { bg: "linear-gradient(150deg,#431407 0%,#c2410c 55%,#fbbf24 100%)", glow: "rgba(249,115,22,.5)" },
-  emerald: { bg: "linear-gradient(150deg,#022c22 0%,#047857 55%,#34d399 100%)", glow: "rgba(16,185,129,.55)" },
-  red: { bg: "linear-gradient(150deg,#450a0a 0%,#b91c1c 55%,#f87171 100%)", glow: "rgba(239,68,68,.5)" },
-  violet: { bg: "linear-gradient(150deg,#2e1065 0%,#6d28d9 55%,#c084fc 100%)", glow: "rgba(139,92,246,.55)" },
+// Cartão de indicador: claro, com sombra suave (efeito 3D), ícone num quadradinho
+// colorido e uma pílula com o número-chave (margem, % da venda…)
+const CARD_SKINS: Record<"sky" | "amber" | "emerald" | "red" | "violet", { tile: string; icon: string; pill: string; glow: string; value: string }> = {
+  sky: { tile: "linear-gradient(145deg,#e0f2fe,#bae6fd)", icon: "#0284c7", pill: "linear-gradient(135deg,#38bdf8,#0284c7)", glow: "rgba(2,132,199,.45)", value: "#0369a1" },
+  amber: { tile: "linear-gradient(145deg,#ffedd5,#fed7aa)", icon: "#ea580c", pill: "linear-gradient(135deg,#fb923c,#ea580c)", glow: "rgba(234,88,12,.4)", value: "#c2410c" },
+  emerald: { tile: "linear-gradient(145deg,#d1fae5,#a7f3d0)", icon: "#059669", pill: "linear-gradient(135deg,#34d399,#059669)", glow: "rgba(5,150,105,.4)", value: "#047857" },
+  red: { tile: "linear-gradient(145deg,#ffe4e6,#fecdd3)", icon: "#e11d48", pill: "linear-gradient(135deg,#fb7185,#e11d48)", glow: "rgba(225,29,72,.4)", value: "#be123c" },
+  violet: { tile: "linear-gradient(145deg,#ede9fe,#ddd6fe)", icon: "#7c3aed", pill: "linear-gradient(135deg,#a78bfa,#7c3aed)", glow: "rgba(124,58,237,.4)", value: "#6d28d9" },
 };
 const TIER_STYLE: Record<"ouro" | "prata" | "bronze", { bg: string; fg: string }> = {
-  ouro: { bg: "linear-gradient(90deg,#fde68a,#f59e0b)", fg: "#422006" },
-  prata: { bg: "linear-gradient(90deg,#f1f5f9,#94a3b8)", fg: "#1e293b" },
-  bronze: { bg: "linear-gradient(90deg,#fed7aa,#c2410c)", fg: "#431407" },
+  ouro: { bg: "#fef3c7", fg: "#92400e" },
+  prata: { bg: "#f1f5f9", fg: "#334155" },
+  bronze: { bg: "#ffedd5", fg: "#9a3412" },
 };
 
 function StatCard({ tone, icon: Icon, label, value, rating, ratingLabel, stats, tier, tierTitle }: {
@@ -813,44 +814,36 @@ function StatCard({ tone, icon: Icon, label, value, rating, ratingLabel, stats, 
   stats: { l: string; v: string }[]; tier?: "ouro" | "prata" | "bronze"; tierTitle?: string;
 }) {
   const skin = CARD_SKINS[tone];
-  const W = "#fff";
   return (
-    <div className="kcard relative overflow-hidden rounded-[20px] p-3.5 sm:p-4 min-h-[184px] flex flex-col min-w-0"
+    <div className="ncard rounded-[26px] p-4 min-w-0 flex flex-col gap-3"
       style={{
-        background: skin.bg, color: W, boxShadow: `0 12px 28px -14px ${skin.glow}`,
-        clipPath: "polygon(0 16px, 16px 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%)",
+        background: "linear-gradient(145deg,#ffffff,#eef1f5)",
+        border: "1px solid rgba(255,255,255,.8)",
+        boxShadow: "9px 9px 20px rgba(163,177,198,.45), -9px -9px 20px rgba(255,255,255,.95)",
       }}>
-      {/* textura: faixa de luz e ícone grande apagado */}
-      <div className="absolute -top-10 -right-8 w-40 h-40 rounded-full pointer-events-none" style={{ background: "radial-gradient(circle, rgba(255,255,255,.22), transparent 70%)" }} />
-      <Icon className="absolute -bottom-3 -right-3 w-24 h-24 pointer-events-none" style={{ color: W, opacity: 0.1 }} />
-
-      <div className="relative flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-[26px] sm:text-3xl font-black leading-none tabular-nums tracking-tight" style={{ color: W }}>{rating}</p>
-          <p className="text-[9px] font-bold uppercase tracking-[0.18em] mt-1" style={{ color: W, opacity: 0.75 }}>{ratingLabel}</p>
-        </div>
-        <div className="flex flex-col items-end gap-1.5">
-          <span className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,.16)", border: "1px solid rgba(255,255,255,.25)" }}>
-            <Icon className="w-4 h-4" style={{ color: W }} />
-          </span>
+      <div className="flex items-start justify-between gap-2">
+        <span className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center shrink-0"
+          style={{ background: skin.tile, boxShadow: "inset 2px 2px 5px rgba(255,255,255,.85), inset -2px -2px 5px rgba(0,0,0,.06), 3px 3px 8px rgba(163,177,198,.35)" }}>
+          <Icon className="w-5 h-5 sm:w-6 sm:h-6" style={{ color: skin.icon }} />
+        </span>
+        <span className="text-[11px] sm:text-xs font-bold px-2.5 sm:px-3 py-1 rounded-full whitespace-nowrap tabular-nums"
+          style={{ background: skin.pill, color: "#fff", boxShadow: `0 6px 14px -5px ${skin.glow}` }}>
+          {rating} <span className="font-medium opacity-90">{ratingLabel}</span>
+        </span>
+      </div>
+      <div className="min-w-0">
+        <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+          {label}
           {tier && (
-            <span title={tierTitle} className="text-[8.5px] font-black uppercase tracking-[0.15em] px-1.5 py-0.5 rounded-md cursor-help"
+            <span title={tierTitle} className="text-[9px] font-black px-1.5 py-0.5 rounded-md cursor-help normal-case tracking-normal"
               style={{ background: TIER_STYLE[tier].bg, color: TIER_STYLE[tier].fg }}>{tier}</span>
           )}
-        </div>
+        </p>
+        <p className="text-xl sm:text-2xl font-black tabular-nums tracking-tight whitespace-nowrap" style={{ color: skin.value }}>{value}</p>
       </div>
-
-      <div className="relative mt-auto pt-3">
-        <p className="text-[10px] font-bold uppercase tracking-[0.2em]" style={{ color: W, opacity: 0.8 }}>{label}</p>
-        <p className="text-lg sm:text-2xl font-black tabular-nums tracking-tight whitespace-nowrap leading-tight" style={{ color: W }}>{value}</p>
-      </div>
-
-      <div className="relative mt-2.5 pt-2 grid grid-cols-3" style={{ borderTop: "1px solid rgba(255,255,255,.22)" }}>
-        {stats.map((st, i) => (
-          <div key={st.l} className="text-center min-w-0 px-0.5" style={i ? { borderLeft: "1px solid rgba(255,255,255,.15)" } : undefined}>
-            <p className="text-[10.5px] sm:text-[11.5px] font-bold tabular-nums truncate" style={{ color: W }}>{st.v}</p>
-            <p className="text-[8px] sm:text-[8.5px] font-semibold uppercase tracking-wider truncate" style={{ color: W, opacity: 0.7 }}>{st.l}</p>
-          </div>
+      <div className="flex flex-wrap gap-x-2.5 gap-y-0.5 text-[11px] text-gray-500">
+        {stats.map(st => (
+          <span key={st.l} className="whitespace-nowrap">{st.l} <b className="font-semibold text-gray-700 tabular-nums">{st.v}</b></span>
         ))}
       </div>
     </div>
