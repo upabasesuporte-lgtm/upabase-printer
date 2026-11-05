@@ -3,7 +3,8 @@ import { supabase } from "../../lib/supabase";
 import { requireApproval } from "../../lib/operators";
 import { fetchAll } from "../../lib/fetchAll";
 import { matchesSearch } from "../../lib/search";
-import { recalcFiadoBalance, computeFiadoLedger, fetchFiadoMovs, fetchOpenFiado, type FiadoMov } from "../../lib/fiado";
+import { recalcFiadoBalance, computeFiadoLedger, fetchFiadoMovs, fetchOpenFiado, HOLDER, type FiadoMov } from "../../lib/fiado";
+import { CustomerMembersCard, PersonChips, useMemberLedger } from "../../components/CustomerMembers";
 import { getStoreSettings } from "../settings";
 import { CustomerBilling, CustomerInvoice } from "../../components/CustomerBilling";
 import { CrediarioCard } from "../../components/CrediarioCard";
@@ -155,6 +156,7 @@ export default function CustomersPage() {
   const [view, setView] = useState<"list" | "detail">("list");
   const [selected, setSelected] = useState<Customer | null>(null);
   const [movements, setMovements] = useState<CustomerMovement[]>([]);
+  const memberLedger = useMemberLedger(selected?.id, movements);
   const [movLoading, setMovLoading] = useState(false);
   const [remainingAfter, setRemainingAfter] = useState<Record<string, number>>({});
   // Quanto cada pagamento passou da dívida da época (sobra)
@@ -187,6 +189,8 @@ export default function CustomersPage() {
   const [payEntries, setPayEntries] = useState<{ method: PayMethod; amount: number }[]>([]);
   const [payMethod, setPayMethod] = useState<PayMethod>("cash");
   const [payInput, setPayInput] = useState("");
+  // Quem está pagando (pessoas da conta): null = conta toda
+  const [payPerson, setPayPerson] = useState<string | null>(null);
 
   // Edit movement
   const [editingMovement, setEditingMovement] = useState<CustomerMovement | null>(null);
@@ -494,7 +498,7 @@ export default function CustomersPage() {
     }
     const d = selected.fiado_balance ?? 0;
     const v = prefill != null ? Math.min(prefill, d) : d;
-    setPayEntries([]); setPayInput(v > 0 ? v.toFixed(2) : ""); setModal("payDebt");
+    setPayEntries([]); setPayInput(v > 0 ? v.toFixed(2) : ""); setPayPerson(null); setModal("payDebt");
   }
 
   // Crediário: lança juros/multa (se escolhido) e abre o pagamento com o valor da parcela
@@ -598,6 +602,7 @@ export default function CustomersPage() {
         customer_id: selected.id, user_id: userId, type: "payment", amount: totalPaid,
         description: "Pagamento de fiado", payment_methods: payEntries,
         sale_id: saleId,
+        ...(payPerson ? { member_id: payPerson === HOLDER ? null : payPerson, member_holder: payPerson === HOLDER } : {}),
       });
       if (movErr) throw movErr;
 
@@ -1413,6 +1418,11 @@ export default function CustomersPage() {
           {/* Empresa: preço combinado e fatura do mês */}
           <CustomerBilling customer={selected} card={card} isLight={isLight} />
 
+          {/* Pessoas da conta (ex.: a esposa marca e paga separado) */}
+          <CustomerMembersCard customer={selected} card={card} isLight={isLight}
+            members={memberLedger.members} bal={memberLedger.bal}
+            onChanged={() => { memberLedger.reload(); loadMovements(selected.id); }} />
+
           {/* Crediário: parcelas (só aparece se o cliente tiver) */}
           <CrediarioCard customer={selected} card={card} isLight={isLight} reloadKey={movements} onReceive={receiveInstallment} />
 
@@ -1456,6 +1466,7 @@ export default function CustomersPage() {
             {selected && (
               <CustomerInvoice
                 customer={selected}
+                members={memberLedger.members}
                 range={getDateRange(dateFilter, customFrom, customTo)}
                 label={periodLabel(dateFilter, customFrom, customTo)}
                 reloadKey={movements}
@@ -1705,6 +1716,24 @@ export default function CustomersPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
+              {/* Pessoas da conta: de quem é o pagamento */}
+              {memberLedger.members.length > 0 && (selected.fiado_balance ?? 0) > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-zinc-400">Quem está pagando?</p>
+                  <PersonChips holderName={selected.name} members={memberLedger.members} value={payPerson} allLabel="Conta toda"
+                    isLight={isLight} bal={memberLedger.bal}
+                    onChange={v => {
+                      setPayPerson(v);
+                      if (payEntries.length === 0) {
+                        const owes = v ? memberLedger.bal[v] ?? 0 : selected.fiado_balance ?? 0;
+                        setPayInput(owes > 0 ? owes.toFixed(2) : "");
+                      }
+                    }} />
+                  <p className="text-[11px] text-zinc-500">
+                    {payPerson ? "Abate primeiro os pedidos dessa pessoa." : "Abate os pedidos mais antigos da conta, de quem for."}
+                  </p>
+                </div>
+              )}
               {/* Debt summary */}
               {(selected.fiado_balance ?? 0) <= 0 ? (
                 <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-4 text-center">

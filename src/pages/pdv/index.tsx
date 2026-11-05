@@ -3,6 +3,8 @@ import { supabase } from "../../lib/supabase";
 import { printDocument } from "../../lib/printing";
 import { receiptHtml, receiptDate, brl } from "../../lib/receipt";
 import { isNetworkError, saveCache, readCache, enqueueSale } from "../../lib/offline";
+import { PersonChips, phoneDigits, type CustomerMember } from "../../components/CustomerMembers";
+import { HOLDER } from "../../lib/fiado";
 import { requireApproval } from "../../lib/operators";
 import { matchesSearch } from "../../lib/search";
 import { recalcFiadoBalance } from "../../lib/fiado";
@@ -213,6 +215,10 @@ export default function PdvPage() {
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryFee, setDeliveryFee] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  // Pessoas da conta (ex.: a esposa marca na conta do marido): quem pediu esta venda
+  const [members, setMembers] = useState<CustomerMember[]>([]);
+  const [memberId, setMemberId] = useState<string | null>(null); // null = titular
+  const pendingMember = useRef<string | null>(null);
   // Desktop: campos extras do carrinho ficam recolhidos em botões (só visual)
   const [extraOpen, setExtraOpen] = useState<"address" | "notes" | "seller" | null>(null);
   const [showDiscountField, setShowDiscountField] = useState(false);
@@ -267,7 +273,10 @@ export default function PdvPage() {
       if (typeof d.sellerName === "string") setSellerName(d.sellerName);
       if (typeof d.deliveryAddress === "string") setDeliveryAddress(d.deliveryAddress);
       if (typeof d.deliveryFee === "string") setDeliveryFee(d.deliveryFee);
-      if (d.selectedCustomer && typeof d.selectedCustomer === "object") setSelectedCustomer(d.selectedCustomer);
+      if (d.selectedCustomer && typeof d.selectedCustomer === "object") {
+        pendingMember.current = typeof d.memberId === "string" ? d.memberId : null;
+        setSelectedCustomer(d.selectedCustomer);
+      }
       if (d.saleChannel === "pdv" || d.saleChannel === "ifood") setSaleChannel(d.saleChannel);
     } catch { /* rascunho inválido: ignora */ }
   }, [userId]);
@@ -279,10 +288,18 @@ export default function PdvPage() {
     try {
       if (empty) localStorage.removeItem(key);
       else localStorage.setItem(key, JSON.stringify({
-        cart, discount, discountType, orderNotes, sellerName, deliveryAddress, deliveryFee, selectedCustomer, saleChannel,
+        cart, discount, discountType, orderNotes, sellerName, deliveryAddress, deliveryFee, selectedCustomer, saleChannel, memberId,
       }));
     } catch { /* sem storage */ }
-  }, [userId, cart, discount, discountType, orderNotes, sellerName, deliveryAddress, deliveryFee, selectedCustomer, saleChannel]);
+  }, [userId, cart, discount, discountType, orderNotes, sellerName, deliveryAddress, deliveryFee, selectedCustomer, saleChannel, memberId]);
+
+  // Trocou de cliente: volta para o titular (ou a pessoa escolhida na busca / rascunho)
+  useEffect(() => {
+    setMemberId(pendingMember.current);
+    pendingMember.current = null;
+  }, [selectedCustomer?.id]);
+  const customerMembers = selectedCustomer ? members.filter(m => m.customer_id === selectedCustomer.id) : [];
+  const saleMemberId = memberId && customerMembers.some(m => m.id === memberId) ? memberId : null;
 
   // Limpar venda: um toque limpa tudo; por 5s dá para desfazer (toque sem querer)
   const hasDraft = cart.length > 0 || !!discount || !!orderNotes.trim() || !!sellerName.trim()
@@ -379,6 +396,11 @@ export default function PdvPage() {
   const filteredCustomers = customers.filter(c =>
     matchesSearch(c.name, custSearch) || (c.phone && c.phone.includes(custSearch))
   );
+  const custSearchDigits = phoneDigits(custSearch);
+  const memberMatches = custSearch.trim()
+    ? members.filter(m => customers.some(c => c.id === m.customer_id) &&
+        (matchesSearch(m.name, custSearch) || (custSearchDigits.length >= 4 && phoneDigits(m.phone).includes(custSearchDigits))))
+    : [];
 
   useEffect(() => { loadAll(); loadPending(); }, []);
 
@@ -451,6 +473,7 @@ export default function PdvPage() {
         setProducts(applyPromotions(c.products ?? [], c.promotions ?? []));
         setCategoryNames(Object.fromEntries((c.categories ?? []).map((x: any) => [x.id, x.name])));
         setCustomers(c.customers ?? []);
+        setMembers(readCache<CustomerMember[]>("pdv_members_" + (user?.id ?? "anon")) ?? []);
         if (user) setCashRegisterId(c.registerId ?? null);
         setLoadingProducts(false);
         return;
@@ -463,6 +486,10 @@ export default function PdvPage() {
     setProducts(applyPromotions(prodsRes.data ?? [], promos));
     setCategoryNames(Object.fromEntries((catsRes.data ?? []).map((c: any) => [c.id, c.name])));
     setCustomers(custsRes.data ?? []);
+    supabase.from("customer_members").select("id, customer_id, name, phone").then(r => {
+      if (!r.error) { setMembers((r.data ?? []) as CustomerMember[]); saveCache("pdv_members_" + (user?.id ?? "anon"), r.data ?? []); }
+      else setMembers(readCache<CustomerMember[]>("pdv_members_" + (user?.id ?? "anon")) ?? []);
+    });
     if (user) {
       setCashRegisterId(regRes?.data?.id ?? null);
     }
@@ -752,6 +779,7 @@ export default function PdvPage() {
       customer_id: selectedCustomer?.id ?? null, origin: "pdv",
       seller_name: sellerName || null, notes: orderNotes || null,
       delivery_address: deliveryAddress || null, payments: [],
+      ...(saleMemberId ? { member_id: saleMemberId } : {}),
     }).select().single();
     if (saleErr || !sale) { showError("Erro ao salvar pedido pendente: " + (saleErr?.message ?? "desconhecido")); return; }
     const { error: itemsErr } = await supabase.from("sale_items").insert(cart.map(i => ({
@@ -786,7 +814,10 @@ export default function PdvPage() {
     setOrderNotes(sale.notes || "");
     setSellerName(sale.seller_name || "");
     setDeliveryAddress(sale.delivery_address || "");
-    if (sale.customer_id) setSelectedCustomer(customers.find(c => c.id === sale.customer_id) ?? null);
+    if (sale.customer_id) {
+      pendingMember.current = (sale as any).member_id ?? null;
+      setSelectedCustomer(customers.find(c => c.id === sale.customer_id) ?? null);
+    }
     setTab("venda");
     await supabase.from("sales").delete().eq("id", sale.id);
     setPendingSales(prev => prev.filter(s => s.id !== sale.id));
@@ -904,6 +935,7 @@ export default function PdvPage() {
 
     const finalizePayload = {
       mode: "insert", sale_id: saleId,
+      member_id: selectedCustomer ? saleMemberId : null,
       send_kitchen: true, // itens vão para a estação do setor da categoria (se tiver)
       sale: {
         discount: discountVal, total_amount: total,
@@ -1696,6 +1728,13 @@ export default function PdvPage() {
                 </div>
                 <ChevronRight className="w-3.5 h-3.5 text-zinc-600 flex-shrink-0" />
               </button>
+              {selectedCustomer && customerMembers.length > 0 && (
+                <div className="rounded-xl px-3 py-2 space-y-1.5" style={{ background: card.bg, border: card.border }}>
+                  <p className="text-[11px] font-semibold text-zinc-400">Quem pediu?</p>
+                  <PersonChips holderName={selectedCustomer.name} members={customerMembers} isLight={isLight}
+                    value={saleMemberId ?? HOLDER} onChange={v => setMemberId(v === HOLDER ? null : v)} />
+                </div>
+              )}
 
               {/* Endereço + Obs + Vendedor — abrem pelo botão correspondente */}
               <input placeholder="Endereço de entrega (opcional)..." value={deliveryAddress} onChange={e => setDeliveryAddress(e.target.value)}
@@ -1990,6 +2029,28 @@ export default function PdvPage() {
               </button>
             )}
             <div className="space-y-1 max-h-72 overflow-y-auto">
+              {memberMatches.map(m => {
+                const owner = customers.find(c => c.id === m.customer_id)!;
+                return (
+                  <button key={"m" + m.id} onClick={async () => {
+                      const { data: fresh } = await supabase.from("customers").select("id,name,phone,address,balance,fiado_balance,credit_limit").eq("id", owner.id).single();
+                      const customer = (fresh as Customer) ?? owner;
+                      // Mesmo cliente já escolhido: só troca a pessoa
+                      if (selectedCustomer?.id === customer.id) { setMemberId(m.id); pendingMember.current = null; }
+                      else pendingMember.current = m.id;
+                      setSelectedCustomer(customer);
+                      setCustomers(prev => prev.map(x => x.id === customer.id ? customer : x));
+                      setShowCustomer(false); setCustSearch(""); if (customer.address) setDeliveryAddress(customer.address);
+                    }}
+                    className="w-full text-left px-3 py-2.5 rounded-xl transition-colors hover:bg-zinc-800">
+                    <p className="text-sm font-medium text-white">{m.name} <span className="text-xs font-normal text-zinc-400">· conta de {owner.name}</span></p>
+                    <div className="flex items-center gap-3 text-xs text-zinc-400 mt-0.5">
+                      {m.phone && <span>{m.phone}</span>}
+                      {(owner.fiado_balance ?? 0) > 0 && <span className="text-red-400">Fiado da conta: {fmt(owner.fiado_balance)}</span>}
+                    </div>
+                  </button>
+                );
+              })}
               {filteredCustomers.map(c => (
                 <button key={c.id} onClick={async () => {
                     // Busca dados frescos do cliente (garantindo credit_limit e fiado_balance atualizados)
