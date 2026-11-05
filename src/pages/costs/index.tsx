@@ -29,10 +29,11 @@ type Preset = "month" | "custom";
 
 // ─── Estilos (mesmo padrão da aba Estoque) ────────────────────────────────────
 
-const card = "bg-white border border-gray-200 rounded-2xl shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.04)]";
-const fieldCls = "w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 transition-all";
-const btnPrimary = "inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold bg-brand-600 hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors";
-const btnGhost = "inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold border border-gray-200 text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-40 transition-colors";
+// Estilo 3D suave (classes .neu* em index.css)
+const card = "neu rounded-[26px]";
+const fieldCls = "w-full px-3.5 py-2.5 neu-in rounded-2xl border-0 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#7b86f5]/40 transition-all";
+const btnPrimary = "neu-lift inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-full text-sm font-semibold bg-gradient-to-r from-[#4b5578] to-[#1e2235] shadow-[0_8px_18px_-8px_rgba(30,34,53,.6)] disabled:opacity-40 disabled:cursor-not-allowed";
+const btnGhost = "neu-sm neu-lift inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-semibold text-gray-700 hover:text-[#1e2235] disabled:opacity-40";
 const WHITE = { color: "#fff" };
 const UNITS = ["kg", "g", "litro", "ml", "unidade", "pacote", "caixa", "dúzia", "lata", "fardo"];
 
@@ -301,10 +302,13 @@ export default function CostsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold text-gray-900 tracking-tight">Custo e Lucro</h1>
-          <p className="text-xs text-gray-500 mt-0.5">Lance as compras do dia; o sistema cruza com as vendas e mostra o custo e o lucro de cada marmita.</p>
+      <div className="neu rounded-[26px] px-4 py-3.5 sm:px-5 flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="flex items-center gap-3.5 min-w-0">
+          <Tile tone="amber" icon={PiggyBank} />
+          <div className="min-w-0">
+            <h1 className="text-xl md:text-2xl font-black text-[#1e2235] tracking-tight leading-tight">Custo e Lucro</h1>
+            <p className="text-xs text-gray-500 mt-0.5">Lance as compras do dia; o sistema cruza com as vendas e mostra o custo e o lucro de cada marmita.</p>
+          </div>
         </div>
         <div className="flex gap-1 p-1.5 neu-in rounded-2xl">
           {([
@@ -1510,9 +1514,9 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
   return (
     <div className="space-y-4">
       <div className={`${card} p-4 space-y-3`}>
-        <div className="rounded-2xl border border-brand-200 bg-brand-50/50 p-3 space-y-2">
+        <div className="neu-in rounded-[22px] p-3.5 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="w-9 h-9 rounded-xl bg-brand-100 text-brand-700 flex items-center justify-center shrink-0"><ScanLine className="w-5 h-5" /></span>
+            <span className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0" style={{ background: CARD_SKINS.sky.tile, boxShadow: "inset 2px 2px 5px rgba(255,255,255,.85), inset -2px -2px 5px rgba(0,0,0,.06), 3px 3px 8px rgba(163,177,198,.35)" }}><ScanLine className="w-5 h-5" style={{ color: CARD_SKINS.sky.icon }} /></span>
             <div className="flex-1 min-w-[180px]">
               <p className="text-sm font-bold text-gray-900">Lançar pela notinha (QR Code)</p>
               <p className="text-[11px] text-gray-500">Os itens da nota entram sozinhos aqui embaixo. Você confere e salva.</p>
@@ -1526,8 +1530,8 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
           </div>
           {scanOpen && <QrScanner onResult={gotLink} onClose={() => setScanOpen(false)} />}
           {notaOpen && notaLink && (
-            <div className="rounded-xl bg-white border border-brand-200 p-3 space-y-2">
-              <p className="text-sm font-bold text-emerald-700">✓ QR Code da nota pronto</p>
+            <div className="neu-sm rounded-2xl p-3 space-y-2">
+              <p className="text-sm font-bold text-[#1e2235]">✓ QR Code da nota pronto</p>
               <ol className="text-xs text-gray-700 space-y-1 list-decimal pl-5">
                 <li>Toque em <b>Abrir a nota</b>: a página da SEFAZ abre em outra aba.</li>
                 <li>Lá, toque em <b>Selecionar tudo</b> e depois em <b>Copiar</b>.</li>
@@ -1561,7 +1565,7 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
             </div>
           )}
           {notaMsg && (
-            <div className={`rounded-xl px-3 py-2 text-xs space-y-0.5 ${notaMsg.ok ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800"}`}>
+            <div className={`rounded-xl px-3 py-2 text-xs space-y-0.5 ${notaMsg.ok ? "neu-sm text-[#1e2235]" : "neu-sm text-[#c81e3a]"}`}>
               {notaMsg.lines.map((l, i) => <p key={i} className={i === 0 ? "font-semibold" : ""}>{l}</p>)}
             </div>
           )}
@@ -1612,7 +1616,7 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
             const q = parseNum(r.qty), t = parseNum(r.total);
             const unit = ex?.unit ?? r.unit;
             return (
-              <div key={idx} className="grid grid-cols-2 md:grid-cols-[1fr_120px_110px_130px_110px_36px] gap-2 items-center p-2 md:p-0 rounded-xl border border-gray-100 md:border-0">
+              <div key={idx} className="grid grid-cols-2 md:grid-cols-[1fr_120px_110px_130px_110px_36px] gap-2 items-center p-2 rounded-2xl neu-sm">
                 <div className="col-span-2 md:col-span-1">
                   <input list="cost-items" value={r.name} onChange={e => setRow(idx, { name: e.target.value })}
                     placeholder="Ex.: Bife, Alho, Arroz…" className={fieldCls} />
@@ -1634,7 +1638,7 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
                     const drink = r.kind ? r.kind === "bebida" : ex ? isDrinkItem(ex) : autoDrinkName(r.name);
                     return (
                       <button type="button" onClick={() => setRow(idx, { kind: drink ? "cozinha" : "bebida" })}
-                        title="Toque para trocar" className={`mt-0.5 inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${drink ? "bg-sky-100 text-sky-700" : "bg-gray-100 text-gray-500"}`}>
+                        title="Toque para trocar" className={`mt-0.5 inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${drink ? "bg-[#eef0ff] text-[#3f4ab8]" : "neu-in text-gray-500"}`}>
                         {drink ? "🥤 bebida · fora do prato" : "🍲 custo do prato"}
                       </button>
                     );
@@ -1655,8 +1659,8 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
             <span className="inline-flex items-center gap-1.5 text-xs text-gray-600">
               Apagar todos os itens da tela?
               <button onClick={() => { setRows([emptyRow(), emptyRow(), emptyRow()]); setNotaKey(null); setNotaMsg(null); setNotaLink(null); setNotaWaiting(false); setError(null); setConfirmClear(false); }}
-                className="px-2.5 py-1.5 rounded-lg font-semibold bg-red-600 hover:bg-red-700" style={WHITE}>Sim, cancelar</button>
-              <button onClick={() => setConfirmClear(false)} className="px-2.5 py-1.5 rounded-lg font-semibold border border-gray-200 bg-white">Não</button>
+                className="px-3 py-1.5 rounded-full font-semibold bg-gradient-to-r from-[#f2545b] to-[#c81e3a]" style={WHITE}>Sim, cancelar</button>
+              <button onClick={() => setConfirmClear(false)} className="neu-sm px-3 py-1.5 rounded-full font-semibold">Não</button>
             </span>
           ) : (
             <button onClick={() => setConfirmClear(true)} className={btnGhost + " text-red-600"}><X className="w-4 h-4" /> Cancelar lançamento</button>
@@ -1669,7 +1673,7 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
         </div>
         {error && <p className="text-sm text-red-600">{error}</p>}
         {done && (
-          <p className="text-sm text-emerald-700 font-semibold">
+          <p className="text-sm text-[#1e2235] font-semibold">
             ✓ {done}. Já entrou no estoque, em Contas a Pagar e no Resultado.
           </p>
         )}
@@ -1679,16 +1683,16 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
         <div className="px-4 pt-4 pb-2">
           <p className="text-sm font-bold text-gray-900">Compras dos últimos 7 dias</p>
           <p className="text-[11px] text-gray-400">Lançou errado? Toque em "Corrigir" para mudar itens, valores, data, onde comprou, categoria ou excluir.</p>
-          {editDone && <p className="text-xs font-semibold text-emerald-700 mt-1">{editDone}</p>}
+          {editDone && <p className="text-xs font-semibold text-[#1e2235] mt-1">{editDone}</p>}
         </div>
         {recent.length === 0 ? (
           <p className="px-4 pb-4 text-sm text-gray-500">Nada lançado ainda.</p>
         ) : (
           <div className="divide-y divide-gray-100">
             {recent.map(o => editing?.id === o.id ? (
-              <div key={o.id} className="m-2 rounded-2xl border-2 border-brand-200 bg-brand-50/40 p-3 sm:p-4 space-y-3">
+              <div key={o.id} className="m-2 neu-sm rounded-[22px] p-3 sm:p-4 space-y-3">
                 <div className="flex items-center gap-2">
-                  <span className="w-8 h-8 rounded-xl bg-brand-100 text-brand-700 flex items-center justify-center"><Pencil className="w-4 h-4" /></span>
+                  <span className="w-9 h-9 rounded-2xl flex items-center justify-center" style={{ background: CARD_SKINS.violet.tile }}><Pencil className="w-4 h-4" style={{ color: CARD_SKINS.violet.icon }} /></span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-gray-900">Corrigir compra</p>
                     <p className="text-[11px] text-gray-500">Muda o estoque, Contas a Pagar e o Resultado juntos.</p>
@@ -1722,7 +1726,7 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
                   </label>
                 </div>
 
-                <div className="rounded-xl bg-white border border-gray-100 p-2 space-y-2">
+                <div className="neu-in rounded-2xl p-2.5 space-y-2">
                   <div className="hidden md:grid grid-cols-[1fr_100px_110px_130px_110px_36px] gap-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400 px-1">
                     <span>Item</span><span>Unidade</span><span>Quantidade</span><span>Valor pago (total)</span><span className="text-right">Preço por un.</span><span />
                   </div>
@@ -1731,7 +1735,7 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
                     const ex = l.name.trim() ? findItem(l.name) : undefined;
                     const unit = ex?.unit ?? l.unit;
                     return (
-                      <div key={l.key} className={`grid grid-cols-2 md:grid-cols-[1fr_100px_110px_130px_110px_36px] gap-2 items-center p-2 md:p-0 rounded-xl border border-gray-100 md:border-0 ${l.removed ? "opacity-50" : ""}`}>
+                      <div key={l.key} className={`grid grid-cols-2 md:grid-cols-[1fr_100px_110px_130px_110px_36px] gap-2 items-center p-2 rounded-2xl neu-sm ${l.removed ? "opacity-50" : ""}`}>
                         <input list="cost-items" value={l.name} disabled={l.removed} onChange={e => setEditLine(l.key, { name: e.target.value })}
                           placeholder="Ex.: Bife, Alho, Arroz…" className={fieldCls + " col-span-2 md:col-span-1 !py-2" + (l.removed ? " line-through" : "")} />
                         {ex ? (
@@ -1759,7 +1763,7 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
                 </div>
 
                 {confirmDelete ? (
-                  <div className="flex flex-wrap items-center gap-2 p-2.5 rounded-xl border border-red-200 bg-red-50">
+                  <div className="neu-in flex flex-wrap items-center gap-2 p-2.5 rounded-2xl">
                     <p className="text-xs text-red-800 flex-1">Excluir a compra inteira? O estoque volta e a conta sai de Contas a Pagar e do Resultado.</p>
                     <button onClick={() => setConfirmDelete(false)} className={btnGhost + " !py-1.5"}>Não</button>
                     <button onClick={() => saveEdit(true)} disabled={editSaving} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-semibold bg-red-600 hover:bg-red-700 disabled:opacity-40" style={WHITE}>
@@ -1791,14 +1795,14 @@ function BuyView({ stockItems, suppliers, uid, onItemsChanged }: {
                     <p className="text-[11px] text-gray-500 flex flex-wrap items-center gap-x-2">
                       <span>{fmtDay(o.day)}</span>
                       {o.supplierName && <span>· {o.supplierName}</span>}
-                      {o.category && <span className="px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-600 font-semibold">{billLabel(o.category)}</span>}
-                      {o.billStatus && <span className={o.billStatus === "paid" ? "text-emerald-600 font-semibold" : "text-amber-600 font-semibold"}>{o.billStatus === "paid" ? "pago" : "a pagar"}</span>}
+                      {o.category && <span className="px-2 py-0.5 rounded-full neu-in text-gray-600 font-semibold">{billLabel(o.category)}</span>}
+                      {o.billStatus && <span className={o.billStatus === "paid" ? "text-[#1e2235] font-semibold" : "text-[#e0484f] font-semibold"}>{o.billStatus === "paid" ? "pago" : "a pagar"}</span>}
                     </p>
                   </div>
                   <div className="flex items-center gap-3 flex-shrink-0">
                     <span className="text-sm font-bold tabular-nums">{fmt(o.items.reduce((s, i) => s + i.qty * i.cost, 0))}</span>
                     {o.editable && (
-                      <button onClick={() => startEdit(o)} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-brand-200 text-xs font-semibold text-brand-700 hover:bg-brand-50">
+                      <button onClick={() => startEdit(o)} className="neu-sm neu-lift inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold text-[#3f4ab8]">
                         <Pencil className="w-3.5 h-3.5" /> Corrigir
                       </button>
                     )}
