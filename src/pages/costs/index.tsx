@@ -3,7 +3,7 @@ import { supabase } from "../../lib/supabase";
 import { fetchAll, fetchAllIn } from "../../lib/fetchAll";
 import { PURCHASE_PAY_METHODS } from "../purchases/PurchaseScreen";
 import {
-  RefreshCw, PiggyBank, ShoppingBasket, Plus, Trash2, Check, ChevronDown, TrendingUp, TrendingDown, UtensilsCrossed, CupSoda, Pencil, X, ScanLine, ClipboardPaste, Camera, ExternalLink, Wallet, Receipt,
+  RefreshCw, ChevronLeft, ChevronRight, PiggyBank, ShoppingBasket, Plus, Trash2, Check, ChevronDown, TrendingUp, TrendingDown, UtensilsCrossed, CupSoda, Pencil, X, ScanLine, ClipboardPaste, Camera, ExternalLink, Wallet, Receipt,
 } from "lucide-react";
 import { parseNfceText, nfceUnit } from "../../lib/nfceText";
 
@@ -25,7 +25,7 @@ interface PurchaseLine { day: string; stock_item_id: string | null; product_id: 
 interface SaleLine { day: string; product_id: string; qty: number; revenue: number }
 
 type View = "result" | "buy";
-type Preset = "week" | "lastweek" | "month" | "lastmonth" | "custom";
+type Preset = "month" | "custom";
 
 // ─── Estilos (mesmo padrão da aba Estoque) ────────────────────────────────────
 
@@ -66,24 +66,15 @@ function portionText(qty: number, unit: string) {
   return `${fmtNum(qty, 2)} ${unit}`;
 }
 
-function presetRange(p: Preset, today: string): { from: string; to: string; prevFrom: string; prevTo: string } {
+// Mês inteiro (dia 1 ao último dia), comparando com o mês anterior inteiro.
+// offset 0 = mês atual, -1 = mês passado…
+function monthRange(offset: number, today: string): { from: string; to: string; prevFrom: string; prevTo: string } {
   const d = parseDay(today);
-  if (p === "week" || p === "lastweek") {
-    const dow = (d.getDay() + 6) % 7; // segunda = 0
-    let from = addDays(today, -dow);
-    if (p === "lastweek") from = addDays(from, -7);
-    const to = p === "week" ? today : addDays(from, 6);
-    return { from, to, prevFrom: addDays(from, -7), prevTo: addDays(to, -7) };
-  }
-  const monthStart = (y: number, m: number) => dayStr(new Date(y, m, 1));
-  const monthEnd = (y: number, m: number) => dayStr(new Date(y, m + 1, 0));
-  const y = d.getFullYear(), m = d.getMonth() - (p === "lastmonth" ? 1 : 0);
-  const from = monthStart(y, m);
-  const to = p === "month" ? today : monthEnd(y, m);
-  const prevFrom = monthStart(y, m - 1);
-  // Mês anterior até o mesmo dia (comparação justa com o mês em andamento)
-  const prevTo = p === "month" ? dayStr(new Date(y, m - 1, Math.min(d.getDate(), new Date(y, m, 0).getDate()))) : monthEnd(y, m - 1);
-  return { from, to, prevFrom, prevTo };
+  const y = d.getFullYear(), m = d.getMonth() + offset;
+  return {
+    from: dayStr(new Date(y, m, 1)), to: dayStr(new Date(y, m + 1, 0)),
+    prevFrom: dayStr(new Date(y, m - 1, 1)), prevTo: dayStr(new Date(y, m, 0)),
+  };
 }
 
 // Bebida/revenda: categoria ou nome de bebida, ou produto comprado pronto (compra de produto)
@@ -315,13 +306,13 @@ export default function CostsPage() {
           <h1 className="text-xl md:text-2xl font-bold text-gray-900 tracking-tight">Custo e Lucro</h1>
           <p className="text-xs text-gray-500 mt-0.5">Lance as compras do dia; o sistema cruza com as vendas e mostra o custo e o lucro de cada marmita.</p>
         </div>
-        <div className="flex p-1 bg-gray-200/60 rounded-xl">
+        <div className="flex gap-1 p-1.5 neu-in rounded-2xl">
           {([
             { key: "result", label: "Resultado", icon: <PiggyBank className="w-4 h-4" /> },
             { key: "buy", label: "Lançar compras", icon: <ShoppingBasket className="w-4 h-4" /> },
           ] as const).map(t => (
             <button key={t.key} onClick={() => setView(t.key)}
-              className={`flex flex-1 md:flex-none items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors ${view === t.key ? "bg-white text-brand-700 shadow-sm" : "text-gray-500 hover:text-gray-800"}`}>
+              className={`flex flex-1 md:flex-none items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all ${view === t.key ? "neu-sm text-[#1e2235]" : "text-gray-500 hover:text-gray-800"}`}>
               {t.icon}{t.label}
             </button>
           ))}
@@ -341,14 +332,15 @@ function ResultView({ stockItems, products, categories, uid, goBuy }: {
 }) {
   const today = dayStr(new Date());
   const [preset, setPreset] = useState<Preset>("month");
+  const [monthOff, setMonthOff] = useState(0); // 0 = este mês
   const [customFrom, setCustomFrom] = useState(() => addDays(today, -6));
   const [customTo, setCustomTo] = useState(today);
   const range = useMemo(() => {
-    if (preset !== "custom") return presetRange(preset, today);
+    if (preset !== "custom") return monthRange(monthOff, today);
     const from = customFrom <= customTo ? customFrom : customTo, to = customFrom <= customTo ? customTo : customFrom;
     const len = daysBetween(from, to) + 1;
     return { from, to, prevFrom: addDays(from, -len), prevTo: addDays(from, -1) };
-  }, [preset, customFrom, customTo, today]);
+  }, [preset, monthOff, customFrom, customTo, today]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -465,16 +457,24 @@ function ResultView({ stockItems, products, categories, uid, goBuy }: {
       {/* Período */}
       <div className="neu rounded-[22px] p-3 flex flex-col lg:flex-row gap-3 lg:items-center">
         <div className="flex gap-1 p-1.5 neu-in rounded-2xl max-w-full overflow-x-auto">
-          {([
-            { v: "week", l: "Esta semana" }, { v: "lastweek", l: "Semana passada" },
-            { v: "month", l: "Este mês" }, { v: "lastmonth", l: "Mês passado" }, { v: "custom", l: "Escolher" },
-          ] as const).map(o => (
+          {([{ v: "month", l: "Mês" }, { v: "custom", l: "Escolher período" }] as const).map(o => (
             <button key={o.v} onClick={() => setPreset(o.v)}
               className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${preset === o.v ? "neu-sm text-brand-700" : "text-gray-500 hover:text-gray-800"}`}>
               {o.l}
             </button>
           ))}
         </div>
+        {preset === "month" && (
+          <div className="flex items-center gap-2">
+            <button onClick={() => setMonthOff(o => o - 1)} title="Mês anterior"
+              className="neu-sm neu-lift w-9 h-9 rounded-full flex items-center justify-center text-gray-600"><ChevronLeft className="w-4 h-4" /></button>
+            <span className="min-w-[150px] text-center text-sm font-bold text-[#1e2235] capitalize">
+              {parseDay(range.from).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+            </span>
+            <button onClick={() => setMonthOff(o => Math.min(0, o + 1))} disabled={monthOff >= 0} title="Próximo mês"
+              className="neu-sm neu-lift w-9 h-9 rounded-full flex items-center justify-center text-gray-600 disabled:opacity-40"><ChevronRight className="w-4 h-4" /></button>
+          </div>
+        )}
         {preset === "custom" && (
           <div className="flex items-center gap-2">
             <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)} className={fieldCls + " !py-2"} />
@@ -486,7 +486,7 @@ function ResultView({ stockItems, products, categories, uid, goBuy }: {
         <button onClick={load} className="neu-sm neu-lift w-10 h-10 shrink-0 rounded-full flex items-center justify-center text-gray-600 hover:text-brand-600" title="Atualizar"><RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /></button>
       </div>
 
-      {error && <p className="text-sm text-red-600">Erro ao carregar: {error}</p>}
+      {error && <p className="text-sm text-[#c81e3a]">Erro ao carregar: {error}</p>}
 
       {loading ? (
         <div className="flex items-center justify-center h-40"><RefreshCw className="w-5 h-5 animate-spin text-brand-500" /></div>
@@ -527,7 +527,7 @@ function ResultView({ stockItems, products, categories, uid, goBuy }: {
           </div>
 
           {cur.foodCost === 0 && cur.foodRevenue > 0 && (
-            <div className="flex flex-wrap items-center gap-3 p-3.5 rounded-2xl border border-amber-200 bg-amber-50 text-sm text-amber-900">
+            <div className="neu-in flex flex-wrap items-center gap-3 p-3.5 rounded-2xl text-sm text-[#c81e3a]">
               <p className="flex-1">Nenhuma compra de mercado/fornecedor lançada neste período, então o custo da comida está zerado.</p>
               <button onClick={goBuy} className={btnPrimary + " !py-2"} style={WHITE}>Lançar compras</button>
             </div>
@@ -554,7 +554,7 @@ function ResultView({ stockItems, products, categories, uid, goBuy }: {
                       <Stat label="Custo" value={fmt(row.c)} tone="amber" />
                       <Stat label="Lucro" value={fmt(pr)} tone={pr >= 0 ? "emerald" : "red"} />
                     </div>
-                    <SplitBar parts={[{ v: row.c, cls: "bg-amber-400", label: "custo" }, { v: Math.max(0, pr), cls: "bg-emerald-500", label: "lucro" }]} />
+                    <SplitBar parts={[{ v: row.c, cls: "bg-gradient-to-r from-[#ff8a65] to-[#f2545b]", label: "custo" }, { v: Math.max(0, pr), cls: "bg-gradient-to-r from-[#4b5578] to-[#1e2235]", label: "lucro" }]} />
                   </div>
                 );
               })}
@@ -595,22 +595,22 @@ function ResultView({ stockItems, products, categories, uid, goBuy }: {
                           <div className="col-span-2 md:col-span-1 min-w-0 space-y-1">
                             <p className="font-semibold text-sm text-gray-900 truncate">
                               {pr.product.name}
-                              {!pr.hasCost && <span className="ml-1.5 text-[10px] font-semibold text-amber-600">sem preço de compra</span>}
+                              {!pr.hasCost && <span className="ml-1.5 text-[10px] font-semibold text-[#e0484f]">sem preço de compra</span>}
                             </p>
                             {pr.hasCost && price > 0 && (
                               <div className="flex items-center gap-2 max-w-[260px]">
-                                <SplitBar thin parts={[{ v: Math.min(each, price), cls: "bg-amber-400" }, { v: Math.max(0, price - each), cls: "bg-emerald-500" }]} />
-                                <span className={`text-[10px] font-bold tabular-nums ${price - each >= 0 ? "text-emerald-600" : "text-red-600"}`}>{pct(price - each, price)}</span>
+                                <SplitBar thin parts={[{ v: Math.min(each, price), cls: "bg-gradient-to-r from-[#ff8a65] to-[#f2545b]" }, { v: Math.max(0, price - each), cls: "bg-gradient-to-r from-[#4b5578] to-[#1e2235]" }]} />
+                                <span className={`text-[10px] font-bold tabular-nums ${price - each >= 0 ? "text-[#1e2235]" : "text-[#c81e3a]"}`}>{pct(price - each, price)}</span>
                               </div>
                             )}
                           </div>
                           <span className="flex md:block items-center justify-between md:text-right text-xs">
                             <span className="md:hidden text-gray-400">Vendidos</span>
-                            <span className="inline-block px-2.5 py-0.5 rounded-full neu-in text-sky-700 font-bold tabular-nums">{fmtNum(pr.qty, 2)}×</span>
+                            <span className="inline-block px-2.5 py-0.5 rounded-full neu-in text-[#3f4ab8] font-bold tabular-nums">{fmtNum(pr.qty, 2)}×</span>
                           </span>
                           <span className="flex md:block items-center justify-between md:text-right text-xs tabular-nums">
                             <span className="md:hidden text-gray-400">Vende por</span>
-                            <span className="font-semibold text-sky-700">{fmt(price)}
+                            <span className="font-semibold text-[#3f4ab8]">{fmt(price)}
                               {avgDiffers && <span className="block text-[10px] font-normal text-gray-400" title="Média do que entrou no caixa (descontos ou preço alterado na venda)">média {fmt(pr.avgPrice)}</span>}
                             </span>
                           </span>
@@ -641,7 +641,7 @@ function ResultView({ stockItems, products, categories, uid, goBuy }: {
               <Gauge value={revenue > 0 ? (netProfit / revenue) * 100 : 0} label="margem líquida" />
               <div className="min-w-0 flex-1">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Lucro líquido do período</p>
-              <p className={`text-3xl font-black tabular-nums tracking-tight ${netProfit >= 0 ? "text-emerald-600" : "text-red-600"}`}>{fmt(netProfit)}</p>
+              <p className={`text-3xl font-black tabular-nums tracking-tight ${netProfit >= 0 ? "text-[#1e2235]" : "text-[#c81e3a]"}`}>{fmt(netProfit)}</p>
               <div className="flex flex-wrap gap-1.5 mt-2">
                 <Pill tone="violet">margem líquida {pct(netProfit, revenue)}</Pill>
                 {cur.dishes > 0 && <Pill tone="sky">{fmt(netProfit / cur.dishes)} por prato vendido</Pill>}
@@ -659,14 +659,14 @@ function ResultView({ stockItems, products, categories, uid, goBuy }: {
               <div className="space-y-2">
                 <p className="text-sm font-semibold text-gray-800">De cada R$ 100,00 que você vendeu:</p>
                 <SplitBar tall parts={[
-                  { v: goodsCost, cls: "bg-amber-400", label: "compras" },
-                  { v: billGroups.expenseTotal, cls: "bg-rose-400", label: "despesas" },
-                  { v: Math.max(0, netProfit), cls: "bg-emerald-500", label: "sobrou" },
+                  { v: goodsCost, cls: "bg-gradient-to-r from-[#ff8a65] to-[#f2545b]", label: "compras" },
+                  { v: billGroups.expenseTotal, cls: "bg-gradient-to-r from-[#f783ac] to-[#d6336c]", label: "despesas" },
+                  { v: Math.max(0, netProfit), cls: "bg-gradient-to-r from-[#4b5578] to-[#1e2235]", label: "sobrou" },
                 ]} />
                 <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="neu-sm neu-lift rounded-2xl p-2.5"><p className="text-lg font-black text-amber-600 tabular-nums">{fmt(per100(goodsCost))}</p><p className="text-[10px] text-gray-500">foram para compras de comida e bebida</p></div>
+                  <div className="neu-sm neu-lift rounded-2xl p-2.5"><p className="text-lg font-black text-[#e0484f] tabular-nums">{fmt(per100(goodsCost))}</p><p className="text-[10px] text-gray-500">foram para compras de comida e bebida</p></div>
                   <div className="neu-sm neu-lift rounded-2xl p-2.5"><p className="text-lg font-black text-rose-600 tabular-nums">{fmt(per100(billGroups.expenseTotal))}</p><p className="text-[10px] text-gray-500">foram para despesas do negócio</p></div>
-                  <div className="neu-sm neu-lift rounded-2xl p-2.5"><p className={`text-lg font-black tabular-nums ${netProfit >= 0 ? "text-emerald-600" : "text-red-600"}`}>{fmt(per100(netProfit))}</p><p className="text-[10px] text-gray-500">{netProfit >= 0 ? "sobraram para você" : "faltaram"}</p></div>
+                  <div className="neu-sm neu-lift rounded-2xl p-2.5"><p className={`text-lg font-black tabular-nums ${netProfit >= 0 ? "text-[#1e2235]" : "text-[#c81e3a]"}`}>{fmt(per100(netProfit))}</p><p className="text-[10px] text-gray-500">{netProfit >= 0 ? "sobraram para você" : "faltaram"}</p></div>
                 </div>
               </div>
             )}
@@ -681,13 +681,13 @@ function ResultView({ stockItems, products, categories, uid, goBuy }: {
               {billGroups.foodTotal > 0 && (
                 <div>
                   <Line label="− Compras de comida pagas em Contas a Pagar" value={fmt(billGroups.foodTotal)} tone="amber" />
-                  <BillBreakdown rows={billGroups.food} total={billGroups.foodTotal} cls="bg-amber-400" />
+                  <BillBreakdown rows={billGroups.food} total={billGroups.foodTotal} cls="bg-gradient-to-r from-[#ff8a65] to-[#f2545b]" />
                 </div>
               )}
               <div>
                 <Line label="− Despesas do negócio" value={fmt(billGroups.expenseTotal)} tone="rose"
                   note={billGroups.expense.length ? undefined : "nenhuma conta paga no período"} />
-                <BillBreakdown rows={billGroups.expense} total={billGroups.expenseTotal} cls="bg-rose-400" />
+                <BillBreakdown rows={billGroups.expense} total={billGroups.expenseTotal} cls="bg-gradient-to-r from-[#f783ac] to-[#d6336c]" />
               </div>
               <Line label="= Lucro líquido" value={fmt(netProfit)} tone={netProfit >= 0 ? "emerald" : "red"} strong />
             </div>
@@ -696,19 +696,19 @@ function ResultView({ stockItems, products, categories, uid, goBuy }: {
             <div className="neu-in rounded-[22px] p-4 space-y-1.5 text-xs text-gray-600">
               <p className="font-bold text-gray-800 flex items-center gap-1.5"><Receipt className="w-3.5 h-3.5" /> Por que deu esse resultado</p>
               {revenue > 0 && (
-                <p>• As vendas deram <b className="text-emerald-700">{fmt(profit)}</b> de lucro ({pct(profit, revenue)} do que entrou), depois de pagar o que foi comprado.</p>
+                <p>• As vendas deram <b className="text-[#1e2235]">{fmt(profit)}</b> de lucro ({pct(profit, revenue)} do que entrou), depois de pagar o que foi comprado.</p>
               )}
               {cur.dishes > 0 && (
-                <p>• Cada prato custou em média <b className="text-violet-700">{fmt(cur.foodCost / cur.dishes)}</b> e foi vendido por <b className="text-sky-700">{fmt(cur.foodRevenue / cur.dishes)}</b>.</p>
+                <p>• Cada prato custou em média <b className="text-[#6741d9]">{fmt(cur.foodCost / cur.dishes)}</b> e foi vendido por <b className="text-[#3f4ab8]">{fmt(cur.foodRevenue / cur.dishes)}</b>.</p>
               )}
               {topExpense && (
-                <p>• A maior despesa foi <b className="text-rose-700">{billLabel(topExpense[0])}</b>: {fmt(topExpense[1])} ({pct(topExpense[1], billGroups.expenseTotal)} das despesas).</p>
+                <p>• A maior despesa foi <b className="text-[#d6336c]">{billLabel(topExpense[0])}</b>: {fmt(topExpense[1])} ({pct(topExpense[1], billGroups.expenseTotal)} das despesas).</p>
               )}
               {cur.items[0] && (
-                <p>• A compra que mais pesou foi <b className="text-amber-700">{cur.items[0].item.name}</b>: {fmt(cur.items[0].usedCost)} ({pct(cur.items[0].usedCost, itemsTotal)} das compras de comida).</p>
+                <p>• A compra que mais pesou foi <b className="text-[#e0484f]">{cur.items[0].item.name}</b>: {fmt(cur.items[0].usedCost)} ({pct(cur.items[0].usedCost, itemsTotal)} das compras de comida).</p>
               )}
               {netProfit < 0 && revenue > 0 && (
-                <p className="text-red-700 font-semibold">• As despesas passaram o lucro das vendas em {fmt(-netProfit)}. Para fechar no azul, falta vender mais ou cortar despesas.</p>
+                <p className="text-[#c81e3a] font-semibold">• As despesas passaram o lucro das vendas em {fmt(-netProfit)}. Para fechar no azul, falta vender mais ou cortar despesas.</p>
               )}
               {billGroups.foodTotal > 0 && (
                 <p className="text-gray-400">Dica: compras de comida lançadas aqui em "Lançar compras" entram no custo de cada marmita; as lançadas direto em Contas a Pagar só aparecem neste total.</p>
@@ -726,7 +726,7 @@ function ResultView({ stockItems, products, categories, uid, goBuy }: {
                 sub={'"Por prato" é a média: total comprado ÷ pratos vendidos. Se subir muito sem você mudar nada, tem porção maior, desperdício ou sumiço.'} />
               {cur.items.length > 0 && (
                 <div className="text-right">
-                  <p className="text-xl font-black text-amber-600 tabular-nums">{fmt(itemsTotal)}</p>
+                  <p className="text-xl font-black text-[#e0484f] tabular-nums">{fmt(itemsTotal)}</p>
                   <p className="text-[11px] text-gray-400">{cur.items.length} ite{cur.items.length === 1 ? "m" : "ns"}</p>
                 </div>
               )}
@@ -744,19 +744,19 @@ function ResultView({ stockItems, products, categories, uid, goBuy }: {
                   return (
                     <div key={r.item.id} className="neu-sm neu-lift rounded-2xl px-3.5 py-3 space-y-2">
                       <div className="flex items-center gap-2.5">
-                        <span className={`w-8 h-8 shrink-0 rounded-full neu-sm flex items-center justify-center text-[11px] font-black ${idx < 3 ? "text-orange-600" : "text-gray-400"}`}>{idx + 1}</span>
+                        <span className={`w-8 h-8 shrink-0 rounded-full neu-sm flex items-center justify-center text-[11px] font-black ${idx < 3 ? "text-[#f2545b]" : "text-gray-400"}`}>{idx + 1}</span>
                         <div className="flex-1 min-w-0">
                           <p className="font-semibold text-sm text-gray-900 truncate">{r.item.name}</p>
                           <p className="text-[11px] text-gray-500">
                             comprou {fmtNum(r.boughtQty, 3)} {r.item.unit}
-                            {r.boughtQty > 0 && <> · <span className="text-amber-700 font-semibold">{fmt(r.avg)}/{r.item.unit}</span></>}
+                            {r.boughtQty > 0 && <> · <span className="text-[#e0484f] font-semibold">{fmt(r.avg)}/{r.item.unit}</span></>}
                             {(r.opening !== null || r.closing !== null) && ` · usou ${fmtNum(r.usedQty, 3)} ${r.item.unit}`}
                             {r.opening !== null && ` · tinha ${fmtNum(r.opening, 3)}`}
                             {r.closing !== null && ` · sobrou ${fmtNum(r.closing, 3)}`}
                           </p>
                         </div>
                         <span className="text-right">
-                          <span className="block font-black text-sm text-amber-600 tabular-nums">{fmt(r.usedCost)}</span>
+                          <span className="block font-black text-sm text-[#e0484f] tabular-nums">{fmt(r.usedCost)}</span>
                           <span className="block text-[10px] text-gray-400 tabular-nums">{pct(r.usedCost, itemsTotal)}</span>
                         </span>
                       </div>
@@ -765,10 +765,10 @@ function ResultView({ stockItems, products, categories, uid, goBuy }: {
                           <div className="h-full rounded-full" style={{ width: `${Math.max(3, (r.usedCost / maxItemCost) * 100)}%`, background: "linear-gradient(90deg,#fdba74,#f97316,#ef4444)" }} />
                         </div>
                         {cur.dishes > 0 && (
-                          <span className="text-[11px] px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 font-semibold tabular-nums">por prato {portionText(r.perDish, r.item.unit)} · {fmt(r.perDishCost)}</span>
+                          <span className="text-[11px] px-2 py-0.5 rounded-full neu-in text-[#6741d9] font-semibold tabular-nums">por prato {portionText(r.perDish, r.item.unit)} · {fmt(r.perDishCost)}</span>
                         )}
                         {change !== null && Math.abs(change) >= 5 && (
-                          <span className={`inline-flex items-center gap-0.5 text-[11px] font-bold px-1.5 py-0.5 rounded-full ${change > 0 ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-600"}`}
+                          <span className={`inline-flex items-center gap-0.5 text-[11px] font-bold px-1.5 py-0.5 rounded-full ${change > 0 ? "neu-in text-[#c81e3a]" : "neu-in text-[#1e2235]"}`}
                             title={`Antes: ${portionText(before, r.item.unit)} por prato`}>
                             {change > 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
                             {change > 0 ? "+" : ""}{fmtNum(change, 0)}%
@@ -789,22 +789,22 @@ function ResultView({ stockItems, products, categories, uid, goBuy }: {
 
 type Tone = "sky" | "amber" | "emerald" | "red" | "violet" | "rose";
 const TONES: Record<Tone, { text: string; chip: string; bar: string }> = {
-  sky: { text: "text-sky-600", chip: "bg-sky-50 text-sky-700", bar: "from-sky-400 to-sky-600" },
-  amber: { text: "text-amber-600", chip: "bg-amber-50 text-amber-700", bar: "from-amber-300 to-amber-500" },
-  emerald: { text: "text-emerald-600", chip: "bg-emerald-50 text-emerald-700", bar: "from-emerald-400 to-emerald-600" },
-  red: { text: "text-red-600", chip: "bg-red-50 text-red-700", bar: "from-red-400 to-red-600" },
-  violet: { text: "text-violet-600", chip: "bg-violet-50 text-violet-700", bar: "from-violet-400 to-violet-600" },
-  rose: { text: "text-rose-600", chip: "bg-rose-50 text-rose-700", bar: "from-rose-300 to-rose-500" },
+  sky: { text: "text-[#4f5bd5]", chip: "bg-[#eef0ff] text-[#3f4ab8]", bar: "from-[#7b86f5] to-[#4f5bd5]" },
+  amber: { text: "text-[#e0484f]", chip: "bg-[#fff0ee] text-[#e0484f]", bar: "from-[#ff8a65] to-[#f2545b]" },
+  emerald: { text: "text-[#1e2235]", chip: "bg-[#eceef5] text-[#1e2235]", bar: "from-[#4b5578] to-[#1e2235]" },
+  red: { text: "text-[#c81e3a]", chip: "bg-[#ffe8ea] text-[#c81e3a]", bar: "from-[#f2545b] to-[#c81e3a]" },
+  violet: { text: "text-[#6741d9]", chip: "bg-[#f3efff] text-[#6741d9]", bar: "from-[#b197fc] to-[#7950f2]" },
+  rose: { text: "text-[#d6336c]", chip: "bg-[#fff0f6] text-[#d6336c]", bar: "from-[#f783ac] to-[#d6336c]" },
 };
 
 // Cartão de indicador: claro, com sombra suave (efeito 3D), ícone num quadradinho
 // colorido e uma pílula com o número-chave (margem, % da venda…)
 const CARD_SKINS: Record<"sky" | "amber" | "emerald" | "red" | "violet", { tile: string; icon: string; pill: string; glow: string; value: string }> = {
-  sky: { tile: "linear-gradient(145deg,#e0f2fe,#bae6fd)", icon: "#0284c7", pill: "linear-gradient(135deg,#38bdf8,#0284c7)", glow: "rgba(2,132,199,.45)", value: "#0369a1" },
-  amber: { tile: "linear-gradient(145deg,#ffedd5,#fed7aa)", icon: "#ea580c", pill: "linear-gradient(135deg,#fb923c,#ea580c)", glow: "rgba(234,88,12,.4)", value: "#c2410c" },
-  emerald: { tile: "linear-gradient(145deg,#d1fae5,#a7f3d0)", icon: "#059669", pill: "linear-gradient(135deg,#34d399,#059669)", glow: "rgba(5,150,105,.4)", value: "#047857" },
-  red: { tile: "linear-gradient(145deg,#ffe4e6,#fecdd3)", icon: "#e11d48", pill: "linear-gradient(135deg,#fb7185,#e11d48)", glow: "rgba(225,29,72,.4)", value: "#be123c" },
-  violet: { tile: "linear-gradient(145deg,#ede9fe,#ddd6fe)", icon: "#7c3aed", pill: "linear-gradient(135deg,#a78bfa,#7c3aed)", glow: "rgba(124,58,237,.4)", value: "#6d28d9" },
+  sky: { tile: "linear-gradient(145deg,#eef0ff,#dfe3ff)", icon: "#4f5bd5", pill: "linear-gradient(135deg,#7b86f5,#4f5bd5)", glow: "rgba(79,91,213,.45)", value: "#3f4ab8" },
+  amber: { tile: "linear-gradient(145deg,#fff0ee,#ffdcd8)", icon: "#f2545b", pill: "linear-gradient(135deg,#ff8a65,#f2545b)", glow: "rgba(242,84,91,.45)", value: "#e0484f" },
+  emerald: { tile: "linear-gradient(145deg,#eceef5,#dadeea)", icon: "#1e2235", pill: "linear-gradient(135deg,#4b5578,#1e2235)", glow: "rgba(30,34,53,.45)", value: "#1e2235" },
+  red: { tile: "linear-gradient(145deg,#ffe8ea,#ffd0d5)", icon: "#c81e3a", pill: "linear-gradient(135deg,#f2545b,#c81e3a)", glow: "rgba(200,30,58,.45)", value: "#c81e3a" },
+  violet: { tile: "linear-gradient(145deg,#f3efff,#e5dcff)", icon: "#7950f2", pill: "linear-gradient(135deg,#b197fc,#7950f2)", glow: "rgba(121,80,242,.45)", value: "#6741d9" },
 };
 const TIER_STYLE: Record<"ouro" | "prata" | "bronze", { bg: string; fg: string }> = {
   ouro: { bg: "#fef3c7", fg: "#92400e" },
@@ -881,7 +881,7 @@ function Stat({ label, value, tone, big }: { label: string; value: string; tone:
 
 const PILL_BG: Record<Tone, string> = {
   sky: CARD_SKINS.sky.pill, amber: CARD_SKINS.amber.pill, emerald: CARD_SKINS.emerald.pill, red: CARD_SKINS.red.pill,
-  violet: CARD_SKINS.violet.pill, rose: "linear-gradient(135deg,#fda4af,#e11d48)",
+  violet: CARD_SKINS.violet.pill, rose: "linear-gradient(135deg,#f783ac,#d6336c)",
 };
 function Pill({ tone, children }: { tone: Tone; children: React.ReactNode }) {
   return (
@@ -911,8 +911,8 @@ function Gauge({ value, label }: { value: number; label: string }) {
       <svg viewBox="0 0 100 100" className="absolute inset-1.5 w-[calc(100%-12px)] h-[calc(100%-12px)] -rotate-90">
         <defs>
           <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
-            {neg ? <><stop offset="0%" stopColor="#fb7185" /><stop offset="100%" stopColor="#e11d48" /></>
-              : <><stop offset="0%" stopColor="#6ee7b7" /><stop offset="100%" stopColor="#059669" /></>}
+            {neg ? <><stop offset="0%" stopColor="#ff8a65" /><stop offset="100%" stopColor="#f2545b" /></>
+              : <><stop offset="0%" stopColor="#7b86f5" /><stop offset="100%" stopColor="#1e2235" /></>}
           </linearGradient>
         </defs>
         <circle cx="50" cy="50" r={r} fill="none" stroke="#e2e8f0" strokeWidth="9" />
@@ -920,7 +920,7 @@ function Gauge({ value, label }: { value: number; label: string }) {
           strokeDasharray={`${(v / 100) * c} ${c}`} />
       </svg>
       <div className="relative text-center leading-tight">
-        <p className={`text-lg font-black tabular-nums ${neg ? "text-rose-600" : "text-emerald-600"}`}>{fmtNum(value, 0)}%</p>
+        <p className={`text-lg font-black tabular-nums ${neg ? "text-[#e0484f]" : "text-[#1e2235]"}`}>{fmtNum(value, 0)}%</p>
         <p className="text-[8.5px] font-semibold uppercase tracking-wide text-gray-400 w-16">{label}</p>
       </div>
     </div>
@@ -986,7 +986,7 @@ function BillBreakdown({ rows, total, cls }: { rows: [string, number][]; total: 
 }
 
 function Cell({ label, value, tone, bold }: { label: string; value: string; tone?: "green" | "red" | "amber"; bold?: boolean }) {
-  const color = tone === "green" ? "text-emerald-600" : tone === "red" ? "text-red-600" : tone === "amber" ? "text-amber-600" : "text-gray-800";
+  const color = tone === "green" ? "text-[#1e2235]" : tone === "red" ? "text-[#c81e3a]" : tone === "amber" ? "text-[#e0484f]" : "text-gray-800";
   return (
     <span className="flex md:block items-center justify-between md:text-right text-xs tabular-nums">
       <span className="md:hidden text-gray-400">{label}</span>

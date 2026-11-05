@@ -37,14 +37,22 @@ body {
 /* Estilo 3D suave (Custos): superfície em relevo, trilho afundado e brilho de
    alumínio que atravessa o cartão ao passar o mouse */
 .neu {
-  background: linear-gradient(145deg, #ffffff, #eef1f5);
-  border: 1px solid rgba(255,255,255,.8);
-  box-shadow: 9px 9px 20px rgba(163,177,198,.45), -9px -9px 20px rgba(255,255,255,.95);
+  background: linear-gradient(145deg, #e9edf3, #f7f8fb);
+  border: 3px solid #fbfcfd;
+  box-shadow:
+    11px 11px 24px rgba(140,152,176,.5),
+    -10px -10px 22px rgba(255,255,255,1),
+    inset 3px 3px 7px rgba(140,152,176,.22),
+    inset -3px -3px 7px rgba(255,255,255,.95);
 }
 .neu-sm {
-  background: linear-gradient(145deg, #ffffff, #f0f2f6);
-  border: 1px solid rgba(255,255,255,.85);
-  box-shadow: 5px 5px 12px rgba(163,177,198,.38), -5px -5px 12px rgba(255,255,255,.95);
+  background: linear-gradient(145deg, #edf0f5, #f9fafc);
+  border: 2px solid #fcfdfe;
+  box-shadow:
+    6px 6px 14px rgba(140,152,176,.42),
+    -6px -6px 14px rgba(255,255,255,1),
+    inset 2px 2px 5px rgba(140,152,176,.2),
+    inset -2px -2px 5px rgba(255,255,255,.95);
 }
 .neu-btn {
   background: linear-gradient(145deg, #e9edf3, #f7f8fb);
