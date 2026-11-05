@@ -493,7 +493,7 @@ function ResultView({ stockItems, products, categories, uid, goBuy }: {
       ) : (
         <>
           {/* Resumo: cartões */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 p-1">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 p-2">
             <StatCard tone="sky" icon={Wallet} label="Vendeu" value={fmt(revenue)}
               rating={fmtNum(cur.dishes, 0)} ratingLabel="pratos"
               stats={[
@@ -819,26 +819,38 @@ function StatCard({ tone, icon: Icon, label, value, rating, ratingLabel, stats, 
 }) {
   const skin = CARD_SKINS[tone];
   return (
-    <div className="neu neu-lift rounded-[26px] p-4 min-w-0 flex flex-col gap-3">
-      <div className="flex items-start justify-between gap-2">
-        <span className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center shrink-0"
-          style={{ background: skin.tile, boxShadow: "inset 2px 2px 5px rgba(255,255,255,.85), inset -2px -2px 5px rgba(0,0,0,.06), 3px 3px 8px rgba(163,177,198,.35)" }}>
-          <Icon className="w-5 h-5 sm:w-6 sm:h-6" style={{ color: skin.icon }} />
+    <div className="neu-btn neu-lift rounded-[30px] px-4 py-3.5 min-w-0 flex flex-col gap-2.5">
+      <div className="flex items-center gap-3 min-w-0">
+        {/* quadradinho do ícone: aro claro e fundo afundado, como no modelo */}
+        <span className="w-12 h-12 sm:w-14 sm:h-14 rounded-[18px] flex items-center justify-center shrink-0"
+          style={{
+            background: skin.tile, border: "2px solid rgba(255,255,255,.9)",
+            boxShadow: "inset 3px 3px 6px rgba(0,0,0,.08), inset -2px -2px 5px rgba(255,255,255,.7), 4px 4px 10px rgba(140,152,176,.35), -3px -3px 8px rgba(255,255,255,.9)",
+          }}>
+          <Icon className="w-6 h-6 sm:w-7 sm:h-7" style={{ color: skin.icon }} />
         </span>
-        <span className="text-[11px] sm:text-xs font-bold px-2.5 sm:px-3 py-1 rounded-full whitespace-nowrap tabular-nums"
-          style={{ background: skin.pill, color: "#fff", boxShadow: `0 6px 14px -5px ${skin.glow}` }}>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400 truncate">
+              {label}
+              {tier && (
+                <span title={tierTitle} className="text-[9px] font-black px-1.5 py-0.5 rounded-md cursor-help normal-case tracking-normal"
+                  style={{ background: TIER_STYLE[tier].bg, color: TIER_STYLE[tier].fg }}>{tier}</span>
+              )}
+            </p>
+          </div>
+          <p className="text-lg sm:text-2xl font-black tabular-nums tracking-tight whitespace-nowrap leading-tight" style={{ color: skin.value }}>{value}</p>
+        </div>
+      </div>
+      <div className="flex items-center justify-between gap-2 min-w-0">
+        <span className="text-[11px] sm:text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap tabular-nums"
+          style={{ background: skin.pill, color: "#fff", boxShadow: `0 6px 14px -5px ${skin.glow}, inset 0 1px 1px rgba(255,255,255,.35)` }}>
           {rating} <span className="font-medium opacity-90">{ratingLabel}</span>
         </span>
-      </div>
-      <div className="min-w-0">
-        <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-          {label}
-          {tier && (
-            <span title={tierTitle} className="text-[9px] font-black px-1.5 py-0.5 rounded-md cursor-help normal-case tracking-normal"
-              style={{ background: TIER_STYLE[tier].bg, color: TIER_STYLE[tier].fg }}>{tier}</span>
-          )}
-        </p>
-        <p className="text-xl sm:text-2xl font-black tabular-nums tracking-tight whitespace-nowrap" style={{ color: skin.value }}>{value}</p>
+        {/* pontinhos, como no modelo */}
+        <span className="hidden sm:flex gap-1 pr-1" aria-hidden>
+          {[0, 1, 2, 3].map(i => <span key={i} className="w-1 h-1 rounded-full bg-gray-300" />)}
+        </span>
       </div>
       <div className="flex flex-wrap gap-x-2.5 gap-y-0.5 text-[11px] text-gray-500">
         {stats.map(st => (
