@@ -34,10 +34,34 @@ body {
 .g-text-blue   { background-image: linear-gradient(135deg,#93c5fd,#60a5fa); }
 .g-text-red    { background-image: linear-gradient(135deg,#fda4af,#fb7185); }
 
-/* Cartão de indicador (Custos): estilo 3D suave, sobe um pouco ao passar o mouse */
-.ncard { transition: transform .2s ease, box-shadow .2s ease; }
-.ncard:hover { transform: translateY(-2px); }
-@media (prefers-reduced-motion: reduce) { .ncard { transition: none; } .ncard:hover { transform: none; } }
+/* Estilo 3D suave (Custos): superfície em relevo, trilho afundado e brilho de
+   alumínio que atravessa o cartão ao passar o mouse */
+.neu {
+  background: linear-gradient(145deg, #ffffff, #eef1f5);
+  border: 1px solid rgba(255,255,255,.8);
+  box-shadow: 9px 9px 20px rgba(163,177,198,.45), -9px -9px 20px rgba(255,255,255,.95);
+}
+.neu-sm {
+  background: linear-gradient(145deg, #ffffff, #f0f2f6);
+  border: 1px solid rgba(255,255,255,.85);
+  box-shadow: 5px 5px 12px rgba(163,177,198,.38), -5px -5px 12px rgba(255,255,255,.95);
+}
+.neu-in {
+  background: #eef1f5;
+  box-shadow: inset 3px 3px 7px rgba(163,177,198,.45), inset -3px -3px 7px rgba(255,255,255,.95);
+}
+.neu-lift { position: relative; overflow: hidden; transition: transform .2s ease, box-shadow .2s ease; }
+.neu-lift:hover { transform: translateY(-2px); }
+.neu-lift::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+  background: linear-gradient(110deg, transparent 30%, rgba(148,163,184,.16) 41%, rgba(255,255,255,.95) 49%, rgba(148,163,184,.14) 57%, transparent 68%);
+  transform: translateX(-130%); transition: transform .85s ease;
+}
+.neu-lift:hover::after { transform: translateX(130%); }
+@media (prefers-reduced-motion: reduce) {
+  .neu-lift, .neu-lift::after { transition: none; }
+  .neu-lift:hover { transform: none; }
+}
 
 /* Sidebar desktop: esconde a barra de rolagem para não cortar os ícones no modo recolhido */
 @media (min-width: 768px) {
