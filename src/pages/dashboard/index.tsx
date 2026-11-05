@@ -5,7 +5,8 @@ import { fetchAll, fetchAllIn } from "../../lib/fetchAll";
 import { useTheme } from "../../contexts/ThemeContext";
 import { PageHeader, btnSecondary } from "../../components/PageHeader";
 import { GettingStarted } from "../../components/GettingStarted";
-import { StatCard, toneFor, type StatTone } from "../../components/StatCard";
+import { type StatTone } from "../../components/StatCard";
+import { NeuStatCard, Tile, type SkinTone } from "../../components/Neu";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, CartesianGrid,
@@ -103,20 +104,14 @@ function ChartTooltip({ active, payload, label }: any) {
 
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
 
-function KpiCard({ label, value, sub, icon, change, changeLabel, tone }: {
-  label: string; value: string | number; sub?: string; icon: React.ReactNode;
-  change?: number | null; changeLabel?: string; from: string; to: string; glow: string; tone?: StatTone;
+function KpiCard({ label, value, sub, icon, change, changeLabel, skin }: {
+  label: string; value: string | number; sub?: string; icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
+  change?: number | null; changeLabel?: string; skin: SkinTone; tone?: StatTone;
 }) {
   const hasChange = change !== null && change !== undefined;
-  const positive  = hasChange && change! >= 0;
   return (
-    <StatCard label={label} value={value} sub={sub} icon={icon} tone={tone ?? toneFor(label, value)}
-      footer={hasChange && (
-        <div className={`flex items-center gap-1 mt-2 text-xs font-semibold ${positive ? "text-emerald-600" : "text-red-600"}`}>
-          {positive ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
-          {pct(change!)} {changeLabel ?? "vs período anterior"}
-        </div>
-      )} />
+    <NeuStatCard tone={skin} icon={icon} label={label} value={String(value)} sub={sub}
+      rating={hasChange ? pct(change!) : undefined} ratingLabel={hasChange ? (changeLabel ?? "vs anterior") : undefined} />
   );
 }
 
@@ -489,30 +484,23 @@ export default function DashboardPage() {
       <GettingStarted />
 
       {/* ── Period Filter ── */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Calendar className="w-4 h-4 flex-shrink-0" style={{ color: isLight ? "#9CA3AF" : "#71717a" }} />
-        {(["day", "week", "month", "year", "custom"] as Period[]).map(p => (
-          <button key={p} onClick={() => { setPeriod(p); if (p === "custom") setShowCustom(true); else setShowCustom(false); }}
-            className="px-4 py-2 rounded-xl text-xs font-bold transition-all"
-            style={period === p
-              ? isLight
-                ? { background: "#315DFB", color: "#fff", border: "1px solid #315DFB" }
-                : { background: "rgba(139,92,246,0.2)", color: "#c4b5fd", border: "1px solid rgba(139,92,246,0.4)", boxShadow: "0 0 12px rgba(139,92,246,0.2)" }
-              : isLight
-                ? { background: "#fff", color: "#6B7280", border: "1px solid #e5e7eb" }
-                : { background: "#18181b", color: "#71717a", border: "1px solid #27272a" }}>
-            {PERIOD_LABELS[p]}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-1 p-1.5 neu-in rounded-2xl max-w-full overflow-x-auto">
+          <Calendar className="w-4 h-4 flex-shrink-0 mx-1.5 text-gray-400" />
+          {(["day", "week", "month", "year", "custom"] as Period[]).map(p => (
+            <button key={p} onClick={() => { setPeriod(p); if (p === "custom") setShowCustom(true); else setShowCustom(false); }}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${period === p ? "neu-sm text-brand-700" : "text-gray-500 hover:text-gray-800"}`}>
+              {PERIOD_LABELS[p]}
+            </button>
+          ))}
+        </div>
         {showCustom && (
           <div className="flex items-center gap-2 ml-1">
             <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)}
-              className="px-3 py-2 rounded-xl text-xs focus:outline-none"
-              style={isLight ? { background:"#fff", border:"1px solid #e5e7eb", color:"#374151" } : { background:"#18181b", border:"1px solid #3f3f46", color:"#fff" }} />
+              className="px-3.5 py-2 rounded-2xl text-xs focus:outline-none neu-in text-gray-700" />
             <span className="text-xs" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>até</span>
             <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)}
-              className="px-3 py-2 rounded-xl text-xs focus:outline-none"
-              style={isLight ? { background:"#fff", border:"1px solid #e5e7eb", color:"#374151" } : { background:"#18181b", border:"1px solid #3f3f46", color:"#fff" }} />
+              className="px-3.5 py-2 rounded-2xl text-xs focus:outline-none neu-in text-gray-700" />
           </div>
         )}
       </div>
@@ -521,8 +509,8 @@ export default function DashboardPage() {
       {(() => {
         const positive = netResult >= 0;
         // Cor pelo significado: positivo = verde, negativo = vermelho (em todo o cartão)
-        const POS = isLight ? "#059669" : "#34d399";
-        const NEG = isLight ? "#e11d48" : "#fb7185";
+        const POS = isLight ? "#12b76a" : "#34d399";
+        const NEG = isLight ? "#f2545b" : "#fb7185";
         const accent = positive ? POS : NEG;
         // Quanto da receita as despesas consumiram (barra de proporção)
         const expensePct = totalRev > 0 ? Math.min(100, (apExpenses / totalRev) * 100) : (apExpenses > 0 ? 100 : 0);
@@ -543,7 +531,7 @@ export default function DashboardPage() {
         };
         const dots = isLight ? "rgba(17,24,39,0.07)" : "rgba(255,255,255,0.06)";
         return (
-          <div className="relative overflow-hidden rounded-3xl" style={shell}>
+          <div className={`relative overflow-hidden rounded-[30px] ${isLight ? "neu" : ""}`} style={isLight ? undefined : shell}>
             {/* Textura de pontos no canto, some suavemente */}
             <div className="pointer-events-none absolute inset-y-0 right-0 w-2/3"
               style={{
@@ -557,10 +545,7 @@ export default function DashboardPage() {
               {/* Resultado */}
               <div>
                 <div className="flex flex-wrap items-center gap-2 mb-4">
-                  <span className="w-8 h-8 rounded-xl flex items-center justify-center"
-                    style={{ background: isLight ? "#fff" : "rgba(255,255,255,0.05)", border: `1px solid ${hairline}`, boxShadow: isLight ? "0 1px 2px rgba(17,24,39,0.06)" : "none" }}>
-                    {positive ? <TrendingUp className="w-4 h-4" style={{ color: accent }} /> : <TrendingDown className="w-4 h-4" style={{ color: accent }} />}
-                  </span>
+                  <Tile tone={positive ? "green" : "amber"} icon={positive ? TrendingUp : TrendingDown} size="sm" />
                   <p className="text-xs font-semibold" style={{ color: muted }}>Resultado · {PERIOD_LABELS[period]}</p>
                   <span className="ml-auto lg:ml-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
                     style={{ border: `1px solid ${hairline}`, color: muted, background: isLight ? "#fff" : "rgba(255,255,255,0.03)" }}>
@@ -579,7 +564,7 @@ export default function DashboardPage() {
 
                 {/* Barra: o que ficou (verde) x o que as despesas consumiram (vermelho) */}
                 <div className="mt-5">
-                  <div className="h-2 rounded-full overflow-hidden flex gap-[3px]" style={{ background: isLight ? "#F3F4F6" : "rgba(255,255,255,0.06)" }}>
+                  <div className="h-3 p-[3px] rounded-full overflow-hidden flex gap-[3px] neu-in">
                     {keptPct > 0 && <div className="h-full rounded-full transition-all duration-700" style={{ width: `${keptPct}%`, background: POS }} />}
                     {expensePct > 0 && <div className="h-full rounded-full transition-all duration-700" style={{ width: `${expensePct}%`, background: NEG, opacity: 0.85 }} />}
                   </div>
@@ -592,22 +577,16 @@ export default function DashboardPage() {
 
               {/* Receitas e Despesas */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
-                <div className="rounded-2xl p-4 flex items-center gap-3"
-                  style={{ background: isLight ? "#fff" : "rgba(255,255,255,0.03)", border: `1px solid ${hairline}`, boxShadow: isLight ? "0 1px 2px rgba(17,24,39,0.04)" : "none" }}>
-                  <span className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center" style={{ background: isLight ? "#F3F4F6" : "rgba(255,255,255,0.05)" }}>
-                    <Banknote className="w-4 h-4" style={{ color: POS }} />
-                  </span>
+                <div className="neu-sm neu-lift rounded-[22px] p-4 flex items-center gap-3">
+                  <Tile tone="green" icon={Banknote} />
                   <div className="min-w-0">
                     <p className="text-[11px] font-medium" style={{ color: faint }}>Receitas</p>
                     <p className="text-base sm:text-lg font-extrabold tabular-nums leading-tight break-words" style={{ color: POS }}>{fmt(totalRev)}</p>
                     <p className="text-[10px]" style={{ color: faint }}>{totalCount} {totalCount === 1 ? "venda" : "vendas"}</p>
                   </div>
                 </div>
-                <Link to="/accounts-payable" className="group rounded-2xl p-4 flex items-center gap-3 transition-transform hover:-translate-y-0.5"
-                  style={{ background: isLight ? "#fff" : "rgba(255,255,255,0.03)", border: `1px solid ${hairline}`, boxShadow: isLight ? "0 1px 2px rgba(17,24,39,0.04)" : "none" }}>
-                  <span className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center" style={{ background: isLight ? "#F3F4F6" : "rgba(255,255,255,0.05)" }}>
-                    <Wallet className="w-4 h-4" style={{ color: NEG }} />
-                  </span>
+                <Link to="/accounts-payable" className="group neu-sm neu-lift rounded-[22px] p-4 flex items-center gap-3">
+                  <Tile tone="amber" icon={Wallet} />
                   <div className="min-w-0 flex-1">
                     <p className="text-[11px] font-medium" style={{ color: faint }}>Despesas</p>
                     <p className="text-base sm:text-lg font-extrabold tabular-nums leading-tight break-words" style={{ color: NEG }}>{fmt(apExpenses)}</p>
@@ -623,23 +602,19 @@ export default function DashboardPage() {
       })()}
 
       {/* ── KPIs ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 p-1">
         <KpiCard label="Faturamento" value={fmt(totalRev)} sub={`${totalCount} ${totalCount === 1 ? "venda" : "vendas"}`}
-          from="#8b5cf6" to="#06b6d4" glow="rgba(139,92,246,0.15)" change={revChange}
-          icon={<Banknote className="w-4 h-4" style={{ color: "#8b5cf6" }} />} />
+          skin="green" change={revChange} icon={Banknote} />
         <KpiCard label="Pedidos" value={totalCount} sub="confirmados"
-          from="#06b6d4" to="#3b82f6" glow="rgba(6,182,212,0.12)" change={cntChange}
-          icon={<ShoppingCart className="w-4 h-4" style={{ color: "#06b6d4" }} />} />
+          skin="sky" change={cntChange} icon={ShoppingCart} />
         <KpiCard label="Ticket Médio" value={fmt(avgTicket)} sub="por pedido"
-          from="#10b981" to="#059669" glow="rgba(16,185,129,0.12)" change={avgChange}
-          icon={<TrendingUp className="w-4 h-4" style={{ color: "#10b981" }} />} />
+          skin="violet" change={avgChange} icon={TrendingUp} />
         <KpiCard label="Contas a Pagar" value={fmt(apExpenses)} sub="despesas no período"
-          from="#f43f5e" to="#f97316" glow="rgba(244,63,94,0.1)"
-          icon={<Wallet className="w-4 h-4" style={{ color: "#f43f5e" }} />} />
+          skin="amber" icon={Wallet} />
       </div>
 
       {/* Revenue chart */}
-      <div className="rounded-2xl p-6" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+      <div className="neu rounded-[26px] p-6">
         <div className="flex items-center justify-between mb-5">
           <div>
             <h2 className="text-sm font-bold" style={{ color: isLight ? "#111" : "#fff" }}>Faturamento — {PERIOD_LABELS[period]}</h2>
@@ -675,7 +650,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
         {/* Top products */}
-        <div className="rounded-2xl p-5" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+        <div className="neu rounded-[26px] p-5">
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-sm font-bold" style={{ color: isLight ? "#111" : "#fff" }}>Top Produtos — {PERIOD_LABELS[period]}</h2>
             <BarChart3 className="w-4 h-4" style={{ color: isLight ? "#9CA3AF" : "#52525b" }} />
@@ -713,7 +688,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Channel breakdown */}
-        <div className="rounded-2xl p-5" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+        <div className="neu rounded-[26px] p-5">
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-sm font-bold" style={{ color: isLight ? "#111" : "#fff" }}>Canais de Venda</h2>
             <Store className="w-4 h-4" style={{ color: isLight ? "#9CA3AF" : "#52525b" }} />
@@ -749,7 +724,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Alerts */}
-        <div className="rounded-2xl p-5" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+        <div className="neu rounded-[26px] p-5">
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-sm font-bold" style={{ color: isLight ? "#111" : "#fff" }}>Alertas</h2>
             <Bell className="w-4 h-4" style={{ color: isLight ? "#9CA3AF" : "#52525b" }} />
@@ -827,7 +802,7 @@ export default function DashboardPage() {
 
       {/* 1. Lucro do Mês */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="rounded-2xl p-5" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+        <div className="neu rounded-[26px] p-5">
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-sm font-bold" style={{ color: isLight ? "#111" : "#fff" }}>Lucro do Mês</h2>
             <TrendingUp className="w-4 h-4" style={{ color: netResult >= 0 ? "#10b981" : "#f43f5e" }} />
@@ -858,7 +833,7 @@ export default function DashboardPage() {
         </div>
 
         {/* 2. Meta Mensal */}
-        <div className="rounded-2xl p-5" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+        <div className="neu rounded-[26px] p-5">
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-sm font-bold" style={{ color: isLight ? "#111" : "#fff" }}>Meta Mensal</h2>
             <Zap className="w-4 h-4" style={{ color: "#f59e0b" }} />
@@ -910,7 +885,7 @@ export default function DashboardPage() {
         </div>
 
         {/* 3. Formas de Pagamento */}
-        <div className="rounded-2xl p-5" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+        <div className="neu rounded-[26px] p-5">
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-sm font-bold" style={{ color: isLight ? "#111" : "#fff" }}>Formas de Pagamento</h2>
             <Banknote className="w-4 h-4" style={{ color: "#06b6d4" }} />
@@ -941,7 +916,7 @@ export default function DashboardPage() {
       </div>
 
       {/* 4. Insights Inteligentes */}
-      <div className="rounded-2xl p-5" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+      <div className="neu rounded-[26px] p-5">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-sm font-bold" style={{ color: isLight ? "#111" : "#fff" }}>Insights Inteligentes</h2>
           <Zap className="w-4 h-4" style={{ color: "#8b5cf6" }} />
@@ -998,7 +973,7 @@ export default function DashboardPage() {
 
       {/* 5. Estoque Baixo Detalhado */}
       {lowStock.length > 0 && (
-        <div className="rounded-2xl p-5" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+        <div className="neu rounded-[26px] p-5">
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-sm font-bold" style={{ color: isLight ? "#111" : "#fff" }}>Estoque Baixo</h2>
             <AlertTriangle className="w-4 h-4" style={{ color: "#f43f5e" }} />
@@ -1036,7 +1011,7 @@ export default function DashboardPage() {
 
       {/* 7. Ranking de Vendedores */}
       {topSellers.length > 0 && (
-        <div className="rounded-2xl p-5" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+        <div className="neu rounded-[26px] p-5">
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-sm font-bold" style={{ color: isLight ? "#111" : "#fff" }}>🏆 Ranking de Vendedores</h2>
             <TrendingUp className="w-4 h-4" style={{ color: "#8b5cf6" }} />
@@ -1076,7 +1051,7 @@ export default function DashboardPage() {
       )}
 
       {/* 8. Ranking de Clientes */}
-        <div className="rounded-2xl p-5" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+        <div className="neu rounded-[26px] p-5">
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-sm font-bold" style={{ color: isLight ? "#111" : "#fff" }}>👥 Clientes Mais Frequentes</h2>
             <div className="flex items-center gap-2">

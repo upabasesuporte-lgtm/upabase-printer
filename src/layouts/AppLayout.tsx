@@ -478,8 +478,8 @@ export function AppLayout() {
       {/* Espaço reservado da sidebar recolhida (desktop) — ao expandir ela sobrepõe o conteúdo */}
       <div className="hidden md:block w-[92px] flex-shrink-0" />
 
-      <aside className={`group w-72 flex flex-col flex-shrink-0 fixed h-[100dvh] z-50 transition-all duration-300 md:top-3 md:bottom-3 md:left-3 md:h-auto md:w-[72px] md:hover:w-64 md:z-30 md:rounded-2xl md:border md:shadow-xl md:overflow-hidden md:duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
-        style={{ background: T.sidebarBg, borderColor: T.border, borderRightWidth: 1 }}>
+      <aside className={`group w-72 flex flex-col flex-shrink-0 fixed h-[100dvh] z-50 transition-all duration-300 md:top-3 md:bottom-3 md:left-3 md:h-auto md:w-[72px] md:hover:w-64 md:z-30 md:rounded-[26px] md:overflow-hidden md:duration-200 ${isLight ? "neu" : ""} ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
+        style={isLight ? undefined : { background: T.sidebarBg, borderColor: T.border, borderRightWidth: 1 }}>
 
         {/* Logo (somente celular) */}
         <div className="hidden h-24 items-center justify-center" style={{ overflow: "visible", borderBottom: `1px solid ${T.border}` }}>
@@ -501,23 +501,9 @@ export function AppLayout() {
                 end={item.path === "/"}
                 onClick={() => setSidebarOpen(false)}
                 onMouseEnter={item.path === "/reports" ? prefetchReports : undefined}
-                className="block"
-                style={({ isActive }) => ({
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "10px",
-                  padding: "11px 14px",
-                  borderRadius: "12px",
-                  fontSize: "14px",
-                  fontWeight: isActive ? 600 : 500,
-                  transition: "all 0.15s",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  // Item ativo com o degradê do logo (momento de marca)
-                  color: isActive ? "#ffffff" : "#71717a",
-                  background: isActive ? "linear-gradient(135deg, #7C3FFA 0%, #315DFB 55%, #00B8C8 100%)" : "transparent",
-                  boxShadow: isActive ? "0 4px 12px rgba(49,93,251,0.25)" : "none",
-                })}
+                // Item ativo: botão em relevo com o texto azul suave (padrão 3D do sistema)
+                className={({ isActive }) => `flex items-center gap-2.5 px-3 py-[10px] rounded-2xl text-sm whitespace-nowrap overflow-hidden transition-all ${
+                  isActive ? "neu-sm text-brand-700 font-semibold" : "border-2 border-transparent text-gray-500 font-medium hover:text-gray-800 hover:bg-white/70"}`}
                 title={item.label}
               >
                 {({ isActive }) => (
@@ -540,7 +526,7 @@ export function AppLayout() {
                     )}
                     {isActive && digitalPending === 0 && (
                       <span className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0 md:opacity-0 md:group-hover:opacity-100"
-                        style={{ background: "#ffffff" }} />
+                        style={{ background: "#4f5bd5" }} />
                     )}
                   </>
                 )}
@@ -656,8 +642,8 @@ export function AppLayout() {
       <main className="flex-1 flex flex-col overflow-hidden">
 
         {/* ── Top bar ─────────────────────────────────────────────────────── */}
-        <header className={`h-16 px-4 md:px-4 flex items-center justify-between flex-shrink-0 gap-3 md:gap-4 md:mx-3 md:mt-3 md:rounded-2xl md:border md:shadow-sm ${pdvFullScreen ? "md:hidden" : ""}`}
-          style={{ background: T.headerBg, borderColor: T.border, borderBottomWidth: 1 }}>
+        <header className={`h-16 px-4 md:px-4 flex items-center justify-between flex-shrink-0 gap-3 md:gap-4 md:mx-3 md:mt-3 md:rounded-[22px] ${isLight ? "neu" : ""} ${pdvFullScreen ? "md:hidden" : ""}`}
+          style={isLight ? undefined : { background: T.headerBg, borderColor: T.border, borderBottomWidth: 1 }}>
 
           {/* Menu hambúrguer móvel */}
           <button onClick={() => setSidebarOpen(!sidebarOpen)}
