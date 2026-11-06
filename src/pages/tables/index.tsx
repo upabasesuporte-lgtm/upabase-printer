@@ -8,7 +8,7 @@ import { printItemsHere, onlineSectors, getPrintHere, setPrintHere, printTickets
 import { matchesSearch } from "../../lib/search";
 import { useTheme } from "../../contexts/ThemeContext";
 import { PageHeader, btnPrimary, btnSecondary, WHITE_TEXT } from "../../components/PageHeader";
-import { StatCard } from "../../components/StatCard";
+import { NeuStatCard } from "../../components/Neu";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import {
   UtensilsCrossed, Plus, Search, X, ChevronLeft, RefreshCw,
@@ -77,7 +77,7 @@ interface PaymentEntry { method: PayMethod; amount: number; part?: boolean; item
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-const inputCls = "w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/10 transition-all";
+const inputCls = "w-full px-3.5 py-2.5 neu-in border-0 rounded-2xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/10 transition-all";
 const selectCls = inputCls + " cursor-pointer";
 
 const STATUS_CFG: Record<string, { label: string; hex: string; glow: string; badge: string; dot: string }> = {
@@ -115,9 +115,9 @@ export default function TablesPage() {
   const { theme } = useTheme();
   const isLight = theme === "light";
   const card = isLight ? {
-    bg: "#ffffff",
-    border: "1px solid #e5e7eb",
-    shadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.9)",
+    bg: "linear-gradient(145deg,#edf0f5,#f9fafc)",
+    border: "2px solid #fcfdfe",
+    shadow: "6px 6px 14px rgba(140,152,176,.42), -6px -6px 14px rgba(255,255,255,1), inset 2px 2px 5px rgba(140,152,176,.18), inset -2px -2px 5px rgba(255,255,255,.95)",
   } : {
     bg: "#18181b",
     border: "1px solid rgba(39,39,42,0.8)",
@@ -625,11 +625,11 @@ export default function TablesPage() {
     const inOrder = qtyInOrder[p.id] ?? 0;
     return (
       <button key={p.id} onClick={() => addWithFlash(p)}
-        style={{ background: card.bg, border: inOrder > 0 ? "1px solid rgba(49,93,251,0.55)" : card.border }}
-        className="relative flex flex-col items-start gap-1.5 p-3 min-h-[76px] hover:border-brand-500/50 rounded-xl text-left transition-all active:scale-95">
+        style={{ background: card.bg, border: inOrder > 0 ? "2px solid rgba(79,91,213,.6)" : card.border, boxShadow: card.shadow }}
+        className="neu-lift relative flex flex-col items-start gap-1.5 p-3 min-h-[76px] rounded-2xl text-left active:scale-95">
         {inOrder > 0 && (
           <span className="absolute top-1.5 right-1.5 min-w-[22px] h-[22px] px-1.5 rounded-full text-[11px] font-bold flex items-center justify-center"
-            style={{ background: "#315DFB", color: "#fff" }}>{inOrder}</span>
+            style={{ background: "linear-gradient(135deg,#7b86f5,#4f5bd5)", color: "#fff" }}>{inOrder}</span>
         )}
         <span className="text-sm font-semibold leading-tight line-clamp-2 pr-6" style={{ color: isLight ? "#111" : "#fff" }}>{p.name}</span>
         <span className="text-sm font-bold text-brand-600">{fmt(p.sale_price)}</span>
@@ -1020,14 +1020,14 @@ export default function TablesPage() {
           {areas.length > 1 && (
             <div className="flex gap-2 flex-wrap">
               <button onClick={() => setAreaFilter(null)}
-                style={areaFilter !== null ? { background: card.bg, border: card.border } : { color: "#fff" }}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${areaFilter === null ? "bg-brand-600" : "text-zinc-400 hover:text-white"}`}>
+                style={areaFilter !== null ? { background: card.bg, border: card.border, boxShadow: card.shadow } : { color: "#fff" }}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors ${areaFilter === null ? "bg-gradient-to-r from-[#7b86f5] to-[#4f5bd5]" : "text-zinc-500 hover:text-zinc-800"}`}>
                 Todas
               </button>
               {areas.map(area => (
                 <button key={area} onClick={() => setAreaFilter(area)}
-                  style={areaFilter !== area ? { background: card.bg, border: card.border } : { color: "#fff" }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${areaFilter === area ? "bg-brand-600" : "text-zinc-400 hover:text-white"}`}>
+                  style={areaFilter !== area ? { background: card.bg, border: card.border, boxShadow: card.shadow } : { color: "#fff" }}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors ${areaFilter === area ? "bg-gradient-to-r from-[#7b86f5] to-[#4f5bd5]" : "text-zinc-500 hover:text-zinc-800"}`}>
                   {area}
                 </button>
               ))}
@@ -1035,11 +1035,11 @@ export default function TablesPage() {
           )}
 
           {/* KPI Stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <StatCard compact label="Total de Mesas" value={tables.length} tone="brand" />
-            <StatCard compact label="Livres" value={stats.free} tone={stats.free > 0 ? "positive" : "default"} />
-            <StatCard compact label="Ocupadas" value={stats.occupied} tone={stats.occupied > 0 ? "warning" : "default"} />
-            <StatCard compact label="Reservadas" value={stats.reserved} tone={stats.reserved > 0 ? "brand" : "default"} />
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-5 p-1">
+            <NeuStatCard tone="sky" icon={UtensilsCrossed} label="Total de Mesas" value={String(tables.length)} />
+            <NeuStatCard tone="green" icon={CheckCircle2} label="Livres" value={String(stats.free)} />
+            <NeuStatCard tone="emerald" icon={Users} label="Ocupadas" value={String(stats.occupied)} />
+            <NeuStatCard tone="violet" icon={Clock} label="Reservadas" value={String(stats.reserved)} />
           </div>
 
           {/* Table grid */}
@@ -1049,21 +1049,21 @@ export default function TablesPage() {
               <p className="text-zinc-400 font-semibold">Nenhuma mesa cadastrada</p>
               <p className="text-zinc-600 text-sm mt-1">Crie mesas clicando em "Nova Mesa"</p>
               <button onClick={() => openManage()}
-                className="mt-5 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-semibold transition-colors">
+                className="mt-5 px-5 py-2.5 bg-gradient-to-r from-[#7b86f5] to-[#4f5bd5] shadow-[0_8px_18px_-8px_rgba(79,91,213,.6)] text-white rounded-full text-sm font-semibold transition-colors">
                 Criar primeira mesa
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-3 gap-y-5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-4 gap-y-6 p-1">
               {filteredTables.map(table => {
                 const info = table.status === "occupied" && table.current_sale_id ? openInfo[table.current_sale_id] : undefined;
                 const mins = info ? Math.max(0, Math.floor((Date.now() - new Date(info.since).getTime()) / 60000)) : 0;
                 // Cor de cada status: a aba (marcador de fichário) leva a cor cheia;
                 // o corpo do cartão só um leve tom dela.
                 const TONE: Record<string, { tab: string; tint: string; ink: string; label: string }> = {
-                  free:     { tab: "linear-gradient(135deg, #7C3FFA 0%, #315DFB 55%, #00B8C8 100%)", tint: "#315DFB", ink: "#315DFB", label: "Livre" },
-                  occupied: { tab: "linear-gradient(135deg,#334155,#1e293b)", tint: "#334155", ink: "#475569", label: "Ocupada" },
-                  reserved: { tab: "linear-gradient(135deg,#818cf8,#6366f1)", tint: "#6366f1", ink: "#4f46e5", label: "Reservada" },
+                  free:     { tab: "linear-gradient(135deg,#4ade80,#12b76a)", tint: "#12b76a", ink: "#0e9f5c", label: "Livre" },
+                  occupied: { tab: "linear-gradient(135deg,#4b5578,#1e2235)", tint: "#1e2235", ink: "#1e2235", label: "Ocupada" },
+                  reserved: { tab: "linear-gradient(135deg,#b197fc,#7950f2)", tint: "#7950f2", ink: "#6741d9", label: "Reservada" },
                   cleaning: { tab: "linear-gradient(135deg,#cbd5e1,#94a3b8)", tint: "#94a3b8", ink: "#64748b", label: "Em limpeza" },
                 };
                 const t = TONE[table.status] ?? TONE.free;
@@ -1082,11 +1082,11 @@ export default function TablesPage() {
                       {table.name}
                     </span>
                     {/* Corpo */}
-                    <div className="relative rounded-2xl rounded-tl-md px-4 pt-4 pb-3 min-h-[118px] flex flex-col"
+                    <div className="relative rounded-[24px] rounded-tl-md px-4 pt-4 pb-3 min-h-[118px] flex flex-col"
                       style={{
-                        background: isLight ? "#ffffff" : "#18181b",
-                        border: isLight ? "1px solid #e5e7eb" : "1px solid rgba(63,63,70,0.7)",
-                        boxShadow: isLight ? "0 1px 2px rgba(17,24,39,0.04), 0 8px 20px -12px rgba(17,24,39,0.18)" : "none",
+                        background: isLight ? "linear-gradient(145deg,#e9edf3,#f7f8fb)" : "#18181b",
+                        border: isLight ? "3px solid #fbfcfd" : "1px solid rgba(63,63,70,0.7)",
+                        boxShadow: isLight ? "9px 9px 20px rgba(140,152,176,.5), -8px -8px 18px rgba(255,255,255,1), inset 3px 3px 7px rgba(140,152,176,.22), inset -3px -3px 7px rgba(255,255,255,.95)" : "none",
                       }}>
                       <div className="flex-1 flex flex-col items-center justify-center text-center gap-1">
                         {info ? (
@@ -1098,7 +1098,7 @@ export default function TablesPage() {
                           </>
                         ) : (
                           <>
-                            <span className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: `${t.tint}1f` }}>
+                            <span className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: `${t.tint}1f`, boxShadow: "inset 2px 2px 5px rgba(255,255,255,.85), inset -2px -2px 5px rgba(0,0,0,.06), 3px 3px 8px rgba(163,177,198,.35)" }}>
                               <UtensilsCrossed className="w-4 h-4" style={{ color: t.ink }} />
                             </span>
                             <p className="text-sm font-bold" style={{ color: t.ink }}>{t.label}</p>
@@ -1122,12 +1122,12 @@ export default function TablesPage() {
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4 flex-shrink-0">
             <div className="flex items-center gap-3 sm:flex-1 min-w-0">
               <button onClick={() => goBack()}
-                className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-xl transition-colors flex-shrink-0">
+                className="neu-sm neu-lift w-10 h-10 rounded-full flex items-center justify-center text-zinc-500 hover:text-zinc-800 flex-shrink-0">
                 <ChevronLeft className="w-5 h-5" />
               </button>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <h1 className="text-xl font-bold">{selectedTable.name}</h1>
+                  <h1 className="text-xl font-black text-[#1e2235]">{selectedTable.name}</h1>
                   <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${(STATUS_CFG[selectedTable.status] ?? fallbackCfg).badge}`}>
                     {(STATUS_CFG[selectedTable.status] ?? fallbackCfg).label}
                   </span>
@@ -1143,18 +1143,18 @@ export default function TablesPage() {
               {orderItems.length > 0 && (
                 <button onClick={() => { setMoveTarget(null); setMoveError(null); setModal("moveTable"); }}
                   title="Transferir para outra mesa ou juntar mesas"
-                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 text-zinc-300 hover:text-white rounded-xl text-sm font-bold transition-colors"
-                  style={{ background: card.bg, border: card.border }}>
+                  className="neu-lift flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 text-zinc-600 hover:text-zinc-900 rounded-full text-sm font-bold"
+                  style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
                   <ArrowLeftRight className="w-4 h-4" /> Trocar mesa
                 </button>
               )}
               <button onClick={() => setModal("cancelOrder")}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-xl text-sm font-bold transition-colors">
+                className="neu-sm neu-lift flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 text-[#e0484f] rounded-full text-sm font-bold">
                 <X className="w-4 h-4" /> Cancelar Mesa
               </button>
               {orderItems.length > 0 && (
                 <button onClick={() => { setSellers(getSellers()); setShowCheckout(true); setCheckoutPayments([]); setCheckoutInput(""); setCheckoutDiscount("0"); setCheckoutCustomer(null); setCheckoutSeller(""); setCheckoutNotes(""); setCheckoutError(null); setSplitMode("none"); setSplitN(2); setSplitPaidParts(0); setSplitSel([]); setSplitPaidItems([]); const pct = Number(getStoreSettings().service_fee_pct) || 0; setServicePct(pct); setCheckoutService(pct > 0); }}
-                  className="basis-full sm:basis-auto flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-sm font-bold transition-colors shadow-lg shadow-emerald-900/30"
+                  className="basis-full sm:basis-auto flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#4ade80] to-[#12b76a] shadow-[0_8px_18px_-8px_rgba(18,183,106,.6)] neu-lift rounded-xl text-sm font-bold transition-colors shadow-lg shadow-emerald-900/30"
                   style={{ color: "#fff" }}>
                   <CheckCircle2 className="w-4 h-4" /> Fechar Conta · {fmt(orderTotal)}
                 </button>
@@ -1166,8 +1166,8 @@ export default function TablesPage() {
           <div className="flex sm:hidden gap-2 mb-4 flex-shrink-0">
             {(["catalog", "order"] as const).map(t => (
               <button key={t} onClick={() => setComandaTab(t)}
-                style={comandaTab !== t ? { background: card.bg, border: card.border } : { color: "#fff" }}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-medium transition-colors ${comandaTab === t ? "bg-brand-600" : "text-zinc-400"}`}>
+                style={comandaTab !== t ? { background: card.bg, border: card.border, boxShadow: card.shadow } : { color: "#fff" }}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-full text-sm font-semibold transition-colors ${comandaTab === t ? "bg-gradient-to-r from-[#7b86f5] to-[#4f5bd5]" : "text-zinc-500"}`}>
                 {t === "catalog" ? <><Coffee className="w-3.5 h-3.5" />Cardápio</> : <><ShoppingCart className="w-3.5 h-3.5" />Comanda {orderItems.length > 0 && `(${orderItems.reduce((s,i)=>s+i.quantity,0)})`}</>}
               </button>
             ))}
@@ -1182,31 +1182,31 @@ export default function TablesPage() {
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                 <input value={search} onChange={e => setSearch(e.target.value)}
                   placeholder="Buscar produto..."
-                  style={{ background: card.bg, border: card.border, color: isLight ? "#111" : "#fff" }}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm placeholder-zinc-600 focus:outline-none focus:border-brand-500 transition-all" />
+                  style={{ color: isLight ? "#111" : "#fff" }}
+                  className="w-full pl-10 pr-4 py-2.5 neu-in rounded-2xl text-sm placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#7b86f5]/40 transition-all" />
               </div>
 
               {/* Category tabs + botão ordenar */}
               {visibleCatNames.length > 0 && (
                 <>
-                  <div className="flex gap-1.5 mb-1 overflow-x-auto pb-1 flex-shrink-0 scrollbar-none items-center">
+                  <div className="flex gap-2 mb-1 overflow-x-auto py-2 px-1 flex-shrink-0 scrollbar-none items-center">
                     <button onClick={() => setCatFilter(null)}
-                      style={catFilter !== null ? { background: card.bg, border: card.border } : { color: "#fff" }}
-                      className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors ${catFilter === null ? "bg-brand-600" : "text-zinc-400 hover:text-white"}`}>
+                      style={catFilter !== null ? { background: card.bg, border: card.border, boxShadow: card.shadow } : { color: "#fff" }}
+                      className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap flex-shrink-0 transition-colors ${catFilter === null ? "bg-gradient-to-r from-[#7b86f5] to-[#4f5bd5]" : "text-zinc-500 hover:text-zinc-800"}`}>
                       Todos
                     </button>
                     {visibleCatNames.map(name => (
                       <button key={name} onClick={() => setCatFilter(name)}
-                        style={catFilter !== name ? { background: card.bg, border: card.border } : { color: "#fff" }}
-                        className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors ${catFilter === name ? "bg-brand-600" : "text-zinc-400 hover:text-white"}`}>
+                        style={catFilter !== name ? { background: card.bg, border: card.border, boxShadow: card.shadow } : { color: "#fff" }}
+                        className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap flex-shrink-0 transition-colors ${catFilter === name ? "bg-gradient-to-r from-[#7b86f5] to-[#4f5bd5]" : "text-zinc-500 hover:text-zinc-800"}`}>
                         {name.charAt(0) + name.slice(1).toLowerCase()}
                       </button>
                     ))}
                     <button
                       onClick={() => { setShowCurateManager(true); setCurateActiveCat(catFilter ?? visibleCatNames[0] ?? null); setCurateSearch(""); }}
                       title="Escolher itens do dia por categoria"
-                      className="ml-auto flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-colors"
-                      style={{ background: "#f59e0b", boxShadow: "0 0 12px rgba(245,158,11,0.35)" }}>
+                      className="ml-auto flex-shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold text-white transition-colors"
+                      style={{ background: "linear-gradient(135deg,#fdba74,#f97316)", boxShadow: "0 6px 14px -6px rgba(249,115,22,.6)" }}>
                       <Star className="w-3.5 h-3.5" /> Itens do dia
                     </button>
                     <button
@@ -1221,7 +1221,7 @@ export default function TablesPage() {
                   {/* Painel de ordenação inline */}
                   {showCatOrder && (
                     <div className="mb-3 rounded-xl p-3 flex-shrink-0"
-                      style={{ background: card.bg, border: card.border }}>
+                      style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
                       <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-2">Arrastar para ordenar</p>
                       <div className="space-y-1">
                         {visibleCatNames.map((name, idx) => (
@@ -1333,7 +1333,7 @@ export default function TablesPage() {
                 <div className="sm:hidden mt-2 flex-shrink-0 flex gap-2">
                   <button onClick={() => setComandaTab("order")}
                     className="flex-1 min-w-0 h-12 rounded-2xl flex items-center justify-between px-4 text-sm font-semibold shadow-lg"
-                    style={pendingQty > 0 ? { background: card.bg, border: card.border } : { background: "#315DFB", color: "#fff" }}>
+                    style={pendingQty > 0 ? { background: card.bg, border: card.border, boxShadow: card.shadow } : { background: "#315DFB", color: "#fff" }}>
                     <span className="flex items-center gap-2 truncate"><ShoppingCart className="w-4 h-4" /> Comanda · {orderQty}</span>
                     <span className="font-black">{fmt(orderTotal)}</span>
                   </button>
@@ -1349,7 +1349,7 @@ export default function TablesPage() {
             </div>
 
             {/* RIGHT — Order / Comanda */}
-            <div className={`flex flex-col w-full sm:w-80 flex-shrink-0 rounded-2xl overflow-hidden ${comandaTab === "catalog" ? "hidden sm:flex" : "flex"}`}
+            <div className={`flex flex-col w-full sm:w-80 flex-shrink-0 rounded-[26px] overflow-hidden ${comandaTab === "catalog" ? "hidden sm:flex" : "flex"}`}
               style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
               <div className="flex items-center gap-2 px-4 py-3 border-b border-zinc-800 flex-shrink-0">
                 <ShoppingCart className="w-4 h-4 text-brand-600" />
@@ -1441,7 +1441,7 @@ export default function TablesPage() {
                     </button>
                   </div>
                   <button onClick={() => { setSellers(getSellers()); setShowCheckout(true); setCheckoutPayments([]); setCheckoutInput(""); setCheckoutDiscount("0"); setCheckoutCustomer(null); setCheckoutSeller(""); setCheckoutNotes(""); setCheckoutError(null); setSplitMode("none"); setSplitN(2); setSplitPaidParts(0); setSplitSel([]); setSplitPaidItems([]); const pct = Number(getStoreSettings().service_fee_pct) || 0; setServicePct(pct); setCheckoutService(pct > 0); }}
-                    className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 font-bold rounded-xl text-sm transition-colors"
+                    className="w-full py-2.5 bg-gradient-to-r from-[#4ade80] to-[#12b76a] shadow-[0_8px_18px_-8px_rgba(18,183,106,.6)] neu-lift font-bold rounded-xl text-sm transition-colors"
                     style={{ color: "#fff" }}>
                     Fechar Conta
                   </button>
@@ -1463,7 +1463,7 @@ export default function TablesPage() {
       {/* Sem impressora ligada para algum setor */}
       {printNotice && createPortal(
         <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+          <div className="neu rounded-[28px] w-full max-w-sm p-6 space-y-4">
             <div className="text-center">
               <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: "rgba(245,158,11,0.12)" }}>
                 <Printer className="w-7 h-7 text-amber-500" />
@@ -1477,7 +1477,7 @@ export default function TablesPage() {
             </label>
             <div className="grid grid-cols-2 gap-2">
               <button onClick={() => setPrintNotice(null)}
-                className="py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Não imprimir</button>
+                className="py-2.5 neu-sm neu-lift text-zinc-700 rounded-full text-sm font-medium transition-colors">Não imprimir</button>
               <button onClick={printNoticeHere}
                 className="py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2" style={{ background: "#315DFB", color: "#fff" }}>
                 <Printer className="w-4 h-4" /> Imprimir aqui
@@ -1500,7 +1500,7 @@ export default function TablesPage() {
       {/* ═══ MODAL — portal ao document.body, totalmente fora da árvore DOM do componente ═══ */}
       {createPortal(modal === "openConfirm" && selectedTable ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-5">
+          <div className="neu rounded-[28px] w-full max-w-sm p-6 space-y-5">
             <div className="text-center">
               <div className="w-14 h-14 bg-brand-500/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
                 <UtensilsCrossed className="w-7 h-7 text-brand-600" />
@@ -1513,7 +1513,7 @@ export default function TablesPage() {
             </div>
             <div className="flex gap-3">
               <button onClick={() => { setSelectedTable(null); setModal("none"); }}
-                className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
+                className="flex-1 py-2.5 neu-sm neu-lift text-zinc-700 rounded-full text-sm font-medium transition-colors">Cancelar</button>
               <button onClick={() => openTable(selectedTable!)} disabled={saving}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 rounded-xl text-sm font-bold transition-colors"
                 style={{ color: "#fff" }}>
@@ -1529,7 +1529,7 @@ export default function TablesPage() {
         </div>
       ) : modal === "reserve" && selectedTable ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+          <div className="neu rounded-[28px] w-full max-w-sm p-6 space-y-4">
             <h2 className="text-base font-semibold">Reservar {selectedTable.name}</h2>
             <div>
               <label className="block text-xs font-medium text-zinc-400 mb-1.5">Nome / Observação</label>
@@ -1537,7 +1537,7 @@ export default function TablesPage() {
                 placeholder="Nome do cliente ou horário..." className={inputCls} autoFocus />
             </div>
             <div className="flex gap-3">
-              <button onClick={() => setModal("none")} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
+              <button onClick={() => setModal("none")} className="flex-1 py-2.5 neu-sm neu-lift text-zinc-700 rounded-full text-sm font-medium transition-colors">Cancelar</button>
               <button onClick={() => reserveTable(selectedTable!)}
                 className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-bold transition-colors">Reservar</button>
             </div>
@@ -1545,7 +1545,7 @@ export default function TablesPage() {
         </div>
       ) : modal === "statusChange" && statusChangeTarget ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+          <div className="neu rounded-[28px] w-full max-w-sm p-6 space-y-4">
             <p className="text-sm font-semibold">{statusChangeTarget.table.name} — alterar status</p>
             <div className="grid grid-cols-2 gap-2">
               {(["free", "reserved", "cleaning"] as const).map(s => {
@@ -1558,27 +1558,27 @@ export default function TablesPage() {
                 );
               })}
             </div>
-            <button onClick={() => setModal("none")} className="w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
+            <button onClick={() => setModal("none")} className="w-full py-2.5 neu-sm neu-lift text-zinc-700 rounded-full text-sm font-medium transition-colors">Cancelar</button>
           </div>
         </div>
       ) : modal === "itemNote" && noteTarget ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+          <div className="neu rounded-[28px] w-full max-w-sm p-6 space-y-4">
             <h2 className="text-base font-semibold">Observação — {noteTarget.products?.name}</h2>
             <input value={noteText} onChange={e => setNoteText(e.target.value)}
               onKeyDown={e => e.key === "Enter" && saveItemNote()}
               placeholder="Ex: sem cebola, bem passado..." className={inputCls} autoFocus />
             <div className="flex gap-3">
               <button onClick={() => { setNoteTarget(null); setNoteText(""); setModal("none"); }}
-                className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
+                className="flex-1 py-2.5 neu-sm neu-lift text-zinc-700 rounded-full text-sm font-medium transition-colors">Cancelar</button>
               <button onClick={saveItemNote}
-                className="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-bold transition-colors">Salvar</button>
+                className="flex-1 py-2.5 bg-gradient-to-r from-[#7b86f5] to-[#4f5bd5] shadow-[0_8px_18px_-8px_rgba(79,91,213,.6)] text-white rounded-full text-sm font-bold transition-colors">Salvar</button>
             </div>
           </div>
         </div>
       ) : modal === "manage" ? (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col">
+          <div className="neu rounded-[28px] w-full max-w-lg max-h-[85vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 flex-shrink-0">
               <h2 className="text-base font-semibold">Gerenciar Mesas</h2>
               <div className="flex items-center gap-2">
@@ -1628,7 +1628,7 @@ export default function TablesPage() {
         </div>
       ) : modal === "editTable" ? (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-md">
+          <div className="neu rounded-[28px] w-full max-w-md">
             <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
               <h2 className="text-base font-semibold">{editingTable ? "Editar Mesa" : "Adicionar Mesas"}</h2>
               <button onClick={() => setModal("none")} className="p-1.5 text-zinc-400 hover:text-white rounded-lg"><X className="w-4 h-4" /></button>
@@ -1709,7 +1709,7 @@ export default function TablesPage() {
                     </div>
                   </div>
                   {parseInt(bulkCount) > 0 && bulkPrefix && (
-                    <div className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-xs text-zinc-400">
+                    <div className="neu-in border-0 rounded-xl px-4 py-3 text-xs text-zinc-400">
                       Serão criadas: <span className="text-white font-semibold">{bulkPrefix}{bulkStart} → {bulkPrefix}{parseInt(bulkStart) + parseInt(bulkCount) - 1}</span>
                       {" "}({bulkCount} mesas · {bulkCapacity} lugares · {bulkArea || "Salão"})
                     </div>
@@ -1721,7 +1721,7 @@ export default function TablesPage() {
               )}
             </div>
             <div className="flex gap-3 px-6 py-4 border-t border-zinc-800">
-              <button onClick={() => setModal("none")} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
+              <button onClick={() => setModal("none")} className="flex-1 py-2.5 neu-sm neu-lift text-zinc-700 rounded-full text-sm font-medium transition-colors">Cancelar</button>
               {tableFormTab === "single" || editingTable ? (
                 <button onClick={saveTable} disabled={!fName.trim() || saving}
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-colors"
@@ -1742,7 +1742,7 @@ export default function TablesPage() {
         </div>
       ) : modal === "cancelOrder" ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-5">
+          <div className="neu rounded-[28px] w-full max-w-sm p-6 space-y-5">
             <div className="text-center">
               <div className="w-14 h-14 bg-red-500/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
                 <AlertTriangle className="w-7 h-7 text-red-400" />
@@ -1752,7 +1752,7 @@ export default function TablesPage() {
             </div>
             <div className="flex gap-3">
               <button onClick={() => setModal("none")}
-                className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Voltar</button>
+                className="flex-1 py-2.5 neu-sm neu-lift text-zinc-700 rounded-full text-sm font-medium transition-colors">Voltar</button>
               <button onClick={cancelOrder} disabled={saving}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-colors">
                 {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
@@ -1763,7 +1763,7 @@ export default function TablesPage() {
         </div>
       ) : modal === "pendingLeave" ? (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+          <div className="neu rounded-[28px] w-full max-w-sm p-6 space-y-4">
             <div className="text-center">
               <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3" style={{ background: "rgba(49,93,251,0.12)" }}>
                 <Send className="w-7 h-7" style={{ color: "#315DFB" }} />
@@ -1778,7 +1778,7 @@ export default function TablesPage() {
             </button>
             <div className="grid grid-cols-2 gap-2">
               <button onClick={() => setModal("none")}
-                className="py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Continuar na mesa</button>
+                className="py-2.5 neu-sm neu-lift text-zinc-700 rounded-full text-sm font-medium transition-colors">Continuar na mesa</button>
               <button onClick={() => goBack(true)}
                 className="py-2.5 rounded-xl text-sm font-medium border border-zinc-700 text-zinc-400 hover:bg-zinc-800 transition-colors">Sair sem enviar</button>
             </div>
@@ -1786,7 +1786,7 @@ export default function TablesPage() {
         </div>
       ) : modal === "moveTable" && selectedTable ? (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[88vh] flex flex-col">
+          <div className="neu rounded-[28px] w-full max-w-md max-h-[88vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 flex-shrink-0">
               <div>
                 <h2 className="text-base font-semibold">Trocar mesa — {selectedTable.name}</h2>
@@ -1811,7 +1811,7 @@ export default function TablesPage() {
                         return (
                           <button key={t.id} onClick={() => setMoveTarget(t)}
                             className="flex flex-col items-center justify-center gap-0.5 min-h-[58px] px-2 py-2 rounded-xl text-sm font-bold transition-all active:scale-95"
-                            style={sel ? { background: "#315DFB", color: "#fff", border: "1px solid #315DFB" } : { background: card.bg, border: card.border }}>
+                            style={sel ? { background: "#315DFB", color: "#fff", border: "1px solid #315DFB" } : { background: card.bg, border: card.border, boxShadow: card.shadow }}>
                             <span className="truncate max-w-full">{t.name}</span>
                             {info && <span className="text-[10px] font-semibold opacity-80">{fmt(info.total)}</span>}
                           </button>
@@ -1829,7 +1829,7 @@ export default function TablesPage() {
             </div>
             <div className="flex gap-3 px-6 py-4 border-t border-zinc-800 flex-shrink-0">
               <button onClick={() => setModal("none")}
-                className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Voltar</button>
+                className="flex-1 py-2.5 neu-sm neu-lift text-zinc-700 rounded-full text-sm font-medium transition-colors">Voltar</button>
               <button onClick={moveTableOrder} disabled={!moveTarget || saving}
                 className="flex-[2] flex items-center justify-center gap-2 py-2.5 disabled:opacity-50 rounded-xl text-sm font-bold transition-colors"
                 style={{ background: "#315DFB", color: "#fff" }}>
@@ -1843,7 +1843,7 @@ export default function TablesPage() {
         </div>
       ) : showCheckout ? (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[92vh] flex flex-col">
+          <div className="neu rounded-[28px] w-full max-w-md max-h-[92vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 flex-shrink-0">
               <div>
                 <h2 className="text-base font-semibold">Fechar Conta — {selectedTable?.name}</h2>
@@ -1860,7 +1860,7 @@ export default function TablesPage() {
                     className="px-3 py-1.5 rounded-lg text-xs font-bold disabled:opacity-60" style={{ background: "#315DFB", color: "#fff" }}>Enviar</button>
                 </div>
               )}
-              <div className="bg-zinc-950 border border-zinc-800 rounded-xl divide-y divide-zinc-800/60 max-h-36 overflow-y-auto">
+              <div className="neu-in border-0 rounded-xl divide-y divide-zinc-800/60 max-h-36 overflow-y-auto">
                 {orderItems.map(item => (
                   <div key={item.id} className="flex items-center justify-between px-3 py-2">
                     <span className="text-xs text-zinc-300">{item.quantity}x {item.products?.name}</span>
@@ -1901,7 +1901,7 @@ export default function TablesPage() {
                     const info = PAY_INFO[m];
                     return (
                       <button key={m} onClick={() => setCheckoutMethod(m)}
-                        className={`flex flex-col items-center gap-1 py-2.5 px-2 rounded-xl border text-xs font-semibold transition-all ${checkoutMethod === m ? info.color + " border-current" : "border-zinc-700 text-zinc-500 hover:border-zinc-600"}`}>
+                        className={`flex flex-col items-center gap-1 py-2.5 px-2 rounded-xl border text-xs font-semibold transition-all ${checkoutMethod === m ? info.color + " border-current" : "neu-sm text-zinc-500 hover:text-zinc-800"}`}>
                         {info.icon}<span>{info.label}</span>
                       </button>
                     );
@@ -1909,7 +1909,7 @@ export default function TablesPage() {
                 </div>
               </div>
               {/* Dividir a conta */}
-              <div className="rounded-xl border border-zinc-800 p-3 space-y-3">
+              <div className="neu-in rounded-2xl p-3 space-y-3">
                 <div className="flex items-center justify-between gap-2">
                   <span className="flex items-center gap-1.5 text-xs font-medium text-zinc-400"><Users className="w-3.5 h-3.5" /> Dividir a conta</span>
                   <div className="flex gap-1">
@@ -1927,10 +1927,10 @@ export default function TablesPage() {
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <button onClick={() => setSplitN(n => Math.max(Math.max(2, splitPaidParts + 1), n - 1))}
-                          className="w-9 h-9 flex items-center justify-center rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800"><Minus className="w-4 h-4" /></button>
+                          className="w-9 h-9 flex items-center justify-center rounded-full neu-sm text-zinc-600"><Minus className="w-4 h-4" /></button>
                         <span className="text-sm font-bold w-20 text-center">{splitN} pessoas</span>
                         <button onClick={() => setSplitN(n => Math.min(50, n + 1))}
-                          className="w-9 h-9 flex items-center justify-center rounded-lg border border-zinc-700 text-zinc-300 hover:bg-zinc-800"><Plus className="w-4 h-4" /></button>
+                          className="w-9 h-9 flex items-center justify-center rounded-full neu-sm text-zinc-600"><Plus className="w-4 h-4" /></button>
                       </div>
                       <span className="text-xs text-zinc-500 text-right">
                         {remainingToPay > 0 ? <>Faltam {partsLeft} de {splitN}<br /><b className="text-white">{fmt(equalPart)}</b> cada</> : "Tudo pago"}
@@ -1984,7 +1984,7 @@ export default function TablesPage() {
               {checkoutPayments.length > 0 && (
                 <div className="space-y-1.5">
                   {checkoutPayments.map((p, i) => (
-                    <div key={i} className="flex items-center justify-between bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5">
+                    <div key={i} className="flex items-center justify-between neu-in border-0 rounded-xl px-4 py-2.5">
                       <span className="text-sm text-zinc-300">{PAY_INFO[p.method]?.label}{p.part ? " · parte" : p.items ? ` · ${p.items.length} ite${p.items.length === 1 ? "m" : "ns"}` : ""}</span>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-bold">{fmt(p.amount)}</span>
@@ -2007,7 +2007,7 @@ export default function TablesPage() {
                   )}
                 </div>
               )}
-              <div className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 space-y-1">
+              <div className="neu-in border-0 rounded-xl px-4 py-3 space-y-1">
                 <div className="flex justify-between text-sm text-zinc-400">
                   <span>Subtotal</span><span>{fmt(orderTotal)}</span>
                 </div>
@@ -2036,9 +2036,9 @@ export default function TablesPage() {
               )}
             </div>
             <div className="flex flex-col sm:flex-row gap-3 px-6 py-4 border-t border-zinc-800 flex-shrink-0">
-              <button onClick={() => setShowCheckout(false)} className="sm:flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
+              <button onClick={() => setShowCheckout(false)} className="sm:flex-1 py-2.5 neu-sm neu-lift text-zinc-700 rounded-full text-sm font-medium transition-colors">Cancelar</button>
               <button onClick={confirmPayment} disabled={checkoutLoading || checkoutPayments.length === 0}
-                className="sm:flex-1 flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-xl text-sm font-bold transition-colors"
+                className="sm:flex-1 flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-[#4ade80] to-[#12b76a] shadow-[0_8px_18px_-8px_rgba(18,183,106,.6)] neu-lift disabled:opacity-50 rounded-xl text-sm font-bold transition-colors"
                 style={{ color: "#fff" }}>
                 {checkoutLoading ? <RefreshCw className="w-4 h-4 animate-spin flex-shrink-0" /> : <CheckCircle2 className="w-4 h-4 flex-shrink-0" />}
                 <span className="truncate">{checkoutLoading ? "Fechando…" : `Confirmar · ${fmt(finalTotal)}`}</span>
@@ -2050,7 +2050,7 @@ export default function TablesPage() {
 
       {showCurateManager && createPortal(
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+          <div className="neu rounded-[28px] w-full max-w-2xl max-h-[85vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 flex-shrink-0">
               <h2 className="text-base font-semibold">Itens do Dia por Categoria</h2>
               <button onClick={() => { setShowCurateManager(false); setCurateSearch(""); }} className="p-1.5 text-zinc-400 hover:text-white rounded-lg"><X className="w-4 h-4" /></button>
@@ -2082,7 +2082,7 @@ export default function TablesPage() {
                   <div className="flex items-center gap-1 pt-1">
                     <input value={newCatName} onChange={e => setNewCatName(e.target.value)}
                       onKeyDown={e => e.key === "Enter" && createCategory()}
-                      placeholder="Nova categoria..." className="flex-1 min-w-0 px-2.5 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500" />
+                      placeholder="Nova categoria..." className="flex-1 min-w-0 px-2.5 py-2 neu-in border-0 rounded-xl text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500" />
                     <button onClick={createCategory} disabled={!newCatName.trim()}
                       className="flex-shrink-0 p-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-40 rounded-xl transition-colors"
                       style={{ color: "#fff" }}>
@@ -2108,7 +2108,7 @@ export default function TablesPage() {
                       <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                         <input placeholder="Buscar em todo o estoque..." value={curateSearch} onChange={e => setCurateSearch(e.target.value)}
-                          className="w-full pl-10 pr-4 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-brand-500" />
+                          className="w-full pl-10 pr-4 py-2 neu-in border-0 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-brand-500" />
                       </div>
                       <div className="flex-1 space-y-1 overflow-y-auto max-h-80">
                         {products
