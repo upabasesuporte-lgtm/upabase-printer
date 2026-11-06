@@ -33,14 +33,14 @@ interface Category { id: string; name: string; print_sector: Sector | null }
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 // Base sem largura: campos de largura fixa usam inputBase (com w-full o tamanho fixo era ignorado)
-const inputBase = "px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 transition-all";
+const inputBase = "px-3.5 py-2.5 neu-in border-0 rounded-2xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 transition-all";
 const inputCls = "w-full " + inputBase;
 
 export default function KitchenPage() {
   const { theme } = useTheme();
   const isLight = theme === "light";
   const card = isLight
-    ? { background: "#fff", border: "1px solid #e5e7eb", boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.05)" }
+    ? { background: "linear-gradient(145deg,#edf0f5,#f9fafc)", border: "2px solid #fcfdfe", boxShadow: "6px 6px 14px rgba(140,152,176,.42), -6px -6px 14px rgba(255,255,255,1), inset 2px 2px 5px rgba(140,152,176,.18), inset -2px -2px 5px rgba(255,255,255,.95)" }
     : { background: "#18181b", border: "1px solid rgba(39,39,42,0.8)" };
   const [tab, setTab] = useState<"orders" | "couriers" | "sectors">("orders");
 
@@ -50,8 +50,8 @@ export default function KitchenPage() {
       <div className="flex gap-2 flex-wrap">
         {([["orders", "Pedidos", ChefHat], ["couriers", "Motoboys", Bike], ["sectors", "Setores", Tags]] as const).map(([k, label, Icon]) => (
           <button key={k} onClick={() => setTab(k)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all"
-            style={tab === k ? { background: "#315DFB", color: "#fff" } : { ...card, color: isLight ? "#374151" : "#d4d4d8" }}>
+            className="neu-lift flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-bold"
+            style={tab === k ? { background: "linear-gradient(135deg,#7b86f5,#4f5bd5)", color: "#fff", boxShadow: "0 6px 14px -6px rgba(79,91,213,.6)" } : { ...card, color: isLight ? "#374151" : "#d4d4d8" }}>
             <Icon className="w-4 h-4" /> {label}
           </button>
         ))}
@@ -87,7 +87,7 @@ function SetupWarning({ card, onGo }: { card: React.CSSProperties; onGo: () => v
         <p className="text-sm font-bold">Nenhum pedido vai chegar aqui ainda</p>
         <p className="text-xs text-zinc-500">Escolha para qual setor (Cozinha, Bar ou Balcão) vai cada categoria de produto.</p>
       </div>
-      <button onClick={onGo} className="px-4 py-2 rounded-xl text-sm font-bold" style={{ color: "#fff", background: "#f59e0b" }}>Configurar setores</button>
+      <button onClick={onGo} className="px-4 py-2 rounded-xl text-sm font-bold" style={{ color: "#fff", background: "linear-gradient(135deg,#fdba74,#f97316)" }}>Configurar setores</button>
     </div>
   );
 }
@@ -249,7 +249,7 @@ function OrdersBoard({ isLight, card }: { isLight: boolean; card: React.CSSPrope
 
   const muted = isLight ? "text-gray-500" : "text-zinc-400";
   const chip = (on: boolean) => on
-    ? { background: "#315DFB", color: "#fff", border: "1px solid #315DFB" }
+    ? { background: "linear-gradient(135deg,#7b86f5,#4f5bd5)", color: "#fff", border: "2px solid transparent", boxShadow: "0 6px 14px -6px rgba(79,91,213,.6)" }
     : { ...card, color: isLight ? "#374151" : "#d4d4d8" };
 
   const COLS: { key: KdsState; title: string; icon: React.ReactNode; color: string }[] = [
@@ -261,24 +261,24 @@ function OrdersBoard({ isLight, card }: { isLight: boolean; card: React.CSSPrope
   return (
     <div className="space-y-4">
       {/* Configuração desta estação */}
-      <div className="rounded-2xl p-4 flex flex-wrap items-center gap-3" style={card}>
+      <div className="rounded-[26px] p-4 flex flex-wrap items-center gap-3" style={card}>
         <span className={`text-xs font-semibold ${muted}`}>Esta tela mostra:</span>
         {SECTORS.map(s => {
           const on = prefs.sectors.includes(s);
           return (
             <button key={s} onClick={() => updatePrefs({ ...prefs, sectors: on ? prefs.sectors.filter(x => x !== s) : [...prefs.sectors, s] })}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold" style={chip(on)}>{SECTOR_LABEL[s]}</button>
+              className="px-3.5 py-1.5 rounded-full text-xs font-bold" style={chip(on)}>{SECTOR_LABEL[s]}</button>
           );
         })}
         <div className="flex-1" />
         <button onClick={() => updatePrefs({ ...prefs, autoPrint: !prefs.autoPrint })}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold" style={chip(prefs.autoPrint)}>
+          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold" style={chip(prefs.autoPrint)}>
           <Printer className="w-3.5 h-3.5" /> {prefs.autoPrint ? "Imprimindo automaticamente" : "Imprimir automaticamente: desligado"}
         </button>
         {prefs.autoPrint && (
           <button onClick={() => updatePrefs({ ...prefs, receipts: !prefs.receipts })}
             title="Cupons, pré-contas e pedidos lançados pelos celulares saem nesta impressora"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold" style={chip(prefs.receipts)}>
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold" style={chip(prefs.receipts)}>
             <Smartphone className="w-3.5 h-3.5" /> {prefs.receipts ? "Cupons dos celulares: saem aqui" : "Cupons dos celulares: desligado"}
           </button>
         )}
@@ -329,7 +329,7 @@ function OrdersBoard({ isLight, card }: { isLight: boolean; card: React.CSSPrope
           {cancels.map(c => (
             <div key={c.id} className="flex items-center gap-2">
               <p className="flex-1 text-sm"><b>{c.quantity}x</b> {c.product_name ?? "Produto"} <span className={muted}>· {c.origin_label}</span></p>
-              <button onClick={() => dismissCancel(c.id)} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ color: "#fff", background: "#ef4444" }}>Ok, visto</button>
+              <button onClick={() => dismissCancel(c.id)} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ color: "#fff", background: "linear-gradient(135deg,#f2545b,#c81e3a)" }}>Ok, visto</button>
             </div>
           ))}
         </div>
@@ -337,7 +337,7 @@ function OrdersBoard({ isLight, card }: { isLight: boolean; card: React.CSSPrope
 
       {DELIVERY_MAP_ENABLED && <div className="flex gap-2">
         {(["list", "map"] as const).map(v => (
-          <button key={v} onClick={() => changeView(v)} className="px-4 py-2 rounded-xl text-sm font-bold" style={chip(view === v)}>
+          <button key={v} onClick={() => changeView(v)} className="neu-lift px-4 py-2 rounded-full text-sm font-bold" style={chip(view === v)}>
             {v === "list" ? "Lista" : `Mapa de entregas${mapOrders.length ? ` (${mapOrders.length})` : ""}`}
           </button>
         ))}
@@ -369,7 +369,7 @@ function OrdersBoard({ isLight, card }: { isLight: boolean; card: React.CSSPrope
                 const late = col.key !== "ready" && mins >= 30 ? "#ef4444" : col.key !== "ready" && mins >= 15 ? "#f59e0b" : null;
                 const ids = its.map(i => i.id);
                 return (
-                  <div key={saleId} className="rounded-2xl p-4 space-y-3" style={{ ...card, ...(late ? { border: `2px solid ${late}` } : {}) }}>
+                  <div key={saleId} className="rounded-[24px] p-4 space-y-3" style={{ ...card, ...(late ? { border: `2px solid ${late}` } : {}) }}>
                     <div className="flex items-start gap-2">
                       <span className="mt-0.5" style={{ color: "#315DFB" }}>
                         {o.kind === "table" ? <UtensilsCrossed className="w-4 h-4" /> : o.kind === "delivery" ? <Bike className="w-4 h-4" /> : <Store className="w-4 h-4" />}
@@ -397,27 +397,27 @@ function OrdersBoard({ isLight, card }: { isLight: boolean; card: React.CSSPrope
                     )}
                     <div className="flex flex-wrap gap-2">
                       {col.key === "new" && (
-                        <button onClick={() => setState(ids, "preparing")} className="flex-1 h-10 rounded-xl text-sm font-semibold shadow-sm" style={{ color: "#fff", background: "#315DFB" }}>Iniciar preparo</button>
+                        <button onClick={() => setState(ids, "preparing")} className="flex-1 h-10 rounded-full text-sm font-semibold neu-lift" style={{ color: "#fff", background: "linear-gradient(135deg,#7b86f5,#4f5bd5)" }}>Iniciar preparo</button>
                       )}
                       {col.key !== "ready" && (
-                        <button onClick={() => setState(ids, "ready")} className="flex-1 h-10 rounded-xl text-sm font-semibold shadow-sm" style={{ color: "#fff", background: "#10b981" }}>Pronto</button>
+                        <button onClick={() => setState(ids, "ready")} className="flex-1 h-10 rounded-full text-sm font-semibold neu-lift" style={{ color: "#fff", background: "linear-gradient(135deg,#4ade80,#12b76a)" }}>Pronto</button>
                       )}
                       {col.key === "ready" && (o.kind === "table" ? (
-                        <button onClick={() => dispatch(saleId, ids, "table")} className="flex-1 h-10 rounded-xl text-sm font-semibold shadow-sm" style={{ color: "#fff", background: "#10b981" }}>Entregue na mesa</button>
+                        <button onClick={() => dispatch(saleId, ids, "table")} className="flex-1 h-10 rounded-full text-sm font-semibold neu-lift" style={{ color: "#fff", background: "linear-gradient(135deg,#4ade80,#12b76a)" }}>Entregue na mesa</button>
                       ) : (
                         <>
-                          <button onClick={() => dispatch(saleId, ids, "counter")} className="flex-1 h-10 rounded-xl text-sm font-semibold shadow-sm" style={{ color: "#fff", background: "#10b981" }}>Balcão</button>
+                          <button onClick={() => dispatch(saleId, ids, "counter")} className="flex-1 h-10 rounded-full text-sm font-semibold neu-lift" style={{ color: "#fff", background: "linear-gradient(135deg,#4ade80,#12b76a)" }}>Balcão</button>
                           <button onClick={() => setCourierPick(courierPick === saleId ? null : saleId)}
                             className="flex-1 h-10 rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5"
                             style={courierPick === saleId
-                              ? { background: "#315DFB", color: "#fff" }
+                              ? { background: "linear-gradient(135deg,#7b86f5,#4f5bd5)", color: "#fff" }
                               : { ...card, color: isLight ? "#111827" : "#f4f4f5" }}>
                             <Bike className="w-4 h-4" /> Motoboy
                           </button>
                         </>
                       ))}
                       <button onClick={() => reprint(saleId, its)} title="Imprimir de novo"
-                        className={`h-10 w-10 rounded-xl flex items-center justify-center ${muted}`} style={card}><Printer className="w-4 h-4" /></button>
+                        className={`neu-lift h-10 w-10 rounded-full flex items-center justify-center ${muted}`} style={card}><Printer className="w-4 h-4" /></button>
                     </div>
                     {/* Escolha do motoboy: nomes em botões grandes e legíveis */}
                     {courierPick === saleId && (
@@ -600,13 +600,13 @@ function CouriersTab({ isLight, card }: { isLight: boolean; card: React.CSSPrope
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-      <div className="rounded-2xl p-5 space-y-3" style={card}>
+      <div className="rounded-[26px] p-5 space-y-3" style={card}>
         <h3 className="text-sm font-black flex items-center gap-2"><Bike className="w-4 h-4" style={{ color: "#315DFB" }} /> Motoboys</h3>
         <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] gap-2">
           <input value={name} onChange={e => setName(e.target.value)} placeholder="Nome" autoComplete="off" className={inputCls} />
           <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="Telefone" autoComplete="off" className={inputCls + " sm:w-36"} />
           <input value={fee} onChange={e => setFee(e.target.value)} placeholder="R$ por entrega" inputMode="decimal" autoComplete="off" className={inputCls + " sm:w-32"} />
-          <button onClick={add} disabled={busy} className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold disabled:opacity-40" style={{ background: "#315DFB", color: "#fff" }}>
+          <button onClick={add} disabled={busy} className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold disabled:opacity-40" style={{ background: "linear-gradient(135deg,#7b86f5,#4f5bd5)", color: "#fff" }}>
             <Plus className="w-4 h-4" /> Adicionar
           </button>
         </div>
@@ -629,14 +629,14 @@ function CouriersTab({ isLight, card }: { isLight: boolean; card: React.CSSPrope
         </div>
       </div>
 
-      <div className="rounded-2xl p-5 space-y-3" style={card}>
+      <div className="rounded-[26px] p-5 space-y-3" style={card}>
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-sm font-black flex-1">Acerto</h3>
           <div className="flex gap-1">
             {([["current", "Caixa atual"], ["day", "Histórico por data"]] as const).map(([k, l]) => (
               <button key={k} onClick={() => setMode(k)}
                 className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold"
-                style={mode === k ? { background: "#315DFB", color: "#fff" } : { border, color: isLight ? "#374151" : "#d4d4d8" }}>{l}</button>
+                style={mode === k ? { background: "linear-gradient(135deg,#7b86f5,#4f5bd5)", color: "#fff" } : { border, color: isLight ? "#374151" : "#d4d4d8" }}>{l}</button>
             ))}
           </div>
           {mode === "day" && (
@@ -666,7 +666,7 @@ function CouriersTab({ isLight, card }: { isLight: boolean; card: React.CSSPrope
             </div>
             {canPay && pendingIds.length > 0 && (
               <button onClick={() => openPay(c, pendingIds)}
-                className="w-full h-9 rounded-xl text-sm font-bold" style={{ color: "#fff", background: "#10b981" }}>
+                className="w-full h-9 rounded-xl text-sm font-bold" style={{ color: "#fff", background: "linear-gradient(135deg,#4ade80,#12b76a)" }}>
                 Pagar {fmt(toPay)} ({pendingIds.length} entrega{pendingIds.length === 1 ? "" : "s"})
               </button>
             )}
@@ -680,7 +680,7 @@ function CouriersTab({ isLight, card }: { isLight: boolean; card: React.CSSPrope
             {oldByCourier.map(({ c, pendingIds, toPay }) => (
               <div key={c.id} className="flex items-center gap-2">
                 <p className="text-sm font-semibold flex-1">{c.name} · {pendingIds.length} entrega{pendingIds.length === 1 ? "" : "s"}</p>
-                <button onClick={() => openPay(c, pendingIds)} className="px-3 h-8 rounded-lg text-xs font-bold" style={{ color: "#fff", background: "#f59e0b" }}>
+                <button onClick={() => openPay(c, pendingIds)} className="px-3 h-8 rounded-lg text-xs font-bold" style={{ color: "#fff", background: "linear-gradient(135deg,#fdba74,#f97316)" }}>
                   Pagar {fmt(toPay)}
                 </button>
               </div>
@@ -749,7 +749,7 @@ function CouriersTab({ isLight, card }: { isLight: boolean; card: React.CSSPrope
               <div className="grid grid-cols-2 gap-2">
                 {PAY_METHODS.map(m => (
                   <button key={m.key} onClick={() => setPayMethod(m.key)} className="h-11 rounded-xl text-xs font-bold px-2"
-                    style={payMethod === m.key ? { background: "#315DFB", color: "#fff" } : { border, color: isLight ? "#374151" : "#d4d4d8" }}>
+                    style={payMethod === m.key ? { background: "linear-gradient(135deg,#7b86f5,#4f5bd5)", color: "#fff" } : { border, color: isLight ? "#374151" : "#d4d4d8" }}>
                     {m.label}
                   </button>
                 ))}
@@ -757,7 +757,7 @@ function CouriersTab({ isLight, card }: { isLight: boolean; card: React.CSSPrope
               <p className={`text-[11px] ${muted}`}>Fica lançado como saída no caixa aberto, com a forma de pagamento escolhida.</p>
             </div>
             <div className="flex gap-2">
-              <button onClick={confirmPay} disabled={busy} className="flex-1 h-11 rounded-xl text-sm font-bold disabled:opacity-40" style={{ color: "#fff", background: "#10b981" }}>
+              <button onClick={confirmPay} disabled={busy} className="flex-1 h-11 rounded-xl text-sm font-bold disabled:opacity-40" style={{ color: "#fff", background: "linear-gradient(135deg,#4ade80,#12b76a)" }}>
                 {busy ? "Pagando..." : "Confirmar pagamento"}
               </button>
               <button onClick={() => setPayFor(null)} className={`px-4 rounded-xl text-sm ${muted}`}>Cancelar</button>
@@ -825,7 +825,7 @@ function SectorsTab({ isLight, card }: { isLight: boolean; card: React.CSSProper
         return (
           <button key={s ?? "none"} onClick={() => onPick(s)}
             className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold"
-            style={on ? { background: "#315DFB", color: "#fff" } : { border: isLight ? "1px solid #e5e7eb" : "1px solid #3f3f46", color: isLight ? "#374151" : "#d4d4d8" }}>
+            style={on ? { background: "linear-gradient(135deg,#7b86f5,#4f5bd5)", color: "#fff" } : { border: isLight ? "1px solid #e5e7eb" : "1px solid #3f3f46", color: isLight ? "#374151" : "#d4d4d8" }}>
             {s ? SECTOR_LABEL[s] : "Nenhum"}
           </button>
         );
@@ -834,14 +834,14 @@ function SectorsTab({ isLight, card }: { isLight: boolean; card: React.CSSProper
   );
 
   return (
-    <div className="rounded-2xl p-5 space-y-3 max-w-2xl" style={card}>
+    <div className="rounded-[26px] p-5 space-y-3 max-w-2xl" style={card}>
       <h3 className="text-sm font-black">Para onde vai cada categoria</h3>
       <p className={`text-xs ${muted}`}>
         Ao lançar um produto (Mesas, Vendas ou Cardápio Digital), ele vai para a estação do setor da categoria dele.
         Categorias em "Nenhum" não aparecem na cozinha nem são impressas.
       </p>
       <div className="flex flex-wrap gap-2">
-        <button onClick={async () => { await setSector(cats.map(c => c.id), "kitchen"); await setNoCat("kitchen"); }} className="px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "#315DFB", color: "#fff" }}>
+        <button onClick={async () => { await setSector(cats.map(c => c.id), "kitchen"); await setNoCat("kitchen"); }} className="px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "linear-gradient(135deg,#7b86f5,#4f5bd5)", color: "#fff" }}>
           Tudo para a Cozinha (uma impressora só)
         </button>
         {saved && <span className="text-xs text-emerald-500 font-semibold self-center flex items-center gap-1"><Save className="w-3.5 h-3.5" />{saved}</span>}
