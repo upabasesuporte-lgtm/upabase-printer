@@ -4,7 +4,7 @@ import { requireApproval, useOperators, operatorsEnabled, operatorCanApprove } f
 import { fetchAll } from "../../lib/fetchAll";
 import { useTheme } from "../../contexts/ThemeContext";
 import { PageHeader, btnSecondary, segWrap, segBtn, WHITE_TEXT } from "../../components/PageHeader";
-import { StatCard, toneFor } from "../../components/StatCard";
+import { NeuStatCard, Tile, type SkinTone } from "../../components/Neu";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import {
   Wallet, ArrowDownCircle, ArrowUpCircle, Lock, Unlock,
@@ -13,6 +13,7 @@ import {
   TrendingUp, TrendingDown, ShoppingBag, Utensils, Monitor,
   History, BookOpen, ChevronDown, Package, Eye,
   RotateCcw,
+  Receipt,
 } from "lucide-react";
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
@@ -90,11 +91,11 @@ function Modal({ title, onClose, children, wide }: {
   useEscapeKey(onClose);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className={`w-full ${wide ? "max-w-lg" : "max-w-md"} bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto`}>
-        <div className="flex items-center justify-between p-5 border-b border-zinc-800 sticky top-0 bg-zinc-900 z-10">
-          <h3 className="font-semibold text-base">{title}</h3>
-          <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors">
-            <X className="w-5 h-5" />
+      <div className={`w-full ${wide ? "max-w-lg" : "max-w-md"} neu rounded-[28px] max-h-[90vh] overflow-y-auto`}>
+        <div className="flex items-center justify-between px-5 py-4 sticky top-0 z-10" style={{ background: "#f1f3f7", borderBottom: "1px solid #fff" }}>
+          <h3 className="font-black text-base text-[#1e2235]">{title}</h3>
+          <button onClick={onClose} className="neu-sm w-8 h-8 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-800 transition-colors">
+            <X className="w-4 h-4" />
           </button>
         </div>
         <div className="p-5">{children}</div>
@@ -110,7 +111,7 @@ function AmountInput({ value, onChange, label, placeholder = "0,00" }: {
 }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-zinc-400 mb-1.5">{label}</label>
+      <label className="block text-xs font-semibold text-gray-500 mb-1.5">{label}</label>
       <div className="relative">
         <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 text-sm font-medium">R$</span>
         <input
@@ -119,7 +120,7 @@ function AmountInput({ value, onChange, label, placeholder = "0,00" }: {
           placeholder={placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full pl-9 pr-3.5 py-2.5 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all"
+          className="w-full pl-9 pr-3.5 py-2.5 rounded-2xl neu-in border-0 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#7b86f5]/40 transition-all"
         />
       </div>
     </div>
@@ -245,8 +246,10 @@ export default function CashPage() {
         .reduce((s: number, p: any) => s + Number(p.amount ?? 0), 0);
       amount += fiadoPaidByMethod;
     }
-    return { method, amount, pct: salesTotal > 0 ? (amount / salesTotal) * 100 : 0 };
+    return { method, amount, pct: 0 };
   }).filter(p => p.amount > 0);
+  const payBreakTotal = paymentBreakdown.reduce((s, p) => s + p.amount, 0);
+  for (const p of paymentBreakdown) p.pct = payBreakTotal > 0 ? (p.amount / payBreakTotal) * 100 : 0;
 
   // Breakdown por canal — iFood mostra valor bruto (recibo)
   const channelBreakdown = (Object.keys(CHANNEL_INFO) as SaleChannel[]).map(channel => {
@@ -522,12 +525,11 @@ export default function CashPage() {
 
           {subTab === "current" && (
             <div className="flex items-center justify-center min-h-[400px] p-6">
-              <div className="w-full max-w-sm text-center">
-                <div className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-zinc-800"
-                  style={{background:"linear-gradient(135deg,rgba(16,185,129,0.1),rgba(16,185,129,0.05))",boxShadow:"0 0 30px rgba(16,185,129,0.15)"}}>
-                  <Lock className="w-9 h-9" style={{color:"#10b981"}} />
+              <div className="neu rounded-[30px] w-full max-w-sm text-center p-8">
+                <div className="neu-btn w-24 h-24 rounded-[30px] flex items-center justify-center mx-auto mb-6">
+                  <Lock className="w-10 h-10" style={{ color: "#12b76a" }} />
                 </div>
-                <h2 className="text-2xl font-bold mb-2 text-gray-900">
+                <h2 className="text-2xl font-black mb-2 text-[#1e2235]">
                   Caixa Fechado
                 </h2>
                 <p className="text-zinc-500 text-sm mb-8 leading-relaxed">
@@ -536,8 +538,8 @@ export default function CashPage() {
                 </p>
                 <button
                   onClick={() => setShowOpen(true)}
-                  className="w-full font-bold py-3 rounded-xl transition-all"
-                  style={{background:"linear-gradient(135deg,#059669,#10b981)",color:"#fff",boxShadow:"0 0 20px rgba(16,185,129,0.4)"}}
+                  className="neu-lift w-full font-bold py-3 rounded-full"
+                  style={{ background: "linear-gradient(135deg,#4ade80,#12b76a)", color: "#fff", boxShadow: "0 10px 22px -8px rgba(18,183,106,.6)" }}
                 >
                   <Unlock className="w-4 h-4 inline mr-2" />
                   Abrir Caixa
@@ -582,7 +584,7 @@ export default function CashPage() {
             <RefreshCw className="w-4 h-4" />
           </button>
           <button onClick={() => { setShowClose(true); setClosingOperator(""); setCountedAmount(""); setError(null); }}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold bg-red-600 hover:bg-red-700 transition-colors" style={WHITE_TEXT}>
+            className="neu-lift inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold" style={{ ...WHITE_TEXT, background: "linear-gradient(135deg,#f2545b,#c81e3a)", boxShadow: "0 6px 14px -6px rgba(200,30,58,.6)" }}>
             <Lock className="w-4 h-4" />
             Fechar Caixa
           </button>
@@ -591,33 +593,31 @@ export default function CashPage() {
       {subTab === "current" && (
         <>
           {/* ── Cards de resumo ── */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 sm:gap-5 p-1">
             <SummaryCard label="Líquido do Turno" value={fmt(netShift)}
               sub={`Vendas ${fmt(salesTotal)} − saídas ${fmt(totalSangria)}`}
-              icon={<TrendingUp className="w-5 h-5" />} iconBg="bg-emerald-500/15" iconColor="text-emerald-400" accent color={netShift >= 0 ? "#10b981" : "#ef4444"} />
+              icon={TrendingUp} tone={netShift >= 0 ? "green" : "red"} />
             <SummaryCard label="Total de Vendas" value={fmt(salesTotal)}
               sub={`${sales.length} venda${sales.length !== 1 ? "s" : ""}`}
-              icon={<TrendingUp className="w-5 h-5" />} iconBg="bg-emerald-500/15" iconColor="text-emerald-400" accent color="#10b981" />
+              icon={Receipt} tone="sky" />
             <SummaryCard label="Saldo em Dinheiro" value={blind ? "Oculto" : fmt(currentBalance)}
               sub={blind ? "Fechamento cego ativado" : `Fundo inicial: ${fmt(register.opening_amount)}`}
-              icon={<Wallet className="w-5 h-5" />} iconBg="bg-brand-500/15" iconColor="text-brand-600" color="#315DFB" />
+              icon={Wallet} tone="violet" />
             <SummaryCard label="Sangrias" value={fmt(totalSangria)}
               sub={otherSangria > 0 ? `Dinheiro: ${fmt(cashSangria)} · PIX/cartão: ${fmt(otherSangria)}` : "Retiradas do caixa"}
-              icon={<TrendingDown className="w-5 h-5" />} iconBg="bg-red-500/15" iconColor="text-red-400" color="#ef4444" />
+              icon={TrendingDown} tone="amber" />
             <SummaryCard label="Aportes" value={fmt(totalAporte)} sub="Entradas extras"
-              icon={<ArrowUpCircle className="w-5 h-5" />} iconBg="bg-blue-500/15" iconColor="text-blue-400" color="#3b82f6" />
+              icon={ArrowUpCircle} tone="emerald" />
           </div>
 
           {/* ── Ações rápidas ── */}
           <div className="flex gap-3 flex-wrap">
             <button onClick={() => { setShowSangria(true); setError(null); setMovAmount(""); setMovDescription(""); }}
-              style={{ background: card.bg, border: card.border }}
-              className="flex items-center gap-2 hover:bg-red-500/10 hover:border-red-500/40 text-sm font-medium px-4 py-2.5 rounded-xl transition-all text-red-400">
+              className="neu-sm neu-lift flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-full text-[#e0484f]">
               <ArrowDownCircle className="w-4 h-4" /> Sangria
             </button>
             <button onClick={() => { setShowAporte(true); setError(null); setMovAmount(""); setMovDescription(""); }}
-              style={{ background: card.bg, border: card.border }}
-              className="flex items-center gap-2 hover:bg-blue-500/10 hover:border-blue-500/40 text-sm font-medium px-4 py-2.5 rounded-xl transition-all text-blue-400">
+              className="neu-sm neu-lift flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-full text-[#4f5bd5]">
               <ArrowUpCircle className="w-4 h-4" /> Aporte
             </button>
           </div>
@@ -625,11 +625,10 @@ export default function CashPage() {
           {/* ── Painéis de breakdown ── */}
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             {/* Vendas por canal */}
-            <div className="relative overflow-hidden rounded-2xl p-5"
-              style={{ background: card.bg, border: card.border, boxShadow: isLight ? card.shadow : "0 0 24px rgba(139,92,246,0.08)" }}>
-              <div className="flex items-center gap-2 mb-5">
-                <BarChart2 className="w-4 h-4 text-zinc-400" />
-                <h3 className="text-sm font-semibold">Vendas por Canal</h3>
+            <div className="neu rounded-[26px] p-5">
+              <div className="flex items-center gap-2.5 mb-5">
+                <Tile tone="sky" icon={BarChart2} size="sm" />
+                <h3 className="text-base font-black text-[#1e2235]">Vendas por Canal</h3>
               </div>
               {totalSales === 0 ? (
                 <p className="text-xs text-zinc-500 text-center py-6">Nenhuma venda registrada ainda.</p>
@@ -648,7 +647,7 @@ export default function CashPage() {
                             <span className="text-xs text-zinc-400">{fmt(amount)}</span>
                           </div>
                         </div>
-                        <div className="h-2 rounded-full overflow-hidden" style={{ background: isLight ? "#EBEBEB" : "rgba(39,39,42,0.8)" }}>
+                        <div className="h-3 p-[3px] rounded-full overflow-hidden neu-in">
                           <div className={`h-full rounded-full transition-all duration-700 ${info.bar}`} style={{ width: `${pct}%` }} />
                         </div>
                       </div>
@@ -659,11 +658,10 @@ export default function CashPage() {
             </div>
 
             {/* Formas de pagamento */}
-            <div className="relative overflow-hidden rounded-2xl p-5"
-              style={{ background: card.bg, border: card.border, boxShadow: isLight ? card.shadow : "0 0 24px rgba(59,130,246,0.08)" }}>
-              <div className="flex items-center gap-2 mb-5">
-                <CreditCard className="w-4 h-4 text-zinc-400" />
-                <h3 className="text-sm font-semibold">Formas de Pagamento</h3>
+            <div className="neu rounded-[26px] p-5">
+              <div className="flex items-center gap-2.5 mb-5">
+                <Tile tone="violet" icon={CreditCard} size="sm" />
+                <h3 className="text-base font-black text-[#1e2235]">Formas de Pagamento</h3>
               </div>
               {paymentBreakdown.length === 0 ? (
                 <p className="text-xs text-zinc-500 text-center py-6">Nenhuma venda registrada ainda.</p>
@@ -679,7 +677,7 @@ export default function CashPage() {
                             <span className="text-sm text-zinc-300">{info.label}</span>
                             <span className="text-xs text-zinc-400">{fmt(amount)}</span>
                           </div>
-                          <div className="h-1.5 rounded-full overflow-hidden" style={{ background: isLight ? "#EBEBEB" : "rgba(39,39,42,0.8)" }}>
+                          <div className="h-2.5 p-[2px] rounded-full overflow-hidden neu-in">
                             <div className={`h-full rounded-full transition-all duration-700 ${info.bar}`} style={{ width: `${pct}%` }} />
                           </div>
                         </div>
@@ -693,12 +691,11 @@ export default function CashPage() {
           </div>
 
           {/* ── Histórico de movimentos ── */}
-          <div className="relative overflow-hidden rounded-2xl"
-            style={{ background: card.bg, border: card.border, boxShadow: isLight ? card.shadow : "0 0 24px rgba(113,113,122,0.08)" }}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-zinc-400" />
-                <h3 className="text-sm font-semibold">Movimentos do Caixa</h3>
+          <div className="neu rounded-[26px] overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid #fff" }}>
+              <div className="flex items-center gap-2.5">
+                <Tile tone="emerald" icon={Clock} size="sm" />
+                <h3 className="text-base font-black text-[#1e2235]">Movimentos do Caixa</h3>
               </div>
               <span className="text-xs text-zinc-500">{movements.length} registro{movements.length !== 1 ? "s" : ""}</span>
             </div>
@@ -749,7 +746,7 @@ export default function CashPage() {
                               </div>
                             ) : <span style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>—</span>}
                           </td>
-                          <td className={`px-5 py-3.5 text-right font-semibold whitespace-nowrap ${isOut ? "text-red-400" : "text-emerald-400"}`}>
+                          <td className={`px-5 py-3.5 text-right font-bold whitespace-nowrap ${isOut ? "text-[#e0484f]" : "text-[#0e9f5c]"}`}>
                             {isOut ? "–" : "+"} {fmt(m.amount)}
                           </td>
                         </tr>
@@ -778,19 +775,19 @@ export default function CashPage() {
                 <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" /> {error}
               </div>
             )}
-            <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 flex items-center justify-between text-sm">
+            <div className="neu-in rounded-2xl p-3.5 flex items-center justify-between text-sm">
               <span className="text-zinc-400">Saldo disponível</span>
               <span className="font-bold text-emerald-400">{fmt(currentBalance)}</span>
             </div>
             <AmountInput label="Valor a retirar" value={movAmount} onChange={setMovAmount} />
             <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1.5">Motivo</label>
+              <label className="block text-xs font-semibold text-gray-500 mb-1.5">Motivo</label>
               <input placeholder="Ex: Pagamento de fornecedor" value={movDescription}
                 onChange={(e) => setMovDescription(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all" />
+                className="w-full px-3.5 py-2.5 rounded-2xl neu-in border-0 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#7b86f5]/40 transition-all" />
             </div>
             <button onClick={handleSangria} disabled={actionLoading}
-              className="w-full bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg transition-colors">
+              className="w-full font-semibold py-2.5 rounded-full neu-lift disabled:opacity-50" style={{ background: "linear-gradient(135deg,#ff8a65,#f2545b)", color: "#fff", boxShadow: "0 8px 18px -8px rgba(242,84,91,.6)" }}>
               {actionLoading ? "Processando..." : "Confirmar Sangria"}
             </button>
           </div>
@@ -808,13 +805,13 @@ export default function CashPage() {
             )}
             <AmountInput label="Valor a adicionar" value={movAmount} onChange={setMovAmount} />
             <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1.5">Motivo</label>
+              <label className="block text-xs font-semibold text-gray-500 mb-1.5">Motivo</label>
               <input placeholder="Ex: Troco adicional" value={movDescription}
                 onChange={(e) => setMovDescription(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all" />
+                className="w-full px-3.5 py-2.5 rounded-2xl neu-in border-0 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#7b86f5]/40 transition-all" />
             </div>
             <button onClick={handleAporte} disabled={actionLoading}
-              className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg transition-colors">
+              className="w-full font-semibold py-2.5 rounded-full neu-lift disabled:opacity-50" style={{ background: "linear-gradient(135deg,#7b86f5,#4f5bd5)", color: "#fff", boxShadow: "0 8px 18px -8px rgba(79,91,213,.6)" }}>
               {actionLoading ? "Processando..." : "Confirmar Aporte"}
             </button>
           </div>
@@ -827,14 +824,14 @@ export default function CashPage() {
           <div className="space-y-4">
 
             {blind && (
-              <div className="bg-brand-500/10 border border-brand-500/20 rounded-xl p-4 text-sm">
+              <div className="neu-in rounded-[22px] p-4 text-sm">
                 <p className="font-semibold">Fechamento cego</p>
                 <p className="text-xs text-zinc-500 mt-1">Conte o dinheiro da gaveta e digite abaixo. O valor esperado e a diferença aparecem depois de fechar.</p>
               </div>
             )}
 
             {/* Resumo financeiro */}
-            {!blind && <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-2.5 text-sm">
+            {!blind && <div className="neu-in rounded-[22px] p-4 space-y-2.5 text-sm">
               <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest mb-3">Resumo do Caixa</p>
               <Row label="Fundo Inicial" value={fmt(register.opening_amount)} />
               <Row label="Total de Vendas" value={fmt(salesTotal)} positive />
@@ -847,14 +844,14 @@ export default function CashPage() {
                 <span className={`text-base font-bold ${netShift >= 0 ? "text-emerald-400" : "text-red-400"}`}>{fmt(netShift)}</span>
               </div>
               <div className="pt-2 border-t border-zinc-800 flex items-center justify-between">
-                <span className="font-semibold text-white">Saldo Esperado em Dinheiro</span>
-                <span className="text-lg font-bold text-emerald-400">{fmt(currentBalance)}</span>
+                <span className="font-bold text-[#1e2235]">Saldo Esperado em Dinheiro</span>
+                <span className="text-lg font-black text-[#0e9f5c]">{fmt(currentBalance)}</span>
               </div>
             </div>}
 
             {/* Vendas por forma de pagamento */}
             {!blind && paymentBreakdown.length > 0 && (
-              <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+              <div className="neu-in rounded-[22px] p-4">
                 <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-widest mb-3">Vendas por Forma de Pagamento</p>
                 <div className="space-y-1.5">
                   {paymentBreakdown.map(({ method, amount }) => {
@@ -872,10 +869,10 @@ export default function CashPage() {
 
             {/* Operador que fecha */}
             <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1.5">Operador que está fechando (opcional)</label>
+              <label className="block text-xs font-semibold text-gray-500 mb-1.5">Operador que está fechando (opcional)</label>
               <input placeholder="Nome do operador" value={closingOperator}
                 onChange={(e) => setClosingOperator(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all" />
+                className="w-full px-3.5 py-2.5 rounded-2xl neu-in border-0 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#7b86f5]/40 transition-all" />
             </div>
 
             {/* Valor contado */}
@@ -895,18 +892,18 @@ export default function CashPage() {
               <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-xs text-red-400">{error}</div>
             )}
 
-            <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 flex gap-2 text-xs text-amber-300">
+            <div className="neu-in rounded-2xl p-3 flex gap-2 text-xs text-[#e0484f]">
               <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
               Esta ação é irreversível. O caixa será fechado e um novo deverá ser aberto para continuar vendendo.
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <button onClick={() => setShowClose(false)}
-                className="py-2.5 rounded-lg border border-zinc-700 text-sm font-medium hover:bg-zinc-800 transition-colors">
+                className="neu-sm neu-lift py-2.5 rounded-full text-sm font-semibold text-gray-700">
                 Cancelar
               </button>
               <button onClick={handleCloseRegister} disabled={actionLoading}
-                className="py-2.5 rounded-lg bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white text-sm font-semibold transition-colors">
+                className="text-sm font-semibold py-2.5 rounded-full neu-lift disabled:opacity-50" style={{ background: "linear-gradient(135deg,#f2545b,#c81e3a)", color: "#fff", boxShadow: "0 8px 18px -8px rgba(200,30,58,.6)" }}>
                 {actionLoading ? "Fechando..." : "Confirmar Fechamento"}
               </button>
             </div>
@@ -1047,23 +1044,17 @@ function HistoryTab({
 
         return (
           <div key={reg.id}
-            className="rounded-2xl overflow-hidden transition-all"
-            style={{ background: card.bg, boxShadow: card.shadow, border: `1px solid ${isOpen ? "rgba(16,185,129,0.3)" : isExpanded ? "rgba(123,47,190,0.3)" : (isLight ? "#e5e7eb" : "#27272a")}` }}>
+            className="neu rounded-[26px] overflow-hidden">
 
             {/* Cabeçalho do registro */}
             <div className="p-5">
               <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={isOpen
-                      ? { background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.3)" }
-                      : { background: "rgba(123,47,190,0.1)", border: "1px solid rgba(123,47,190,0.25)" }}>
-                    {isOpen ? <Unlock className="w-4 h-4 text-emerald-400" /> : <Lock className="w-4 h-4" style={{ color: "#7B2FBE" }} />}
-                  </div>
+                  <Tile tone={isOpen ? "green" : "violet"} icon={isOpen ? Unlock : Lock} />
                   <div>
                     <div className="flex items-center gap-2 mb-0.5">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isOpen ? "bg-emerald-500/15 text-emerald-400" : ""}`}
-                        style={!isOpen ? { background: "rgba(123,47,190,0.12)", color: "#7B2FBE" } : {}}>
+                      <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full"
+                        style={{ background: isOpen ? "linear-gradient(135deg,#4ade80,#12b76a)" : "linear-gradient(135deg,#b197fc,#7950f2)", color: "#fff" }}>
                         {isOpen ? "EM ABERTO" : "FECHADO"}
                       </span>
                       <span className="text-[10px] text-zinc-500">Duração: {durationStr}</span>
@@ -1082,13 +1073,13 @@ function HistoryTab({
                   </div>
                   <div>
                     <p className="text-[10px] text-zinc-500 mb-0.5">Total Vendido</p>
-                    <p className="text-sm font-black" style={{ color: "#7B2FBE" }}>{fmtCur(totalVendido)}</p>
+                    <p className="text-sm font-black" style={{ color: "#3f4ab8" }}>{fmtCur(totalVendido)}</p>
                     <p className="text-[10px] text-zinc-500">{numVendas} venda{numVendas !== 1 ? "s" : ""}</p>
                   </div>
                   {reg.closing_amount !== null && (
                     <div>
                       <p className="text-[10px] text-zinc-500 mb-0.5">Saldo Caixa</p>
-                      <p className="text-sm font-bold text-emerald-400">{fmtCur(reg.closing_amount)}</p>
+                      <p className="text-sm font-bold text-[#0e9f5c]">{fmtCur(reg.closing_amount)}</p>
                       <p className="text-[10px] text-zinc-500">dinheiro</p>
                     </div>
                   )}
@@ -1096,7 +1087,7 @@ function HistoryTab({
               </div>
 
               {/* Linha de detalhe rápido */}
-              <div className="mt-3 pt-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs" style={{ borderTop: `1px solid ${isLight ? "#f3f4f6" : "#27272a"}` }}>
+              <div className="mt-3 p-3 neu-in rounded-2xl grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                 <div>
                   <p className="text-zinc-500 mb-0.5">Aberto por</p>
                   <p className="font-medium" style={{ color: isLight ? "#3f3f46" : "#d4d4d8" }}>{reg.operator_name || "—"}</p>
@@ -1123,8 +1114,7 @@ function HistoryTab({
               <div className="mt-3 flex gap-2">
                 <button
                   onClick={() => toggleDetail(reg)}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all"
-                  style={{ background: isExpanded ? "rgba(123,47,190,0.1)" : (isLight ? "#f3f4f6" : "rgba(39,39,42,0.5)"), color: isExpanded ? "#7B2FBE" : "#71717a", border: isExpanded ? "1px solid rgba(123,47,190,0.25)" : "1px solid transparent" }}>
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-full text-xs font-semibold transition-all ${isExpanded ? "neu-in text-brand-700" : "neu-sm neu-lift text-gray-600"}`}>
                   {detailLoading === reg.id
                     ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Carregando...</>
                     : <><Eye className="w-3.5 h-3.5" /> {isExpanded ? "Ocultar" : "Ver vendas"} <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isExpanded ? "rotate-180" : ""}`} /></>}
@@ -1133,7 +1123,8 @@ function HistoryTab({
                   <button
                     onClick={() => reopenRegister(reg)}
                     disabled={reopening === reg.id}
-                    className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white"
+                    className="neu-lift flex items-center justify-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold disabled:opacity-50"
+                    style={{ background: "linear-gradient(135deg,#7b86f5,#4f5bd5)", color: "#fff", boxShadow: "0 6px 14px -6px rgba(79,91,213,.6)" }}
                   >
                     {reopening === reg.id
                       ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /></>
@@ -1177,7 +1168,7 @@ function HistoryTab({
                               <span className="text-zinc-400 truncate">{payStr}</span>
                               <span className="text-zinc-600 flex-shrink-0">{chLabel}</span>
                             </div>
-                            <span className="font-bold" style={{ color: "#7B2FBE" }}>{fmtCur(gross)}</span>
+                            <span className="font-bold" style={{ color: "#3f4ab8" }}>{fmtCur(gross)}</span>
                           </div>
                         );
                       })}
@@ -1256,17 +1247,17 @@ function OpenModalContent({ error, initialAmount, setInitialAmount, operatorName
       )}
       <AmountInput label="Valor inicial em caixa (troco)" value={initialAmount} onChange={setInitialAmount} />
       <div>
-        <label className="block text-xs font-medium text-zinc-400 mb-1.5">Operador (opcional)</label>
+        <label className="block text-xs font-semibold text-gray-500 mb-1.5">Operador (opcional)</label>
         <input placeholder="Nome do operador" value={operatorName}
           onChange={(e) => setOperatorName(e.target.value)}
-          className="w-full px-3.5 py-2.5 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all" />
+          className="w-full px-3.5 py-2.5 rounded-2xl neu-in border-0 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#7b86f5]/40 transition-all" />
       </div>
-      <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-xs text-zinc-400 leading-relaxed">
+      <div className="neu-in rounded-2xl p-3.5 text-xs text-gray-500 leading-relaxed">
         <p className="font-medium text-zinc-300 mb-1">Abertura em:</p>
         <p>{new Date().toLocaleString("pt-BR", { dateStyle: "full", timeStyle: "short" })}</p>
       </div>
       <button onClick={onConfirm} disabled={actionLoading}
-        className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg transition-colors">
+        className="w-full font-semibold py-2.5 rounded-full neu-lift disabled:opacity-50" style={{ background: "linear-gradient(135deg,#4ade80,#12b76a)", color: "#fff", boxShadow: "0 8px 18px -8px rgba(18,183,106,.6)" }}>
         {actionLoading ? "Abrindo..." : "Confirmar Abertura"}
       </button>
     </div>
@@ -1275,12 +1266,11 @@ function OpenModalContent({ error, initialAmount, setInitialAmount, operatorName
 
 // ─── Sub-componentes ──────────────────────────────────────────────────────────
 
-function SummaryCard({ label, value, sub, icon }: {
+function SummaryCard({ label, value, sub, icon, tone }: {
   label: string; value: string; sub: string;
-  icon: React.ReactNode; iconBg: string; iconColor: string; accent?: boolean; color?: string;
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>; tone: SkinTone;
 }) {
-  // Cor do número pela regra única do sistema (verde entra, vermelho sai, azul informativo)
-  return <StatCard label={label} value={value} sub={sub} icon={icon} tone={toneFor(label, value)} />;
+  return <NeuStatCard label={label} value={value} sub={sub} icon={icon} tone={tone} />;
 }
 
 function Row({ label, value, positive, negative }: {
