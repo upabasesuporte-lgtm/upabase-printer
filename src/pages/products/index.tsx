@@ -141,8 +141,8 @@ function Field({ label, children, hint }: { label: string; children: React.React
   );
 }
 
-const inputCls = "w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/10 transition-all";
-const selectCls = "w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white focus:outline-none focus:border-brand-500 transition-all";
+const inputCls = "w-full px-3.5 py-2.5 neu-in border-0 rounded-2xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/10 transition-all";
+const selectCls = "w-full px-3.5 py-2.5 neu-in border-0 rounded-2xl text-sm text-white focus:outline-none focus:border-brand-500 transition-all";
 
 // ─── Modal de categorias ──────────────────────────────────────────────────────
 
@@ -196,7 +196,7 @@ function CategoryModal({ categories, onClose, onRefresh }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className="w-full max-w-lg bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl flex flex-col max-h-[85vh]">
+      <div className="w-full max-w-lg neu rounded-[28px] flex flex-col max-h-[85vh]">
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-zinc-800 flex-shrink-0">
           <div className="flex items-center gap-2">
@@ -229,7 +229,7 @@ function CategoryModal({ categories, onClose, onRefresh }: {
               autoFocus
             />
             <button onClick={save} disabled={loading || !name.trim()}
-              className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 rounded-xl text-sm font-semibold transition-colors whitespace-nowrap"
+              className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[#7b86f5] to-[#4f5bd5] shadow-[0_8px_18px_-8px_rgba(79,91,213,.6)] disabled:opacity-50 rounded-full text-sm font-semibold transition-colors whitespace-nowrap"
               style={{ color: "#fff" }}>
               <Plus className="w-4 h-4" />
               {loading ? "Criando..." : "Criar"}
@@ -246,7 +246,7 @@ function CategoryModal({ categories, onClose, onRefresh }: {
             <div>
               <label className="block text-xs text-zinc-500 mb-1">Cor</label>
               <input type="color" value={color} onChange={e => setColor(e.target.value)}
-                className="w-10 h-10 rounded-lg border border-zinc-800 bg-zinc-950 cursor-pointer p-1" />
+                className="w-10 h-10 rounded-xl neu-in cursor-pointer p-1" />
             </div>
           </div>
         </div>
@@ -267,7 +267,7 @@ function CategoryModal({ categories, onClose, onRefresh }: {
             <div className="space-y-1">
               {roots.map(cat => (
                 <div key={cat.id}>
-                  <div className="flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-zinc-800 group transition-colors">
+                  <div className="flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-white/70 group transition-colors">
                     <div className="flex items-center gap-2.5">
                       <div className="w-3.5 h-3.5 rounded-full flex-shrink-0" style={{ backgroundColor: cat.color ?? "#6d28d9" }} />
                       <span className="text-sm font-semibold text-white">{cat.name}</span>
@@ -281,7 +281,7 @@ function CategoryModal({ categories, onClose, onRefresh }: {
                     </button>
                   </div>
                   {categories.filter(c => c.parent_id === cat.id).map(sub => (
-                    <div key={sub.id} className="flex items-center justify-between py-2 px-3 pl-9 rounded-xl hover:bg-zinc-800 group transition-colors">
+                    <div key={sub.id} className="flex items-center justify-between py-2 px-3 pl-9 rounded-xl hover:bg-white/70 group transition-colors">
                       <div className="flex items-center gap-2">
                         <div className="w-2.5 h-2.5 rounded-full border border-zinc-600 flex-shrink-0" />
                         <span className="text-sm text-zinc-400">{sub.name}</span>
@@ -301,7 +301,7 @@ function CategoryModal({ categories, onClose, onRefresh }: {
         {/* Footer */}
         <div className="px-5 py-3 border-t border-zinc-800 flex-shrink-0">
           <button onClick={onClose}
-            className="w-full py-2.5 border border-zinc-700 hover:border-zinc-600 rounded-xl text-sm font-medium transition-colors">
+            className="w-full py-2.5 neu-sm neu-lift rounded-full text-sm font-semibold">
             Fechar
           </button>
         </div>
@@ -589,7 +589,7 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className="w-full max-w-3xl bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl flex flex-col max-h-[92vh]">
+      <div className="w-full max-w-3xl neu rounded-[28px] flex flex-col max-h-[92vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 flex-shrink-0">
           <h3 className="font-semibold text-base">{isEdit ? "Editar Produto" : "Novo Produto"}</h3>
@@ -597,10 +597,10 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-0.5 px-6 pt-3 border-b border-zinc-800 flex-shrink-0">
+        <div className="flex gap-1 mx-6 mt-3 p-1.5 neu-in rounded-2xl flex-shrink-0 overflow-x-auto">
           {tabs.map(t => (
             <button key={t} onClick={() => setTab(t)}
-              className={`px-3 py-2 text-xs font-medium rounded-t-lg border-b-2 transition-colors ${tab === t ? "border-brand-500 text-brand-600" : "border-transparent text-zinc-500 hover:text-zinc-300"}`}>
+              className={`px-3.5 py-2 text-xs font-semibold rounded-xl whitespace-nowrap transition-all ${tab === t ? "neu-sm text-brand-700" : "border-2 border-transparent text-zinc-500 hover:text-zinc-800"}`}>
               {t}
             </button>
           ))}
@@ -680,7 +680,7 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
                       {/* Preview ou placeholder */}
                       <div
                         onClick={() => fileInputRef.current?.click()}
-                        className="w-24 h-24 rounded-xl border-2 border-dashed border-zinc-700 hover:border-brand-500 bg-zinc-950 flex flex-col items-center justify-center cursor-pointer transition-colors flex-shrink-0 overflow-hidden group"
+                        className="w-24 h-24 rounded-xl border-2 border-dashed border-zinc-700 hover:border-brand-500 neu-in flex flex-col items-center justify-center cursor-pointer transition-colors flex-shrink-0 overflow-hidden group"
                       >
                         {uploading ? (
                           <RefreshCw className="w-5 h-5 text-brand-600 animate-spin" />
@@ -695,7 +695,7 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
                       </div>
                       <div className="flex-1 space-y-2">
                         <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading}
-                          className="flex items-center gap-2 px-4 py-2.5 border border-zinc-700 hover:border-brand-500 hover:text-brand-600 rounded-xl text-sm font-medium transition-colors w-full justify-center disabled:opacity-50">
+                          className="flex items-center gap-2 px-4 py-2.5 neu-sm neu-lift hover:text-brand-600 rounded-full text-sm font-medium transition-colors w-full justify-center disabled:opacity-50">
                           <Upload className="w-4 h-4" />
                           {uploading ? "Enviando..." : form.image_url ? "Trocar foto" : "Selecionar do dispositivo"}
                         </button>
@@ -821,7 +821,7 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
               <p className="text-xs text-zinc-500">Adicione variações como tamanho, cor, sabor. Cada variação pode ter preço extra e estoque próprio.</p>
 
               {/* Adicionar variação */}
-              <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-3">
+              <div className="neu-in border-0 rounded-xl p-4 space-y-3">
                 <p className="text-xs font-medium text-zinc-400">Nova variação</p>
                 <div className="grid grid-cols-[auto_1fr_auto_auto_auto] gap-2 items-end">
                   <Field label="Tipo">
@@ -841,7 +841,7 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
                       placeholder="0,00" className={`${inputCls} w-24`} />
                   </Field>
                   <button type="button" onClick={addVariation} disabled={!newVar.name.trim()}
-                    className="h-10 px-3 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white rounded-xl text-sm font-medium transition-colors self-end">
+                    className="h-10 px-3 bg-gradient-to-r from-[#7b86f5] to-[#4f5bd5] shadow-[0_8px_18px_-8px_rgba(79,91,213,.6)] disabled:opacity-50 text-white rounded-full text-sm font-medium transition-colors self-end">
                     <Plus className="w-4 h-4" />
                   </button>
                 </div>
@@ -857,14 +857,14 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
                     <div key={type}>
                       <p className="text-xs text-zinc-500 font-medium uppercase tracking-wide px-1 mb-1">{type}</p>
                       {vars.map(v => (
-                        <div key={v._idx} className="flex items-center gap-3 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5">
+                        <div key={v._idx} className="flex items-center gap-3 neu-in border-0 rounded-xl px-3 py-2.5">
                           <span className="text-sm font-medium flex-1">{v.name}</span>
                           {v.additional_price > 0 && <span className="text-xs text-emerald-400">+{fmt(v.additional_price)}</span>}
                           <div className="flex items-center gap-1.5 flex-shrink-0">
                             <span className="text-[10px] text-zinc-500 uppercase tracking-wide">Qtd</span>
                             <input type="number" min="0" value={v.stock || ""}
                               onChange={e => setVariations(prev => prev.map((p, i) => i === v._idx ? { ...p, stock: parseInt(e.target.value) || 0 } : p))}
-                              className="w-14 px-2 py-1 bg-zinc-900 border border-zinc-800 rounded-lg text-sm text-white text-center" />
+                              className="w-14 px-2 py-1 neu-in border-0 rounded-lg text-sm text-white text-center" />
                           </div>
                           <Toggle value={v.is_active} onChange={val => setVariations(prev => prev.map((p, i) => i === v._idx ? { ...p, is_active: val } : p))} />
                           <button type="button" onClick={() => removeVariation(v._idx)} className="text-red-400 hover:text-red-300 transition-colors">
@@ -886,7 +886,7 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
             <div className="space-y-4">
               <p className="text-xs text-zinc-500">Escolha os tamanhos e as cores: o sistema cria uma linha para cada combinação, com código de barras próprio (já gerado — pode trocar pelo código da etiqueta de fábrica), preço e quantidade.</p>
 
-              <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-3">
+              <div className="neu-in border-0 rounded-xl p-4 space-y-3">
                 <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Tamanhos</p>
                 <div className="flex flex-wrap gap-1.5">
                   {SIZE_PRESETS.map(pr => (
@@ -900,7 +900,7 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
                   <input value={sizeInput} onChange={e => setSizeInput(e.target.value)} placeholder="Outro tamanho (ex.: 50, XXG)"
                     onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addSizes(splitInput(sizeInput)); setSizeInput(""); } }} className={inputCls} />
                   <button type="button" onClick={() => { addSizes(splitInput(sizeInput)); setSizeInput(""); }} disabled={!sizeInput.trim()}
-                    className="px-3 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 rounded-xl" style={{ color: "#fff" }}><Plus className="w-4 h-4" /></button>
+                    className="px-3 bg-gradient-to-r from-[#7b86f5] to-[#4f5bd5] shadow-[0_8px_18px_-8px_rgba(79,91,213,.6)] disabled:opacity-50 rounded-full" style={{ color: "#fff" }}><Plus className="w-4 h-4" /></button>
                 </div>
                 {sizes.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
@@ -914,13 +914,13 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
                 )}
               </div>
 
-              <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-3">
+              <div className="neu-in border-0 rounded-xl p-4 space-y-3">
                 <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Cores <span className="normal-case font-normal text-zinc-500">(opcional)</span></p>
                 <div className="flex gap-2">
                   <input value={colorInput} onChange={e => setColorInput(e.target.value)} placeholder="Ex.: Preto, Branco, Azul (separe por vírgula)"
                     onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addColors(splitInput(colorInput)); setColorInput(""); } }} className={inputCls} />
                   <button type="button" onClick={() => { addColors(splitInput(colorInput)); setColorInput(""); }} disabled={!colorInput.trim()}
-                    className="px-3 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 rounded-xl" style={{ color: "#fff" }}><Plus className="w-4 h-4" /></button>
+                    className="px-3 bg-gradient-to-r from-[#7b86f5] to-[#4f5bd5] shadow-[0_8px_18px_-8px_rgba(79,91,213,.6)] disabled:opacity-50 rounded-full" style={{ color: "#fff" }}><Plus className="w-4 h-4" /></button>
                 </div>
                 {colors.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
@@ -942,16 +942,16 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
                       className="text-xs font-semibold text-brand-600 hover:text-brand-700">Usar {fmt(form.sale_price)} em todos</button>
                   </div>
                   <div className="border border-zinc-800 rounded-xl overflow-hidden">
-                    <div className="grid grid-cols-[1fr_1.6fr_0.9fr_0.7fr] gap-2 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-zinc-500 bg-zinc-950">
+                    <div className="grid grid-cols-[1fr_1.6fr_0.9fr_0.7fr] gap-2 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-zinc-500 bg-white/50">
                       <span>Tamanho / Cor</span><span>Código de barras</span><span>Preço</span><span>Qtd</span>
                     </div>
                     <div className="max-h-72 overflow-y-auto divide-y divide-zinc-800/60">
                       {rows.map((r, i) => (
                         <div key={variantKey(r.size, r.color)} className="grid grid-cols-[1fr_1.6fr_0.9fr_0.7fr] gap-2 px-3 py-1.5 items-center">
                           <span className="text-sm font-semibold truncate">{[r.size, r.color].filter(Boolean).join(" / ")}</span>
-                          <input value={r.barcode} onChange={e => setRow(i, { barcode: e.target.value.trim() })} className="w-full px-2 py-1.5 bg-zinc-950 border border-zinc-800 rounded-lg text-xs font-mono" />
-                          <input type="number" step="0.01" min="0" value={r.price || ""} onChange={e => setRow(i, { price: parseFloat(e.target.value) || 0 })} className="w-full px-2 py-1.5 bg-zinc-950 border border-zinc-800 rounded-lg text-xs" />
-                          <input type="number" min="0" value={r.stock || ""} placeholder="0" onChange={e => setRow(i, { stock: parseInt(e.target.value) || 0 })} className="w-full px-2 py-1.5 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-center" />
+                          <input value={r.barcode} onChange={e => setRow(i, { barcode: e.target.value.trim() })} className="w-full px-2 py-1.5 neu-in border-0 rounded-lg text-xs font-mono" />
+                          <input type="number" step="0.01" min="0" value={r.price || ""} onChange={e => setRow(i, { price: parseFloat(e.target.value) || 0 })} className="w-full px-2 py-1.5 neu-in border-0 rounded-lg text-xs" />
+                          <input type="number" min="0" value={r.stock || ""} placeholder="0" onChange={e => setRow(i, { stock: parseInt(e.target.value) || 0 })} className="w-full px-2 py-1.5 neu-in border-0 rounded-lg text-xs text-center" />
                         </div>
                       ))}
                     </div>
@@ -1006,7 +1006,7 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
                   { key: "visible_tables" as const, icon: UtensilsCrossed, label: "Mesas", desc: "Disponível para pedidos em mesa pelo garçom", color: "text-emerald-400" },
                   { key: "visible_digital_menu" as const, icon: ShoppingBag, label: "Cardápio Digital", desc: "Visível no cardápio online para clientes", color: "text-blue-400" },
                 ].map(({ key, icon: Icon, label, desc, color }) => (
-                  <div key={key} className="flex items-center justify-between bg-zinc-950 border border-zinc-800 rounded-xl p-4">
+                  <div key={key} className="flex items-center justify-between neu-in border-0 rounded-xl p-4">
                     <div className="flex items-center gap-3">
                       <div className={`w-8 h-8 rounded-lg bg-zinc-900 flex items-center justify-center ${color}`}><Icon className="w-4 h-4" /></div>
                       <div>
@@ -1037,11 +1037,11 @@ export function ProductModal({ product, categories, onClose, onSave, initialName
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-zinc-800 flex-shrink-0">
-          <button onClick={onClose} className="px-4 py-2.5 border border-zinc-700 hover:border-zinc-600 rounded-xl text-sm font-medium transition-colors">
+          <button onClick={onClose} className="px-4 py-2.5 neu-sm neu-lift rounded-full text-sm font-semibold">
             Cancelar
           </button>
           <button onClick={handleSave} disabled={saving}
-            className="px-6 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors shadow-lg shadow-brand-900/10">
+            className="px-6 py-2.5 bg-gradient-to-r from-[#7b86f5] to-[#4f5bd5] shadow-[0_8px_18px_-8px_rgba(79,91,213,.6)] disabled:opacity-50 text-white rounded-full text-sm font-semibold transition-colors shadow-lg shadow-brand-900/10">
             {saving ? "Salvando..." : isEdit ? "Salvar Alterações" : "Criar Produto"}
           </button>
         </div>
@@ -1056,9 +1056,9 @@ export default function ProductsPage() {
   const { theme } = useTheme();
   const isLight = theme === "light";
   const card = isLight ? {
-    bg: "#ffffff",
-    border: "1px solid #e5e7eb",
-    shadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.9)",
+    bg: "linear-gradient(145deg,#e9edf3,#f7f8fb)",
+    border: "3px solid #fbfcfd",
+    shadow: "11px 11px 24px rgba(140,152,176,.5), -10px -10px 22px rgba(255,255,255,1), inset 3px 3px 7px rgba(140,152,176,.22), inset -3px -3px 7px rgba(255,255,255,.95)",
   } : {
     bg: "#18181b",
     border: "1px solid rgba(39,39,42,0.8)",
@@ -1257,36 +1257,36 @@ export default function ProductsPage() {
         <div className="relative flex-1 min-w-48">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
           <input placeholder="Buscar por nome, SKU ou código..." value={search} onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-xl text-sm placeholder-zinc-500 focus:outline-none focus:border-brand-500 transition-colors"
-          style={{ background: card.bg, border: card.border, color: isLight ? "#111" : "#fff" }} />
+            className="w-full pl-9 pr-4 py-2.5 rounded-2xl text-sm placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#7b86f5]/40 transition-colors"
+          style={{ background: isLight ? "#eef1f5" : card.bg, border: isLight ? "0" : card.border, boxShadow: isLight ? "inset 3px 3px 7px rgba(163,177,198,.45), inset -3px -3px 7px rgba(255,255,255,.95)" : undefined, color: isLight ? "#111" : "#fff" }} />
           {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white"><X className="w-4 h-4" /></button>}
         </div>
         <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
-          className="px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-brand-500 transition-colors"
-          style={{ background: card.bg, border: card.border, color: isLight ? "#111" : "#fff" }}>
+          className="px-3.5 py-2.5 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-[#7b86f5]/40 transition-colors"
+          style={{ background: isLight ? "#eef1f5" : card.bg, border: isLight ? "0" : card.border, boxShadow: isLight ? "inset 3px 3px 7px rgba(163,177,198,.45), inset -3px -3px 7px rgba(255,255,255,.95)" : undefined, color: isLight ? "#111" : "#fff" }}>
           <option value="">Todas categorias</option>
           {rootCats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
         <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-          className="px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-brand-500 transition-colors"
-          style={{ background: card.bg, border: card.border, color: isLight ? "#111" : "#fff" }}>
+          className="px-3.5 py-2.5 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-[#7b86f5]/40 transition-colors"
+          style={{ background: isLight ? "#eef1f5" : card.bg, border: isLight ? "0" : card.border, boxShadow: isLight ? "inset 3px 3px 7px rgba(163,177,198,.45), inset -3px -3px 7px rgba(255,255,255,.95)" : undefined, color: isLight ? "#111" : "#fff" }}>
           <option value="">Todos status</option>
           {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         <select value={filterStock} onChange={e => setFilterStock(e.target.value)}
-          className="px-3 py-2 rounded-xl text-sm focus:outline-none focus:border-brand-500 transition-colors"
-          style={{ background: card.bg, border: card.border, color: isLight ? "#111" : "#fff" }}>
+          className="px-3.5 py-2.5 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-[#7b86f5]/40 transition-colors"
+          style={{ background: isLight ? "#eef1f5" : card.bg, border: isLight ? "0" : card.border, boxShadow: isLight ? "inset 3px 3px 7px rgba(163,177,198,.45), inset -3px -3px 7px rgba(255,255,255,.95)" : undefined, color: isLight ? "#111" : "#fff" }}>
           <option value="">Todo estoque</option>
           <option value="empty">Zerado</option>
           <option value="unlimited">Ilimitado</option>
         </select>
-        <button onClick={loadProducts} className="p-2 rounded-xl text-zinc-400 hover:text-white transition-colors" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+        <button onClick={loadProducts} className="neu-sm neu-lift w-10 h-10 rounded-full flex items-center justify-center text-zinc-500 hover:text-zinc-800">
           <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
         </button>
       </div>
 
       {/* Tabela */}
-      <div className="rounded-2xl overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+      <div className="rounded-[26px] overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
         {loading ? (
           <div className="flex justify-center py-16"><RefreshCw className="w-5 h-5 animate-spin text-brand-600" /></div>
         ) : products.length === 0 ? (
@@ -1302,7 +1302,7 @@ export default function ProductsPage() {
             <table className="w-full text-sm border-collapse">
               <thead>
                 <tr className="text-xs uppercase tracking-wider"
-                  style={{ background: isLight ? "#F8FAFC" : "rgba(24,24,27,0.8)", borderBottom: isLight ? "1px solid #e5e7eb" : "1px solid rgba(39,39,42,0.6)" }}>
+                  style={{ background: isLight ? "rgba(255,255,255,.45)" : "rgba(24,24,27,0.8)", borderBottom: isLight ? "1px solid #fff" : "1px solid rgba(39,39,42,0.6)" }}>
                   <th className="text-left px-4 py-3 w-12" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}></th>
                   <th className="text-left px-4 py-3 cursor-pointer transition-colors" style={{ color: isLight ? "#9CA3AF" : "#52525b" }} onClick={() => toggleSort("name")}>
                     <span className="flex items-center gap-1">Produto <SortIcon col="name" /></span>
@@ -1325,17 +1325,17 @@ export default function ProductsPage() {
                   <tr key={p.id} className="transition-colors group"
                     style={{
                       background: isLight
-                        ? (i % 2 === 0 ? "#ffffff" : "#FAFBFC")
+                        ? (i % 2 === 0 ? "transparent" : "rgba(255,255,255,.35)")
                         : "transparent",
-                      borderBottom: isLight ? "1px solid #F3F4F6" : "1px solid rgba(39,39,42,0.3)",
+                      borderBottom: isLight ? "1px solid rgba(255,255,255,.9)" : "1px solid rgba(39,39,42,0.3)",
                     }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLTableRowElement).style.background = isLight ? "#F5F3FF" : "rgba(139,92,246,0.06)"; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLTableRowElement).style.background = isLight ? (i % 2 === 0 ? "#ffffff" : "#FAFBFC") : "transparent"; }}>
+                    onMouseEnter={e => { (e.currentTarget as HTMLTableRowElement).style.background = isLight ? "rgba(238,240,255,.8)" : "rgba(139,92,246,0.06)"; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLTableRowElement).style.background = isLight ? (i % 2 === 0 ? "transparent" : "rgba(255,255,255,.35)") : "transparent"; }}>
                     {/* Imagem */}
                     <td className="px-4 py-3">
                       {p.image_url
                         ? <img src={p.image_url} alt="" className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-md object-cover border border-zinc-700 flex-shrink-0 block" style={{aspectRatio:"1/1"}} onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                        : <div className="w-10 h-10 min-w-[40px] rounded-md bg-zinc-800 flex items-center justify-center flex-shrink-0"><Package className="w-4 h-4 text-zinc-600" /></div>}
+                        : <div className="w-10 h-10 min-w-[40px] rounded-xl neu-in flex items-center justify-center flex-shrink-0"><Package className="w-4 h-4 text-zinc-600" /></div>}
                     </td>
                     {/* Nome */}
                     <td className="px-4 py-3">
@@ -1424,7 +1424,7 @@ export default function ProductsPage() {
             </span>
             <div className="flex items-center gap-1">
               <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
-                className="px-3 py-1.5 text-xs border border-zinc-700 hover:border-zinc-600 disabled:opacity-40 rounded-lg transition-colors">
+                className="neu-sm neu-lift px-3.5 py-1.5 text-xs font-semibold disabled:opacity-40 rounded-full">
                 Anterior
               </button>
               {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
@@ -1432,13 +1432,13 @@ export default function ProductsPage() {
                 if (pg >= totalPages) return null;
                 return (
                   <button key={pg} onClick={() => setPage(pg)}
-                    className={`w-8 h-7 text-xs rounded-lg transition-colors ${pg === page ? "bg-brand-600 text-white" : "border border-zinc-700 hover:border-zinc-600 text-zinc-400"}`}>
+                    className={`w-8 h-7 text-xs rounded-lg transition-colors ${pg === page ? "bg-gradient-to-r from-[#7b86f5] to-[#4f5bd5] shadow-[0_8px_18px_-8px_rgba(79,91,213,.6)] text-white rounded-full" : "neu-sm text-zinc-500 rounded-full"}`}>
                     {pg + 1}
                   </button>
                 );
               })}
               <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}
-                className="px-3 py-1.5 text-xs border border-zinc-700 hover:border-zinc-600 disabled:opacity-40 rounded-lg transition-colors">
+                className="neu-sm neu-lift px-3.5 py-1.5 text-xs font-semibold disabled:opacity-40 rounded-full">
                 Próxima
               </button>
             </div>
