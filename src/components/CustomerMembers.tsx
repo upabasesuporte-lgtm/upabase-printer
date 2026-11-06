@@ -65,7 +65,7 @@ export function PersonChips({ holderName, members, value, onChange, allLabel, is
         const owes = o.v && bal ? bal[o.v] ?? 0 : null;
         return (
           <button key={o.key} type="button" onClick={() => onChange(o.v)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${on ? "bg-brand-600 border-brand-600" : isLight ? "border-gray-300 hover:bg-gray-100" : "border-zinc-700 hover:bg-zinc-800"}`}
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${on ? "bg-brand-600 border-brand-600" : isLight ? "neu-sm hover:text-gray-900" : "border-zinc-700 hover:bg-zinc-800"}`}
             style={on ? { color: "#fff" } : undefined}>
             {o.l}
             {owes != null && owes > 0.009 && <span className="ml-1 font-normal opacity-80">· {fmt(owes)}</span>}
@@ -84,7 +84,7 @@ export function CustomerMembersCard({ customer, card, isLight, members, bal, onC
   members: CustomerMember[]; bal: Record<string, number>; onChanged: () => void;
 }) {
   const box = { background: card.bg, border: card.border, boxShadow: card.shadow };
-  const field = `px-3 py-2 rounded-xl text-sm border ${isLight ? "bg-white border-gray-200" : "bg-zinc-950 border-zinc-800"}`;
+  const field = `px-3 py-2 rounded-xl text-sm border ${isLight ? "neu-in border-transparent" : "bg-zinc-950 border-zinc-800"}`;
   const [adding, setAdding] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -161,7 +161,7 @@ export function CustomerMembersCard({ customer, card, isLight, members, bal, onC
   const dayTxt = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 
   return (
-    <div className="rounded-2xl p-5 space-y-3" style={box}>
+    <div className="rounded-[26px] p-5 space-y-3" style={box}>
       <div className="flex items-center gap-2">
         <Users className="w-4 h-4 text-brand-600" />
         <h2 className="text-sm font-semibold flex-1">Pessoas desta conta</h2>
@@ -181,7 +181,7 @@ export function CustomerMembersCard({ customer, card, isLight, members, bal, onC
             const m = members.find(x => x.id === p);
             const owes = bal[p] ?? 0;
             return (
-              <div key={p} className={`flex items-center gap-2 rounded-xl px-3 py-2 ${isLight ? "bg-gray-50" : "bg-zinc-950"}`}>
+              <div key={p} className={`flex items-center gap-2 rounded-xl px-3 py-2 ${isLight ? "neu-in" : "bg-zinc-950"}`}>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold truncate">{nameOf(p)}</p>
                   {m?.phone && <p className="text-[11px] text-zinc-500">{m.phone}</p>}

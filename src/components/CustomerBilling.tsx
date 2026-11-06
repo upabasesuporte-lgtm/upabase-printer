@@ -31,7 +31,7 @@ const PAY_LABEL: Record<string, string> = { cash: "Dinheiro", pix: "PIX", credit
 
 export function CustomerBilling({ customer, card, isLight }: Props) {
   const box = { background: card.bg, border: card.border, boxShadow: card.shadow };
-  const field = `px-3 py-2 rounded-xl text-sm border ${isLight ? "bg-white border-gray-200" : "bg-zinc-950 border-zinc-800"}`;
+  const field = `px-3 py-2 rounded-xl text-sm border ${isLight ? "neu-in border-transparent" : "bg-zinc-950 border-zinc-800"}`;
 
   const [products, setProducts] = useState<ProductOpt[]>([]);
   const [prices, setPrices] = useState<PriceRow[]>([]);
@@ -72,7 +72,7 @@ export function CustomerBilling({ customer, card, isLight }: Props) {
   }
 
   return (
-    <div className="rounded-2xl p-5 space-y-3" style={box}>
+    <div className="rounded-[26px] p-5 space-y-3" style={box}>
       <div className="flex items-center gap-2">
         <Tag className="w-4 h-4 text-brand-600" />
         <h2 className="text-sm font-semibold flex-1">Preços especiais deste cliente</h2>
@@ -390,7 +390,7 @@ export function CustomerInvoice({ customer, members = [], range, label, reloadKe
           { l: "Total no período", v: loading ? "…" : fmt(total), c: "" },
           { l: person ? `${personName(person).split(" ")[0]} deve` : "Deve atualmente", v: fmt(owes), c: "text-amber-500" },
         ].map(k => (
-          <div key={k.l} className={`rounded-xl px-2 py-2 ${isLight ? "bg-gray-50" : "bg-zinc-950"}`}>
+          <div key={k.l} className={`rounded-xl px-2 py-2 ${isLight ? "neu-in" : "bg-zinc-950"}`}>
             <p className="text-[10px] uppercase tracking-wide text-zinc-500">{k.l}</p>
             <p className={`text-sm font-bold ${k.c}`}>{k.v}</p>
           </div>
@@ -406,7 +406,7 @@ export function CustomerInvoice({ customer, members = [], range, label, reloadKe
         <Printer className="w-4 h-4" /> Imprimir / PDF
       </button>
       {printMenu && (
-        <div className={`rounded-xl p-3 space-y-2 border ${isLight ? "bg-gray-50 border-gray-200" : "bg-zinc-950 border-zinc-800"}`}>
+        <div className={`rounded-xl p-3 space-y-2 border ${isLight ? "neu-in border-transparent" : "bg-zinc-950 border-zinc-800"}`}>
           <div className="flex items-center">
             <p className="text-xs font-semibold flex-1">Fatura{person ? ` de ${personName(person)}` : ""} ({label}): como você quer?</p>
             <button onClick={() => setPrintMenu(false)} className="p-1 text-zinc-500 hover:text-zinc-300"><X className="w-4 h-4" /></button>

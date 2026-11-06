@@ -128,7 +128,7 @@ export function CrediarioCard({ customer, card, isLight, reloadKey, onReceive }:
           { l: "Falta pagar", v: fmt(openTotal), c: "text-amber-500" },
           { l: "Em atraso (c/ juros)", v: fmt(lateTotal), c: late.length ? "text-red-500" : "" },
         ].map(k => (
-          <div key={k.l} className={`rounded-xl px-2 py-2 ${isLight ? "bg-gray-50" : "bg-zinc-950"}`}>
+          <div key={k.l} className={`rounded-xl px-2 py-2 ${isLight ? "neu-in" : "bg-zinc-950"}`}>
             <p className="text-[10px] uppercase tracking-wide text-zinc-500">{k.l}</p>
             <p className={`text-sm font-bold ${k.c}`}>{k.v}</p>
           </div>
@@ -136,7 +136,7 @@ export function CrediarioCard({ customer, card, isLight, reloadKey, onReceive }:
       </div>
 
       {receiving && (
-        <div className={`rounded-xl p-3 space-y-2 border ${isLight ? "bg-gray-50 border-gray-200" : "bg-zinc-950 border-zinc-800"}`}>
+        <div className={`rounded-xl p-3 space-y-2 border ${isLight ? "neu-in border-transparent" : "bg-zinc-950 border-zinc-800"}`}>
           <div className="flex items-center">
             <p className="text-sm font-semibold flex-1">Receber {label(receiving)}</p>
             <button onClick={() => setReceiving(null)} className="p-1 text-zinc-500"><X className="w-4 h-4" /></button>

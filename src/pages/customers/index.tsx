@@ -12,7 +12,7 @@ import { CrediarioOverview } from "../../components/CrediarioOverview";
 import { useBusinessType } from "../../lib/business";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
-import { PageHeader, btnPrimary, WHITE_TEXT } from "../../components/PageHeader";
+import { PageHeader, btnPrimary, WHITE_TEXT, segWrap, segBtn } from "../../components/PageHeader";
 import {
   Search, Plus, Trash2, Edit2, X, User, Phone, MapPin, Mail,
   Printer, ChevronLeft, Banknote, CreditCard, Smartphone,
@@ -77,7 +77,7 @@ type ModalType = "none" | "createEdit" | "addCredit" | "payDebt" | "delete" | "e
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 const inputCls =
-  "w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/10 transition-all";
+  "w-full px-3.5 py-2.5 neu-in border-0 rounded-2xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#7b86f5]/40 transition-all";
 
 const PAY_METHODS: { method: PayMethod; label: string; icon: React.ReactNode; color: string }[] = [
   { method: "cash",   label: "Dinheiro",  icon: <Banknote className="w-4 h-4" />,   color: "border-emerald-500 bg-emerald-500/10 text-emerald-300" },
@@ -134,9 +134,9 @@ export default function CustomersPage() {
   const { theme } = useTheme();
   const isLight = theme === "light";
   const card = isLight ? {
-    bg: "#ffffff",
-    border: "1px solid #e5e7eb",
-    shadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.9)",
+    bg: "linear-gradient(145deg,#e9edf3,#f7f8fb)",
+    border: "3px solid #fbfcfd",
+    shadow: "11px 11px 24px rgba(140,152,176,.5), -10px -10px 22px rgba(255,255,255,1), inset 3px 3px 7px rgba(140,152,176,.22), inset -3px -3px 7px rgba(255,255,255,.95)",
   } : {
     bg: "#18181b",
     border: "1px solid rgba(39,39,42,0.8)",
@@ -1130,18 +1130,18 @@ export default function CustomersPage() {
       {view === "list" && (
         <div className="space-y-5">
           <PageHeader title="Clientes" actions={<>
-            <div className="flex p-1 bg-gray-200/60 rounded-xl">
+            <div className={segWrap}>
               <button onClick={() => setListView("list")}
-                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${listView === "list" ? "bg-white text-brand-700 shadow-sm" : "text-gray-500 hover:text-gray-800"}`}>
+                className={segBtn(listView === "list")}>
                 Lista
               </button>
               <button onClick={() => { setListView("ranking"); loadRanking(); }}
-                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${listView === "ranking" ? "bg-white text-brand-700 shadow-sm" : "text-gray-500 hover:text-gray-800"}`}>
+                className={segBtn(listView === "ranking")}>
                 Ranking
               </button>
               {retail && (
                 <button onClick={() => setListView("crediario")}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${listView === "crediario" ? "bg-white text-brand-700 shadow-sm" : "text-gray-500 hover:text-gray-800"}`}>
+                  className={segBtn(listView === "crediario")}>
                   Crediário
                 </button>
               )}
@@ -1155,8 +1155,8 @@ export default function CustomersPage() {
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
             <input value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Buscar por nome, telefone ou e-mail..."
-              style={{ background: card.bg, border: card.border, color: isLight ? "#111" : "#fff" }}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm placeholder-zinc-600 focus:outline-none focus:border-brand-500 transition-all" />
+              style={{ color: isLight ? "#111" : "#fff" }}
+              className="w-full pl-10 pr-4 py-3 neu-in rounded-2xl text-sm placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#7b86f5]/40 transition-all" />
           </div>
 
           {listView === "list" && (() => {
@@ -1180,13 +1180,13 @@ export default function CustomersPage() {
               window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, "_blank");
             };
             return (
-              <div className="rounded-2xl px-4 py-3 space-y-2" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+              <div className="rounded-[26px] px-4 py-3.5 space-y-2" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
                 <p className="text-sm font-semibold">🎂 Aniversariantes da semana</p>
                 <div className="flex flex-wrap gap-2">
                   {soon.map(({ c, days, label }) => (
                     <button key={c.id} onClick={() => congrats(c)} title="Mandar parabéns no WhatsApp"
-                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border"
-                      style={{ borderColor: days === 0 ? "#f59e0b" : (isLight ? "#e5e7eb" : "#3f3f46"), background: days === 0 ? "rgba(245,158,11,0.12)" : "transparent" }}>
+                      className="neu-sm neu-lift inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold"
+                      style={days === 0 ? { color: "#e0484f" } : undefined}>
                       {c.name.split(" ")[0]} · {days === 0 ? "hoje!" : label}
                       <MessageCircle className="w-3.5 h-3.5" style={{ color: "#25D366" }} />
                     </button>
@@ -1202,20 +1202,23 @@ export default function CustomersPage() {
           )}
 
           {listView === "ranking" && (
-            <div className="rounded-2xl overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
-              <div className="px-4 py-3 border-b border-zinc-800 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-brand-600" />
-                <h2 className="text-sm font-semibold">Ranking por Total Gasto</h2>
+            <div className="rounded-[26px] overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+              <div className="px-5 py-4 flex items-center gap-2.5" style={{ borderBottom: "1px solid #fff" }}>
+                <span className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(145deg,#eef0ff,#dfe3ff)", boxShadow: "inset 2px 2px 5px rgba(255,255,255,.85), inset -2px -2px 5px rgba(0,0,0,.06), 3px 3px 8px rgba(163,177,198,.35)" }}><TrendingUp className="w-4 h-4" style={{ color: "#4f5bd5" }} /></span>
+                <h2 className="text-base font-black text-[#1e2235]">Ranking por Total Gasto</h2>
               </div>
               {rankingLoading ? (
                 <div className="flex justify-center py-10"><RefreshCw className="w-4 h-4 animate-spin text-brand-600" /></div>
               ) : rankingData.length === 0 ? (
                 <div className="text-center py-10 text-xs text-zinc-600">Nenhuma venda vinculada a clientes ainda.</div>
               ) : (
-                <div className="divide-y divide-zinc-800">
+                <div className="p-3 space-y-2">
                   {rankingData.map((c, i) => (
-                    <div key={c.id} className="flex items-center gap-3 px-4 py-3 hover:bg-zinc-800/40 cursor-pointer transition-colors" onClick={() => openDetail(c)}>
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${i === 0 ? "bg-amber-400 text-black" : i === 1 ? "bg-zinc-400 text-black" : i === 2 ? "bg-amber-700 text-white" : "bg-zinc-800 text-zinc-400"}`}>
+                    <div key={c.id} className="neu-sm neu-lift flex items-center gap-3 px-4 py-3 rounded-2xl cursor-pointer" onClick={() => openDetail(c)}>
+                      <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0"
+                        style={i < 3
+                          ? { background: ["linear-gradient(135deg,#fde68a,#f59e0b)", "linear-gradient(135deg,#f1f5f9,#94a3b8)", "linear-gradient(135deg,#fed7aa,#c2410c)"][i], color: i === 1 ? "#1e293b" : "#fff", boxShadow: "0 6px 12px -6px rgba(15,23,42,.45)" }
+                          : { background: "#eef1f5", color: "#9ca3af", boxShadow: "inset 2px 2px 5px rgba(163,177,198,.45), inset -2px -2px 5px rgba(255,255,255,.95)" }}>
                         {i + 1}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -1223,7 +1226,7 @@ export default function CustomersPage() {
                         <p className="text-xs text-zinc-500">{c.purchase_count} compra{c.purchase_count !== 1 ? "s" : ""}{c.phone ? ` · ${c.phone}` : ""}</p>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <p className="text-sm font-bold text-brand-600">{fmt(c.total_spent)}</p>
+                        <p className="text-sm font-black" style={{ color: "#3f4ab8" }}>{fmt(c.total_spent)}</p>
                         <p className="text-xs text-zinc-500">total gasto</p>
                       </div>
                     </div>
@@ -1248,12 +1251,12 @@ export default function CustomersPage() {
             </div>
           )}
           {listView === "list" && !loading && filtered.length > 0 && (
-            <div className="rounded-2xl overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+            <div className="rounded-[26px] overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm border-collapse">
                   <thead>
                     <tr className="text-xs uppercase tracking-wider"
-                      style={{ background: isLight ? "#F8FAFC" : "rgba(24,24,27,0.8)", borderBottom: isLight ? "1px solid #e5e7eb" : "1px solid rgba(39,39,42,0.6)" }}>
+                      style={{ background: isLight ? "rgba(255,255,255,.45)" : "rgba(24,24,27,0.8)", borderBottom: isLight ? "1px solid #fff" : "1px solid rgba(39,39,42,0.6)" }}>
                       <th className="text-left px-4 py-3" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>Cliente</th>
                       <th className="text-left px-4 py-3" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>Telefone</th>
                       <th className="text-right px-4 py-3" style={{ color: isLight ? "#9CA3AF" : "#52525b" }}>Situação Financeira</th>
@@ -1267,22 +1270,23 @@ export default function CustomersPage() {
                       return (
                         <tr key={c.id} className="transition-colors cursor-pointer"
                           style={{
-                            background: isLight ? (i % 2 === 0 ? "#ffffff" : "#FAFBFC") : "transparent",
-                            borderBottom: isLight ? "1px solid #F3F4F6" : "1px solid rgba(39,39,42,0.3)",
+                            background: isLight ? (i % 2 === 0 ? "transparent" : "rgba(255,255,255,.35)") : "transparent",
+                            borderBottom: isLight ? "1px solid rgba(255,255,255,.9)" : "1px solid rgba(39,39,42,0.3)",
                           }}
-                          onMouseEnter={e => { (e.currentTarget as HTMLTableRowElement).style.background = isLight ? "#F5F3FF" : "rgba(139,92,246,0.06)"; }}
-                          onMouseLeave={e => { (e.currentTarget as HTMLTableRowElement).style.background = isLight ? (i % 2 === 0 ? "#ffffff" : "#FAFBFC") : "transparent"; }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLTableRowElement).style.background = isLight ? "rgba(238,240,255,.8)" : "rgba(139,92,246,0.06)"; }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLTableRowElement).style.background = isLight ? (i % 2 === 0 ? "transparent" : "rgba(255,255,255,.35)") : "transparent"; }}
                           onClick={() => openDetail(c)}>
                           {/* Cliente */}
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-3 min-w-0">
-                              <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${hasDebt ? "bg-red-500/20 border border-red-500/30 text-red-400" : "bg-brand-600/20 border border-brand-500/20 text-brand-600"}`}>
+                              <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-sm font-black flex-shrink-0"
+                                style={{ background: hasDebt ? "linear-gradient(145deg,#fff0ee,#ffdcd8)" : "linear-gradient(145deg,#eef0ff,#dfe3ff)", color: hasDebt ? "#e0484f" : "#4f5bd5", boxShadow: "inset 2px 2px 5px rgba(255,255,255,.85), inset -2px -2px 5px rgba(0,0,0,.06), 3px 3px 8px rgba(163,177,198,.35)" }}>
                                 {c.name.charAt(0).toUpperCase()}
                               </div>
                               <div className="min-w-0">
                                 <div className="flex items-center gap-2">
                                   <p className={`font-medium truncate ${isLight ? "text-gray-900" : "text-white"}`}>{c.name}</p>
-                                  {hasDebt && <span className="text-xs font-bold text-red-400 bg-red-500/10 border border-red-500/20 px-1.5 py-0.5 rounded-md flex-shrink-0">DEVENDO</span>}
+                                  {hasDebt && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: "linear-gradient(135deg,#ff8a65,#f2545b)", color: "#fff" }}>DEVENDO</span>}
                                 </div>
                                 {c.email && <p className="text-xs text-zinc-500 truncate">{c.email}</p>}
                               </div>
@@ -1339,11 +1343,11 @@ export default function CustomersPage() {
           {/* Header */}
           <div className="flex items-center gap-3">
             <button onClick={closeDetail}
-              className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-xl transition-colors">
+              className="neu-sm neu-lift w-10 h-10 rounded-full flex items-center justify-center text-zinc-500 hover:text-zinc-800">
               <ChevronLeft className="w-5 h-5" />
             </button>
             <div className="flex-1 min-w-0">
-              <h1 className="text-xl font-bold truncate">{selected.name}</h1>
+              <h1 className="text-xl font-black truncate text-[#1e2235]">{selected.name}</h1>
               <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                 {selected.phone && <span className="flex items-center gap-1 text-xs text-zinc-400"><Phone className="w-3 h-3" />{selected.phone}</span>}
                 {selected.email && <span className="flex items-center gap-1 text-xs text-zinc-400"><Mail className="w-3 h-3" />{selected.email}</span>}
@@ -1352,11 +1356,11 @@ export default function CustomersPage() {
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               <button onClick={() => openEdit(selected)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-zinc-400 hover:text-white border border-zinc-700 hover:border-zinc-600 rounded-xl text-xs transition-colors">
+                className="neu-sm neu-lift flex items-center gap-1.5 px-3.5 py-2 text-zinc-600 hover:text-zinc-900 rounded-full text-xs font-semibold">
                 <Edit2 className="w-3.5 h-3.5" /> Editar
               </button>
               <button onClick={() => { setDeleteTarget(selected); setModal("delete"); }}
-                className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-colors">
+                className="neu-sm neu-lift w-9 h-9 rounded-full flex items-center justify-center text-zinc-500 hover:text-red-500">
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
@@ -1367,17 +1371,17 @@ export default function CustomersPage() {
             {/* Balance cards */}
             <div className="sm:col-span-1 space-y-3">
               {/* Saldo pré-pago */}
-              <div className={`rounded-2xl p-4 border ${selected.balance > 0 ? "bg-emerald-500/10 border-emerald-500/20" : "bg-zinc-900 border-zinc-800"}`}>
+              <div className="neu-btn rounded-[26px] p-4">
                 <p className="text-xs font-medium text-zinc-400 mb-1">Saldo pré-pago</p>
-                <p className={`text-2xl font-black ${selected.balance > 0 ? "text-emerald-400" : "text-zinc-500"}`}>
+                <p className={`text-2xl font-black ${selected.balance > 0 ? "text-[#0e9f5c]" : "text-zinc-400"}`}>
                   {selected.balance > 0 ? "+" : ""}{fmt(selected.balance)}
                 </p>
                 {selected.balance > 0 && <p className="text-xs text-emerald-400 mt-0.5">Disponível para abater</p>}
               </div>
               {/* Dívida fiado */}
-              <div className={`rounded-2xl p-4 border ${(selected.fiado_balance ?? 0) > 0 ? "bg-red-500/10 border-red-500/20" : "bg-zinc-900 border-zinc-800"}`}>
+              <div className="neu-btn rounded-[26px] p-4">
                 <p className="text-xs font-medium text-zinc-400 mb-1">Fiado em aberto</p>
-                <p className={`text-2xl font-black ${(selected.fiado_balance ?? 0) > 0 ? "text-red-400" : "text-zinc-500"}`}>
+                <p className={`text-2xl font-black ${(selected.fiado_balance ?? 0) > 0 ? "text-[#e0484f]" : "text-zinc-400"}`}>
                   {fmt(selected.fiado_balance ?? 0)}
                 </p>
                 {(selected.fiado_balance ?? 0) > 0 && <p className="text-xs text-red-400 mt-0.5">Aguardando pagamento</p>}
@@ -1388,16 +1392,16 @@ export default function CustomersPage() {
             {/* Action buttons */}
             <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button onClick={() => { setOpAmount(""); setOpDesc(""); setModal("addCredit"); }}
-                className="flex flex-col items-center justify-center gap-2 p-4 bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 rounded-2xl transition-colors text-emerald-400">
-                <TrendingUp className="w-6 h-6" />
+                className="neu-sm neu-lift flex flex-col items-center justify-center gap-2 p-4 rounded-[24px] text-[#0e9f5c]">
+                <span className="w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: "linear-gradient(145deg,#e6f9ef,#c9f0dc)", boxShadow: "inset 2px 2px 5px rgba(255,255,255,.85), inset -2px -2px 5px rgba(0,0,0,.06), 3px 3px 8px rgba(163,177,198,.35)" }}><TrendingUp className="w-6 h-6" /></span>
                 <div className="text-center">
                   <p className="text-sm font-semibold">Adicionar Saldo</p>
                   <p className="text-xs text-emerald-400/60">Pré-pago / crédito</p>
                 </div>
               </button>
               <button onClick={() => startPayDebt()}
-                className="flex flex-col items-center justify-center gap-2 p-4 bg-brand-500/10 border border-brand-500/20 hover:bg-brand-500/20 rounded-2xl transition-colors text-brand-600">
-                <DollarSign className="w-6 h-6" />
+                className="neu-sm neu-lift flex flex-col items-center justify-center gap-2 p-4 rounded-[24px] text-[#4f5bd5]">
+                <span className="w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: "linear-gradient(145deg,#eef0ff,#dfe3ff)", boxShadow: "inset 2px 2px 5px rgba(255,255,255,.85), inset -2px -2px 5px rgba(0,0,0,.06), 3px 3px 8px rgba(163,177,198,.35)" }}><DollarSign className="w-6 h-6" /></span>
                 <div className="text-center">
                   <p className="text-sm font-semibold">Pagar Fiado</p>
                   <p className="text-xs text-brand-600/60">Quitar fiado</p>
@@ -1405,8 +1409,8 @@ export default function CustomersPage() {
               </button>
               {(selected.fiado_balance ?? 0) > 0 && (
                 <button onClick={() => chargeOnWhatsApp(selected)} disabled={waLoading}
-                  className="sm:col-span-2 flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 py-3 px-3 rounded-2xl text-sm font-semibold transition-colors disabled:opacity-60 hover:opacity-90"
-                  style={{ background: "#25D366", color: "#fff" }}>
+                  className="neu-lift sm:col-span-2 flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 py-3 px-3 rounded-full text-sm font-semibold disabled:opacity-60"
+                  style={{ background: "linear-gradient(135deg,#4ade80,#25D366)", color: "#fff", boxShadow: "0 10px 20px -8px rgba(37,211,102,.6)" }}>
                   {waLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <MessageCircle className="w-4 h-4" />}
                   Cobrar no WhatsApp · {fmt(selected.fiado_balance ?? 0)}
                   {!selected.phone && <span className="text-[11px] font-normal opacity-90">(sem telefone: você escolhe o contato)</span>}
@@ -1452,10 +1456,10 @@ export default function CustomersPage() {
                 <div className="flex items-center gap-2 text-xs text-zinc-400">
                   <span>De</span>
                   <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)}
-                    className="px-2 py-1 bg-zinc-950 border border-zinc-700 rounded-lg text-xs text-white focus:outline-none focus:border-brand-500" />
+                    className="px-2 py-1 neu-in border-0 rounded-lg text-xs text-white focus:outline-none focus:border-brand-500" />
                   <span>até</span>
                   <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)}
-                    className="px-2 py-1 bg-zinc-950 border border-zinc-700 rounded-lg text-xs text-white focus:outline-none focus:border-brand-500" />
+                    className="px-2 py-1 neu-in border-0 rounded-lg text-xs text-white focus:outline-none focus:border-brand-500" />
                 </div>
               </div>
             )}
@@ -1568,7 +1572,7 @@ export default function CustomersPage() {
       {/* Create / Edit */}
       {modal === "createEdit" && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-lg">
+          <div className="neu rounded-[28px] w-full max-w-lg">
             <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
               <h2 className="text-base font-semibold">{editing ? "Editar Cliente" : "Novo Cliente"}</h2>
               <button onClick={() => setModal("none")} className="p-1.5 text-zinc-400 hover:text-white rounded-lg transition-colors"><X className="w-4 h-4" /></button>
@@ -1623,10 +1627,10 @@ export default function CustomersPage() {
               </div>
             </div>
             <div className="flex items-center gap-3 px-6 py-4 border-t border-zinc-800">
-              <button onClick={() => setModal("none")} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
+              <button onClick={() => setModal("none")} className="neu-sm neu-lift flex-1 py-2.5 text-zinc-700 rounded-full text-sm font-semibold">Cancelar</button>
               <button onClick={saveCustomer} disabled={!fName.trim() || saving}
-                className={`flex-1 flex items-center justify-center gap-2 py-2.5 disabled:opacity-50 rounded-xl text-sm font-semibold transition-colors ${isLight ? "bg-pink-600 hover:bg-pink-700" : "bg-brand-600 hover:bg-brand-700 text-white"}`}
-                style={isLight ? { color: "#ffffff" } : undefined}>
+                className={`neu-lift flex-1 flex items-center justify-center gap-2 py-2.5 disabled:opacity-50 rounded-full text-sm font-semibold ${isLight ? "" : "bg-brand-600 hover:bg-brand-700 text-white"}`}
+                style={isLight ? { color: "#ffffff", background: "linear-gradient(135deg,#7b86f5,#4f5bd5)", boxShadow: "0 8px 18px -8px rgba(79,91,213,.6)" } : undefined}>
                 {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 {editing ? "Salvar" : "Cadastrar"}
               </button>
@@ -1638,7 +1642,7 @@ export default function CustomersPage() {
       {/* Delete confirm */}
       {modal === "delete" && deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+          <div className="neu rounded-[28px] w-full max-w-sm p-6 space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-red-500/10 rounded-full flex items-center justify-center">
                 <AlertTriangle className="w-5 h-5 text-red-400" />
@@ -1650,7 +1654,7 @@ export default function CustomersPage() {
             </div>
             <div className="flex gap-3">
               <button onClick={() => { setDeleteTarget(null); setModal("none"); }}
-                className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
+                className="neu-sm neu-lift flex-1 py-2.5 text-zinc-700 rounded-full text-sm font-semibold">Cancelar</button>
               <button onClick={confirmDelete} disabled={saving}
                 className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
                 {saving ? "Excluindo…" : "Excluir"}
@@ -1663,7 +1667,7 @@ export default function CustomersPage() {
       {/* Add Credit */}
       {modal === "addCredit" && selected && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-sm">
+          <div className="neu rounded-[28px] w-full max-w-sm">
             <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
               <div>
                 <h2 className="text-base font-semibold">Adicionar Saldo</h2>
@@ -1692,7 +1696,7 @@ export default function CustomersPage() {
               )}
             </div>
             <div className="flex gap-3 px-6 py-4 border-t border-zinc-800">
-              <button onClick={() => setModal("none")} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
+              <button onClick={() => setModal("none")} className="neu-sm neu-lift flex-1 py-2.5 text-zinc-700 rounded-full text-sm font-semibold">Cancelar</button>
               <button onClick={addCredit} disabled={!opAmount || saving}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
                 {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <TrendingUp className="w-4 h-4" />}
@@ -1706,7 +1710,7 @@ export default function CustomersPage() {
       {/* Pay Debt – full checkout */}
       {modal === "payDebt" && selected && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col">
+          <div className="neu rounded-[28px] w-full max-w-md max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 flex-shrink-0">
               <div>
                 <h2 className="text-base font-semibold">Pagar Dívida</h2>
@@ -1800,7 +1804,7 @@ export default function CustomersPage() {
               {payEntries.length > 0 && (
                 <div className="space-y-1.5">
                   {payEntries.map((e, i) => (
-                    <div key={i} className="flex items-center justify-between bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5">
+                    <div key={i} className="flex items-center justify-between neu-in border-0 rounded-xl px-4 py-2.5">
                       <span className="text-sm text-zinc-300">{PAY_LABEL[e.method]}</span>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-white">{fmt(e.amount)}</span>
@@ -1826,7 +1830,7 @@ export default function CustomersPage() {
             </div>
 
             <div className="flex gap-3 px-6 py-4 border-t border-zinc-800 flex-shrink-0">
-              <button onClick={() => setModal("none")} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
+              <button onClick={() => setModal("none")} className="neu-sm neu-lift flex-1 py-2.5 text-zinc-700 rounded-full text-sm font-semibold">Cancelar</button>
               <button onClick={payDebt} disabled={payEntries.length === 0 || saving || (selected.fiado_balance ?? 0) <= 0}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
                 {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
@@ -1839,7 +1843,7 @@ export default function CustomersPage() {
       {/* Edit Movement */}
       {modal === "editMovement" && editingMovement && selected && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] flex flex-col">
+          <div className="neu rounded-[28px] w-full max-w-lg max-h-[92vh] flex flex-col">
 
             {/* ── Header ── */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 flex-shrink-0">
@@ -1870,7 +1874,7 @@ export default function CustomersPage() {
                       <p className="text-xs text-zinc-600">Nenhuma forma de pagamento adicionada.</p>
                     )}
                     {editPayEntries.map((entry, i) => (
-                      <div key={i} className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 space-y-2">
+                      <div key={i} className="neu-in border-0 rounded-xl p-3 space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-zinc-500">Entrada {i + 1}</span>
                           <button onClick={() => setEditPayEntries(prev => prev.filter((_, j) => j !== i))}
@@ -1940,15 +1944,15 @@ export default function CustomersPage() {
                 <>
                   {/* Stats grid */}
                   <div className="grid grid-cols-3 gap-3">
-                    <div className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-center">
+                    <div className="neu-in border-0 rounded-xl px-3 py-2.5 text-center">
                       <p className="text-xs text-zinc-500">Total atual</p>
                       <p className="text-sm font-bold text-red-400">{fmt(editSaleItems.reduce((s: number, i: any) => s + i.unit_price * i.quantity, 0))}</p>
                     </div>
-                    <div className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-center">
+                    <div className="neu-in border-0 rounded-xl px-3 py-2.5 text-center">
                       <p className="text-xs text-zinc-500">Status</p>
                       <p className="text-sm font-bold text-zinc-300">{editSaleRecord.status ?? "—"}</p>
                     </div>
-                    <div className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5 text-center">
+                    <div className="neu-in border-0 rounded-xl px-3 py-2.5 text-center">
                       <p className="text-xs text-zinc-500">Itens</p>
                       <p className="text-sm font-bold text-zinc-300">{editSaleItems.length}</p>
                     </div>
@@ -1958,7 +1962,7 @@ export default function CustomersPage() {
                   <div className="space-y-2">
                     <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">Itens da venda</p>
                     {editSaleItems.map((item: any) => (
-                      <div key={item.id} className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2.5">
+                      <div key={item.id} className="neu-in border-0 rounded-xl px-3 py-2.5">
                         <div className="flex items-center gap-3">
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-white truncate">{item.products?.name ?? "Produto"}</p>
@@ -2021,7 +2025,7 @@ export default function CustomersPage() {
                           }
                         }}
                         placeholder="Digite o nome e pressione Enter para adicionar..."
-                        className="w-full pl-10 pr-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-brand-500 transition-colors"
+                        className="w-full pl-10 pr-4 py-2.5 neu-in border-0 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-brand-500 transition-colors"
                       />
                     </div>
                     {editProductSearch.length >= 1 && (
@@ -2051,7 +2055,7 @@ export default function CustomersPage() {
 
                     {/* Cada entrada: botões de método + valor editável diretamente */}
                     {editPayEntries.map((entry, i) => (
-                      <div key={i} className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 space-y-2">
+                      <div key={i} className="neu-in border-0 rounded-xl p-3 space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-zinc-500">Clique para trocar o método</span>
                           <button onClick={() => setEditPayEntries(prev => prev.filter((_, j) => j !== i))}
@@ -2134,7 +2138,7 @@ export default function CustomersPage() {
 
             <div className="flex gap-3 px-6 py-4 border-t border-zinc-800 flex-shrink-0">
               <button onClick={() => { setModal("none"); setEditingMovement(null); }}
-                className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">
+                className="neu-sm neu-lift flex-1 py-2.5 text-zinc-700 rounded-full text-sm font-semibold">
                 Cancelar
               </button>
               <button
