@@ -668,7 +668,7 @@ export default function PublicMenuPage() {
     const fixedQty = product.is_configurable ? 0 : getFixedQty(product.id);
     const productGroups = groups[product.id] ?? [];
     return (
-      <div key={product.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden flex items-stretch">
+      <div key={product.id} className="neu-sm neu-lift rounded-[22px] overflow-hidden flex items-stretch">
         {product.image_url && (
           <img src={product.image_url} className="w-28 h-28 object-cover flex-shrink-0" alt={product.name} />
         )}
@@ -709,7 +709,7 @@ export default function PublicMenuPage() {
             ) : (
               <div className="flex items-center gap-1.5">
                 <button onClick={() => { const idx = cart.findLastIndex(i => i.product.id === product.id && i.options.length === 0); if (idx >= 0) changeQty(idx, -1); }}
-                  className="w-8 h-8 rounded-full bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center transition-colors">
+                  className="w-8 h-8 rounded-full neu-sm flex items-center justify-center transition-colors">
                   <Minus className="w-3.5 h-3.5" />
                 </button>
                 <span className="w-5 text-center font-bold text-sm">{fixedQty}</span>
@@ -777,7 +777,7 @@ export default function PublicMenuPage() {
               <p className="text-sm text-zinc-500 mt-1">Entre em contato com a loja se tiver dúvidas.</p>
             </div>
           ) : (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+            <div className="neu-sm rounded-[22px] p-5">
               <p className="text-sm font-semibold mb-4 text-zinc-300">Acompanhe seu pedido</p>
               <div className="flex items-center gap-0">
                 {STATUS_STEPS.map((s, idx) => {
@@ -824,7 +824,7 @@ export default function PublicMenuPage() {
         )}
 
           {/* Order summary */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-2">
+          <div className="neu-sm rounded-[22px] p-4 space-y-2">
             <p className="text-sm font-semibold mb-2">Resumo do Pedido</p>
             {trackedOrder.items.map((item, i) => (
               <div key={i} className="text-sm">
@@ -908,7 +908,7 @@ export default function PublicMenuPage() {
                 onChange={e => setChatInput(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendMessage()}
                 placeholder="Escreva uma mensagem..."
-                className="flex-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-teal-500"
+                className="flex-1 px-3 py-2 neu-in border-0 rounded-2xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-teal-500"
               />
               <button
                 onClick={sendMessage}
@@ -946,7 +946,7 @@ export default function PublicMenuPage() {
 
         <div className="flex-1 overflow-auto p-4 space-y-4 pb-32">
           {/* Tipo de entrega */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+          <div className="neu-sm rounded-[22px] p-4">
             <p className="text-sm font-semibold mb-3">Como deseja receber?</p>
             <div className="grid grid-cols-2 gap-2">
               <button
@@ -980,14 +980,14 @@ export default function PublicMenuPage() {
           {!orderType ? null : (
           <>
           {/* Dados do cliente */}
-          <div ref={afterOrderTypeRef} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
+          <div ref={afterOrderTypeRef} className="neu-sm rounded-[22px] p-4 space-y-3">
             <p className="text-sm font-semibold">Seus dados</p>
             <div className="relative">
               <User className="w-4 h-4 text-teal-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 value={custName} onChange={e => setCustName(e.target.value)}
                 placeholder="Nome completo *"
-                className="w-full pl-9 px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-teal-500 transition-all"
+                className="w-full pl-9 px-3.5 py-2.5 neu-in border-0 rounded-2xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-teal-500 transition-all"
               />
             </div>
             <div className="relative">
@@ -995,21 +995,21 @@ export default function PublicMenuPage() {
               <input
                 value={custPhone} onChange={e => setCustPhone(e.target.value)}
                 placeholder="Telefone / WhatsApp *" inputMode="tel"
-                className="w-full pl-9 px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-teal-500 transition-all"
+                className="w-full pl-9 px-3.5 py-2.5 neu-in border-0 rounded-2xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-teal-500 transition-all"
               />
             </div>
           </div>
 
           {/* Endereço (delivery) */}
           {orderType === "delivery" && (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+            <div className="neu-sm rounded-[22px] p-4">
               <p className="text-sm font-semibold mb-3">Endereço de Entrega</p>
               <div className="relative mb-3">
                 <MapPin className="w-4 h-4 text-teal-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   value={bairro} onChange={e => setBairro(e.target.value)}
                   placeholder="Bairro *"
-                  className="w-full pl-9 px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-teal-500 transition-all"
+                  className="w-full pl-9 px-3.5 py-2.5 neu-in border-0 rounded-2xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-teal-500 transition-all"
                 />
               </div>
               <div className="relative">
@@ -1017,7 +1017,7 @@ export default function PublicMenuPage() {
                 <textarea
                   value={address} onChange={e => setAddress(e.target.value)}
                   placeholder="Rua, número, complemento..." rows={3}
-                  className="w-full pl-9 px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-teal-500 resize-none"
+                  className="w-full pl-9 px-3.5 py-2.5 neu-in border-0 rounded-2xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-teal-500 resize-none"
                 />
               </div>
               {geo ? (
@@ -1055,7 +1055,7 @@ export default function PublicMenuPage() {
 
           {/* Forma de pagamento */}
           {payMethods.length > 0 && (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
+            <div className="neu-sm rounded-[22px] p-4 space-y-3">
               <p className="text-sm font-semibold">Forma de Pagamento</p>
               <div className="grid grid-cols-2 gap-2">
                 {payMethods.map(pm => (
@@ -1081,7 +1081,7 @@ export default function PublicMenuPage() {
                     <input
                       value={changeFor} onChange={e => setChangeFor(e.target.value)}
                       placeholder="Ex: 50,00" inputMode="decimal"
-                      className="w-full pl-9 px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-teal-500 transition-all"
+                      className="w-full pl-9 px-3.5 py-2.5 neu-in border-0 rounded-2xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-teal-500 transition-all"
                     />
                   </div>
                 </div>
@@ -1090,19 +1090,19 @@ export default function PublicMenuPage() {
           )}
 
           {/* Observações */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+          <div className="neu-sm rounded-[22px] p-4">
             <p className="text-sm font-semibold mb-3">Observações</p>
             <textarea
               value={obsGeral} onChange={e => setObsGeral(e.target.value)}
               placeholder="Alguma observação para o pedido?" rows={2}
-              className="w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-teal-500 resize-none"
+              className="w-full px-3.5 py-2.5 neu-in border-0 rounded-2xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-teal-500 resize-none"
             />
           </div>
           </>
           )}
 
           {/* Resumo */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-2">
+          <div className="neu-sm rounded-[22px] p-4 space-y-2">
             <p className="text-sm font-semibold mb-1">Resumo</p>
             {cart.map((item, i) => (
               <div key={i} className="text-sm">
@@ -1139,8 +1139,8 @@ export default function PublicMenuPage() {
           <button
             onClick={submitOrder}
             disabled={submitting || cart.length === 0}
-            className="w-full py-3.5 disabled:opacity-50 disabled:cursor-not-allowed font-bold rounded-xl transition-all flex items-center justify-center gap-2"
-            style={{ background:"#2563eb", boxShadow:"0 4px 18px rgba(37,99,235,0.35)", color:"#fff" }}
+            className="w-full py-3.5 disabled:opacity-50 disabled:cursor-not-allowed font-bold rounded-full transition-all flex items-center justify-center gap-2"
+            style={{ background:"linear-gradient(135deg,#4ade80,#12b76a)", boxShadow:"0 10px 22px -8px rgba(18,183,106,.65)", color:"#fff" }}
           >
             <CheckCircle2 className="w-5 h-5" /> Confirmar Pedido · {fmt(total)}
           </button>
@@ -1176,7 +1176,7 @@ export default function PublicMenuPage() {
           <>
             <div className="flex-1 overflow-auto p-4 space-y-3 pb-32">
               {cart.map((item, idx) => (
-                <div key={idx} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+                <div key={idx} className="neu-sm rounded-[22px] p-4">
                   <div className="flex items-start gap-3">
                     {item.product.image_url && (
                       <img src={item.product.image_url} className="w-14 h-14 rounded-xl object-cover flex-shrink-0" alt={item.product.name} />
@@ -1202,7 +1202,7 @@ export default function PublicMenuPage() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => changeQty(idx, -1)}
-                        className="w-8 h-8 rounded-full bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center transition-colors"
+                        className="w-8 h-8 rounded-full neu-sm flex items-center justify-center transition-colors"
                       >
                         <Minus className="w-3.5 h-3.5" />
                       </button>
@@ -1231,8 +1231,8 @@ export default function PublicMenuPage() {
               <button
                 onClick={() => setStep("checkout")}
                 disabled={subtotal < settings.min_order_value}
-                className="w-full py-3.5 disabled:opacity-40 disabled:cursor-not-allowed font-bold rounded-xl transition-all flex items-center justify-center gap-2"
-                style={{ background:"#2563eb", boxShadow:"0 4px 18px rgba(37,99,235,0.35)", color:"#fff" }}
+                className="w-full py-3.5 disabled:opacity-40 disabled:cursor-not-allowed font-bold rounded-full transition-all flex items-center justify-center gap-2"
+                style={{ background:"linear-gradient(135deg,#7b86f5,#4f5bd5)", boxShadow:"0 10px 22px -8px rgba(79,91,213,.6)", color:"#fff" }}
               >
                 Continuar <ChevronRight className="w-5 h-5" />
               </button>
@@ -1333,7 +1333,7 @@ export default function PublicMenuPage() {
               value={configNotes} onChange={e => setConfigNotes(e.target.value)}
               placeholder="Ex: sem cebola, bem passado..."
               rows={2}
-              className="w-full px-3 py-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-teal-500 resize-none"
+              className="w-full px-3 py-2.5 neu-in border-0 rounded-2xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-teal-500 resize-none"
             />
           </div>
 
@@ -1347,7 +1347,7 @@ export default function PublicMenuPage() {
         {/* Footer */}
         <div className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto bg-zinc-950/95 backdrop-blur border-t border-zinc-800 p-4">
           <div className="flex items-center gap-3 mb-3">
-            <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-xl px-1">
+            <div className="flex items-center gap-2 neu-in border-0 rounded-2xl px-1">
               <button onClick={() => setConfigQty(q => Math.max(1, q - 1))} className="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-white">
                 <Minus className="w-4 h-4" />
               </button>
@@ -1358,8 +1358,8 @@ export default function PublicMenuPage() {
             </div>
             <button
               onClick={addConfiguredToCart}
-              className="flex-1 py-3 font-bold rounded-xl transition-all flex items-center justify-center gap-2"
-              style={{ background:"#2563eb", boxShadow:"0 4px 16px rgba(37,99,235,0.35)", color:"#fff" }}
+              className="flex-1 py-3 font-bold rounded-full transition-all flex items-center justify-center gap-2"
+              style={{ background:"linear-gradient(135deg,#7b86f5,#4f5bd5)", boxShadow:"0 10px 22px -8px rgba(79,91,213,.6)", color:"#fff" }}
             >
               <ShoppingCart className="w-4 h-4" /> Adicionar · {fmt(unitTotal)}
             </button>
@@ -1429,7 +1429,7 @@ export default function PublicMenuPage() {
         )}
 
         <button onClick={() => setShowProfile(true)}
-          className="inline-flex items-center gap-1.5 mt-2.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all bg-zinc-900 border border-zinc-800 text-zinc-300 hover:border-zinc-700">
+          className="inline-flex items-center gap-1.5 mt-2.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all neu-sm text-zinc-600">
           <Store className="w-3.5 h-3.5 text-teal-400" /> Perfil da loja <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
         </button>
       </div>
@@ -1477,7 +1477,7 @@ export default function PublicMenuPage() {
               value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Buscar no cardápio..."
               className="w-full px-4 py-2.5 pl-10 rounded-2xl text-sm focus:outline-none transition-all"
-              style={{ background: "#f3f4f6", border: "1px solid #e5e7eb", color: "#111", placeholderColor: "#9ca3af" }}
+              style={{ background: "#eef1f5", border: "0", boxShadow: "inset 3px 3px 7px rgba(163,177,198,.45), inset -3px -3px 7px rgba(255,255,255,.95)", color: "#111", placeholderColor: "#9ca3af" }}
             />
             {search && (
               <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white">
@@ -1489,11 +1489,11 @@ export default function PublicMenuPage() {
 
         {visibleCats.length > 0 && (
           <div className="px-4 overflow-x-auto scrollbar-none">
-            <div className="flex gap-2 min-w-max">
+            <div className="flex gap-2.5 min-w-max py-2 px-1">
               <button
                 onClick={() => setActiveCat("all")}
                 className="px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap"
-                style={activeCat === "all" ? { background:"#2563eb", color:"#fff", boxShadow:"0 3px 12px rgba(37,99,235,0.4)" } : { background:"#f3f4f6", color:"#6b7280", border:"1px solid #e5e7eb" }}
+                style={activeCat === "all" ? { background:"linear-gradient(135deg,#7b86f5,#4f5bd5)", color:"#fff", boxShadow:"0 6px 14px -6px rgba(79,91,213,.6)" } : { background:"linear-gradient(145deg,#edf0f5,#f9fafc)", color:"#6b7280", border:"2px solid #fcfdfe", boxShadow:"6px 6px 14px rgba(140,152,176,.42), -6px -6px 14px rgba(255,255,255,1), inset 2px 2px 5px rgba(140,152,176,.18), inset -2px -2px 5px rgba(255,255,255,.95)" }}
               >
                 Todos
               </button>
@@ -1502,7 +1502,7 @@ export default function PublicMenuPage() {
                   key={cat.id}
                   onClick={() => setActiveCat(cat.id)}
                   className="px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap"
-                  style={activeCat === cat.id ? { background:"#2563eb", color:"#fff", boxShadow:"0 3px 12px rgba(37,99,235,0.4)" } : { background:"#f3f4f6", color:"#6b7280", border:"1px solid #e5e7eb" }}
+                  style={activeCat === cat.id ? { background:"linear-gradient(135deg,#7b86f5,#4f5bd5)", color:"#fff", boxShadow:"0 6px 14px -6px rgba(79,91,213,.6)" } : { background:"linear-gradient(145deg,#edf0f5,#f9fafc)", color:"#6b7280", border:"2px solid #fcfdfe", boxShadow:"6px 6px 14px rgba(140,152,176,.42), -6px -6px 14px rgba(255,255,255,1), inset 2px 2px 5px rgba(140,152,176,.18), inset -2px -2px 5px rgba(255,255,255,.95)" }}
                 >
                   {cat.name}
                 </button>
@@ -1567,8 +1567,8 @@ export default function PublicMenuPage() {
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-sm px-4 z-40">
           <button
             onClick={() => setStep("cart")}
-            className="w-full py-4 font-bold rounded-2xl flex items-center justify-between px-5 transition-all"
-            style={{ background:"#2563eb", boxShadow:"0 8px 28px rgba(37,99,235,0.45)", color:"#fff" }}
+            className="w-full py-4 font-bold rounded-full flex items-center justify-between px-5 transition-all"
+            style={{ background:"linear-gradient(135deg,#7b86f5,#4f5bd5)", boxShadow:"0 12px 28px -8px rgba(79,91,213,.65)", color:"#fff" }}
           >
             <div className="flex items-center gap-2.5">
               <div className="relative">
@@ -1618,7 +1618,7 @@ export default function PublicMenuPage() {
                 <a
                   href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.address)}`}
                   target="_blank" rel="noopener noreferrer"
-                  className="flex items-start gap-3 bg-zinc-900 border border-zinc-800 rounded-2xl p-3.5 transition-all hover:border-teal-500/40"
+                  className="flex items-start gap-3 neu-sm rounded-[22px] p-3.5 transition-all hover:border-teal-500/40"
                 >
                   <MapPin className="w-4 h-4 text-teal-400 flex-shrink-0 mt-0.5" />
                   <div className="flex-1 min-w-0">
@@ -1629,7 +1629,7 @@ export default function PublicMenuPage() {
                 </a>
               )}
 
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3.5">
+              <div className="neu-sm rounded-[22px] p-3.5">
                 <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5" /> Horário de Funcionamento
                 </p>
@@ -1648,7 +1648,7 @@ export default function PublicMenuPage() {
               </div>
 
               {payMethods.length > 0 && (
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3.5">
+                <div className="neu-sm rounded-[22px] p-3.5">
                   <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Formas de Pagamento</p>
                   <div className="flex gap-2 flex-wrap">
                     {payMethods.map(pm => (

@@ -219,9 +219,9 @@ export default function DigitalMenuPage() {
   const { theme } = useTheme();
   const isLight = theme === "light";
   const card = isLight ? {
-    bg: "#ffffff",
-    border: "1px solid #e5e7eb",
-    shadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.9)",
+    bg: "linear-gradient(145deg,#e9edf3,#f7f8fb)",
+    border: "3px solid #fbfcfd",
+    shadow: "11px 11px 24px rgba(140,152,176,.5), -10px -10px 22px rgba(255,255,255,1), inset 3px 3px 7px rgba(140,152,176,.22), inset -3px -3px 7px rgba(255,255,255,.95)",
   } : {
     bg: "#18181b",
     border: "1px solid rgba(39,39,42,0.8)",
@@ -293,7 +293,7 @@ export default function DigitalMenuPage() {
   const [neighborhoodInput, setNeighborhoodInput] = useState("");
 
   const menuUrl  = userId ? (settings.slug ? `${window.location.origin}/loja/${settings.slug}` : `${window.location.origin}/menu/${userId}`) : "";
-  const inputCls = "w-full px-3 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500/60 transition-all";
+  const inputCls = "w-full px-3 py-2.5 neu-in border-0 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500/60 transition-all";
 
   // ── Sync ordersRef so Realtime callbacks never have stale closures
   useEffect(() => { ordersRef.current = orders; }, [orders]);
@@ -930,18 +930,16 @@ export default function DigitalMenuPage() {
         )}
 
         {/* Tabs */}
-        <div className="flex gap-1 flex-shrink-0" style={{ borderBottom: `1px solid ${isLight ? "#e5e7eb" : "#27272a"}` }}>
+        <div className={`flex gap-1 flex-shrink-0 ${isLight ? "p-1.5 neu-in rounded-2xl" : ""}`} style={isLight ? undefined : { borderBottom: "1px solid #27272a" }}>
           {([
             { key: "orders"     as const, label: "Pedidos",   icon: <ClipboardList className="w-3.5 h-3.5" />, badge: pendingCount },
             { key: "products"   as const, label: "Cardápio",  icon: <UtensilsCrossed className="w-3.5 h-3.5" /> },
             { key: "appearance" as const, label: "Aparência", icon: <Store className="w-3.5 h-3.5" /> },
           ] as const).map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
-              className="relative flex items-center gap-2 px-5 py-2.5 text-xs font-bold transition-all flex-1 justify-center overflow-hidden"
+              className={`relative flex items-center gap-2 px-5 py-2.5 text-xs font-bold transition-all flex-1 justify-center overflow-hidden ${isLight ? "rounded-xl" : ""} ${isLight && tab === t.key ? "neu-sm text-brand-700" : isLight ? "border-2 border-transparent" : ""}`}
               style={tab === t.key
-                ? (isLight
-                    ? { color:"#ffffff", background:"#315DFB", borderRadius:"10px 10px 0 0" }
-                    : { color:"#c4b5fd", background:"rgba(49,93,251,0.10)" })
+                ? (isLight ? undefined : { color:"#c4b5fd", background:"rgba(49,93,251,0.10)" })
                 : { color:"#71717a" }}>
               {/* Gradient underline on active tab (só no tema escuro — no claro o fundo já é azul sólido) */}
               {tab === t.key && !isLight && (
@@ -961,16 +959,16 @@ export default function DigitalMenuPage() {
         {/* ═══ PEDIDOS ═══ */}
         {tab === "orders" && (
           <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-1">
               {[
-                { label:"Novos",        value: pendingCount,                                         color: isLight ? "#315DFB" : "#f59e0b", glow: isLight ? "rgba(49,93,251,0.15)" : "rgba(245,158,11,0.15)"  },
-                { label:"Aceitos",      value: orders.filter(o=>o.status==="accepted").length,        color:"#06b6d4", glow:"rgba(6,182,212,0.15)"   },
-                { label:"Despachados",  value: orders.filter(o=>o.status==="dispatched").length,      color:"#10b981", glow:"rgba(16,185,129,0.15)"  },
-                { label:"Faturado Hoje",value: fmt(todayRevenue),                                    color:"#d946ef", glow:"rgba(217,70,239,0.15)"   },
+                { label:"Novos",        value: pendingCount,                                         color: isLight ? "#e0484f" : "#f59e0b", glow: isLight ? "rgba(49,93,251,0.15)" : "rgba(245,158,11,0.15)"  },
+                { label:"Aceitos",      value: orders.filter(o=>o.status==="accepted").length,        color: isLight ? "#4f5bd5" : "#06b6d4", glow:"rgba(6,182,212,0.15)"   },
+                { label:"Despachados",  value: orders.filter(o=>o.status==="dispatched").length,      color: isLight ? "#7950f2" : "#10b981", glow:"rgba(16,185,129,0.15)"  },
+                { label:"Faturado Hoje",value: fmt(todayRevenue),                                    color: isLight ? "#0e9f5c" : "#d946ef", glow:"rgba(217,70,239,0.15)"   },
               ].map(s => (
-                <div key={s.label} className="relative overflow-hidden rounded-2xl p-3.5"
-                  style={{ background: card.bg, border: card.border, boxShadow: isLight ? card.shadow : `0 0 22px ${s.glow}` }}>
-                  <div className="absolute -top-5 -right-5 w-16 h-16 rounded-full opacity-20 blur-2xl pointer-events-none" style={{ background: s.color }} />
+                <div key={s.label} className={`relative overflow-hidden p-3.5 ${isLight ? "neu-btn neu-lift rounded-[26px]" : "rounded-2xl"}`}
+                  style={isLight ? undefined : { background: card.bg, border: card.border, boxShadow: `0 0 22px ${s.glow}` }}>
+                  {!isLight && <div className="absolute -top-5 -right-5 w-16 h-16 rounded-full opacity-20 blur-2xl pointer-events-none" style={{ background: s.color }} />}
                   <p className="text-[11px] text-zinc-500 mb-1 relative z-10">{s.label}</p>
                   <p className="text-xl font-black relative z-10" style={{ color: s.color }}>{s.value}</p>
                 </div>
@@ -981,10 +979,10 @@ export default function DigitalMenuPage() {
             <div className="flex items-center gap-2 flex-shrink-0">
               <button
                 onClick={() => setOrdersDate(todayStr)}
-                className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
+                className="px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all"
                 style={ordersDate === todayStr
-                  ? { background: isLight ? "#315DFB" : "#27272a", color:"#fff", border:"1px solid transparent" }
-                  : { background: isLight ? "#F3F4F6" : "#18181b", color:"#71717a", border: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" }}>
+                  ? { background: isLight ? "linear-gradient(135deg,#7b86f5,#4f5bd5)" : "#27272a", color:"#fff", border:"1px solid transparent", boxShadow: isLight ? "0 6px 14px -6px rgba(79,91,213,.6)" : undefined }
+                  : { background: isLight ? "linear-gradient(145deg,#edf0f5,#f9fafc)" : "#18181b", color:"#71717a", border: isLight ? "2px solid #fcfdfe" : "1px solid #27272a", boxShadow: isLight ? "6px 6px 14px rgba(140,152,176,.42), -6px -6px 14px rgba(255,255,255,1), inset 2px 2px 5px rgba(140,152,176,.18), inset -2px -2px 5px rgba(255,255,255,.95)" : undefined }}>
                 Hoje
               </button>
               <input
@@ -992,8 +990,8 @@ export default function DigitalMenuPage() {
                 value={ordersDate}
                 max={todayStr}
                 onChange={e => setOrdersDate(e.target.value)}
-                className="text-xs rounded-xl px-3 py-1.5 font-medium transition-all outline-none"
-                style={{ background: isLight ? "#F3F4F6" : "#18181b", color: isLight ? "#374151" : "#a1a1aa", border: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" }}
+                className="text-xs rounded-2xl px-3 py-1.5 font-medium transition-all outline-none"
+                style={{ background: isLight ? "#eef1f5" : "#18181b", color: isLight ? "#374151" : "#a1a1aa", border: isLight ? "0" : "1px solid #27272a", boxShadow: isLight ? "inset 3px 3px 7px rgba(163,177,198,.45), inset -3px -3px 7px rgba(255,255,255,.95)" : undefined }}
               />
             </div>
 
@@ -1002,12 +1000,12 @@ export default function DigitalMenuPage() {
                 const sc = STATUS_CFG[s];
                 return (
                   <button key={s} onClick={() => setStatusFilter(s)}
-                    className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
+                    className="px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all"
                     style={statusFilter === s
                       ? isLight
-                        ? { background:"#315DFB", color:"#fff", border:"1px solid transparent", boxShadow:"0 2px 10px rgba(37,99,235,0.35)" }
+                        ? { background:"linear-gradient(135deg,#7b86f5,#4f5bd5)", color:"#fff", border:"1px solid transparent", boxShadow:"0 6px 14px -6px rgba(79,91,213,.6)" }
                         : (s === "all" ? { background:"#27272a", color:"#fff", border:"1px solid #3f3f46" } : { background: sc?.bg, color: sc?.color, border:`1px solid ${sc?.border}` })
-                      : { background: isLight ? "#F3F4F6" : "#18181b", color:"#71717a", border: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" }}>
+                      : { background: isLight ? "linear-gradient(145deg,#edf0f5,#f9fafc)" : "#18181b", color:"#71717a", border: isLight ? "2px solid #fcfdfe" : "1px solid #27272a", boxShadow: isLight ? "6px 6px 14px rgba(140,152,176,.42), -6px -6px 14px rgba(255,255,255,1), inset 2px 2px 5px rgba(140,152,176,.18), inset -2px -2px 5px rgba(255,255,255,.95)" : undefined }}>
                     {s === "all" ? "Todos" : sc?.label}{s === "pending" && pendingCount > 0 ? ` (${pendingCount})` : ""}
                   </button>
                 );
@@ -1023,12 +1021,14 @@ export default function DigitalMenuPage() {
                 const isSelected = selectedOrder?.id === order.id;
                 return (
                   <div key={order.id} onClick={() => { setSelectedOrder(order); setUnreadMsgOrders(prev => { const n = new Set(prev); n.delete(order.id); return n; }); }}
-                    className="rounded-2xl border p-4 cursor-pointer transition-all"
-                    style={{
-                      background: isSelected
-                        ? (isLight ? "#f0fdf4" : "#1c1917")
-                        : (isLight ? "#ffffff" : "#18181b"),
-                      borderColor: isSelected ? sc.border : (isLight ? "#e5e7eb" : "#27272a"),
+                    className={`p-4 cursor-pointer transition-all ${isLight ? "rounded-[22px] neu-lift" : "rounded-2xl border"}`}
+                    style={isLight ? {
+                      background: isSelected ? "#eef1f5" : "linear-gradient(145deg,#edf0f5,#f9fafc)",
+                      border: isSelected ? `2px solid ${sc.border}` : "2px solid #fcfdfe",
+                      boxShadow: isSelected ? "inset 3px 3px 7px rgba(163,177,198,.45), inset -3px -3px 7px rgba(255,255,255,.95)" : "6px 6px 14px rgba(140,152,176,.42), -6px -6px 14px rgba(255,255,255,1), inset 2px 2px 5px rgba(140,152,176,.18), inset -2px -2px 5px rgba(255,255,255,.95)",
+                    } : {
+                      background: isSelected ? "#1c1917" : "#18181b",
+                      borderColor: isSelected ? sc.border : "#27272a",
                       boxShadow: isSelected ? `0 0 0 1px ${sc.border}` : undefined,
                     }}>
                     <div className="flex items-center justify-between gap-3">
@@ -1040,7 +1040,7 @@ export default function DigitalMenuPage() {
                       </div>
                       <div className="flex items-center gap-2.5 flex-shrink-0">
                         <span className="text-[10px] text-zinc-600">{fmtT(order.created_at)}</span>
-                        <span className="font-bold text-sm" style={{ color: isLight ? "#315DFB" : "#f59e0b" }}>{fmt(order.total_amount)}</span>
+                        <span className="font-bold text-sm" style={{ color: isLight ? "#3f4ab8" : "#f59e0b" }}>{fmt(order.total_amount)}</span>
                         {unreadMsgOrders.has(order.id) && (
                           <MessageSquare className="w-3.5 h-3.5 animate-pulse flex-shrink-0" style={{ color: isLight ? "#315DFB" : "#f59e0b" }} />
                         )}
@@ -1148,12 +1148,12 @@ export default function DigitalMenuPage() {
               {groupedProducts.map(group => (
                 <div key={group.id} className="space-y-2">
                   <div className="flex items-center gap-2 px-1">
-                    <span className="text-xs font-bold uppercase tracking-widest" style={{ color: isLight ? "#315DFB" : "#a78bfa" }}>{group.name}</span>
+                    <span className="text-xs font-black uppercase tracking-widest" style={{ color: isLight ? "#1e2235" : "#a78bfa" }}>{group.name}</span>
                     <span className="text-[10px] text-zinc-600">({group.items.length})</span>
                     <div className="flex-1 h-px" style={{ background: isLight ? "#e5e7eb" : "#27272a" }} />
                   </div>
                   {group.items.map(product => (
-                    <div key={product.id} className="rounded-2xl p-4 flex items-center gap-4 transition-all" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+                    <div key={product.id} className="rounded-[22px] p-4 flex items-center gap-4 neu-lift" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
                       {product.image_url ? (
                         <img src={product.image_url} alt={product.name} className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
                       ) : (
@@ -1198,7 +1198,7 @@ export default function DigitalMenuPage() {
             <div className="rounded-2xl p-4 space-y-3" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
               <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Link do Cardápio</p>
               <div className="flex gap-2">
-                <div className="flex-1 flex items-center gap-2 px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl min-w-0">
+                <div className="flex-1 flex items-center gap-2 px-3 py-2 neu-in border-0 rounded-xl min-w-0">
                   <Globe className="w-3.5 h-3.5 text-zinc-600 flex-shrink-0" />
                   <span className="text-xs font-mono text-zinc-400 truncate">{menuUrl || "Carregando..."}</span>
                 </div>
@@ -1225,7 +1225,7 @@ export default function DigitalMenuPage() {
               <div className="pt-3" style={{ borderTop: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" }}>
                 <p className="text-[11px] text-zinc-500 mb-1.5">Link personalizado (mais fácil de compartilhar e menos parecido com spam)</p>
                 <div className="flex gap-2">
-                  <div className="flex-1 flex items-center gap-1 px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl min-w-0">
+                  <div className="flex-1 flex items-center gap-1 px-3 py-2 neu-in border-0 rounded-xl min-w-0">
                     <span className="text-xs text-zinc-600 flex-shrink-0 font-mono whitespace-nowrap">{window.location.origin}/loja/</span>
                     <input
                       value={slugInput}
@@ -1404,11 +1404,11 @@ export default function DigitalMenuPage() {
                     <span className="text-xs w-16 font-medium flex-shrink-0" style={{ color: h.active ? "#e4e4e7" : "#52525b" }}>{day.label}</span>
                     <input type="time" value={h.open} disabled={!h.active}
                       onChange={e => setSettings(s => ({ ...s, hours: { ...s.hours, [day.key]: { ...h, open: e.target.value } } }))}
-                      className="flex-1 px-2 py-1.5 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-white disabled:opacity-30 focus:outline-none focus:border-brand-500/50" />
+                      className="flex-1 px-2 py-1.5 neu-in border-0 rounded-lg text-xs text-white disabled:opacity-30 focus:outline-none focus:border-brand-500/50" />
                     <span className="text-zinc-600 text-xs flex-shrink-0">até</span>
                     <input type="time" value={h.close} disabled={!h.active}
                       onChange={e => setSettings(s => ({ ...s, hours: { ...s.hours, [day.key]: { ...h, close: e.target.value } } }))}
-                      className="flex-1 px-2 py-1.5 bg-zinc-950 border border-zinc-800 rounded-lg text-xs text-white disabled:opacity-30 focus:outline-none focus:border-brand-500/50" />
+                      className="flex-1 px-2 py-1.5 neu-in border-0 rounded-lg text-xs text-white disabled:opacity-30 focus:outline-none focus:border-brand-500/50" />
                   </div>
                 );
               })}
@@ -1579,7 +1579,7 @@ export default function DigitalMenuPage() {
       {/* ── Product editor modal ── */}
       {showModal && editProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="w-full max-w-2xl bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl flex flex-col" style={{ maxHeight:"90vh" }}>
+          <div className="w-full max-w-2xl neu rounded-[28px] flex flex-col" style={{ maxHeight:"90vh" }}>
             <div className="flex items-center justify-between p-5 border-b border-zinc-800 flex-shrink-0">
               <h3 className="font-bold text-base">{editProduct.id ? "Editar Produto" : "Novo Produto"}</h3>
               <button onClick={() => { setShowModal(false); setEditProduct(null); setEditGroups([]); }} className="text-zinc-500 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
@@ -1640,10 +1640,10 @@ export default function DigitalMenuPage() {
                   </div>
 
                   {editGroups.map(group => (
-                    <div key={group.id} className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 space-y-3">
+                    <div key={group.id} className="neu-in border-0 rounded-2xl p-4 space-y-3">
                       <div className="flex items-center gap-2">
                         <input value={group.name} onChange={e => updateGroup(group.id, "name", e.target.value)}
-                          className="flex-1 px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-xl text-sm font-bold text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500"
+                          className="flex-1 px-3 py-2 neu-in border-0 rounded-xl text-sm font-bold text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500"
                           placeholder="Nome do grupo (ex: Misturas, Acompanhamentos)" />
                         <button onClick={() => removeGroup(group.id)} className="p-2 rounded-lg hover:bg-red-500/10 text-zinc-600 hover:text-red-400 transition-all"><Trash2 className="w-4 h-4" /></button>
                       </div>
@@ -1651,11 +1651,11 @@ export default function DigitalMenuPage() {
                       <div className="flex gap-3 items-center flex-wrap">
                         <div className="flex items-center gap-2">
                           <label className="text-xs text-zinc-500">Mín:</label>
-                          <input type="number" min={0} value={group.min_choices} onChange={e => updateGroup(group.id, "min_choices", Number(e.target.value))} className="w-14 px-2 py-1.5 bg-zinc-900 border border-zinc-700 rounded-lg text-xs text-white text-center focus:outline-none focus:border-brand-500" />
+                          <input type="number" min={0} value={group.min_choices} onChange={e => updateGroup(group.id, "min_choices", Number(e.target.value))} className="w-14 px-2 py-1.5 neu-in border-0 rounded-lg text-xs text-white text-center focus:outline-none focus:border-brand-500" />
                         </div>
                         <div className="flex items-center gap-2">
                           <label className="text-xs text-zinc-500">Máx:</label>
-                          <input type="number" min={1} value={group.max_choices} onChange={e => updateGroup(group.id, "max_choices", Number(e.target.value))} className="w-14 px-2 py-1.5 bg-zinc-900 border border-zinc-700 rounded-lg text-xs text-white text-center focus:outline-none focus:border-brand-500" />
+                          <input type="number" min={1} value={group.max_choices} onChange={e => updateGroup(group.id, "max_choices", Number(e.target.value))} className="w-14 px-2 py-1.5 neu-in border-0 rounded-lg text-xs text-white text-center focus:outline-none focus:border-brand-500" />
                         </div>
                         <button onClick={() => updateGroup(group.id, "required", !group.required)}
                           className="text-xs px-3 py-1.5 rounded-xl font-semibold transition-all border"
@@ -1675,11 +1675,11 @@ export default function DigitalMenuPage() {
                               </button>
                               <input value={opt.name} onChange={e => updateOption(group.id, opt.id, "name", e.target.value)}
                                 placeholder="Nome da opção (ex: Bife, Frango)"
-                                className="flex-1 px-2.5 py-1.5 bg-zinc-900 border border-zinc-700 rounded-lg text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500/50" />
+                                className="flex-1 px-2.5 py-1.5 neu-in border-0 rounded-lg text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500/50" />
                               <div className="flex items-center gap-1 flex-shrink-0">
                                 <span className="text-xs text-zinc-600">+R$</span>
                                 <input type="number" step="0.50" min={0} value={opt.additional_price} onChange={e => updateOption(group.id, opt.id, "additional_price", Number(e.target.value))}
-                                  className="w-16 px-2 py-1.5 bg-zinc-900 border border-zinc-700 rounded-lg text-xs text-white text-center focus:outline-none focus:border-brand-500/50" />
+                                  className="w-16 px-2 py-1.5 neu-in border-0 rounded-lg text-xs text-white text-center focus:outline-none focus:border-brand-500/50" />
                               </div>
                               <button onClick={() => removeOption(group.id, opt.id)} className="text-zinc-700 hover:text-red-400 transition-all flex-shrink-0"><X className="w-3.5 h-3.5" /></button>
                             </div>
@@ -1693,10 +1693,10 @@ export default function DigitalMenuPage() {
                                   onChange={e => setLinkSearch(e.target.value)}
                                   onBlur={() => setLinkPickerOpenId(prev => prev === opt.id ? null : prev)}
                                   placeholder="Sem vínculo — sem métricas · buscar produto..."
-                                  className="w-full px-2 py-1 bg-zinc-900 border border-zinc-700 rounded-lg text-[11px] text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-brand-500/50"
+                                  className="w-full px-2 py-1 neu-in border-0 rounded-lg text-[11px] text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-brand-500/50"
                                 />
                                 {linkPickerOpenId === opt.id && (
-                                  <div className="absolute z-20 top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl">
+                                  <div className="absolute z-20 top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-xl">
                                     <button
                                       onMouseDown={e => { e.preventDefault(); updateOption(group.id, opt.id, "linked_product_id", null); setLinkPickerOpenId(null); }}
                                       className="w-full text-left px-2.5 py-1.5 text-[11px] text-zinc-500 hover:bg-zinc-800 transition-colors">
