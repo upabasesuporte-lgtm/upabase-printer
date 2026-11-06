@@ -17,8 +17,9 @@ import {
   Search, Plus, Trash2, Edit2, X, User, Phone, MapPin, Mail,
   Printer, ChevronLeft, Banknote, CreditCard, Smartphone,
   TrendingUp, RefreshCw, Save, DollarSign,
-  AlertTriangle, CheckCircle2, FileText, Minus, MessageCircle,
+  AlertTriangle, CheckCircle2, FileText, Minus, MessageCircle, HandCoins,
 } from "lucide-react";
+import { NeuStatCard } from "../../components/Neu";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1150,6 +1151,23 @@ export default function CustomersPage() {
               <Plus className="w-4 h-4" /> Novo Cliente
             </button>
           </>} />
+
+          {(() => {
+            const devendo = customers.filter(c => (c.fiado_balance ?? 0) > 0.009);
+            const totalFiado = devendo.reduce((s, c) => s + Number(c.fiado_balance ?? 0), 0);
+            const totalSaldo = customers.reduce((s, c) => s + Math.max(0, Number(c.balance ?? 0)), 0);
+            return (
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 p-1">
+                <NeuStatCard tone="amber" icon={HandCoins} label="Total em fiado a receber" value={fmt(totalFiado)}
+                  rating={String(devendo.length)} ratingLabel={devendo.length === 1 ? "cliente devendo" : "clientes devendo"}
+                  stats={devendo.length ? [{ l: "Maior dívida", v: fmt(Math.max(...devendo.map(c => Number(c.fiado_balance ?? 0)))) }] : []} />
+                {totalSaldo > 0.009 && (
+                  <NeuStatCard tone="green" icon={TrendingUp} label="Saldo pré-pago dos clientes" value={fmt(totalSaldo)}
+                    sub="crédito que os clientes têm para usar" />
+                )}
+              </div>
+            );
+          })()}
 
           <div className="relative">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
