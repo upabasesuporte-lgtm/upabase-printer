@@ -162,10 +162,10 @@ function Modal({ title, onClose, children, wide }: {
   useEscapeKey(onClose);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className={`w-full ${wide ? "max-w-2xl" : "max-w-lg"} bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl max-h-[90vh] flex flex-col`}>
-        <div className="flex items-center justify-between p-5 border-b border-zinc-800 flex-shrink-0">
-          <h3 className="font-semibold text-base">{title}</h3>
-          <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
+      <div className={`w-full ${wide ? "max-w-2xl" : "max-w-lg"} neu rounded-[28px] max-h-[90vh] flex flex-col`}>
+        <div className="flex items-center justify-between px-5 py-4 flex-shrink-0" style={{ borderBottom: "1px solid #fff" }}>
+          <h3 className="font-black text-base text-[#1e2235]">{title}</h3>
+          <button onClick={onClose} className="neu-sm w-8 h-8 rounded-full flex items-center justify-center text-zinc-500 hover:text-zinc-800 transition-colors"><X className="w-4 h-4" /></button>
         </div>
         <div className="p-5 overflow-y-auto">{children}</div>
       </div>
@@ -179,14 +179,18 @@ export default function PdvPage() {
   const { theme } = useTheme();
   const isLight = theme === "light";
   const card = isLight ? {
-    bg: "#ffffff",
-    border: "1px solid #e5e7eb",
-    shadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.9)",
+    bg: "linear-gradient(145deg,#edf0f5,#f9fafc)",
+    border: "2px solid #fcfdfe",
+    shadow: "6px 6px 14px rgba(140,152,176,.42), -6px -6px 14px rgba(255,255,255,1), inset 2px 2px 5px rgba(140,152,176,.18), inset -2px -2px 5px rgba(255,255,255,.95)",
   } : {
     bg: "#18181b",
     border: "1px solid rgba(39,39,42,0.8)",
     shadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
   };
+  // Campo afundado (busca, desconto, endereço…)
+  const well = isLight
+    ? { bg: "#eef1f5", border: "0", shadow: "inset 3px 3px 7px rgba(163,177,198,.45), inset -3px -3px 7px rgba(255,255,255,.95)" }
+    : { bg: card.bg, border: card.border, shadow: "none" };
   const [tab, setTab] = useState<"venda" | "historico">("venda");
   const retail = useBusinessType() === "retail";
   // Crediário (varejo): parte no fiado dividida em parcelas (0 = sem parcelar)
@@ -1343,12 +1347,12 @@ export default function PdvPage() {
 
   // Abas Nova Venda / Histórico compactas — usadas no desktop ao lado da busca (no celular fica a barra de abas)
   const tabSwitch = (
-    <div className="flex items-center gap-1 p-1 rounded-xl flex-shrink-0" style={{ background: card.bg, border: card.border }}>
+    <div className="flex items-center gap-1 p-1.5 rounded-2xl flex-shrink-0" style={{ background: well.bg, border: well.border, boxShadow: well.shadow }}>
       {(["venda", "historico"] as const).map(t => (
         <button key={t} onClick={() => setTab(t)}
-          className="flex items-center gap-1.5 px-2.5 sm:px-3 py-2 text-xs font-semibold rounded-lg transition-all"
+          className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-2 text-xs font-semibold rounded-xl transition-all ${tab === t ? (isLight ? "neu-sm text-brand-700" : "") : "border-2 border-transparent"}`}
           style={tab === t
-            ? { color: "#fff", background: isLight ? "#315DFB" : "#7B2FBE" }
+            ? (isLight ? undefined : { color: "#fff", background: "#7B2FBE" })
             : { color: "#9ca3af", background: "transparent" }}>
           {t === "venda" ? <><ShoppingCart className="w-3.5 h-3.5" /><span className="hidden sm:inline">Nova Venda</span></> : <><History className="w-3.5 h-3.5" /><span className="hidden sm:inline">Histórico</span></>}
         </button>
@@ -1457,7 +1461,7 @@ export default function PdvPage() {
             <div className="p-3 sm:p-4 border-b border-zinc-800 flex-shrink-0">
               <div className="flex items-center gap-2">
                 {tabSwitch}
-                <button className="flex-shrink-0 p-2 rounded-lg" style={{ background: "rgba(59,182,243,0.2)", color: "#3bb6f3", minWidth: "44px", minHeight: "44px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <button className="flex-shrink-0 p-2 rounded-2xl" style={{ background: "linear-gradient(145deg,#eef0ff,#dfe3ff)", color: "#4f5bd5", minWidth: "44px", minHeight: "44px", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "inset 2px 2px 5px rgba(255,255,255,.85), inset -2px -2px 5px rgba(0,0,0,.06), 3px 3px 8px rgba(163,177,198,.35)" }}>
                   <Search className="w-6 h-6" />
                 </button>
                 <input ref={searchRef} placeholder="Buscar produto..." value={search}
@@ -1471,8 +1475,8 @@ export default function PdvPage() {
                       setSearch("");
                     }
                   }}
-                  className="flex-1 px-3 py-2.5 rounded-xl text-sm placeholder-zinc-500 focus:outline-none focus:border-brand-500 transition-colors"
-                  style={{ background: card.bg, border: card.border, color: isLight ? "#111" : "#fff" }} />
+                  className="flex-1 px-4 py-2.5 rounded-2xl text-sm placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#7b86f5]/40 transition-colors"
+                  style={{ background: well.bg, border: well.border, boxShadow: well.shadow, color: isLight ? "#111" : "#fff" }} />
                 {search && <button onClick={() => setSearch("")} className="flex-shrink-0 p-2 text-zinc-500 hover:text-white" title="Limpar busca"><X className="w-5 h-5" /></button>}
               </div>
             </div>
@@ -1509,11 +1513,11 @@ export default function PdvPage() {
                           <div className="flex flex-wrap gap-2">
                             {groupProds.map(p => (
                               <button key={p.id} onClick={e => addFromTap(e, p)}
-                                className="flex flex-col items-center gap-1 hover:border-brand-500/50 active:scale-95 rounded-xl p-2.5 w-20 transition-all"
+                                className="neu-lift flex flex-col items-center gap-1 active:scale-95 rounded-2xl p-2.5 w-20"
                                 style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
                                 {p.image_url
                                   ? <img src={p.image_url} alt={p.name} className="w-10 h-10 min-w-[40px] rounded-md object-cover" style={{aspectRatio:"1/1"}} />
-                                  : <div className="w-10 h-10 rounded-md bg-zinc-800 flex items-center justify-center"><Package className="w-5 h-5 text-zinc-600" /></div>}
+                                  : <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: well.bg, boxShadow: well.shadow }}><Package className="w-5 h-5 text-zinc-500" /></div>}
                                 <span className="text-xs text-center text-zinc-300 leading-tight line-clamp-2">{p.name}</span>
                                 {p.list_price != null && <span className="text-[10px] text-zinc-500 line-through leading-none">{fmt(p.list_price)}</span>}
                                 <span className="text-xs font-semibold text-brand-600">{fmt(p.sale_price)}</span>
@@ -1542,7 +1546,7 @@ export default function PdvPage() {
                       return (
                         <div key={p.id}
                           onClick={e => addFromTap(e, p)}
-                          className={`group rounded-xl overflow-hidden transition-all hover:border-brand-500/50 ${sem ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
+                          className={`group rounded-[20px] overflow-hidden neu-lift ${sem ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}
                           style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
                           <div className="relative">
                             {p.image_url
@@ -1567,8 +1571,8 @@ export default function PdvPage() {
                                   {allShortcutIds.includes(p.id) ? <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" /> : <StarOff className="w-3.5 h-3.5" />}
                                 </button>
                                 <button onClick={e => addFromTap(e, p)} disabled={sem}
-                                  className="p-1.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-40 rounded-lg transition-colors"
-                                  style={{ color: "#fff" }}>
+                                  className="p-1.5 disabled:opacity-40 rounded-full transition-colors"
+                                  style={{ color: "#fff", background: "linear-gradient(135deg,#7b86f5,#4f5bd5)", boxShadow: "0 4px 10px -4px rgba(79,91,213,.6)" }}>
                                   <Plus className="w-3.5 h-3.5" />
                                 </button>
                               </div>
@@ -1617,17 +1621,17 @@ export default function PdvPage() {
               {cart.length > 0 && (
                 <div className="p-3 space-y-2">
                   {cart.map(item => (
-                    <div key={item.cartId} data-cart-item={item.cartId} className="rounded-lg px-2.5 py-2" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+                    <div key={item.cartId} data-cart-item={item.cartId} className="rounded-2xl px-3 py-2.5" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
                       {/* Linha 1: nome + qty +/- + total + lixo */}
                       <div className="flex items-center gap-1.5">
                         <p className="flex-1 text-xs font-semibold text-white truncate">{item.product.name}</p>
                         <div className="flex items-center gap-0.5 flex-shrink-0">
-                          <button onClick={() => updateQty(item.cartId, -1)} className="w-5 h-5 bg-zinc-800 hover:bg-zinc-700 rounded flex items-center justify-center transition-colors"><Minus className="w-2.5 h-2.5" /></button>
+                          <button onClick={() => updateQty(item.cartId, -1)} className="w-6 h-6 rounded-full flex items-center justify-center transition-colors" style={{ background: well.bg, boxShadow: well.shadow }}><Minus className="w-2.5 h-2.5" /></button>
                           <span className="w-6 text-center text-xs font-bold">{item.quantity}</span>
                           <button onClick={() => updateQty(item.cartId, 1)} disabled={!isUnlimited(item.product) && item.quantity >= item.product.stock}
-                            className="w-5 h-5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 rounded flex items-center justify-center transition-colors"><Plus className="w-2.5 h-2.5" /></button>
+                            className="w-6 h-6 disabled:opacity-40 rounded-full flex items-center justify-center transition-colors" style={{ background: well.bg, boxShadow: well.shadow }}><Plus className="w-2.5 h-2.5" /></button>
                         </div>
-                        <span className="text-xs font-bold flex-shrink-0 w-16 text-right" style={{ color: "#7B2FBE" }}>{fmt((item.customPrice ?? item.product.sale_price) * item.quantity)}</span>
+                        <span className="text-xs font-bold flex-shrink-0 w-16 text-right" style={{ color: isLight ? "#3f4ab8" : "#7B2FBE" }}>{fmt((item.customPrice ?? item.product.sale_price) * item.quantity)}</span>
                         <button onClick={() => removeFromCart(item.cartId)} className="text-zinc-600 hover:text-red-400 transition-colors flex-shrink-0 p-0.5"><Trash2 className="w-3 h-3" /></button>
                       </div>
                       {/* Linha 2: preço por unidade + observação */}
@@ -1638,11 +1642,11 @@ export default function PdvPage() {
                           type="text" inputMode="decimal"
                           defaultValue={String(item.customPrice ?? item.product.sale_price).replace(".", ",")}
                           onBlur={e => { const val = parseFloat(e.target.value.replace(",", ".")); if (!isNaN(val) && val >= 0) updateItemPrice(item.cartId, val); }}
-                          className={`w-16 text-[10px] px-1.5 py-0.5 bg-zinc-950 border rounded font-semibold focus:outline-none transition-colors ${item.customPrice !== undefined && item.customPrice !== item.product.sale_price ? "border-amber-500/60 text-amber-400" : "border-zinc-800 text-zinc-400"}`}
+                          className={`w-16 text-[10px] px-2 py-1 neu-in border rounded-lg font-semibold focus:outline-none transition-colors ${item.customPrice !== undefined && item.customPrice !== item.product.sale_price ? "border-amber-500/60 text-amber-400" : "border-zinc-800 text-zinc-400"}`}
                         />
                         <input placeholder="Obs..." value={item.notes} onChange={e => updateItemNotes(item.cartId, e.target.value)}
                           style={{ color: isLight ? "#111827" : undefined }}
-                          className="flex-1 text-[10px] px-1.5 py-0.5 bg-zinc-950 border border-zinc-800 rounded text-zinc-400 placeholder-zinc-600 focus:outline-none" />
+                          className="flex-1 text-[10px] px-2 py-1 neu-in border-0 rounded-lg text-zinc-400 placeholder-zinc-500 focus:outline-none" />
                       </div>
                     </div>
                   ))}
@@ -1660,9 +1664,9 @@ export default function PdvPage() {
                     <span className="text-xs text-zinc-500 w-20 flex-shrink-0">Desconto R$</span>
                     <input type="text" inputMode="decimal" placeholder="0,00" value={discount} onChange={e => setDiscount(e.target.value)}
                       className="flex-1 text-xs px-2.5 py-1.5 rounded-lg placeholder-zinc-600 focus:outline-none focus:border-brand-500"
-                      style={{ background: card.bg, border: card.border, color: isLight ? "#111" : "#fff" }} />
+                      style={{ background: well.bg, border: well.border, boxShadow: well.shadow, color: isLight ? "#111" : "#fff" }} />
                   </div>
-                  <div className="rounded-xl p-3 space-y-1" style={{ background: card.bg, border: card.border }}>
+                  <div className="rounded-2xl p-3.5 space-y-1" style={{ background: well.bg, border: well.border, boxShadow: well.shadow }}>
                     <div className="flex justify-between text-xs text-zinc-400">
                       <span className="flex items-center gap-2">
                         Subtotal
@@ -1678,7 +1682,7 @@ export default function PdvPage() {
                     </div>
                     {discountVal > 0 && <div className="flex justify-between text-xs text-red-400"><span>Desconto</span><span>-{fmt(discountVal)}</span></div>}
                     {deliveryFeeVal > 0 && <div className="flex justify-between text-xs text-zinc-400"><span>Taxa de entrega</span><span>+{fmt(deliveryFeeVal)}</span></div>}
-                    <div className="flex justify-between items-baseline text-sm md:text-base font-bold border-t border-zinc-800 pt-1.5"><span>Total</span><span className="md:text-2xl md:font-black" style={{ color: "#7B2FBE" }}>{fmt(total)}</span></div>
+                    <div className="flex justify-between items-baseline text-sm md:text-base font-bold border-t border-zinc-800 pt-1.5"><span>Total</span><span className="md:text-2xl md:font-black" style={{ color: isLight ? "#3f4ab8" : "#7B2FBE" }}>{fmt(total)}</span></div>
                   </div>
                 </>
               )}
@@ -1699,12 +1703,12 @@ export default function PdvPage() {
                         ? setShowCustomer(true)
                         : setExtraOpen(open ? null : chip.key)}
                       title={chip.label}
-                      className="flex flex-col items-center justify-center gap-1 py-2 rounded-xl text-[10px] font-semibold transition-all"
+                      className="flex flex-col items-center justify-center gap-1 py-2 rounded-2xl text-[10px] font-semibold neu-lift"
                       style={chip.filled
                         ? { background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.45)", color: "#059669" }
                         : open
-                          ? { background: card.bg, border: "1px solid #8b5cf6", color: "#8b5cf6" }
-                          : { background: card.bg, border: card.border, color: "#9ca3af" }}>
+                          ? { background: card.bg, border: "2px solid #b197fc", boxShadow: card.shadow, color: "#7950f2" }
+                          : { background: card.bg, border: card.border, boxShadow: card.shadow, color: "#9ca3af" }}>
                       <ChipIcon className="w-4 h-4" />
                       {chip.label}
                     </button>
@@ -1714,7 +1718,7 @@ export default function PdvPage() {
 
               {/* Cliente — aparece quando há cliente selecionado */}
               <button onClick={() => setShowCustomer(true)}
-                className={`w-full flex items-center gap-2 hover:border-zinc-700 rounded-xl px-3 py-2.5 transition-colors text-left ${selectedCustomer ? "" : "hidden"}`}
+                className={`w-full flex items-center gap-2 rounded-2xl px-3 py-2.5 transition-colors text-left ${selectedCustomer ? "" : "hidden"}`}
                 style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
                 <User className="w-4 h-4 text-zinc-500 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
@@ -1729,7 +1733,7 @@ export default function PdvPage() {
                 <ChevronRight className="w-3.5 h-3.5 text-zinc-600 flex-shrink-0" />
               </button>
               {selectedCustomer && customerMembers.length > 0 && (
-                <div className="rounded-xl px-3 py-2 space-y-1.5" style={{ background: card.bg, border: card.border }}>
+                <div className="rounded-2xl px-3 py-2 space-y-1.5" style={{ background: well.bg, border: well.border, boxShadow: well.shadow }}>
                   <p className="text-[11px] font-semibold text-zinc-400">Quem pediu?</p>
                   <PersonChips holderName={selectedCustomer.name} members={customerMembers} isLight={isLight}
                     value={saleMemberId ?? HOLDER} onChange={v => setMemberId(v === HOLDER ? null : v)} />
@@ -1739,27 +1743,27 @@ export default function PdvPage() {
               {/* Endereço + Obs + Vendedor — abrem pelo botão correspondente */}
               <input placeholder="Endereço de entrega (opcional)..." value={deliveryAddress} onChange={e => setDeliveryAddress(e.target.value)}
                 className={`w-full text-xs px-3 py-2 rounded-xl placeholder-zinc-500 focus:outline-none focus:border-brand-500 ${extraOpen === "address" ? "" : "hidden"}`}
-                style={{ background: card.bg, border: card.border, color: isLight ? "#374151" : "#d4d4d8" }} />
+                style={{ background: well.bg, border: well.border, boxShadow: well.shadow, color: isLight ? "#374151" : "#d4d4d8" }} />
               {deliveryAddress.trim() && saleChannel === "pdv" && (
                 <input placeholder="Taxa de entrega (R$) — opcional" value={deliveryFee} inputMode="decimal"
                   onChange={e => setDeliveryFee(e.target.value.replace(/[^0-9.,]/g, ""))}
                   className={`w-full text-xs px-3 py-2 rounded-xl placeholder-zinc-500 focus:outline-none focus:border-brand-500 ${extraOpen === "address" ? "" : "hidden"}`}
-                  style={{ background: card.bg, border: card.border, color: isLight ? "#374151" : "#d4d4d8" }} />
+                  style={{ background: well.bg, border: well.border, boxShadow: well.shadow, color: isLight ? "#374151" : "#d4d4d8" }} />
               )}
               <input placeholder="Observações do pedido..." value={orderNotes} onChange={e => setOrderNotes(e.target.value)}
                 className={`w-full text-xs px-3 py-2 rounded-xl placeholder-zinc-500 focus:outline-none focus:border-brand-500 ${extraOpen === "notes" ? "" : "hidden"}`}
-                style={{ background: card.bg, border: card.border, color: isLight ? "#374151" : "#d4d4d8" }} />
+                style={{ background: well.bg, border: well.border, boxShadow: well.shadow, color: isLight ? "#374151" : "#d4d4d8" }} />
               {sellers.length > 0 ? (
                 <select value={sellerName} onChange={e => setSellerName(e.target.value)}
                   className={`w-full text-xs px-3 py-2 rounded-xl focus:outline-none focus:border-brand-500 appearance-none ${extraOpen === "seller" ? "" : "hidden"}`}
-                  style={{ background: card.bg, border: card.border, color: isLight ? "#374151" : "#d4d4d8" }}>
+                  style={{ background: well.bg, border: well.border, boxShadow: well.shadow, color: isLight ? "#374151" : "#d4d4d8" }}>
                   <option value="">— Vendedor / Garçom —</option>
                   {sellers.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               ) : (
                 <input placeholder="Vendedor / Garçom responsável..." value={sellerName} onChange={e => setSellerName(e.target.value)}
                   className={`w-full text-xs px-3 py-2 rounded-xl placeholder-zinc-500 focus:outline-none focus:border-brand-500 ${extraOpen === "seller" ? "" : "hidden"}`}
-                  style={{ background: card.bg, border: card.border, color: isLight ? "#374151" : "#d4d4d8" }} />
+                  style={{ background: well.bg, border: well.border, boxShadow: well.shadow, color: isLight ? "#374151" : "#d4d4d8" }} />
               )}
               </div>
 
@@ -1768,8 +1772,8 @@ export default function PdvPage() {
                 {/* Desktop: vendas em pausa ficam aqui, ao lado do Pausar */}
                 <button onClick={() => { loadPending(); setShowPending(true); }}
                   title="Vendas em pausa"
-                  className="flex items-center justify-center gap-1.5 px-3 py-2.5 md:py-3 text-xs font-semibold rounded-xl transition-all"
-                  style={{ background: card.bg, border: card.border, color: isLight ? "#315DFB" : "#10b981" }}>
+                  className="neu-lift flex items-center justify-center gap-1.5 px-3 py-2.5 md:py-3 text-xs font-semibold rounded-full"
+                  style={{ background: card.bg, border: card.border, boxShadow: card.shadow, color: isLight ? "#4f5bd5" : "#10b981" }}>
                   <History className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">Pausadas</span>
                   {pendingSales.length > 0 && (
@@ -1780,15 +1784,15 @@ export default function PdvPage() {
                   )}
                 </button>
                 <button onClick={savePending} disabled={cart.length === 0}
-                  className="flex items-center justify-center gap-1.5 px-3 py-2.5 md:py-3 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold rounded-xl transition-all"
-                  style={{ border: "1px solid #ea8a0c", color: "#fff", background: "#f59e0b" }}>
+                  className="neu-lift flex items-center justify-center gap-1.5 px-3 py-2.5 md:py-3 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold rounded-full"
+                  style={{ color: "#fff", background: "linear-gradient(135deg,#fdba74,#f97316)", boxShadow: "0 8px 16px -8px rgba(249,115,22,.65)" }}>
                   <Clock className="w-3.5 h-3.5" />
                   Pausar
                   <kbd className="hidden md:inline text-[10px] px-1 py-0.5 rounded font-bold" style={{ background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.3)", color: "#fff" }}>F2</kbd>
                 </button>
                 <button onClick={openCheckout} disabled={cart.length === 0 || !cashRegisterId}
-                  className="flex items-center justify-center gap-1.5 py-2.5 md:py-3 md:text-sm bg-brand-600 hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold rounded-xl transition-colors shadow-lg shadow-brand-900/10"
-                  style={{ color: "#fff" }}>
+                  className="neu-lift flex items-center justify-center gap-1.5 py-2.5 md:py-3 md:text-sm disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold rounded-full"
+                  style={{ color: "#fff", background: "linear-gradient(135deg,#4ade80,#12b76a)", boxShadow: "0 10px 20px -8px rgba(18,183,106,.65)" }}>
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   Finalizar
                   <kbd className="hidden md:inline text-[10px] bg-white/10 border border-white/20 px-1 py-0.5 rounded font-bold" style={{ color: "#fff" }}>F1</kbd>
@@ -1836,8 +1840,8 @@ export default function PdvPage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
               <input placeholder="Buscar cliente, ID ou endereço..." value={historySearch} onChange={e => setHistorySearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm placeholder-zinc-500 focus:outline-none focus:border-brand-500"
-                style={{ background: card.bg, border: card.border, color: isLight ? "#111" : "#fff" }} />
+                className="w-full pl-10 pr-4 py-2.5 rounded-2xl text-sm placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#7b86f5]/40"
+                style={{ background: well.bg, border: well.border, boxShadow: well.shadow, color: isLight ? "#111" : "#fff" }} />
             </div>
             {retail && (
               <button onClick={() => setShowReturnFinder(true)} title="Troca de venda de outro dia"
@@ -1846,7 +1850,7 @@ export default function PdvPage() {
                 <Undo2 className="w-4 h-4" /> Troca
               </button>
             )}
-            <button onClick={loadHistory} className="p-2.5 rounded-xl text-zinc-400 hover:text-white transition-colors" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+            <button onClick={loadHistory} className="neu-lift p-2.5 rounded-full text-zinc-500 hover:text-zinc-800 transition-colors" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
               <RefreshCw className={`w-4 h-4 ${loadingHistory ? "animate-spin" : ""}`} />
             </button>
           </div>
@@ -1877,14 +1881,14 @@ export default function PdvPage() {
                 const itemChips = saleItems.slice(0, 4);
                 const extraItemCount = Math.max(0, saleItems.length - itemChips.length);
                 return (
-                  <div key={sale.id} className="rounded-2xl transition-shadow hover:shadow-lg overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+                  <div key={sale.id} className="rounded-[24px] overflow-hidden neu-lift" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
                     <div className="p-5">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex items-start gap-3.5 flex-1 min-w-0 cursor-pointer" onClick={() => setExpandedSaleId(isExpanded ? null : sale.id)}>
                           {/* Avatar do pedido */}
-                          <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-                            style={{ background: isLight ? "rgba(123,47,190,0.1)" : "rgba(123,47,190,0.15)" }}>
-                            <Receipt className="w-5 h-5" style={{ color: isLight ? "#7B2FBE" : "#c4b5fd" }} />
+                          <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
+                            style={isLight ? { background: "linear-gradient(145deg,#f3efff,#e5dcff)", boxShadow: "inset 2px 2px 5px rgba(255,255,255,.85), inset -2px -2px 5px rgba(0,0,0,.06), 3px 3px 8px rgba(163,177,198,.35)" } : { background: "rgba(123,47,190,0.15)" }}>
+                            <Receipt className="w-5 h-5" style={{ color: isLight ? "#7950f2" : "#c4b5fd" }} />
                           </div>
                           <div className="flex-1 min-w-0">
                             {/* Linha 1: número + status + canal */}
@@ -1894,7 +1898,7 @@ export default function PdvPage() {
                                 {statusCfg.label}
                               </span>
                               {sale.origin && ORIGIN_INFO[sale.origin] && (
-                                <span style={isLight ? { background:"#315DFB", color:"#fff" } : {}} className={`text-xs font-medium px-2 py-0.5 rounded-full ${!isLight ? originClasses : ""}`}>
+                                <span style={isLight ? { background:"linear-gradient(135deg,#7b86f5,#4f5bd5)", color:"#fff" } : {}} className={`text-xs font-medium px-2 py-0.5 rounded-full ${!isLight ? originClasses : ""}`}>
                                   {ORIGIN_INFO[sale.origin].label}
                                 </span>
                               )}
@@ -2016,7 +2020,7 @@ export default function PdvPage() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
               <input placeholder="Buscar por nome ou telefone..." value={custSearch} onChange={e => setCustSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-brand-500" />
+                className="w-full pl-10 pr-4 py-2.5 neu-in border-0 rounded-2xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-brand-500" />
             </div>
             <button onClick={() => { setShowCustomer(false); setShowNewCustomer(true); }}
               className="w-full flex items-center justify-center gap-2 py-2.5 border border-dashed border-zinc-700 hover:border-brand-500 rounded-xl text-sm text-zinc-400 hover:text-brand-600 transition-colors">
@@ -2086,7 +2090,7 @@ export default function PdvPage() {
               <div key={label}>
                 <label className="block text-xs text-zinc-400 mb-1.5">{label}</label>
                 <input placeholder={placeholder} value={value} onChange={e => setter(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500" />
+                  className="w-full px-3.5 py-2.5 neu-in border-0 rounded-2xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500" />
               </div>
             ))}
             <button onClick={createCustomer} disabled={!newCustName.trim()}
@@ -2293,7 +2297,7 @@ export default function PdvPage() {
                     value={editCustSearch !== "" ? editCustSearch : (editCustomer?.name ?? "")}
                     onChange={e => { setEditCustSearch(e.target.value); }}
                     onFocus={e => setEditCustSearch(e.target.value === (editCustomer?.name ?? "") ? "" : e.target.value)}
-                    className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-brand-500 transition-colors"
+                    className="w-full px-3 py-2 neu-in border-0 rounded-2xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-brand-500 transition-colors"
                   />
                   {editCustSearch.length > 0 && (
                     <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-zinc-900 border border-zinc-700 rounded-xl overflow-hidden shadow-xl max-h-40 overflow-y-auto">
@@ -2328,7 +2332,7 @@ export default function PdvPage() {
                   placeholder="Ex: Rua das Flores, 123 — Apto 5"
                   value={editDeliveryAddress}
                   onChange={e => setEditDeliveryAddress(e.target.value)}
-                  className="w-full px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-brand-500 transition-colors"
+                  className="w-full px-3 py-2 neu-in border-0 rounded-2xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-brand-500 transition-colors"
                 />
               </div>
 
@@ -2337,7 +2341,7 @@ export default function PdvPage() {
                 <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wide mb-2">Itens da venda</p>
                 <div className="space-y-1.5 max-h-56 overflow-y-auto">
                   {showEditItems.map(item => (
-                    <div key={item.id} className="flex items-center gap-2 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2">
+                    <div key={item.id} className="flex items-center gap-2 neu-in border-0 rounded-2xl px-3 py-2">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{item.products?.name ?? "Produto"}</p>
                         {editingItemPriceId === item.id ? (
@@ -2401,7 +2405,7 @@ export default function PdvPage() {
                         addItemToSale(filteredForAdd[0]);
                       }
                     }}
-                    className="w-full pl-10 pr-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-brand-500 transition-colors"
+                    className="w-full pl-10 pr-4 py-2.5 neu-in border-0 rounded-2xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-brand-500 transition-colors"
                   />
                 </div>
                 {filteredForAdd.length > 0 && (
@@ -2426,7 +2430,7 @@ export default function PdvPage() {
                 <div className="grid grid-cols-3 gap-2 mb-2">
                   {(Object.keys(PAYMENT_INFO) as PayMethod[]).map(method => (
                     <button key={method} onClick={() => addEditPayment(method)} disabled={editSalePayments.some(p => p.method === method)}
-                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed ${editSalePayments.some(p => p.method === method) ? PAYMENT_INFO[method].color : "border-zinc-700 text-zinc-400 hover:border-zinc-600 hover:text-white"}`}>
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed ${editSalePayments.some(p => p.method === method) ? PAYMENT_INFO[method].color : "neu-sm neu-lift text-zinc-500 hover:text-zinc-900"}`}>
                       {PAYMENT_INFO[method].icon} {PAYMENT_INFO[method].label}
                     </button>
                   ))}
@@ -2553,7 +2557,7 @@ export default function PdvPage() {
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                       <input placeholder="Buscar produto..." value={shortcutSearch} onChange={e => setShortcutSearch(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-brand-500" />
+                        className="w-full pl-10 pr-4 py-2 neu-in border-0 rounded-2xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-brand-500" />
                     </div>
 
                     {/* Lista de produtos */}
@@ -2603,7 +2607,7 @@ export default function PdvPage() {
         <Modal title="Finalizar Venda" onClose={() => setShowCheckout(false)} wide>
           <div className="space-y-4">
 
-            <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 space-y-1.5">
+            <div className="neu-in border-0 rounded-2xl p-4 space-y-1.5">
               {cart.map(i => (
                 <div key={i.product.id} className="flex justify-between text-sm">
                   <span className="text-zinc-300 truncate mr-2">{i.quantity}x {i.product.name}</span>
@@ -2636,7 +2640,7 @@ export default function PdvPage() {
                       onClick={() => addPayment(method)}
                       disabled={alreadyAdded || blockedNoCustomer}
                       title={blockedNoCustomer ? "Selecione um cliente primeiro" : undefined}
-                      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${alreadyAdded ? PAYMENT_INFO[method].color : "border-zinc-700 text-zinc-400 hover:border-zinc-600 hover:text-white"}`}>
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${alreadyAdded ? PAYMENT_INFO[method].color : "neu-sm neu-lift text-zinc-500 hover:text-zinc-900"}`}>
                       {PAYMENT_INFO[method].icon} {PAYMENT_INFO[method].label}
                       <span className="ml-auto text-[10px] opacity-60 border border-current rounded px-1">{PAYMENT_SHORTCUT[method]}</span>
                     </button>
@@ -2697,7 +2701,7 @@ export default function PdvPage() {
                       }
                     }}
                     placeholder={discountType === "percent" ? "Ex: 10" : "0,00"}
-                    className="w-full pl-9 pr-3 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white focus:outline-none focus:border-brand-500"
+                    className="w-full pl-9 pr-3 py-2.5 neu-in border-0 rounded-2xl text-sm text-white focus:outline-none focus:border-brand-500"
                   />
                 </div>
                 {discountType === "percent" && (
@@ -2734,7 +2738,7 @@ export default function PdvPage() {
                       <div className="relative flex-1">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-sm">R$</span>
                         <input type="text" inputMode="decimal" value={p.amount || ""} onChange={e => updatePaymentAmount(p.method, e.target.value)}
-                          className="w-full pl-9 pr-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white focus:outline-none focus:border-brand-500" />
+                          className="w-full pl-9 pr-3 py-2 neu-in border-0 rounded-2xl text-sm text-white focus:outline-none focus:border-brand-500" />
                       </div>
                       <button onClick={() => removePayment(p.method)} className="text-zinc-600 hover:text-red-400 transition-colors flex-shrink-0"><X className="w-4 h-4" /></button>
                     </div>
@@ -2744,7 +2748,7 @@ export default function PdvPage() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-xs font-semibold flex-1">Crediário</span>
                           <select value={crediarioN} onChange={e => setCrediarioN(Number(e.target.value))}
-                            className="px-2 py-1.5 bg-zinc-950 border border-zinc-800 rounded-lg text-xs">
+                            className="px-2 py-1.5 neu-in border-0 rounded-xl text-xs">
                             <option value={0}>Sem parcelas (fiado comum)</option>
                             {Array.from({ length: 12 }, (_, i) => i + 1).map(n => (
                               <option key={n} value={n}>{n}x de {fmt(buildPlan(p.amount, n, crediarioFirst)[0].amount)}</option>
@@ -2755,7 +2759,7 @@ export default function PdvPage() {
                           <div className="flex items-center gap-2 text-xs">
                             <span className="text-zinc-500">1º vencimento</span>
                             <input type="date" value={crediarioFirst} onChange={e => e.target.value && setCrediarioFirst(e.target.value)}
-                              className="px-2 py-1 bg-zinc-950 border border-zinc-800 rounded-lg text-xs" />
+                              className="px-2 py-1 neu-in border-0 rounded-xl text-xs" />
                             <span className="text-zinc-500">· depois todo mês</span>
                           </div>
                         )}
@@ -2782,7 +2786,7 @@ export default function PdvPage() {
             )}
 
             {payments.length > 0 && (
-              <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-3 space-y-1.5 text-sm">
+              <div className="neu-in border-0 rounded-2xl p-3 space-y-1.5 text-sm">
                 {saleChannel === "ifood" && payments.some(p => p.method === "ifood_receivable") ? (
                   // Resumo iFood: bruto → comissão → líquido
                   <>
@@ -2803,8 +2807,8 @@ export default function PdvPage() {
             )}
 
             <button onClick={confirmSale} disabled={checkoutLoading || payments.length === 0}
-              className="w-full py-3 disabled:opacity-50 disabled:cursor-not-allowed font-bold rounded-xl transition-all text-sm"
-              style={{ background: "#7B2FBE", color: "#fff", boxShadow: "0 4px 20px rgba(123,47,190,0.45)" }}>
+              className="neu-lift w-full py-3 disabled:opacity-50 disabled:cursor-not-allowed font-bold rounded-full text-sm"
+              style={{ background: "linear-gradient(135deg,#4ade80,#12b76a)", color: "#fff", boxShadow: "0 10px 22px -8px rgba(18,183,106,.65)" }}>
               {checkoutLoading ? "Processando..." : `Confirmar Venda · ${fmt(total)}`}
             </button>
           </div>
