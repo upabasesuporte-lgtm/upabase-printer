@@ -89,10 +89,11 @@ const MOVE_TYPES: { key: MoveType; label: string; hint: string }[] = [
   { key: "count", label: "Contagem", hint: "Digite quanto tem de verdade — o sistema acerta a diferença" },
 ];
 
-const card = "bg-white border border-gray-200 rounded-2xl shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.04)]";
-const fieldCls = "w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 transition-all";
-const btnPrimary = "inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold bg-brand-600 hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors";
-const btnGhost = "inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl text-sm font-semibold border border-gray-200 text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-40 transition-colors";
+// Estilo 3D suave (classes .neu* em index.css)
+const card = "neu rounded-[26px]";
+const fieldCls = "w-full px-3.5 py-2.5 neu-in rounded-2xl border-0 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#7b86f5]/40 transition-all";
+const btnPrimary = "neu-lift inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-full text-sm font-semibold bg-gradient-to-r from-[#7b86f5] to-[#4f5bd5] shadow-[0_8px_18px_-8px_rgba(79,91,213,.6)] disabled:opacity-40 disabled:cursor-not-allowed";
+const btnGhost = "neu-sm neu-lift inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full text-sm font-semibold text-gray-700 hover:text-[#1e2235] disabled:opacity-40";
 const WHITE = { color: "#fff" };
 
 // ─── Página ───────────────────────────────────────────────────────────────────
@@ -217,14 +218,14 @@ export default function StockPage() {
             </button>
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex flex-1 md:flex-none p-1 bg-gray-200/60 rounded-xl">
+            <div className="flex flex-1 md:flex-none gap-1 p-1.5 neu-in rounded-2xl">
               {([
                 { key: "stock", label: "Estoque", short: "Estoque", icon: <Boxes className="w-4 h-4" /> },
                 { key: "history", label: "Histórico", short: "Histórico", icon: <History className="w-4 h-4" /> },
                 { key: "recipes", label: "Fichas técnicas", short: "Fichas", icon: <BookOpen className="w-4 h-4" /> },
               ] as const).map(t => (
                 <button key={t.key} onClick={() => setView(t.key)}
-                  className={`flex flex-1 md:flex-none items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors ${view === t.key ? "bg-white text-brand-700 shadow-sm" : "text-gray-500 hover:text-gray-800"}`}>
+                  className={`flex flex-1 md:flex-none items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all ${view === t.key ? "neu-sm text-brand-700" : "border-2 border-transparent text-gray-500 hover:text-gray-800"}`}>
                   {t.icon}<span className="sm:hidden">{t.short}</span><span className="hidden sm:inline">{t.label}</span>
                 </button>
               ))}
@@ -254,7 +255,7 @@ export default function StockPage() {
               <div className="relative flex-1">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar produto ou insumo..."
-                  className={fieldCls + " pl-10 bg-gray-50"} />
+                  className={fieldCls + " pl-10"} />
               </div>
               <div className="flex gap-2 flex-wrap">
                 <Segmented value={kindFilter} onChange={v => setKindFilter(v)} disabled={statusFilter === "uncontrolled"}
@@ -276,7 +277,7 @@ export default function StockPage() {
             ) : (
               <>
                 {uncontrolledProducts.length > 0 && statusFilter === "all" && kindFilter !== "ingredient" && search.trim() === "" && (
-                  <div className="flex items-start sm:items-center gap-3 px-4 py-3 rounded-2xl bg-brand-50/60 border border-brand-100 text-sm text-brand-900">
+                  <div className="flex items-start sm:items-center gap-3 px-4 py-3 rounded-2xl neu-in text-sm text-brand-900">
                     <Info className="w-4 h-4 flex-shrink-0 mt-0.5 sm:mt-0 text-brand-600" />
                     <p className="flex-1">
                       <span className="font-semibold">{uncontrolledProducts.length} produto{uncontrolledProducts.length !== 1 ? "s são vendidos" : " é vendido"} sem controle de estoque</span>
@@ -288,7 +289,7 @@ export default function StockPage() {
 
                 {filteredRows.length === 0 ? (
                   <div className={`${card} text-center py-16 px-6`}>
-                    <div className="w-14 h-14 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center mx-auto mb-3">
+                    <div className="w-14 h-14 rounded-2xl neu-in flex items-center justify-center mx-auto mb-3">
                       <Boxes className="w-6 h-6 text-gray-300" />
                     </div>
                     <p className="text-sm font-semibold text-gray-700">
@@ -365,7 +366,7 @@ function Kpi({ label, value, sub, tone, active, onClick }: {
   const Tag = onClick ? "button" : "div";
   return (
     <Tag onClick={onClick}
-      className={`${card} text-left p-3 sm:p-4 min-w-0 transition-all ${onClick ? "hover:border-gray-300 cursor-pointer" : ""} ${active && onClick ? "ring-2 ring-brand-500/30 border-brand-300" : ""}`}>
+      className={`${card} neu-lift text-left p-3 sm:p-4 min-w-0 ${onClick ? "hover:border-gray-300 cursor-pointer" : ""} ${active && onClick ? "ring-2 ring-brand-500/30 border-brand-300" : ""}`}>
       <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{label}</p>
       <p className={`text-2xl font-black tabular-nums tracking-tight mt-1 whitespace-nowrap ${valueColor}`}>{value}</p>
       <p className="text-xs text-gray-400 mt-0.5">{sub}</p>
@@ -377,10 +378,10 @@ function Segmented<T extends string>({ value, onChange, options, disabled }: {
   value: T; onChange: (v: T) => void; options: { value: T; label: string }[]; disabled?: boolean;
 }) {
   return (
-    <div className={`flex p-1 bg-gray-100 rounded-xl max-w-full overflow-x-auto ${disabled ? "opacity-40 pointer-events-none" : ""}`}>
+    <div className={`flex gap-1 p-1.5 neu-in rounded-2xl max-w-full overflow-x-auto ${disabled ? "opacity-40 pointer-events-none" : ""}`}>
       {options.map(o => (
         <button key={o.value} onClick={() => onChange(o.value)}
-          className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${value === o.value ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-800"}`}>
+          className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${value === o.value ? "neu-sm text-brand-700" : "border-2 border-transparent text-gray-500 hover:text-gray-800"}`}>
           {o.label}
         </button>
       ))}
@@ -401,7 +402,7 @@ function LevelBar({ qty, min, max }: { qty: number; min: number; max: number | n
   const target = max && max > 0 ? max : min > 0 ? min * 2 : Math.max(qty, 1);
   const pct = Math.max(0, Math.min(100, (qty / target) * 100));
   return (
-    <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+    <div className="h-2.5 p-[2px] w-full neu-in rounded-full overflow-hidden">
       <div className={`h-full rounded-full ${STATUS[st].bar}`} style={{ width: `${st === "out" ? 0 : Math.max(pct, 4)}%` }} />
     </div>
   );
@@ -411,7 +412,7 @@ function StockTable({ rows, onOpen }: { rows: Row[]; onOpen: (r: Row) => void })
   const total = rows.reduce((s, r) => s + Math.max(r.qty, 0) * r.cost, 0);
   return (
     <div className={`${card} overflow-hidden`}>
-      <div className="hidden md:grid grid-cols-[minmax(0,1fr)_180px_100px_110px_120px_28px] gap-4 px-5 py-2.5 bg-gray-50 border-b border-gray-100 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+      <div className="hidden md:grid grid-cols-[minmax(0,1fr)_180px_100px_110px_120px_28px] gap-4 px-5 py-2.5 bg-white/45 border-b border-white text-[11px] font-semibold uppercase tracking-wide text-gray-500">
         <span>Item</span><span>Estoque</span><span className="text-right">Mínimo</span>
         <span className="text-right">Custo un.</span><span className="text-right">Valor</span><span />
       </div>
@@ -448,7 +449,7 @@ function StockTable({ rows, onOpen }: { rows: Row[]; onOpen: (r: Row) => void })
           );
         })}
       </div>
-      <div className="flex items-center justify-between px-4 md:px-5 py-3 border-t border-gray-100 bg-gray-50/60 text-xs text-gray-500">
+      <div className="flex items-center justify-between px-4 md:px-5 py-3 border-t border-white bg-white/40 text-xs text-gray-500">
         <span>{rows.length} ite{rows.length !== 1 ? "ns" : "m"}</span>
         <span>Valor: <span className="font-semibold text-gray-900">{fmt(total)}</span></span>
       </div>
@@ -462,7 +463,7 @@ function UncontrolledList({ products, recipeCount, onControl, onRecipe }: {
 }) {
   return (
     <div className="space-y-3">
-      <div className="flex items-start gap-3 px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 text-sm text-gray-700">
+      <div className="flex items-start gap-3 px-4 py-3 rounded-2xl neu-in text-sm text-gray-700">
         <InfinityIcon className="w-4 h-4 flex-shrink-0 mt-0.5 text-gray-500" />
         <p>
           Estes produtos são vendidos <span className="font-semibold">sem contar estoque</span> — nunca travam no PDV.
@@ -595,7 +596,7 @@ function ItemDrawer({ row, product, ingredient, onClose, onChanged, onEditProduc
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="relative w-full sm:w-[460px] h-full bg-white shadow-2xl flex flex-col sm:m-3 sm:h-[calc(100%-24px)] sm:rounded-2xl overflow-hidden">
+      <div className="relative w-full sm:w-[460px] h-full neu flex flex-col sm:m-3 sm:h-[calc(100%-24px)] sm:rounded-[28px] overflow-hidden">
         {/* Topo */}
         <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-4 border-b border-gray-100">
           <div className="min-w-0">
@@ -606,23 +607,23 @@ function ItemDrawer({ row, product, ingredient, onClose, onChanged, onEditProduc
             <h2 className="text-lg font-bold text-gray-900 leading-tight">{row.name}</h2>
             {row.subtitle && <p className="text-xs text-gray-500 mt-0.5">{row.subtitle}</p>}
           </div>
-          <button onClick={onClose} className="p-2 -m-1 rounded-xl text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-colors"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} className="neu-sm w-9 h-9 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-900 transition-colors"><X className="w-4 h-4" /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto">
           {/* Números */}
-          <div className="grid grid-cols-3 gap-px bg-gray-100 border-b border-gray-100">
-            <div className="bg-white p-4">
+          <div className="grid grid-cols-3 gap-2 p-3">
+            <div className="neu-in rounded-2xl p-3">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Em estoque</p>
               <p className={`text-xl font-black tabular-nums mt-0.5 ${STATUS[st].text}`}>{fmtNum(row.qty)}</p>
               <p className="text-[11px] text-gray-400">{row.unit}</p>
             </div>
-            <div className="bg-white p-4">
+            <div className="neu-in rounded-2xl p-3">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Custo un.</p>
               <p className="text-xl font-black tabular-nums mt-0.5 text-gray-900">{row.cost > 0 ? fmt(row.cost) : "—"}</p>
               <p className="text-[11px] text-gray-400">última compra</p>
             </div>
-            <div className="bg-white p-4">
+            <div className="neu-in rounded-2xl p-3">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Valor</p>
               <p className="text-xl font-black tabular-nums mt-0.5 text-gray-900">{fmt(Math.max(row.qty, 0) * row.cost)}</p>
               <p className="text-[11px] text-gray-400">parado</p>
@@ -639,10 +640,10 @@ function ItemDrawer({ row, product, ingredient, onClose, onChanged, onEditProduc
           {/* Movimentar */}
           <section className="px-5 pt-5">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">Movimentar estoque</p>
-            <div className="grid grid-cols-4 gap-1 p-1 bg-gray-100 rounded-xl">
+            <div className="grid grid-cols-4 gap-1 p-1.5 neu-in rounded-2xl">
               {MOVE_TYPES.map(t => (
                 <button key={t.key} onClick={() => { setMoveType(t.key); setMoveError(null); setMoveOk(null); }}
-                  className={`py-1.5 rounded-lg text-xs font-semibold transition-colors ${moveType === t.key ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-800"}`}>
+                  className={`py-1.5 rounded-xl text-xs font-semibold transition-all ${moveType === t.key ? "neu-sm text-brand-700" : "border-2 border-transparent text-gray-500 hover:text-gray-800"}`}>
                   {t.label}
                 </button>
               ))}
@@ -704,7 +705,7 @@ function ItemDrawer({ row, product, ingredient, onClose, onChanged, onEditProduc
                 Nenhuma movimentação registrada ainda. Compras, vendas e ajustes aparecem aqui a partir de agora.
               </p>
             ) : (
-              <div className="border border-gray-100 rounded-xl divide-y divide-gray-100">
+              <div className="neu-in rounded-2xl divide-y divide-white">
                 {history.map(m => <MovementLine key={m.id} m={m} unit={row.unit} />)}
               </div>
             )}
@@ -712,7 +713,7 @@ function ItemDrawer({ row, product, ingredient, onClose, onChanged, onEditProduc
         </div>
 
         {/* Rodapé */}
-        <div className="flex items-center justify-between gap-2 px-5 py-3 border-t border-gray-100 bg-gray-50/60">
+        <div className="flex items-center justify-between gap-2 px-5 py-3 border-t border-white bg-white/40">
           {row.kind === "product" ? (
             <button onClick={stopControlling} disabled={busy} className="text-xs font-semibold text-gray-500 hover:text-gray-800 disabled:opacity-40">
               Parar de controlar estoque
@@ -782,7 +783,7 @@ function HistoryView() {
       <div className={`${card} p-3 flex flex-col lg:flex-row gap-3 lg:items-center`}>
         <div className="relative flex-1">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Filtrar por item..." className={fieldCls + " pl-10 bg-gray-50"} />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Filtrar por item..." className={fieldCls + " pl-10"} />
         </div>
         <Segmented value={filter} onChange={v => setFilter(v as typeof filter)} options={[
           { value: "all", label: "Tudo" }, { value: "in", label: "Entradas" }, { value: "sale", label: "Vendas" },
@@ -864,7 +865,7 @@ function RecipesView({ products, stockItems, onCountsChange, onNewIngredient }: 
 
   return (
     <div className="space-y-3">
-      <div className="flex items-start gap-3 px-4 py-3 rounded-2xl bg-brand-50/60 border border-brand-100 text-sm text-brand-900">
+      <div className="flex items-start gap-3 px-4 py-3 rounded-2xl neu-in text-sm text-brand-900">
         <BookOpen className="w-4 h-4 flex-shrink-0 mt-0.5 text-brand-600" />
         <p>
           <span className="font-semibold">Ficha técnica</span> é a receita do produto: quanto de cada insumo ele gasta.
@@ -879,7 +880,7 @@ function RecipesView({ products, stockItems, onCountsChange, onNewIngredient }: 
           <div className="p-3 border-b border-gray-100">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar produto..." className={fieldCls + " pl-9 bg-gray-50 !py-2"} />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar produto..." className={fieldCls + " pl-9 !py-2"} />
             </div>
           </div>
           <div className="max-h-[60vh] overflow-y-auto divide-y divide-gray-50">
@@ -921,7 +922,7 @@ function RecipesView({ products, stockItems, onCountsChange, onNewIngredient }: 
               </div>
             ) : (
               <>
-                <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/60">
+                <div className="px-5 py-4 border-b border-white bg-white/40">
                   <div className="grid grid-cols-[minmax(0,1fr)_120px_auto] gap-2 items-end">
                     <div>
                       <label className="block text-xs text-gray-500 mb-1">Insumo</label>
@@ -968,16 +969,16 @@ function RecipesView({ products, stockItems, onCountsChange, onNewIngredient }: 
                   </div>
                 )}
 
-                <div className="grid grid-cols-3 gap-px bg-gray-100 border-t border-gray-100">
-                  <div className="bg-white p-4">
+                <div className="grid grid-cols-3 gap-2 p-3">
+                  <div className="neu-in rounded-2xl p-3">
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Custo da ficha</p>
                     <p className="text-lg font-black text-gray-900 tabular-nums">{fmt(recipeCost)}</p>
                   </div>
-                  <div className="bg-white p-4">
+                  <div className="neu-in rounded-2xl p-3">
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Preço de venda</p>
                     <p className="text-lg font-black text-gray-900 tabular-nums">{salePrice > 0 ? fmt(salePrice) : "—"}</p>
                   </div>
-                  <div className="bg-white p-4">
+                  <div className="neu-in rounded-2xl p-3">
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Margem</p>
                     <p className={`text-lg font-black tabular-nums ${salePrice > 0 && recipeCost > 0 ? ((salePrice - recipeCost) / salePrice < 0.2 ? "text-amber-600" : "text-emerald-600") : "text-gray-300"}`}>
                       {salePrice > 0 && recipeCost > 0 ? `${(((salePrice - recipeCost) / salePrice) * 100).toFixed(0)}%` : "—"}
@@ -1038,13 +1039,13 @@ function IngredientModal({ item, suppliers, onClose, onSaved }: {
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-[2px] p-0 sm:p-4">
-      <div className="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[92vh] flex flex-col">
+      <div className="neu w-full sm:max-w-lg rounded-t-[28px] sm:rounded-[28px] max-h-[92vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div>
             <h2 className="text-base font-bold text-gray-900">{item ? "Editar insumo" : "Novo insumo"}</h2>
             <p className="text-xs text-gray-500">Ingrediente ou material usado no preparo — não é vendido direto.</p>
           </div>
-          <button onClick={onClose} className="p-2 -m-1 rounded-xl text-gray-400 hover:text-gray-900 hover:bg-gray-100"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} className="neu-sm w-9 h-9 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-900"><X className="w-4 h-4" /></button>
         </div>
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
           <div>
@@ -1134,13 +1135,13 @@ function ControlDialog({ product, onClose, onDone }: { product: ProductRow; onCl
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-[2px] p-0 sm:p-4">
-      <div className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl">
+      <div className="neu w-full sm:max-w-md rounded-t-[28px] sm:rounded-[28px]">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div className="min-w-0">
             <h2 className="text-base font-bold text-gray-900">Controlar estoque</h2>
             <p className="text-xs text-gray-500 truncate">{product.name}</p>
           </div>
-          <button onClick={onClose} className="p-2 -m-1 rounded-xl text-gray-400 hover:text-gray-900 hover:bg-gray-100"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} className="neu-sm w-9 h-9 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-900"><X className="w-4 h-4" /></button>
         </div>
         <div className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-3">
