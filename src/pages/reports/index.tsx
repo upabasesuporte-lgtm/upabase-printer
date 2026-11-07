@@ -1,9 +1,10 @@
-﻿import { useState, useEffect, useCallback, useRef } from "react";
+﻿import { useState, useEffect, useCallback, useRef, isValidElement } from "react";
 import { supabase } from "../../lib/supabase";
 import { fetchAll } from "../../lib/fetchAll";
 import { useTheme } from "../../contexts/ThemeContext";
 import { PageHeader, btnSecondary } from "../../components/PageHeader";
-import { StatCard, toneFor } from "../../components/StatCard";
+import { toneFor } from "../../components/StatCard";
+import { NeuStatCard, type SkinTone } from "../../components/Neu";
 import { SellerCommissions } from "../../components/SellerCommissions";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -375,24 +376,27 @@ function KPICard({ label, value, sub, icon }: {
   label: string; value: string; sub?: string; icon: React.ReactNode;
   from: string; to: string; glow: string;
 }) {
-  // Cor do número pela regra única do sistema (verde entra, vermelho sai, âmbar atenção, azul informativo)
-  return <StatCard label={label} value={value} sub={sub} icon={icon} tone={toneFor(label, value)} />;
+  // Cor pela regra única do sistema (verde entra, vermelho sai, coral atenção, azul informativo)
+  const t = toneFor(label, value);
+  const skin: SkinTone = t === "positive" ? "green" : t === "negative" ? "red" : t === "warning" ? "amber" : "sky";
+  const Icon = (isValidElement(icon) ? icon.type : TrendingUp) as React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
+  return <NeuStatCard tone={skin} icon={Icon} label={label} value={value} sub={sub} />;
 }
 
 function Card({ children, className="" }: { children: React.ReactNode; className?: string }) {
   const { theme } = useTheme();
   const isLight = theme === "light";
   const cardStyle = isLight ? {
-    background: "#ffffff",
-    border: "1px solid #e5e7eb",
-    boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.9)",
+    background: "linear-gradient(145deg,#e9edf3,#f7f8fb)",
+    border: "3px solid #fbfcfd",
+    boxShadow: "11px 11px 24px rgba(140,152,176,.5), -10px -10px 22px rgba(255,255,255,1), inset 3px 3px 7px rgba(140,152,176,.22), inset -3px -3px 7px rgba(255,255,255,.95)",
   } : {
     background: "#18181b",
     border: "1px solid rgba(39,39,42,0.8)",
     boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
   };
   return (
-    <div className={`rounded-2xl ${className}`} style={cardStyle}>
+    <div className={`rounded-[26px] ${className}`} style={cardStyle}>
       {children}
     </div>
   );
@@ -401,7 +405,7 @@ function Card({ children, className="" }: { children: React.ReactNode; className
 function CardTitle({ children, sub }: { children: React.ReactNode; sub?: string }) {
   return (
     <div className="mb-5">
-      <h2 className="text-sm font-bold text-white">{children}</h2>
+      <h2 className="text-base font-black text-white tracking-tight">{children}</h2>
       {sub && <p className="text-xs text-zinc-600 mt-0.5">{sub}</p>}
     </div>
   );
@@ -426,9 +430,9 @@ export default function ReportsPage() {
   const { theme } = useTheme();
   const isLight = theme === "light";
   const card = isLight ? {
-    bg: "#ffffff",
-    border: "1px solid #e5e7eb",
-    shadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.9)",
+    bg: "linear-gradient(145deg,#edf0f5,#f9fafc)",
+    border: "2px solid #fcfdfe",
+    shadow: "6px 6px 14px rgba(140,152,176,.42), -6px -6px 14px rgba(255,255,255,1), inset 2px 2px 5px rgba(140,152,176,.18), inset -2px -2px 5px rgba(255,255,255,.95)",
   } : {
     bg: "#18181b",
     border: "1px solid rgba(39,39,42,0.8)",
@@ -671,7 +675,7 @@ export default function ReportsPage() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
-  const inputCls = "px-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 transition-all";
+  const inputCls = "px-3.5 py-2 neu-in border-0 rounded-2xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 transition-all";
 
   return (
     <div className="space-y-5">
@@ -694,10 +698,10 @@ export default function ReportsPage() {
           <div className="flex flex-wrap gap-1.5">
             {PRESETS.map(p=>(
               <button key={p.key} onClick={()=>setPreset(p.key)}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                className="px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all"
                 style={preset===p.key
-                  ? { background:"#315DFB", color:"#fff" }
-                  : { background: isLight ? "#f3f4f6" : "#27272a", color: isLight ? "#374151" : "#a1a1aa", border: isLight ? "1px solid #e5e7eb" : "none" }}>
+                  ? { background:"linear-gradient(135deg,#7b86f5,#4f5bd5)", color:"#fff", boxShadow:"0 6px 14px -6px rgba(79,91,213,.6)" }
+                  : { background: isLight ? "linear-gradient(145deg,#edf0f5,#f9fafc)" : "#27272a", color: isLight ? "#374151" : "#a1a1aa", border: isLight ? "2px solid #fcfdfe" : "none", boxShadow: isLight ? "6px 6px 14px rgba(140,152,176,.42), -6px -6px 14px rgba(255,255,255,1), inset 2px 2px 5px rgba(140,152,176,.18), inset -2px -2px 5px rgba(255,255,255,.95)" : undefined }}>
                 {p.label}
               </button>
             ))}
@@ -721,13 +725,13 @@ export default function ReportsPage() {
       )}
 
       {/* ── Tabs ── */}
-      <div className="flex gap-1 rounded-2xl p-1.5 overflow-x-auto bg-gray-200/60">
+      <div className="flex gap-1 rounded-2xl p-1.5 overflow-x-auto neu-in">
         {TABS.map(t=>(
           <button key={t.key} onClick={()=>setTab(t.key)}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex-1 justify-center whitespace-nowrap min-w-fit"
             style={tab===t.key
-              ? { background:"#ffffff", color:"#2547D6", boxShadow:"0 1px 2px rgba(0,0,0,0.08)" }
-              : { color:"#71717a" }}>
+              ? { background:"linear-gradient(145deg,#edf0f5,#f9fafc)", color:"#2547D6", border:"2px solid #fcfdfe", boxShadow:"6px 6px 14px rgba(140,152,176,.42), -6px -6px 14px rgba(255,255,255,1), inset 2px 2px 5px rgba(140,152,176,.18), inset -2px -2px 5px rgba(255,255,255,.95)" }
+              : { color:"#71717a", border:"2px solid transparent" }}>
             {t.icon} {t.label}
           </button>
         ))}
@@ -748,7 +752,7 @@ export default function ReportsPage() {
         {/* ════ VISÃO GERAL ════ */}
         {tab==="overview" && (
           <div className="space-y-5">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 p-1">
               <KPICard label="Faturamento" value={fmt(totalRevenue)} sub={`${orderCount} pedidos no período`}
                 from="#8b5cf6" to="#06b6d4" glow="rgba(139,92,246,0.15)"
                 icon={<TrendingUp className="w-4 h-4" style={{color:"#8b5cf6"}} />} />
@@ -824,7 +828,7 @@ export default function ReportsPage() {
                           <span className="text-zinc-400">{p.name}</span>
                           <span className="font-bold" style={{color:PIE_COLORS[i%PIE_COLORS.length]}}>{fmt(p.value)}</span>
                         </div>
-                        <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                        <div className="h-2.5 p-[2px] neu-in rounded-full overflow-hidden">
                           <div className="h-full rounded-full" style={{
                             width:`${totalRevenue>0?(p.value/totalRevenue)*100:0}%`,
                             background:PIE_COLORS[i%PIE_COLORS.length],
@@ -849,7 +853,7 @@ export default function ReportsPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-semibold truncate">{s.name}</p>
-                          <div className="h-1 bg-zinc-800 rounded-full mt-1 overflow-hidden">
+                          <div className="h-2 p-[2px] neu-in rounded-full mt-1 overflow-hidden">
                             <div className="h-full rounded-full" style={{ width:`${(s.revenue/maxSellerRev)*100}%`, background:"linear-gradient(90deg,#d946ef,#8b5cf6)" }} />
                           </div>
                         </div>
@@ -866,7 +870,7 @@ export default function ReportsPage() {
         {/* ════ VENDAS ════ */}
         {tab==="sales" && (
           <div className="space-y-5">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 p-1">
               <KPICard label="Faturamento" value={fmt(totalRevenue)} sub={`${orderCount} pedidos`}
                 from="#06b6d4" to="#3b82f6" glow="rgba(6,182,212,0.15)"
                 icon={<TrendingUp className="w-4 h-4" style={{color:"#06b6d4"}} />} />
@@ -882,7 +886,7 @@ export default function ReportsPage() {
                 icon={<Banknote className="w-4 h-4" style={{color:"#10b981"}} />} />
             </div>
             {totalService > 0 && (
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl px-5 py-4 border border-zinc-800">
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-[22px] px-5 py-4 neu-in">
                 <div>
                   <p className="text-sm font-semibold">Taxa de serviço das mesas</p>
                   <p className="text-xs text-zinc-500">Já incluída no faturamento · {serviceCount} conta{serviceCount===1?"":"s"} · valor para repassar à equipe</p>
@@ -1023,7 +1027,7 @@ export default function ReportsPage() {
                             <span className="text-sm font-bold w-28 text-right" style={{color:"#10b981"}}>{fmt(p.revenue)}</span>
                           </div>
                         </div>
-                        <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden ml-7">
+                        <div className="h-2.5 p-[2px] neu-in rounded-full overflow-hidden ml-7">
                           <div className="h-full rounded-full" style={{
                             width:`${(p.revenue/maxItemRev)*100}%`,
                             background:`linear-gradient(90deg,${abcColor},${abcColor}aa)`,
@@ -1195,7 +1199,7 @@ export default function ReportsPage() {
                           <p className="text-[10px] text-zinc-600">{totalRevenue>0?`${fmtN((s.revenue/totalRevenue)*100,1)}% do total`:""}</p>
                         </div>
                       </div>
-                      <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                      <div className="h-2.5 p-[2px] neu-in rounded-full overflow-hidden">
                         <div className="h-full rounded-full" style={{
                           width:`${(s.revenue/maxSellerRev)*100}%`,
                           background:"linear-gradient(90deg,#d946ef,#8b5cf6)",
@@ -1363,7 +1367,7 @@ export default function ReportsPage() {
                           <span className="text-sm font-medium">{p.name}</span>
                           <span className="text-sm font-bold tabular-nums" style={{color}}>{p.stock} un.</span>
                         </div>
-                        <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                        <div className="h-2.5 p-[2px] neu-in rounded-full overflow-hidden">
                           <div className="h-full rounded-full" style={{width:`${Math.max(2,pct)}%`,background:color,boxShadow:`0 0 6px ${color}60`}} />
                         </div>
                       </div>
@@ -1388,7 +1392,7 @@ export default function ReportsPage() {
                           <span className="text-sm font-bold tabular-nums" style={{color}}>{item.current_qty} {item.unit}</span>
                         </div>
                         {pct!==null && (
-                          <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                          <div className="h-2.5 p-[2px] neu-in rounded-full overflow-hidden">
                             <div className="h-full rounded-full" style={{width:`${Math.max(2,pct)}%`,background:color,boxShadow:`0 0 6px ${color}60`}} />
                           </div>
                         )}
@@ -1439,7 +1443,7 @@ export default function ReportsPage() {
                           <p className="text-[10px] text-zinc-600">{purchaseTotal>0?`${fmtN((s.total/purchaseTotal)*100,1)}% do total`:""}</p>
                         </div>
                       </div>
-                      <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                      <div className="h-2.5 p-[2px] neu-in rounded-full overflow-hidden">
                         <div className="h-full rounded-full" style={{
                           width:`${(s.total/maxSupplierTotal)*100}%`,
                           background:"linear-gradient(90deg,#f97316,#f59e0b)",
