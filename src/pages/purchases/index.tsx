@@ -65,7 +65,7 @@ const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", curren
 const fmtQty = (v: number, unit: string) =>
   `${Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 3 })} ${unit}`;
 
-const inputCls = "w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/10 transition-all";
+const inputCls = "w-full px-3.5 py-2.5 neu-in border-0 rounded-2xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/10 transition-all";
 const selectCls = inputCls + " cursor-pointer";
 // Data de hoje no fuso do navegador (toISOString usa UTC e vira o dia a partir das 21h)
 const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
@@ -77,9 +77,9 @@ export default function PurchasesPage() {
   const { theme } = useTheme();
   const isLight = theme === "light";
   const card = isLight ? {
-    bg: "#ffffff",
-    border: "1px solid #e5e7eb",
-    shadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.9)",
+    bg: "linear-gradient(145deg,#e9edf3,#f7f8fb)",
+    border: "3px solid #fbfcfd",
+    shadow: "11px 11px 24px rgba(140,152,176,.5), -10px -10px 22px rgba(255,255,255,1), inset 3px 3px 7px rgba(140,152,176,.22), inset -3px -3px 7px rgba(255,255,255,.95)",
   } : {
     bg: "#18181b",
     border: "1px solid rgba(39,39,42,0.8)",
@@ -643,13 +643,13 @@ export default function PurchasesPage() {
               const isExpanded = expandedPO === po.id;
               const itemCount = (po.purchase_order_items ?? []).length;
               return (
-                <div key={po.id} className="rounded-2xl overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+                <div key={po.id} className="rounded-[26px] overflow-hidden" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
                   <button onClick={() => setExpandedPO(isExpanded ? null : po.id)}
                     style={{ WebkitTapHighlightColor: "transparent" }}
                     className="w-full flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 px-5 py-4 text-left transition-colors">
                     <div className="flex items-center gap-4 min-w-0 sm:flex-1">
-                      <div className="w-10 h-10 bg-brand-50 border border-brand-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <Truck className="w-4 h-4 text-brand-600" />
+                      <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: "linear-gradient(145deg,#eef0ff,#dfe3ff)", boxShadow: "inset 2px 2px 5px rgba(255,255,255,.85), inset -2px -2px 5px rgba(0,0,0,.06), 3px 3px 8px rgba(163,177,198,.35)" }}>
+                        <Truck className="w-4 h-4" style={{ color: "#4f5bd5" }} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 min-w-0 flex-wrap">
@@ -752,7 +752,7 @@ export default function PurchasesPage() {
       {/* Confirmar Recebimento (pedido pendente) */}
       {modal === "receive" && receiveTarget && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-sm flex flex-col">
+          <div className="neu rounded-[28px] w-full max-w-sm flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 flex-shrink-0">
               <div>
                 <h2 className="text-base font-semibold">Confirmar Recebimento</h2>
@@ -776,7 +776,7 @@ export default function PurchasesPage() {
               </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 px-6 py-4 border-t border-zinc-800 flex-shrink-0">
-              <button onClick={() => setModal("none")} className="sm:flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
+              <button onClick={() => setModal("none")} className="sm:flex-1 py-2.5 neu-sm neu-lift text-zinc-700 rounded-full text-sm font-medium transition-colors">Cancelar</button>
               <button onClick={() => confirmReceivePurchase(receiveTarget, receiveDueDate, receiveInstallments)} disabled={receivingId === receiveTarget.id}
                 className="sm:flex-1 flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 rounded-xl text-sm font-semibold transition-colors"
                 style={{ color: "#fff" }}>
@@ -818,7 +818,7 @@ export default function PurchasesPage() {
       {/* Purchase Modal (celular) */}
       {modal === "purchase" && !isDesktop && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] flex flex-col">
+          <div className="neu rounded-[28px] w-full max-w-lg max-h-[92vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 flex-shrink-0">
               <div>
                 <h2 className="text-base font-semibold">Registrar Compra</h2>
@@ -902,11 +902,11 @@ export default function PurchasesPage() {
                           <div className="space-y-1.5">
                             <div className="flex gap-2">
                               <button type="button" onClick={() => openQuickCreate(idx, "product", "")}
-                                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold transition-colors">
+                                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-full bg-gradient-to-r from-[#7b86f5] to-[#4f5bd5] shadow-[0_8px_18px_-8px_rgba(79,91,213,.6)] text-white text-xs font-bold">
                                 <Plus className="w-3.5 h-3.5 flex-shrink-0" /> Criar Produto Novo
                               </button>
                               <button type="button" onClick={() => { setItemSearchText(""); setOpenSearchIdx(idx); }}
-                                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-zinc-700 hover:border-zinc-600 text-zinc-300 hover:text-white text-xs font-semibold transition-colors">
+                                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-full neu-sm neu-lift text-zinc-600 hover:text-zinc-900 text-xs font-semibold transition-colors">
                                 <Search className="w-3.5 h-3.5 flex-shrink-0" /> Usar Produto Existente
                               </button>
                               {poItems.length > 1 && (
@@ -924,7 +924,7 @@ export default function PurchasesPage() {
                         ) : !isSearching ? (
                           <div className="flex gap-2 items-center">
                             <button type="button" onClick={() => { setItemSearchText(""); setOpenSearchIdx(idx); }}
-                              className="flex-1 flex items-center justify-between gap-2 px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 hover:border-zinc-700 rounded-xl text-sm text-left transition-colors">
+                              className="flex-1 flex items-center justify-between gap-2 px-3.5 py-2.5 neu-in border-0 hover:border-zinc-700 rounded-xl text-sm text-left transition-colors">
                               <span className="text-white truncate">{item.itemName}</span>
                               <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${item.ref_type === "ingredient" ? "bg-gray-100 text-gray-600 border border-gray-200" : "bg-gray-100 text-gray-600 border border-gray-200"}`}>
                                 {item.ref_type === "ingredient" ? "Insumo" : "Produto"}
@@ -950,7 +950,7 @@ export default function PurchasesPage() {
                             )}
                           </div>
                         ) : (
-                          <div className="bg-zinc-900 border border-brand-500/40 rounded-xl overflow-hidden">
+                          <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-xl">
                             <div className="flex items-center gap-2 px-3 py-2 border-b border-zinc-800">
                               <Search className="w-4 h-4 text-zinc-500 flex-shrink-0" />
                               <input autoFocus value={itemSearchText} onChange={e => setItemSearchText(e.target.value)}
@@ -967,7 +967,7 @@ export default function PurchasesPage() {
                                     setPOItems(prev => prev.map((p, i) => i === idx ? { ...p, ref_type: m.ref_type, item_id: m.id, itemName: m.name } : p));
                                     setOpenSearchIdx(null);
                                   }}
-                                  className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-zinc-800 transition-colors text-sm border-b border-zinc-800/50 last:border-0">
+                                  className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-[#eef0ff] transition-colors text-sm border-b border-gray-100 last:border-0">
                                   <span className="text-white truncate">{m.name}</span>
                                   <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${m.ref_type === "ingredient" ? "bg-gray-100 text-gray-600 border border-gray-200" : "bg-gray-100 text-gray-600 border border-gray-200"}`}>
                                     {m.ref_type === "ingredient" ? "Insumo" : "Produto"}
@@ -980,7 +980,7 @@ export default function PurchasesPage() {
                             </div>
                             <div className="border-t border-zinc-800 p-2">
                               <button type="button" onClick={() => openQuickCreate(idx, "product", itemSearchText.trim())}
-                                className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold transition-colors">
+                                className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-full bg-gradient-to-r from-[#7b86f5] to-[#4f5bd5] shadow-[0_8px_18px_-8px_rgba(79,91,213,.6)] text-white text-xs font-bold">
                                 <Plus className="w-3.5 h-3.5 flex-shrink-0" /> Cadastrar {itemSearchText ? `"${itemSearchText}"` : "produto novo"}
                               </button>
                             </div>
@@ -992,7 +992,7 @@ export default function PurchasesPage() {
                 </div>
               </div>
 
-              <div className="bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 flex items-center justify-between">
+              <div className="neu-in border-0 rounded-xl px-4 py-3 flex items-center justify-between">
                 <span className="text-xs text-zinc-400">Total da compra</span>
                 <span className="text-base font-bold text-white">
                   {fmt(poItems.reduce((s, i) => s + (parseFloat(i.quantity) || 0) * (parseFloat(i.unit_cost) || 0), 0))}
@@ -1000,10 +1000,10 @@ export default function PurchasesPage() {
               </div>
             </div>
             <div className="flex flex-col gap-3 px-6 py-4 border-t border-zinc-800 flex-shrink-0">
-              <button onClick={() => setModal("none")} className="w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
+              <button onClick={() => setModal("none")} className="w-full py-2.5 neu-sm neu-lift text-zinc-700 rounded-full text-sm font-medium transition-colors">Cancelar</button>
               <button onClick={savePurchase}
                 disabled={poItems.every(i => !i.item_id || !i.quantity) || saving}
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 rounded-xl text-sm font-semibold transition-colors"
+                className="w-full flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-[#7b86f5] to-[#4f5bd5] shadow-[0_8px_18px_-8px_rgba(79,91,213,.6)] disabled:opacity-50 rounded-full text-sm font-semibold transition-colors"
                 style={{ color: "#fff" }}>
                 {saving ? <RefreshCw className="w-4 h-4 animate-spin flex-shrink-0" /> : <Truck className="w-4 h-4 flex-shrink-0" />}
                 <span className="truncate">Dar entrada no estoque</span>
@@ -1016,7 +1016,7 @@ export default function PurchasesPage() {
       {/* Cadastro rápido de insumo, direto da Compra */}
       {quickCreateIdx !== null && quickCreateType === "ingredient" && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-sm">
+          <div className="neu rounded-[28px] w-full max-w-sm">
             <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
               <h2 className="text-base font-semibold">Cadastrar novo insumo</h2>
               <button onClick={() => setQuickCreateIdx(null)} className="p-1.5 text-zinc-400 hover:text-white rounded-lg"><X className="w-4 h-4" /></button>
@@ -1050,9 +1050,9 @@ export default function PurchasesPage() {
               )}
             </div>
             <div className="flex gap-3 px-6 py-4 border-t border-zinc-800">
-              <button onClick={() => setQuickCreateIdx(null)} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
+              <button onClick={() => setQuickCreateIdx(null)} className="flex-1 py-2.5 neu-sm neu-lift text-zinc-700 rounded-full text-sm font-medium transition-colors">Cancelar</button>
               <button onClick={saveQuickCreateIngredient} disabled={qcSaving}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-[#7b86f5] to-[#4f5bd5] shadow-[0_8px_18px_-8px_rgba(79,91,213,.6)] disabled:opacity-50 text-white rounded-full text-sm font-semibold transition-colors">
                 {qcSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                 Cadastrar e usar
               </button>
@@ -1085,7 +1085,7 @@ export default function PurchasesPage() {
       {/* Conferência dos itens lidos do XML da NFe, antes de virar compra */}
       {xmlItems && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col">
+          <div className="neu rounded-[28px] w-full max-w-2xl max-h-[92vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 flex-shrink-0">
               <div>
                 <h2 className="text-base font-semibold">Conferir itens da nota</h2>
@@ -1100,7 +1100,7 @@ export default function PurchasesPage() {
                 <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs p-3 rounded-xl">{xmlError}</div>
               )}
               {xmlItems.map((it, idx) => (
-                <div key={idx} className="bg-zinc-950 border border-zinc-800 rounded-xl p-3.5 space-y-2.5">
+                <div key={idx} className="neu-in border-0 rounded-xl p-3.5 space-y-2.5">
                   <div className="flex items-center gap-2">
                     <input value={it.xProd} onChange={e => updateXmlItem(idx, { xProd: e.target.value })}
                       className={inputCls + " flex-1"} />
@@ -1121,13 +1121,13 @@ export default function PurchasesPage() {
                   ) : (
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs text-amber-400 flex-shrink-0">Será cadastrado como novo:</span>
-                      <div className="flex bg-zinc-800 rounded-lg p-0.5 gap-0.5">
+                      <div className="flex neu-in rounded-full p-1 gap-0.5">
                         <button type="button" onClick={() => updateXmlItem(idx, { refType: "ingredient" })}
-                          className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition-all ${it.refType === "ingredient" ? "bg-brand-600 text-white" : "text-zinc-400 hover:text-white"}`}>
+                          className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition-all ${it.refType === "ingredient" ? "bg-gradient-to-r from-[#7b86f5] to-[#4f5bd5] text-white rounded-full" : "text-zinc-500 hover:text-zinc-900"}`}>
                           Insumo
                         </button>
                         <button type="button" onClick={() => updateXmlItem(idx, { refType: "product" })}
-                          className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition-all ${it.refType === "product" ? "bg-brand-600 text-white" : "text-zinc-400 hover:text-white"}`}>
+                          className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition-all ${it.refType === "product" ? "bg-gradient-to-r from-[#7b86f5] to-[#4f5bd5] text-white rounded-full" : "text-zinc-500 hover:text-zinc-900"}`}>
                           Produto
                         </button>
                       </div>
@@ -1142,9 +1142,9 @@ export default function PurchasesPage() {
               ))}
             </div>
             <div className="flex gap-3 px-6 py-4 border-t border-zinc-800 flex-shrink-0">
-              <button onClick={() => setXmlItems(null)} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
+              <button onClick={() => setXmlItems(null)} className="flex-1 py-2.5 neu-sm neu-lift text-zinc-700 rounded-full text-sm font-medium transition-colors">Cancelar</button>
               <button onClick={confirmXmlImport} disabled={xmlImporting}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-[#7b86f5] to-[#4f5bd5] shadow-[0_8px_18px_-8px_rgba(79,91,213,.6)] disabled:opacity-50 text-white rounded-full text-sm font-semibold transition-colors">
                 {xmlImporting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
                 Usar {xmlItems.length} ite{xmlItems.length !== 1 ? "ns" : "m"} na compra
               </button>

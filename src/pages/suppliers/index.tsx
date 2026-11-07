@@ -19,7 +19,7 @@ interface Supplier {
 
 type Modal = "none" | "supplier" | "delete";
 
-const inputCls = "w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/10 transition-all";
+const inputCls = "w-full px-3.5 py-2.5 neu-in border-0 rounded-2xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/10 transition-all";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -27,9 +27,9 @@ export default function SuppliersPage() {
   const { theme } = useTheme();
   const isLight = theme === "light";
   const card = isLight ? {
-    bg: "#ffffff",
-    border: "1px solid #e5e7eb",
-    shadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.9)",
+    bg: "linear-gradient(145deg,#e9edf3,#f7f8fb)",
+    border: "3px solid #fbfcfd",
+    shadow: "11px 11px 24px rgba(140,152,176,.5), -10px -10px 22px rgba(255,255,255,1), inset 3px 3px 7px rgba(140,152,176,.22), inset -3px -3px 7px rgba(255,255,255,.95)",
   } : {
     bg: "#18181b",
     border: "1px solid rgba(39,39,42,0.8)",
@@ -134,7 +134,7 @@ export default function SuppliersPage() {
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Buscar fornecedor..."
-            style={{ background: card.bg, border: card.border, color: isLight ? "#111" : "#fff" }}
+            style={{ background: isLight ? "#eef1f5" : card.bg, border: isLight ? "0" : card.border, boxShadow: isLight ? "inset 3px 3px 7px rgba(163,177,198,.45), inset -3px -3px 7px rgba(255,255,255,.95)" : undefined, color: isLight ? "#111" : "#fff" }}
             className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm placeholder-zinc-600 focus:outline-none focus:border-brand-500 transition-all" />
         </div>
 
@@ -146,9 +146,9 @@ export default function SuppliersPage() {
               className="mt-5 text-brand-600 text-sm hover:underline">Cadastrar primeiro fornecedor</button>
           </div>
         ) : (
-          <div className="rounded-2xl overflow-hidden divide-y divide-zinc-800" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+          <div className="rounded-[26px] overflow-hidden divide-y divide-white" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
             {filteredSuppliers.map(s => (
-              <div key={s.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-zinc-800/30 transition-colors">
+              <div key={s.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-white/60 transition-colors">
                 <div className="w-10 h-10 rounded-xl bg-brand-50 border border-brand-100 flex items-center justify-center flex-shrink-0">
                   <Building2 className="w-4 h-4 text-brand-600" />
                 </div>
@@ -180,7 +180,7 @@ export default function SuppliersPage() {
       {/* Supplier Modal */}
       {modal === "supplier" && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] flex flex-col">
+          <div className="neu rounded-[28px] w-full max-w-lg max-h-[92vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 flex-shrink-0">
               <h2 className="text-base font-semibold">{editingSupplier ? "Editar Fornecedor" : "Novo Fornecedor"}</h2>
               <button onClick={() => setModal("none")} className="p-1.5 text-zinc-400 hover:text-white rounded-lg"><X className="w-4 h-4" /></button>
@@ -221,9 +221,9 @@ export default function SuppliersPage() {
               </div>
             </div>
             <div className="flex gap-3 px-6 py-4 border-t border-zinc-800 flex-shrink-0">
-              <button onClick={() => setModal("none")} className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
+              <button onClick={() => setModal("none")} className="flex-1 py-2.5 neu-sm neu-lift text-zinc-700 rounded-full text-sm font-medium transition-colors">Cancelar</button>
               <button onClick={saveSupplier} disabled={!sName.trim() || saving}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-[#7b86f5] to-[#4f5bd5] shadow-[0_8px_18px_-8px_rgba(79,91,213,.6)] disabled:opacity-50 text-white rounded-full text-sm font-semibold transition-colors">
                 {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 {editingSupplier ? "Salvar" : "Cadastrar"}
               </button>
@@ -235,7 +235,7 @@ export default function SuppliersPage() {
       {/* Delete Confirm */}
       {modal === "delete" && deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+          <div className="neu rounded-[28px] w-full max-w-sm p-6 space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-red-500/10 rounded-full flex items-center justify-center flex-shrink-0">
                 <AlertTriangle className="w-5 h-5 text-red-400" />
@@ -249,7 +249,7 @@ export default function SuppliersPage() {
             </div>
             <div className="flex gap-3">
               <button onClick={() => { setDeleteTarget(null); setModal("none"); }}
-                className="flex-1 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl text-sm font-medium transition-colors">Cancelar</button>
+                className="flex-1 py-2.5 neu-sm neu-lift text-zinc-700 rounded-full text-sm font-medium transition-colors">Cancelar</button>
               <button onClick={deleteConfirmed} disabled={saving}
                 className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors">
                 {saving ? "Excluindo…" : "Excluir"}

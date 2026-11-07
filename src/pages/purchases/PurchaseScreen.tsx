@@ -56,8 +56,8 @@ export const PURCHASE_PAY_METHODS = [
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const num = (v: string | undefined) => parseFloat((v ?? "").replace(",", ".")) || 0;
 
-const fieldCls = "w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 transition-all";
-const cellInputCls = "w-full px-2 py-1.5 bg-white border border-gray-200 rounded-md text-sm text-gray-900 text-right tabular-nums focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 transition-all";
+const fieldCls = "w-full px-3 py-2 neu-in border-0 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 transition-all";
+const cellInputCls = "w-full px-2 py-1.5 neu-in border-0 rounded-lg text-sm text-gray-900 text-right tabular-nums focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 transition-all";
 
 export default function PurchaseScreen(p: Props) {
   const [search, setSearch] = useState("");
@@ -126,12 +126,12 @@ export default function PurchaseScreen(p: Props) {
     <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-[2px] p-3">
       <div className="h-full w-full flex gap-3">
         {/* ── Coluna principal ── */}
-        <div className="flex-1 min-w-0 flex flex-col bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden">
+        <div className="flex-1 min-w-0 flex flex-col neu rounded-[26px] overflow-hidden">
           {/* Topo */}
           <div className="flex items-center justify-between gap-4 px-6 pt-5 pb-4">
             <div className="flex items-center gap-3 min-w-0">
               <button onClick={p.onClose} title="Voltar (Esc)"
-                className="w-9 h-9 flex items-center justify-center rounded-xl border border-gray-200 text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors">
+                className="neu-sm neu-lift w-9 h-9 flex items-center justify-center rounded-full text-gray-500 hover:text-gray-900">
                 <ArrowLeft className="w-4 h-4" />
               </button>
               <div>
@@ -141,12 +141,12 @@ export default function PurchaseScreen(p: Props) {
             </div>
             <div className="flex items-center gap-2">
             <button onClick={() => p.onCreateProduct(search.trim())}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold bg-brand-600 hover:bg-brand-700 transition-colors"
+              className="neu-lift flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold bg-gradient-to-r from-[#7b86f5] to-[#4f5bd5] shadow-[0_8px_18px_-8px_rgba(79,91,213,.6)]"
               style={{ color: "#fff" }}>
               <Plus className="w-4 h-4" /> Cadastrar produto novo
             </button>
             <button onClick={p.onImportXml} disabled={p.xmlParsing}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50">
+              className="neu-sm neu-lift flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold text-gray-700 disabled:opacity-50">
               {p.xmlParsing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
               Importar XML da NFe
             </button>
@@ -172,7 +172,7 @@ export default function PurchaseScreen(p: Props) {
 
           {/* Busca */}
           <div className="relative px-6 pb-4">
-            <div className="flex items-center gap-2 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/15 focus-within:bg-white transition-all">
+            <div className="flex items-center gap-2 px-4 py-3 neu-in rounded-2xl focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/15 focus-within:bg-white transition-all">
               <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
               <input ref={searchRef} value={search}
                 onChange={e => { setSearch(e.target.value); setHighlight(0); }}
@@ -219,7 +219,7 @@ export default function PurchaseScreen(p: Props) {
 
           {/* Itens */}
           <div className="flex-1 min-h-0 flex flex-col border-t border-gray-100">
-            <div className="grid grid-cols-[minmax(0,1fr)_72px_100px_100px_92px_56px] xl:grid-cols-[minmax(0,1fr)_88px_124px_124px_110px_64px] gap-2 xl:gap-3 px-4 xl:px-6 py-2.5 bg-gray-50 border-b border-gray-100 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+            <div className="grid grid-cols-[minmax(0,1fr)_72px_100px_100px_92px_56px] xl:grid-cols-[minmax(0,1fr)_88px_124px_124px_110px_64px] gap-2 xl:gap-3 px-4 xl:px-6 py-2.5 bg-white/45 border-b border-gray-100 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
               <span>Produto</span>
               <span className="text-right">Qtd</span>
               <span className="text-right">Custo un.</span>
@@ -230,7 +230,7 @@ export default function PurchaseScreen(p: Props) {
             <div className="flex-1 overflow-y-auto">
               {lines.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center py-16 px-6">
-                  <div className="w-14 h-14 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center mb-3">
+                  <div className="w-14 h-14 rounded-2xl neu-in flex items-center justify-center mb-3">
                     <Package className="w-6 h-6 text-gray-300" />
                   </div>
                   <p className="text-sm font-semibold text-gray-700">Nenhum item na compra</p>
@@ -304,7 +304,7 @@ export default function PurchaseScreen(p: Props) {
         </div>
 
         {/* ── Painel de resumo ── */}
-        <div className="w-[260px] xl:w-[320px] flex-shrink-0 flex flex-col bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden">
+        <div className="w-[260px] xl:w-[320px] flex-shrink-0 flex flex-col neu rounded-[26px] overflow-hidden">
           <div className="flex-1 overflow-y-auto p-5 space-y-5">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Resumo</p>
@@ -327,9 +327,9 @@ export default function PurchaseScreen(p: Props) {
                     {PURCHASE_PAY_METHODS.map(m => (
                       <button key={m.key} type="button"
                         onClick={() => { p.setPayMethod(m.key); p.setPaid(m.paidByDefault); setPayWarn(false); }}
-                        className={`px-1 py-2 rounded-lg text-xs font-semibold border transition-colors ${p.payMethod === m.key
-                          ? "bg-brand-600 border-brand-600"
-                          : payWarn ? "bg-white border-red-300 text-gray-700 hover:bg-red-50" : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"}`}
+                        className={`px-1 py-2 rounded-xl text-xs font-semibold transition-all ${p.payMethod === m.key
+                          ? "bg-gradient-to-r from-[#7b86f5] to-[#4f5bd5] border-2 border-transparent"
+                          : payWarn ? "neu-sm !border-red-300 text-gray-700" : "neu-sm text-gray-700"}`}
                         style={p.payMethod === m.key ? { color: "#fff" } : undefined}>
                         {m.label}
                       </button>
@@ -340,13 +340,13 @@ export default function PurchaseScreen(p: Props) {
 
                 <div>
                   <label className="block text-xs text-gray-500 mb-1.5">Situação</label>
-                  <div className="grid grid-cols-2 gap-1 p-1 bg-gray-100 rounded-lg">
+                  <div className="grid grid-cols-2 gap-1 p-1.5 neu-in rounded-2xl">
                     <button type="button" onClick={() => p.setPaid(true)}
-                      className={`py-1.5 rounded-md text-xs font-semibold transition-colors ${p.paid ? "bg-white text-emerald-700 shadow-sm" : "text-gray-500 hover:text-gray-800"}`}>
+                      className={`py-1.5 rounded-xl text-xs font-semibold transition-all ${p.paid ? "neu-sm text-emerald-700" : "text-gray-500 hover:text-gray-800"}`}>
                       Já está paga
                     </button>
                     <button type="button" onClick={() => p.setPaid(false)}
-                      className={`py-1.5 rounded-md text-xs font-semibold transition-colors ${!p.paid ? "bg-white text-amber-700 shadow-sm" : "text-gray-500 hover:text-gray-800"}`}>
+                      className={`py-1.5 rounded-xl text-xs font-semibold transition-all ${!p.paid ? "neu-sm text-amber-700" : "text-gray-500 hover:text-gray-800"}`}>
                       A pagar
                     </button>
                   </div>
