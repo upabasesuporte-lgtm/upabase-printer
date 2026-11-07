@@ -124,6 +124,12 @@ const PAYMENT_INFO: Record<PayMethod, { label: string; icon: React.ReactNode; co
   ifood_receivable: { label: "iFood (A Receber)",icon: <ShoppingCart className="w-4 h-4" />,color: "border-red-500 bg-red-500/10 text-red-300" },
 };
 
+// Cor do nome da forma de pagamento na janela de finalizar (só o texto)
+const PAYMENT_TEXT: Record<PayMethod, string> = {
+  cash: "#0e9f5c", credit: "#2563eb", debit: "#4f46e5", pix: "#0d9488",
+  fiado: "#d97706", house_credit: "#db2777", ifood_receivable: "#dc2626",
+};
+
 // Atalho de teclado por método (letra inicial; Débito usa "E" pois "D" já é do Dinheiro)
 const PAYMENT_SHORTCUT: Record<PayMethod, string> = {
   cash: "D", credit: "C", debit: "E", pix: "P", fiado: "F", house_credit: "S", ifood_receivable: "I",
@@ -556,9 +562,10 @@ export default function PdvPage() {
       const typing = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
 
       // Enter no checkout finaliza a venda (funciona mesmo com input focado)
-      if (e.key === "Enter" && showCheckout && payments.length > 0 && !checkoutLoading) {
+      if (e.key === "Enter" && showCheckout && !checkoutLoading) {
         e.preventDefault();
-        confirmSale();
+        if (payments.length > 0) confirmSale();
+        else setCheckoutError("Escolha a forma de pagamento (D, C, E, P…) e aperte Enter para confirmar.");
         return;
       }
 
@@ -566,6 +573,31 @@ export default function PdvPage() {
       if (e.key === "Enter" && showEditSale && !typing && editSalePayments.length > 0) {
         e.preventDefault();
         saveEditPayments();
+        return;
+      }
+
+      // Tela de venda: Enter vai para o pagamento (menos na busca de produto, que usa o Enter
+      // para lançar o item). Com outra janela aberta (cliente, pausadas…) o Enter fica com ela.
+      const modalOpen = !!document.querySelector(".fixed.inset-0.z-50, .fixed.inset-0.z-\\[60\\], .fixed.inset-0.z-\\[70\\], .fixed.inset-0.z-\\[120\\]");
+      const onSaleScreen = tab === "venda" && !showCheckout && !showEditSale && !modalOpen;
+      if (e.key === "Enter" && onSaleScreen && e.target !== searchRef.current && tag !== "TEXTAREA" && tag !== "SELECT"
+          && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+        e.preventDefault();
+        if (cart.length > 0 && cashRegisterId) {
+          // Campo com valor editado (preço, desconto…) grava no blur antes de abrir o pagamento
+          if (typing) (e.target as HTMLElement).blur();
+          setTimeout(() => { setPayments([]); setCheckoutError(null); setShowCheckout(true); }, typing ? 30 : 0);
+        }
+        return;
+      }
+      // Atalhos dos botões do carrinho
+      if (onSaleScreen && ["F3", "F4", "F8", "F9"].includes(e.key)) {
+        e.preventDefault();
+        if (e.key === "F3") { setShowCustomer(true); return; }
+        const which = e.key === "F4" ? "address" : e.key === "F8" ? "notes" : "seller";
+        setExtraOpen(which);
+        const ph = which === "address" ? "Endereço de entrega" : which === "notes" ? "Observações do pedido" : "Vendedor";
+        setTimeout(() => (document.querySelector(`[placeholder^="${ph}"], select`) as HTMLElement | null)?.focus(), 40);
         return;
       }
 
@@ -591,7 +623,7 @@ export default function PdvPage() {
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [cart, showEditSale, editSalePayments, showCheckout, payments, checkoutLoading, selectedCustomer]);
+  }, [cart, showEditSale, editSalePayments, showCheckout, payments, checkoutLoading, selectedCustomer, tab, cashRegisterId]);
 
   // ── Carrinho ──
   function isUnlimited(p: Product) {
@@ -1690,10 +1722,10 @@ export default function PdvPage() {
               {/* Cliente, entrega, obs e vendedor recolhidos em botões (celular e computador) — coloridos quando preenchidos */}
               <div className="grid grid-cols-4 gap-1.5">
                 {([
-                  { key: "customer", label: "Cliente",  icon: User,     filled: !!selectedCustomer },
-                  { key: "address",  label: "Entrega",  icon: MapPin,   filled: !!deliveryAddress.trim() },
-                  { key: "notes",    label: "Obs",      icon: FileText, filled: !!orderNotes.trim() },
-                  { key: "seller",   label: "Vendedor", icon: UserCog,  filled: !!sellerName.trim() },
+                  { key: "customer", label: "Cliente",  icon: User,     filled: !!selectedCustomer, hint: "F3" },
+                  { key: "address",  label: "Entrega",  icon: MapPin,   filled: !!deliveryAddress.trim(), hint: "F4" },
+                  { key: "notes",    label: "Obs",      icon: FileText, filled: !!orderNotes.trim(), hint: "F8" },
+                  { key: "seller",   label: "Vendedor", icon: UserCog,  filled: !!sellerName.trim(), hint: "F9" },
                 ] as const).map(chip => {
                   const ChipIcon = chip.icon;
                   const open = extraOpen === chip.key;
@@ -1710,7 +1742,7 @@ export default function PdvPage() {
                           ? { background: card.bg, border: "2px solid #b197fc", boxShadow: card.shadow, color: "#7950f2" }
                           : { background: card.bg, border: card.border, boxShadow: card.shadow, color: "#9ca3af" }}>
                       <ChipIcon className="w-4 h-4" />
-                      {chip.label}
+                      <span>{chip.label}<span className="hidden md:inline text-[9px] font-bold opacity-60 ml-1">{chip.hint}</span></span>
                     </button>
                   );
                 })}
@@ -1795,7 +1827,7 @@ export default function PdvPage() {
                   style={{ color: "#fff", background: "linear-gradient(135deg,#4ade80,#12b76a)", boxShadow: "0 10px 20px -8px rgba(18,183,106,.65)" }}>
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   Finalizar
-                  <kbd className="hidden md:inline text-[10px] bg-white/10 border border-white/20 px-1 py-0.5 rounded font-bold" style={{ color: "#fff" }}>F1</kbd>
+                  <kbd className="hidden md:inline text-[10px] bg-white/10 border border-white/20 px-1 py-0.5 rounded font-bold" style={{ color: "#fff" }}>Enter</kbd>
                 </button>
                 {!cashRegisterId && !loadingProducts && (
                   <p className="text-[10px] text-amber-400 text-center flex items-center justify-center gap-1 mt-0.5 col-span-3">
@@ -2641,7 +2673,7 @@ export default function PdvPage() {
                       disabled={alreadyAdded || blockedNoCustomer}
                       title={blockedNoCustomer ? "Selecione um cliente primeiro" : undefined}
                       className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${alreadyAdded ? PAYMENT_INFO[method].color : "neu-sm neu-lift text-zinc-500 hover:text-zinc-900"}`}>
-                      {PAYMENT_INFO[method].icon} {PAYMENT_INFO[method].label}
+                      {PAYMENT_INFO[method].icon} <span className="font-bold" style={{ color: PAYMENT_TEXT[method] }}>{PAYMENT_INFO[method].label}</span>
                       <span className="ml-auto text-[10px] opacity-60 border border-current rounded px-1">{PAYMENT_SHORTCUT[method]}</span>
                     </button>
                   );
