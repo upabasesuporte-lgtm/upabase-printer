@@ -597,7 +597,7 @@ export function AppLayout() {
         </nav>
 
         {/* Rodapé minimalista — tema + feedback + suporte + sair */}
-        <div className={`px-3 pt-2 pb-3 space-y-1.5`} style={{ borderTop: `1px solid ${T.border}` }}>
+        <div className={`px-3 pt-2.5 pb-3 space-y-2`} style={{ borderTop: isLight ? "1px solid #fff" : `1px solid ${T.border}` }}>
           <div className={`flex items-center gap-2 md:flex-col md:group-hover:flex-row`}>
             {userEmail !== ADMIN_EMAIL && (
               <button
@@ -611,8 +611,7 @@ export function AppLayout() {
 
             <button onClick={handleLogout}
               title="Sair"
-              className="flex items-center justify-center w-8 h-8 rounded-lg transition-all text-zinc-500 hover:text-red-400 hover:bg-red-500/10 flex-shrink-0"
-              style={{ border: "1px solid transparent" }}>
+              className={`flex items-center justify-center w-8 h-8 rounded-full transition-all text-zinc-500 hover:text-red-400 flex-shrink-0 ${isLight ? "neu-sm" : "hover:bg-red-500/10"}`}>
               <LogOut size={14} />
             </button>
           </div>
@@ -620,8 +619,8 @@ export function AppLayout() {
           {opsOn && ops.current && (
             <button onClick={() => setCurrentOperator(null)}
               title={`Trocar operador — agora: ${ops.current.name}`}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg transition-all font-semibold text-sm whitespace-nowrap overflow-hidden"
-              style={{ background: "rgba(49,93,251,0.10)", border: "1px solid rgba(49,93,251,0.35)", color: "#315DFB" }}>
+              className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-2xl transition-all font-semibold text-sm whitespace-nowrap overflow-hidden ${isLight ? "neu-sm neu-lift text-brand-700" : ""}`}
+              style={isLight ? undefined : { background: "rgba(49,93,251,0.10)", border: "1px solid rgba(49,93,251,0.35)", color: "#315DFB" }}>
               <Repeat size={16} className="flex-shrink-0" />
               <span className={`md:hidden md:group-hover:inline truncate`}>Trocar operador · {ops.current.name}</span>
             </button>
@@ -630,8 +629,8 @@ export function AppLayout() {
           <button
             onClick={() => window.open(supportWhatsAppUrl(`Olá! Preciso de ajuda com o sistema.${companyName ? ` Loja: ${companyName}.` : ""}${userEmail ? ` Conta: ${userEmail}.` : ""} Tela: ${menuItems.find(m => m.path === currentPath)?.label ?? currentPath}.`), "_blank")}
             title="Suporte"
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg transition-all text-green-600 hover:text-green-500 font-medium text-sm whitespace-nowrap overflow-hidden"
-            style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", hover: { background: "rgba(34,197,94,0.12)" } }}>
+            className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-2xl transition-all text-green-600 hover:text-green-500 font-semibold text-sm whitespace-nowrap overflow-hidden ${isLight ? "neu-sm neu-lift" : ""}`}
+            style={isLight ? undefined : { background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)" }}>
             <HelpCircle size={16} className="flex-shrink-0" />
             <span className={`md:hidden md:group-hover:inline`}>Suporte</span>
           </button>

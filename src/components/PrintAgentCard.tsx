@@ -12,7 +12,7 @@ export function PrintAgentCard({ isLight }: { isLight: boolean }) {
     const t = setInterval(check, 15_000);
     return () => clearInterval(t);
   }, []);
-  const box = { background: isLight ? "#f9fafb" : "#09090b", border: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" };
+  const box = { background: isLight ? "#eef1f5" : "#09090b", border: isLight ? "0" : "1px solid #27272a", boxShadow: isLight ? "inset 3px 3px 7px rgba(163,177,198,.45), inset -3px -3px 7px rgba(255,255,255,.95)" : undefined };
   return (
     <div className="space-y-3">
       <p className="text-xs text-zinc-500">
@@ -30,7 +30,7 @@ export function PrintAgentCard({ isLight }: { isLight: boolean }) {
         </p>
       </div>
       <a href={AGENT_DOWNLOAD_URL}
-        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold" style={{ background: "#315DFB", color: "#fff" }}>
+        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold" style={{ background: "linear-gradient(135deg,#7b86f5,#4f5bd5)", color: "#fff", boxShadow: "0 6px 14px -6px rgba(79,91,213,.6)" }}>
         <Download className="w-4 h-4" /> Baixar programa de impressão (Windows)
       </a>
       <ol className="list-decimal ml-5 space-y-1 text-xs text-zinc-500">

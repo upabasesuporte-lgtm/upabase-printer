@@ -63,7 +63,7 @@ export function StoreLocationCard({ value, onChange, inputCls, isLight, onAddres
       {(street || district) && <p className={`text-xs ${muted}`}>{[street, district].filter(Boolean).join(" - ")}</p>}
       <button type="button" onClick={locate} disabled={busy || !value.city}
         className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold disabled:opacity-50"
-        style={{ background: "#315DFB", color: "#fff" }}>
+        style={{ background: "linear-gradient(135deg,#7b86f5,#4f5bd5)", color: "#fff", boxShadow: "0 6px 14px -6px rgba(79,91,213,.6)" }}>
         {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />} Achar minha loja no mapa
       </button>
       {msg && <p className={`text-xs ${muted}`}>{msg}</p>}

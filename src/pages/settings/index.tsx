@@ -86,7 +86,7 @@ export async function refreshStoreCache(userId: string): Promise<void> {
 
 // ── UI helpers ────────────────────────────────────────────────────────────────
 
-const inputCls = "w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all";
+const inputCls = "w-full px-3.5 py-2.5 neu-in border-0 rounded-2xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/20 transition-all";
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
@@ -104,23 +104,24 @@ function SectionCard({ icon, title, color, children }: {
   const { theme } = useTheme();
   const isLight = theme === "light";
   const card = isLight ? {
-    bg: "#ffffff",
-    border: "1px solid #e5e7eb",
-    shadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.9)",
+    bg: "linear-gradient(145deg,#e9edf3,#f7f8fb)",
+    border: "3px solid #fbfcfd",
+    shadow: "11px 11px 24px rgba(140,152,176,.5), -10px -10px 22px rgba(255,255,255,1), inset 3px 3px 7px rgba(140,152,176,.22), inset -3px -3px 7px rgba(255,255,255,.95)",
   } : {
     bg: "#18181b",
     border: "1px solid rgba(39,39,42,0.8)",
     shadow: `0 0 20px ${color}10`,
   };
   return (
-    <div className="rounded-2xl overflow-hidden"
+    <div className="rounded-[26px] overflow-hidden"
       style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
-      <div className="flex items-center gap-3 px-6 py-4 border-b border-zinc-800/60"
-        style={{ background:`${color}08` }}>
-        <div className="p-2 rounded-xl border border-zinc-700" style={{ background:`${color}18` }}>
-          <span style={{ color }}>{icon}</span>
+      <div className="flex items-center gap-3 px-6 py-4"
+        style={{ borderBottom: isLight ? "1px solid #fff" : "1px solid rgba(39,39,42,0.6)", background: isLight ? undefined : `${color}08` }}>
+        <div className="w-10 h-10 rounded-2xl flex items-center justify-center"
+          style={isLight ? { background: "linear-gradient(145deg,#eef0ff,#dfe3ff)", boxShadow: "inset 2px 2px 5px rgba(255,255,255,.85), inset -2px -2px 5px rgba(0,0,0,.06), 3px 3px 8px rgba(163,177,198,.35)" } : { background: `${color}18` }}>
+          <span style={{ color: isLight ? "#4f5bd5" : color }}>{icon}</span>
         </div>
-        <h2 className="text-sm font-bold" style={{ color: isLight ? "#111" : "#fff" }}>{title}</h2>
+        <h2 className="text-base font-black tracking-tight" style={{ color: isLight ? "#1e2235" : "#fff" }}>{title}</h2>
         <div className="ml-auto w-1.5 h-1.5 rounded-full" style={{ background:color, boxShadow:`0 0 6px ${color}` }} />
       </div>
       <div className="p-6 space-y-4">{children}</div>
@@ -322,7 +323,7 @@ export default function SettingsPage() {
             placeholder="Nome do vendedor ou garçom..." className={inputCls+" flex-1"} />
           <button onClick={addSeller} disabled={!newSeller.trim()}
             className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-40 flex-shrink-0"
-            style={{background:"#315DFB",color:"#fff"}}>
+            style={{background: "linear-gradient(135deg,#7b86f5,#4f5bd5)", color: "#fff", boxShadow: "0 6px 14px -6px rgba(79,91,213,.6)"}}>
             <Plus className="w-4 h-4" /> Adicionar
           </button>
         </div>
@@ -333,7 +334,7 @@ export default function SettingsPage() {
         ) : (
           <div className="space-y-1.5">
             {sellers.map(name=>(
-              <div key={name} className="flex items-center justify-between rounded-xl px-4 py-2.5" style={{ background: isLight ? "#f9fafb" : "#09090b", border: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" }}>
+              <div key={name} className="flex items-center justify-between rounded-xl px-4 py-2.5" style={{ background: isLight ? "#eef1f5" : "#09090b", border: isLight ? "0" : "1px solid #27272a", boxShadow: isLight ? "inset 3px 3px 7px rgba(163,177,198,.45), inset -3px -3px 7px rgba(255,255,255,.95)" : undefined }}>
                 <div className="flex items-center gap-2.5">
                   <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0"
                     style={{background:"#EFF3FF",border:"1px solid #C4D2FF",color:"#2547D6"}}>
@@ -368,7 +369,7 @@ export default function SettingsPage() {
 
       {/* Mesas e Caixa */}
       <SectionCard icon={<Settings className="w-4 h-4" />} title="Mesas e Caixa" color="#315DFB">
-        <div className="flex items-center justify-between gap-3 rounded-xl px-4 py-3" style={{ background: isLight ? "#f9fafb" : "#09090b", border: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" }}>
+        <div className="flex items-center justify-between gap-3 rounded-xl px-4 py-3" style={{ background: isLight ? "#eef1f5" : "#09090b", border: isLight ? "0" : "1px solid #27272a", boxShadow: isLight ? "inset 3px 3px 7px rgba(163,177,198,.45), inset -3px -3px 7px rgba(255,255,255,.95)" : undefined }}>
           <div>
             <p className="text-sm font-medium">Taxa de serviço nas mesas</p>
             <p className="text-xs text-zinc-500">Somada ao fechar a conta da mesa; dá para tirar se o cliente não quiser pagar</p>
@@ -389,7 +390,7 @@ export default function SettingsPage() {
             </button>
           </div>
         </div>
-        <div className="flex items-center justify-between gap-3 rounded-xl px-4 py-3" style={{ background: isLight ? "#f9fafb" : "#09090b", border: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" }}>
+        <div className="flex items-center justify-between gap-3 rounded-xl px-4 py-3" style={{ background: isLight ? "#eef1f5" : "#09090b", border: isLight ? "0" : "1px solid #27272a", boxShadow: isLight ? "inset 3px 3px 7px rgba(163,177,198,.45), inset -3px -3px 7px rgba(255,255,255,.95)" : undefined }}>
           <div>
             <p className="text-sm font-medium">Fechamento de caixa cego</p>
             <p className="text-xs text-zinc-500">Quem fecha o caixa digita o que contou sem ver o valor esperado; a diferença aparece só depois</p>
@@ -409,7 +410,7 @@ export default function SettingsPage() {
           <input value={form.footer_message} onChange={e=>set("footer_message",e.target.value)} placeholder="Ex: Obrigado pela preferência!" className={inputCls} />
         </Field>
 
-        <div className="flex items-center justify-between rounded-xl px-4 py-3" style={{ background: isLight ? "#f9fafb" : "#09090b", border: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" }}>
+        <div className="flex items-center justify-between rounded-xl px-4 py-3" style={{ background: isLight ? "#eef1f5" : "#09090b", border: isLight ? "0" : "1px solid #27272a", boxShadow: isLight ? "inset 3px 3px 7px rgba(163,177,198,.45), inset -3px -3px 7px rgba(255,255,255,.95)" : undefined }}>
           <div>
             <p className="text-sm font-medium">Exibir CNPJ no comprovante</p>
             <p className="text-xs text-zinc-500">Quando marcado, o CNPJ aparece abaixo do nome da loja</p>
@@ -439,7 +440,7 @@ export default function SettingsPage() {
       <div className="flex items-center gap-3 pb-4">
         <button onClick={handleSave} disabled={saving}
           className="flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-60"
-          style={{background:"#315DFB",color:"#fff"}}>
+          style={{background: "linear-gradient(135deg,#7b86f5,#4f5bd5)", color: "#fff", boxShadow: "0 6px 14px -6px rgba(79,91,213,.6)"}}>
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           {saving ? "Salvando..." : "Salvar configurações"}
         </button>
@@ -485,7 +486,7 @@ function PermissionPicker({ draft, setDraft, isLight }: { draft: OpDraft; setDra
   });
   const chip = (on: boolean) => on
     ? { background: "rgba(49,93,251,0.12)", border: "1px solid #315DFB", color: isLight ? "#1d3fd1" : "#93a8ff" }
-    : { background: isLight ? "#fff" : "#09090b", border: isLight ? "1px solid #e5e7eb" : "1px solid #27272a", color: isLight ? "#374151" : "#d4d4d8" };
+    : { background: isLight ? "linear-gradient(145deg,#edf0f5,#f9fafc)" : "#09090b", border: isLight ? "2px solid #fcfdfe" : "1px solid #27272a", boxShadow: isLight ? "6px 6px 14px rgba(140,152,176,.42), -6px -6px 14px rgba(255,255,255,1), inset 2px 2px 5px rgba(140,152,176,.18), inset -2px -2px 5px rgba(255,255,255,.95)" : undefined, color: isLight ? "#374151" : "#d4d4d8" };
   return (
     <div className="space-y-2.5">
       <div className="flex flex-wrap items-center gap-1.5">
@@ -550,7 +551,7 @@ function OperatorsSection({ userId, isLight }: { userId: string; isLight: boolea
 
   const owner = ops.find(o => o.role === "owner") ?? null;
   const staff = ops.filter(o => o.role !== "owner");
-  const rowStyle = { background: isLight ? "#f9fafb" : "#09090b", border: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" };
+  const rowStyle = { background: isLight ? "#eef1f5" : "#09090b", border: isLight ? "0" : "1px solid #27272a", boxShadow: isLight ? "inset 3px 3px 7px rgba(163,177,198,.45), inset -3px -3px 7px rgba(255,255,255,.95)" : undefined };
 
   async function refresh() {
     const { data, error } = await supabase.from("operators").select("id,name,role,active,allowed_routes,can_approve,lock_minutes").eq("active", true).order("created_at");
@@ -653,7 +654,7 @@ function OperatorsSection({ userId, isLight }: { userId: string; isLight: boolea
       </div>
       <div className="flex gap-2 pt-1">
         <button onClick={saveDraft} disabled={busy} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold disabled:opacity-40"
-          style={{ background: "#315DFB", color: "#fff" }}>
+          style={{ background: "linear-gradient(135deg,#7b86f5,#4f5bd5)", color: "#fff", boxShadow: "0 6px 14px -6px rgba(79,91,213,.6)" }}>
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Salvar
         </button>
         <button onClick={() => { setDraft(null); setErr(null); }} className="px-3 rounded-xl text-sm text-zinc-500">Cancelar</button>
@@ -682,7 +683,7 @@ function OperatorsSection({ userId, isLight }: { userId: string; isLight: boolea
           </div>
           <button onClick={createOwner} disabled={busy}
             className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold disabled:opacity-40"
-            style={{ background: "#315DFB", color: "#fff" }}>
+            style={{ background: "linear-gradient(135deg,#7b86f5,#4f5bd5)", color: "#fff", boxShadow: "0 6px 14px -6px rgba(79,91,213,.6)" }}>
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />} Ativar PIN do dono
           </button>
         </div>
@@ -730,7 +731,7 @@ function OperatorsSection({ userId, isLight }: { userId: string; isLight: boolea
                 </div>
                 <div className="flex gap-2">
                   <button onClick={saveOwner} disabled={busy} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold disabled:opacity-40"
-                    style={{ background: "#315DFB", color: "#fff" }}><Save className="w-4 h-4" /> Salvar</button>
+                    style={{ background: "linear-gradient(135deg,#7b86f5,#4f5bd5)", color: "#fff", boxShadow: "0 6px 14px -6px rgba(79,91,213,.6)" }}><Save className="w-4 h-4" /> Salvar</button>
                   <button onClick={() => { setOwnerEdit(null); setErr(null); }} className="px-3 rounded-xl text-sm text-zinc-500">Cancelar</button>
                 </div>
               </div>
@@ -773,7 +774,7 @@ function OperatorsSection({ userId, isLight }: { userId: string; isLight: boolea
           {draft?.id === null ? draftForm : (
             <button onClick={() => { setErr(null); setOwnerEdit(null); setDraft(emptyDraft()); }}
               className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold"
-              style={{ background: "#315DFB", color: "#fff" }}>
+              style={{ background: "linear-gradient(135deg,#7b86f5,#4f5bd5)", color: "#fff", boxShadow: "0 6px 14px -6px rgba(79,91,213,.6)" }}>
               <Plus className="w-4 h-4" /> Novo funcionário
             </button>
           )}
@@ -785,7 +786,7 @@ function OperatorsSection({ userId, isLight }: { userId: string; isLight: boolea
       {revealed && (
         <div className="fixed inset-0 z-[220] flex items-center justify-center p-4 bg-black/60">
           <div className="w-full max-w-sm rounded-3xl p-6 text-center shadow-2xl"
-            style={{ background: isLight ? "#fff" : "#18181b", border: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" }}>
+            style={{ background: isLight ? "linear-gradient(145deg,#e9edf3,#f7f8fb)" : "#18181b", border: isLight ? "3px solid #fbfcfd" : "1px solid #27272a" }}>
             <KeyRound className="w-6 h-6 mx-auto mb-2" style={{ color: "#315DFB" }} />
             <p className="text-sm text-zinc-500">Novo PIN de</p>
             <p className="text-lg font-black">{revealed.name}</p>
@@ -923,7 +924,7 @@ function FiscalCard({ userId }: { userId: string }) {
           </Field>
           <div className="flex items-center gap-3">
             <button onClick={save} disabled={state === "saving"}
-              className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-sm font-semibold rounded-xl" style={{ color: "#fff" }}>
+              className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#7b86f5] to-[#4f5bd5] shadow-[0_8px_18px_-8px_rgba(79,91,213,.6)] neu-lift disabled:opacity-50 text-sm font-semibold rounded-full" style={{ color: "#fff" }}>
               {state === "saving" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Salvar dados fiscais
             </button>
             {state === "saved" && <span className="text-sm font-semibold" style={{ color: "#10b981" }}>Salvo!</span>}
@@ -972,7 +973,7 @@ function CrediarioRulesCard({ userId }: { userId: string }) {
       </div>
       <div className="flex items-center gap-3">
         <button onClick={save} disabled={state === "saving"}
-          className="flex items-center gap-2 px-5 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-sm font-semibold rounded-xl" style={{ color: "#fff" }}>
+          className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#7b86f5] to-[#4f5bd5] shadow-[0_8px_18px_-8px_rgba(79,91,213,.6)] neu-lift disabled:opacity-50 text-sm font-semibold rounded-full" style={{ color: "#fff" }}>
           {state === "saving" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Salvar
         </button>
         {state === "saved" && <span className="text-sm font-semibold" style={{ color: "#10b981" }}>Salvo!</span>}

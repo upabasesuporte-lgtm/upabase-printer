@@ -149,7 +149,7 @@ export function DataExport({ isLight }: { isLight: boolean }) {
     setBusy(null);
   }
 
-  const box = { background: isLight ? "#f9fafb" : "#09090b", border: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" };
+  const box = { background: isLight ? "#eef1f5" : "#09090b", border: isLight ? "0" : "1px solid #27272a", boxShadow: isLight ? "inset 3px 3px 7px rgba(163,177,198,.45), inset -3px -3px 7px rgba(255,255,255,.95)" : undefined };
   return (
     <div className="space-y-3">
       <p className="text-xs text-zinc-500">Os dados são seus. Baixe quando quiser, em planilhas que abrem no Excel ou no Google Planilhas.</p>
@@ -168,7 +168,7 @@ export function DataExport({ isLight }: { isLight: boolean }) {
         ))}
       </div>
       <button type="button" onClick={() => run(EXPORTS)} disabled={!!busy}
-        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold disabled:opacity-60" style={{ background: "#315DFB", color: "#fff" }}>
+        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold disabled:opacity-60" style={{ background: "linear-gradient(135deg,#7b86f5,#4f5bd5)", color: "#fff", boxShadow: "0 6px 14px -6px rgba(79,91,213,.6)" }}>
         {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
         {busy ? "Preparando..." : "Baixar tudo"}
       </button>
