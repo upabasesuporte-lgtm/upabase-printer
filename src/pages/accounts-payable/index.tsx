@@ -4,6 +4,7 @@ import { matchesSearch } from "../../lib/search";
 import { useTheme } from "../../contexts/ThemeContext";
 import { useEscapeKey } from "../../hooks/useEscapeKey";
 import { PageHeader, btnPrimary, btnSecondary, WHITE_TEXT } from "../../components/PageHeader";
+import { NeuStatCard, type SkinTone } from "../../components/Neu";
 import {
   Wallet, Mic, MicOff, Plus, X, Search, Send, Sparkles,
   CheckCircle2, AlertCircle, XCircle, Trash2, Edit2,
@@ -239,9 +240,9 @@ export default function AccountsPayablePage() {
   const { theme } = useTheme();
   const isLight = theme === "light";
   const card = isLight ? {
-    bg: "#ffffff",
-    border: "1px solid #e5e7eb",
-    shadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.9)",
+    bg: "linear-gradient(145deg,#edf0f5,#f9fafc)",
+    border: "2px solid #fcfdfe",
+    shadow: "6px 6px 14px rgba(140,152,176,.42), -6px -6px 14px rgba(255,255,255,1), inset 2px 2px 5px rgba(140,152,176,.18), inset -2px -2px 5px rgba(255,255,255,.95)",
   } : {
     bg: "#18181b",
     border: "1px solid rgba(39,39,42,0.8)",
@@ -589,7 +590,7 @@ export default function AccountsPayablePage() {
   const toggleSelect = (id: string) =>
     setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
-  const inp = "w-full px-3 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 transition-all";
+  const inp = "w-full px-3 py-2.5 neu-in border-0 rounded-2xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 transition-all";
   const formFinal = (parseFloat(form.amount)||0) - (parseFloat(form.discount)||0) + (parseFloat(form.interest)||0) + (parseFloat(form.fine)||0);
   const installN  = parseInt(form.installments) || 1;
 
@@ -608,7 +609,7 @@ export default function AccountsPayablePage() {
       </>} />
 
       {/* ── Summary Cards ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 p-1">
         {(() => {
           const totalLabel = periodF === "all" ? "Total Geral"
             : periodF === "today" ? "Total de Hoje"
@@ -617,21 +618,17 @@ export default function AccountsPayablePage() {
             : periodF === "overdue" ? "Total Vencido"
             : "Total do Mês";
           return [
-          { label: totalLabel,       value:fmt(summary.total),      tone:"#2547D6", sub:"todas as contas"      },
-          { label:"A Pagar",         value:fmt(summary.pending),    tone:"#d97706", sub:"em aberto e vencidos" },
-          { label:"Pago no Mês",     value:fmt(summary.paid),       tone:"#059669", sub:"liquidado"            },
-          { label:"Contas Vencidas", value:fmt(summary.overdue),    tone:"#dc2626", sub:"títulos em atraso"    },
+          { label: totalLabel,       value:fmt(summary.total),      skin:"sky" as SkinTone,    icon: Wallet,       sub:"todas as contas"      },
+          { label:"A Pagar",         value:fmt(summary.pending),    skin:"amber" as SkinTone,  icon: Clock,        sub:"em aberto e vencidos" },
+          { label:"Pago no Mês",     value:fmt(summary.paid),       skin:"green" as SkinTone,  icon: CheckCircle2, sub:"liquidado"            },
+          { label:"Contas Vencidas", value:fmt(summary.overdue),    skin:"red" as SkinTone,    icon: AlertCircle,  sub:"títulos em atraso"    },
         ].map(s => (
-          <div key={s.label} className="rounded-2xl p-4 bg-white border border-gray-200 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.04)]">
-            <span className="block text-[11px] font-semibold uppercase tracking-wide text-gray-500">{s.label}</span>
-            <div className="text-2xl font-black tabular-nums tracking-tight mt-1" style={{ color: /[1-9]/.test(s.value) ? s.tone : "#111827" }}>{s.value}</div>
-            <p className="text-xs text-gray-400 mt-0.5">{s.sub}</p>
-          </div>
+          <NeuStatCard key={s.label} tone={s.skin} icon={s.icon} label={s.label} value={s.value} sub={s.sub} />
         ));})()}
       </div>
 
       {/* ── Quick Input Bar ── */}
-      <div className="rounded-2xl p-4 space-y-3" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+      <div className="rounded-[26px] p-4 space-y-3" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
         <div className="flex items-center gap-2">
           <Sparkles className="w-4 h-4" style={{color:"#315DFB"}} />
           <p className="text-sm font-bold">Lançamento Rápido com IA</p>
@@ -640,10 +637,10 @@ export default function AccountsPayablePage() {
 
         <div className="flex gap-2">
           <button onClick={toggleVoice}
-            className={`w-11 h-11 rounded-xl flex-shrink-0 flex items-center justify-center transition-all ${listening ? "animate-pulse" : ""}`}
+            className={`w-11 h-11 rounded-2xl flex-shrink-0 flex items-center justify-center transition-all ${listening ? "animate-pulse" : ""}`}
             style={listening
               ? {background:"rgba(244,63,94,0.2)",border:"1px solid rgba(244,63,94,0.5)",color:"#f43f5e"}
-              : {background:"#EFF3FF",border:"1px solid #C4D2FF",color:"#315DFB"}}>
+              : {background:"linear-gradient(145deg,#eef0ff,#dfe3ff)",color:"#4f5bd5",boxShadow:"inset 2px 2px 5px rgba(255,255,255,.85), inset -2px -2px 5px rgba(0,0,0,.06), 3px 3px 8px rgba(163,177,198,.35)"}}>
             {listening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
           </button>
           <input
@@ -651,11 +648,11 @@ export default function AccountsPayablePage() {
             onChange={e => setQuickText(e.target.value)}
             onKeyDown={e => e.key === "Enter" && submitQuick()}
             placeholder='"mercado 250 reais"  ·  "aluguel 1500 dia 10"  ·  "conta de luz 180"  ·  "folha 8000 dia 5"'
-            className="flex-1 px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 transition-all"
+            className="flex-1 px-4 py-2.5 neu-in border-0 rounded-2xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500 transition-all"
           />
           <button onClick={submitQuick} disabled={!quickText.trim() || quickSaving}
-            className="w-11 h-11 rounded-xl flex-shrink-0 flex items-center justify-center transition-all disabled:opacity-40"
-            style={{background:"#315DFB",color:"#fff"}}>
+            className="w-11 h-11 rounded-full flex-shrink-0 flex items-center justify-center transition-all disabled:opacity-40"
+            style={{background:"linear-gradient(135deg,#7b86f5,#4f5bd5)",color:"#fff",boxShadow:"0 8px 16px -8px rgba(79,91,213,.6)"}}>
             {quickSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </button>
         </div>
@@ -671,7 +668,7 @@ export default function AccountsPayablePage() {
       </div>
 
       {/* ── Tabs ── */}
-      <div className="flex gap-1 rounded-2xl p-1.5" style={{ background: isLight ? "#f3f4f6" : "rgba(24,24,27,0.8)", border: isLight ? "1px solid #e5e7eb" : "1px solid #27272a" }}>
+      <div className="flex gap-1 rounded-2xl p-1.5" style={{ background: isLight ? "#eef1f5" : "rgba(24,24,27,0.8)", border: isLight ? "0" : "1px solid #27272a", boxShadow: isLight ? "inset 3px 3px 7px rgba(163,177,198,.45), inset -3px -3px 7px rgba(255,255,255,.95)" : undefined }}>
         {([
           { key: "bills"   as const, label: "Contas",      icon: <FileText  className="w-3.5 h-3.5" /> },
           { key: "reports" as const, label: "Relatórios",  icon: <BarChart2 className="w-3.5 h-3.5" /> },
@@ -679,7 +676,7 @@ export default function AccountsPayablePage() {
           <button key={t.key} onClick={() => setTab(t.key)}
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex-1 justify-center"
             style={tab === t.key
-              ? {background:"#ffffff",color:"#2547D6",boxShadow:"0 1px 2px rgba(0,0,0,0.08)"}
+              ? {background:"linear-gradient(145deg,#edf0f5,#f9fafc)",color:"#2547D6",border:"2px solid #fcfdfe",boxShadow:"6px 6px 14px rgba(140,152,176,.42), -6px -6px 14px rgba(255,255,255,1), inset 2px 2px 5px rgba(140,152,176,.18), inset -2px -2px 5px rgba(255,255,255,.95)"}
               : {color:"#71717a"}}>
             {t.icon} {t.label}
           </button>
@@ -694,10 +691,10 @@ export default function AccountsPayablePage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
               <input value={search} onChange={e => setSearch(e.target.value)}
                 placeholder="Buscar descrição ou fornecedor..."
-                className="w-full pl-9 pr-3 py-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500" />
+                className="w-full pl-9 pr-3 py-2.5 neu-in border-0 rounded-2xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-brand-500" />
             </div>
             <select value={periodF} onChange={e => setPeriodF(e.target.value)}
-              className="px-3 py-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-sm text-white focus:outline-none focus:border-brand-500 cursor-pointer">
+              className="px-3 py-2.5 neu-in border-0 rounded-2xl text-sm text-white focus:outline-none focus:border-brand-500 cursor-pointer">
               <option value="all">Todos os períodos</option>
               <option value="today">Hoje</option>
               <option value="week">Esta semana</option>
@@ -705,21 +702,21 @@ export default function AccountsPayablePage() {
               <option value="overdue">Vencidos</option>
             </select>
             <select value={statusF} onChange={e => setStatusF(e.target.value)}
-              className="px-3 py-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-sm text-white focus:outline-none focus:border-brand-500 cursor-pointer">
+              className="px-3 py-2.5 neu-in border-0 rounded-2xl text-sm text-white focus:outline-none focus:border-brand-500 cursor-pointer">
               <option value="all">Todos os status</option>
               {(Object.entries(STATUS_CFG) as [BillStatus, typeof STATUS_CFG[BillStatus]][]).map(([k, v]) =>
                 <option key={k} value={k}>{v.label}</option>)}
             </select>
             <select value={categoryF} onChange={e => setCategoryF(e.target.value)}
-              className="px-3 py-2.5 bg-zinc-900 border border-zinc-800 rounded-xl text-sm text-white focus:outline-none focus:border-brand-500 cursor-pointer">
+              className="px-3 py-2.5 neu-in border-0 rounded-2xl text-sm text-white focus:outline-none focus:border-brand-500 cursor-pointer">
               <option value="all">Todas as categorias</option>
               {CATS.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
               {customCats.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
             </select>
             {selected.size > 0 && (
               <button onClick={bulkPay}
-                className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold transition-all"
-                style={{background:"rgba(16,185,129,0.15)",color:"#10b981",border:"1px solid rgba(16,185,129,0.3)"}}>
+                className="neu-lift flex items-center gap-1.5 px-4 py-2.5 rounded-full text-xs font-bold"
+                style={{background:"linear-gradient(135deg,#4ade80,#12b76a)",color:"#fff",boxShadow:"0 8px 16px -8px rgba(18,183,106,.6)"}}>
                 <Check className="w-3.5 h-3.5" /> Baixar {selected.size} selecionado{selected.size > 1 ? "s" : ""}
               </button>
             )}
@@ -762,7 +759,7 @@ export default function AccountsPayablePage() {
 
                 return (
                   <div key={b.id}
-                    className="rounded-2xl p-4 flex gap-3 items-start transition-all"
+                    className="rounded-[22px] p-4 flex gap-3 items-start transition-all"
                     style={{ background: card.bg, border: sel ? "1px solid rgba(245,158,11,0.4)" : card.border, boxShadow: card.shadow }}>
 
                     {/* Checkbox */}
@@ -770,7 +767,7 @@ export default function AccountsPayablePage() {
                       className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5 transition-all"
                       style={sel
                         ? {background:"rgba(245,158,11,0.2)",border:"1px solid rgba(245,158,11,0.5)"}
-                        : isLight ? {background:"#f3f4f6",border:"1px solid #d1d5db"} : {background:"#27272a",border:"1px solid #3f3f46"}}>
+                        : isLight ? {background:"#eef1f5",border:"0",boxShadow:"inset 3px 3px 7px rgba(163,177,198,.45), inset -3px -3px 7px rgba(255,255,255,.95)"} : {background:"#27272a",border:"1px solid #3f3f46"}}>
                       {sel && <Check className="w-3 h-3 text-amber-400" />}
                     </button>
 
@@ -793,11 +790,11 @@ export default function AccountsPayablePage() {
                           {cat.label} <ChevronDown className="w-3 h-3" />
                         </button>
                         {editCatId === b.id && (
-                          <div className="absolute top-full left-0 mt-1 z-20 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl overflow-hidden w-52">
+                          <div className="absolute top-full left-0 mt-1 z-20 bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden w-52">
                               <div className="max-h-56 overflow-y-auto">
                                 {CATS.map(c => (
                                   <button key={c.key} onClick={() => { updateCategory(b.id, c.key); setInlineNewCat(""); }}
-                                    className="w-full text-left px-3 py-2 text-xs hover:bg-zinc-800 transition-colors flex items-center gap-2"
+                                    className="w-full text-left px-3 py-2 text-xs hover:bg-[#eef0ff] transition-colors flex items-center gap-2"
                                     style={{color: c.color}}>
                                     <div className="w-2 h-2 rounded-full" style={{background: c.color}} />
                                     {c.label}
@@ -806,7 +803,7 @@ export default function AccountsPayablePage() {
                                 ))}
                                 {customCats.map(c => (
                                   <button key={c.key} onClick={() => { updateCategory(b.id, c.key); setInlineNewCat(""); }}
-                                    className="w-full text-left px-3 py-2 text-xs hover:bg-zinc-800 transition-colors flex items-center gap-2"
+                                    className="w-full text-left px-3 py-2 text-xs hover:bg-[#eef0ff] transition-colors flex items-center gap-2"
                                     style={{color: c.color}}>
                                     <div className="w-2 h-2 rounded-full" style={{background: c.color}} />
                                     {c.label} ★
@@ -826,7 +823,7 @@ export default function AccountsPayablePage() {
                                     }
                                   }}
                                   placeholder="Nova categoria... (Enter)"
-                                  className="w-full px-2 py-1.5 bg-zinc-950 border border-zinc-700 rounded-lg text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500"
+                                  className="w-full px-2 py-1.5 neu-in border-0 rounded-lg text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-violet-500"
                                 />
                               </div>
                             </div>
@@ -869,7 +866,7 @@ export default function AccountsPayablePage() {
                             </div>
                           )}
                           {b.cost_center && (
-                            <span className="bg-zinc-800 px-1.5 py-0.5 rounded">{b.cost_center}</span>
+                            <span className="neu-in px-2 py-0.5 rounded-full">{b.cost_center}</span>
                           )}
                         </div>
                       )}
@@ -880,30 +877,30 @@ export default function AccountsPayablePage() {
                       {(b.status === "pending" || b.status === "overdue") && (
                         <>
                           <button onClick={() => markPaid(b)} title="Marcar como pago"
-                            className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:bg-zinc-800"
+                            className="w-8 h-8 rounded-full flex items-center justify-center transition-all hover:bg-white/80"
                             style={{color:"#10b981"}}>
                             <CheckCircle2 className="w-4 h-4" />
                           </button>
                           <button onClick={() => { setPayModal(b); setPayAmount(finalAmt(b).toFixed(2)); setPayDate(todayStr()); }}
                             title="Pagamento parcial"
-                            className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:bg-zinc-800"
+                            className="w-8 h-8 rounded-full flex items-center justify-center transition-all hover:bg-white/80"
                             style={{color:"#06b6d4"}}>
                             <DollarSign className="w-4 h-4" />
                           </button>
                         </>
                       )}
                       <button onClick={() => openEdit(b)} title="Editar"
-                        className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:bg-zinc-800 text-zinc-400 hover:text-white">
+                        className="w-8 h-8 rounded-full flex items-center justify-center transition-all hover:bg-white/80 text-zinc-400 hover:text-white">
                         <Edit2 className="w-4 h-4" />
                       </button>
                       {b.status !== "cancelled" && b.status !== "paid" && (
                         <button onClick={() => cancelBill(b)} title="Cancelar"
-                          className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:bg-zinc-800 text-zinc-600 hover:text-amber-400">
+                          className="w-8 h-8 rounded-full flex items-center justify-center transition-all hover:bg-white/80 text-zinc-600 hover:text-amber-400">
                           <XCircle className="w-4 h-4" />
                         </button>
                       )}
                       <button onClick={() => deleteBill(b)} title="Excluir"
-                        className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:bg-zinc-800 text-zinc-600 hover:text-red-400">
+                        className="w-8 h-8 rounded-full flex items-center justify-center transition-all hover:bg-white/80 text-zinc-600 hover:text-red-400">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
@@ -921,15 +918,15 @@ export default function AccountsPayablePage() {
               { v: "month", l: "Este mês" }, { v: "lastmonth", l: "Mês passado" }, { v: "3months", l: "Últimos 3 meses" }, { v: "year", l: "Este ano" },
             ] as const).map(o => (
               <button key={o.v} onClick={() => setReportPeriod(o.v)}
-                className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all"
+                className="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all"
                 style={reportPeriod === o.v
-                  ? { background: "#2547D6", color: "#fff" }
-                  : isLight ? { background: "#f3f4f6", color: "#6b7280" } : { background: "#27272a", color: "#a1a1aa" }}>
+                  ? { background: "linear-gradient(135deg,#7b86f5,#4f5bd5)", color: "#fff", boxShadow: "0 6px 14px -6px rgba(79,91,213,.6)" }
+                  : isLight ? { background: "linear-gradient(145deg,#edf0f5,#f9fafc)", color: "#6b7280", border: "2px solid #fcfdfe", boxShadow: "6px 6px 14px rgba(140,152,176,.42), -6px -6px 14px rgba(255,255,255,1), inset 2px 2px 5px rgba(140,152,176,.18), inset -2px -2px 5px rgba(255,255,255,.95)" } : { background: "#27272a", color: "#a1a1aa" }}>
                 {o.l}
               </button>
             ))}
           </div>
-          <div className="rounded-2xl p-5" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+          <div className="rounded-[26px] p-5" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
             <p className="text-sm font-bold mb-4">Gastos por Categoria — {reportLabel}</p>
             {reportByCat.length === 0 ? (
               <p className="text-zinc-600 text-sm text-center py-10">Sem dados neste período.</p>
@@ -957,7 +954,7 @@ export default function AccountsPayablePage() {
                       <span className="text-xs text-zinc-600 w-5 text-right">{i + 1}</span>
                       <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: c.color }} />
                       <span className="text-xs font-semibold flex-shrink-0 w-32 sm:w-40 truncate">{c.name}</span>
-                      <div className="flex-1 bg-zinc-800 rounded-full h-2 overflow-hidden">
+                      <div className="flex-1 neu-in rounded-full h-3 p-[2px] overflow-hidden">
                         <div className="h-2 rounded-full" style={{ width: `${pct.toFixed(0)}%`, background: c.color }} />
                       </div>
                       <span className="text-[11px] text-zinc-500 flex-shrink-0 w-10 text-right">{pct.toFixed(0)}%</span>
@@ -973,7 +970,7 @@ export default function AccountsPayablePage() {
             </>)}
           </div>
 
-          <div className="rounded-2xl p-5" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
+          <div className="rounded-[26px] p-5" style={{ background: card.bg, border: card.border, boxShadow: card.shadow }}>
             <p className="text-sm font-bold mb-4">Top Fornecedores — {reportLabel}</p>
             {reportBySupplier.length === 0 ? (
               <p className="text-zinc-600 text-sm text-center py-10">Nenhum fornecedor neste período.</p>
@@ -982,7 +979,7 @@ export default function AccountsPayablePage() {
                 {reportBySupplier.map((s, i) => (
                   <div key={i} className="flex items-center gap-3">
                     <span className="text-xs text-zinc-600 w-5 text-right">{i + 1}</span>
-                    <div className="flex-1 bg-zinc-800 rounded-full h-2 overflow-hidden">
+                    <div className="flex-1 neu-in rounded-full h-3 p-[2px] overflow-hidden">
                       <div className="h-2 rounded-full transition-all" style={{
                         width: `${(s.value / reportBySupplier[0].value * 100).toFixed(0)}%`,
                         background: "#315DFB"
@@ -1001,7 +998,7 @@ export default function AccountsPayablePage() {
       {payModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
           onClick={() => setPayModal(null)}>
-          <div className="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl"
+          <div className="w-full max-w-sm neu rounded-[28px]"
             onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-5 border-b border-zinc-800">
               <h3 className="font-bold text-base">Registrar Pagamento</h3>
@@ -1042,7 +1039,7 @@ export default function AccountsPayablePage() {
       {/* ════ FULL FORM MODAL ════ */}
       {showFull && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="w-full max-w-2xl bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl flex flex-col" style={{maxHeight:"92vh"}}>
+          <div className="w-full max-w-2xl neu rounded-[28px] flex flex-col" style={{maxHeight:"92vh"}}>
             <div className="flex items-center justify-between p-5 border-b border-zinc-800 flex-shrink-0">
               <h3 className="font-bold text-base">{editBill ? "Editar Conta" : "Nova Conta — Formulário Completo"}</h3>
               <button onClick={() => setShowFull(false)} className="text-zinc-500 hover:text-white transition-colors">
@@ -1234,7 +1231,7 @@ export default function AccountsPayablePage() {
                         className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
                         style={form.status === s
                           ? {background: sc.bg, color: sc.color, border:`1px solid ${sc.border}`}
-                          : isLight ? {background:"#f9fafb", color:"#6b7280", border:"1px solid #e5e7eb"} : {background:"#27272a", color:"#52525b", border:"1px solid #3f3f46"}}>
+                          : isLight ? {background:"linear-gradient(145deg,#edf0f5,#f9fafc)", color:"#6b7280", border:"2px solid #fcfdfe", boxShadow:"6px 6px 14px rgba(140,152,176,.42), -6px -6px 14px rgba(255,255,255,1), inset 2px 2px 5px rgba(140,152,176,.18), inset -2px -2px 5px rgba(255,255,255,.95)"} : {background:"#27272a", color:"#52525b", border:"1px solid #3f3f46"}}>
                         {sc.label}
                       </button>
                     );
@@ -1260,7 +1257,7 @@ export default function AccountsPayablePage() {
 
             <div className="p-5 border-t border-zinc-800 flex gap-3 flex-shrink-0">
               <button onClick={() => setShowFull(false)}
-                className="flex-1 py-3 rounded-xl text-sm font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition-all">
+                className="neu-sm neu-lift flex-1 py-3 rounded-full text-sm font-semibold text-zinc-700">
                 Cancelar
               </button>
               <button onClick={saveForm}
